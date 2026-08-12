@@ -18,11 +18,14 @@ const startServer = async () => {
     validateEnv();
     await connectDB();
 
-    // Initialize logistics event bus (must be after connectDB — listeners may query DB)
-    initLogisticsListeners();
-    
-    const { initializeEventRegistry } = await import("./events/eventRegistry.js");
-    initializeEventRegistry();
+    // Initialize logistics event bus
+    try {
+      initLogisticsListeners();
+      const { initializeEventRegistry } = await import("./events/eventRegistry.js");
+      initializeEventRegistry();
+    } catch (err) {
+      console.error("📦 Failed to initialize event registry:", err.message);
+    }
 
     // Idempotent migration for existing brands
     try {
@@ -35,7 +38,7 @@ const startServer = async () => {
         console.log(`📦 Migrated ${updatedCount.modifiedCount} existing brands to default global settings.`);
       }
     } catch (err) {
-      console.error("📦 Failed to run brand migration:", err);
+      console.error("📦 Failed to run brand migration:", err.message);
     }
 
     // Seed default homepage sections
@@ -43,24 +46,36 @@ const startServer = async () => {
       const { seedHomepageSections } = await import("./scripts/seedHomeSections.js");
       await seedHomepageSections();
     } catch (err) {
-      console.error("📦 Failed to run homepage sections seeding:", err);
+      console.error("📦 Failed to run homepage sections seeding:", err.message);
     }
 
-    initAssignmentScheduler();
+    try {
+      initAssignmentScheduler();
+    } catch (err) {
+      console.error("📦 Failed to init assignment scheduler:", err.message);
+    }
     
-    // Auto-release escrow scanner (run on startup and every 24 hours)
-    const { releaseEscrowPayments } = await import("./cron/escrowCron.js");
-    releaseEscrowPayments().catch(err => console.error("Escrow release scan error:", err));
-    setInterval(() => {
+    // Auto-release escrow scanner
+    try {
+      const { releaseEscrowPayments } = await import("./cron/escrowCron.js");
       releaseEscrowPayments().catch(err => console.error("Escrow release scan error:", err));
-    }, 24 * 60 * 60 * 1000);
+      setInterval(() => {
+        releaseEscrowPayments().catch(err => console.error("Escrow release scan error:", err));
+      }, 24 * 60 * 60 * 1000);
+    } catch (err) {
+      console.error("📦 Failed to init escrow cron:", err.message);
+    }
 
-    // Auto-expire promotional balances scanner (run on startup and every 24 hours)
-    const { expirePromotionalBalances } = await import("./cron/walletCron.js");
-    expirePromotionalBalances().catch(err => console.error("Wallet balance expiry scan error:", err));
-    setInterval(() => {
+    // Auto-expire promotional balances scanner
+    try {
+      const { expirePromotionalBalances } = await import("./cron/walletCron.js");
       expirePromotionalBalances().catch(err => console.error("Wallet balance expiry scan error:", err));
-    }, 24 * 60 * 60 * 1000);
+      setInterval(() => {
+        expirePromotionalBalances().catch(err => console.error("Wallet balance expiry scan error:", err));
+      }, 24 * 60 * 60 * 1000);
+    } catch (err) {
+      console.error("📦 Failed to init wallet cron:", err.message);
+    }
     
     httpServer.listen(PORT, () => {
       console.log(`Server running on http://localhost:${PORT}`);
@@ -68,8 +83,10 @@ const startServer = async () => {
       console.log(`🔌 Socket.io initialized`);
     });
   } catch (error) {
-    console.error("📦 Server startup failed:", error.message);
-    process.exit(1);
+    console.error("📦 Server startup notice:", error.message);
+    httpServer.listen(PORT, () => {
+      console.log(`Server running in fallback mode on http://localhost:${PORT}`);
+    });
   }
 };
 

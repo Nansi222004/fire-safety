@@ -184,13 +184,12 @@ const DesktopHeader = ({ onSearch }) => {
                 type="button"
                 onClick={isListening ? stopListening : startListening}
                 disabled={!isSupported && !isListening}
-                className={`p-2 rounded-full transition-all shrink-0 ml-1 ${
-                  isListening 
-                  ? 'bg-red-50 text-red-500 animate-pulse' 
+                className={`p-2 rounded-full transition-all shrink-0 ml-1 ${isListening
+                  ? 'bg-red-50 text-red-500 animate-pulse'
                   : !isSupported
                     ? 'text-gray-300 cursor-not-allowed'
                     : 'text-gray-400 hover:text-primary-600 hover:bg-primary-50 cursor-pointer'
-                }`}
+                  }`}
                 title={!isSupported ? "Voice search is not supported in your browser" : "Voice Search"}
               >
                 <FiMic className="text-base lg:text-lg" />
@@ -417,11 +416,10 @@ const DesktopHeader = ({ onSearch }) => {
                 <Link
                   key={idx}
                   to={link.path}
-                  className={`relative flex items-center gap-1.5 text-xs lg:text-sm font-bold tracking-wide transition-colors h-full px-1 border-b-2 hover:text-primary-600 ${
-                    isActive
-                      ? "border-primary-600 text-primary-600"
-                      : "border-transparent text-gray-600"
-                  }`}
+                  className={`relative flex items-center gap-1.5 text-xs lg:text-sm font-bold tracking-wide transition-colors h-full px-1 border-b-2 hover:text-primary-600 ${isActive
+                    ? "border-primary-600 text-primary-600"
+                    : "border-transparent text-gray-600"
+                    }`}
                 >
                   {link.label}
                   {link.badge && (

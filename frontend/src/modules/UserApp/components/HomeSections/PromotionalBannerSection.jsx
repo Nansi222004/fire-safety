@@ -47,9 +47,9 @@ const PromotionalBannerSection = ({
     : "inline-flex items-center justify-center font-black py-3 px-8 rounded-xl bg-white hover:bg-gray-50 text-gray-900 transition-all text-xs md:text-sm active:scale-95 shadow-lg hover:shadow-xl hover:-translate-y-0.5 duration-300";
 
   const content = (
-    <div 
-      style={isImageBanner ? sectionStyle : textCardStyle} 
-      className={isImageBanner 
+    <div
+      style={isImageBanner ? sectionStyle : textCardStyle}
+      className={isImageBanner
         ? "p-4 md:p-6 rounded-3xl border border-gray-100/40 my-6 shadow-sm overflow-hidden relative group"
         : "rounded-3xl my-6 shadow-lg overflow-hidden relative group border border-gray-100/50"
       }
@@ -66,14 +66,14 @@ const PromotionalBannerSection = ({
           </picture>
 
           {/* Opacity overlay */}
-          <div 
+          <div
             className="absolute inset-0 z-5"
             style={{ backgroundColor: `rgba(0, 0, 0, ${overlayOpacity})` }}
           />
-          
+
           {/* Overlay text if provided */}
           {title && (
-            <div 
+            <div
               className="absolute inset-y-0 left-0 pl-6 pr-4 md:pl-12 flex flex-col justify-center text-left w-full z-10 pointer-events-none"
               style={{ color: textColor || '#ffffff' }}
             >
@@ -92,9 +92,9 @@ const PromotionalBannerSection = ({
                       color: #000000 !important;
                     }
                   `}</style>
-                  <span 
+                  <span
                     className="inline-block mt-4 font-black py-2.5 px-5 rounded-xl text-[10px] md:text-xs tracking-wide self-start active:scale-95 shadow transition-all pointer-events-auto custom-banner-btn"
-                    style={{ 
+                    style={{
                       backgroundColor: buttonColor || '#ffffff'
                     }}
                   >
@@ -115,7 +115,7 @@ const PromotionalBannerSection = ({
               <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-blue-400/20 rounded-full blur-3xl pointer-events-none" />
             </>
           )}
-          
+
           <div className={badgeClass}>
             ✨ Featured Campaign
           </div>
@@ -123,7 +123,7 @@ const PromotionalBannerSection = ({
           <h3 className={titleClass}>
             {title}
           </h3>
-          
+
           {subtitle && (
             <p className={subtitleClass}>
               {subtitle}

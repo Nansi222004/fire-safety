@@ -41,7 +41,7 @@ const connectDB = async () => {
     console.log(`✅ Self-healing coordinates migration complete.`);
   } catch (error) {
     console.error(`MongoDB connection error: ${error.message}`);
-    process.exit(1);
+    console.warn(`⚠️ Warning: Server running in fallback mode without DB connection. Check network/IP Whitelist.`);
   }
 };
 

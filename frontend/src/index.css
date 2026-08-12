@@ -271,12 +271,10 @@ body::-webkit-scrollbar {
   }
 
   .shimmer {
-    background: linear-gradient(
-      90deg,
-      rgba(255, 255, 255, 0) 0%,
-      rgba(255, 255, 255, 0.4) 50%,
-      rgba(255, 255, 255, 0) 100%
-    );
+    background: linear-gradient(90deg,
+        rgba(255, 255, 255, 0) 0%,
+        rgba(255, 255, 255, 0.4) 50%,
+        rgba(255, 255, 255, 0) 100%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
   }
@@ -285,6 +283,7 @@ body::-webkit-scrollbar {
     0% {
       background-position: -200% 0;
     }
+
     100% {
       background-position: 200% 0;
     }
@@ -293,6 +292,7 @@ body::-webkit-scrollbar {
 
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
@@ -335,24 +335,27 @@ body::-webkit-scrollbar {
   border-radius: 50%;
   background: #10B981;
   border: 2px solid #fff;
-  box-shadow: 0 1px 4px rgba(16,185,129,0.4);
+  box-shadow: 0 1px 4px rgba(16, 185, 129, 0.4);
   cursor: pointer;
   pointer-events: all;
   position: relative;
 }
+
 .range-thumb::-moz-range-thumb {
   width: 16px;
   height: 16px;
   border-radius: 50%;
   background: #10B981;
   border: 2px solid #fff;
-  box-shadow: 0 1px 4px rgba(16,185,129,0.4);
+  box-shadow: 0 1px 4px rgba(16, 185, 129, 0.4);
   cursor: pointer;
   pointer-events: all;
 }
+
 .range-thumb::-webkit-slider-runnable-track {
   background: transparent;
 }
+
 .range-thumb::-moz-range-track {
   background: transparent;
 }
