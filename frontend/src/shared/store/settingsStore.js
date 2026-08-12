@@ -1,12 +1,12 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import toast from "react-hot-toast";
-import logoImage from "../../../data/logos/porutkal_logo.png";
+import logoImage from "../../../data/logos/safefire_logo.png";
 import api from "../utils/api";
 
 const defaultSettings = {
   general: {
-    storeName: "Porutkal E-commerce",
+    storeName: "Fire Safety Shop E-commerce",
     storeLogo: logoImage,
     favicon: logoImage,
     contactEmail: "contact@example.com",
@@ -120,7 +120,7 @@ const defaultSettings = {
     smtpPort: 587,
     smtpUser: "",
     smtpPassword: "",
-    fromName: "Porutkal",
+    fromName: "Fire Safety Shop",
     fromEmail: "noreply@example.com",
     encryption: "tls", // 'ssl', 'tls', or 'none'
   },
@@ -131,7 +131,7 @@ const defaultSettings = {
     newsletterSubscription: false,
   },
   seo: {
-    metaTitle: "Porutkal E-commerce - Shop Online",
+    metaTitle: "Fire Safety Shop E-commerce - Shop Online",
     metaDescription: "Shop the latest trends and products",
     metaKeywords: "ecommerce, shopping, online store",
     ogImage: logoImage,

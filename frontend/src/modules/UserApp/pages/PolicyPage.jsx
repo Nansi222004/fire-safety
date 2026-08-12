@@ -177,7 +177,7 @@ const PolicyPage = () => {
         {/* Footer Note */}
         <div className="px-8 py-10 mt-10 border-t border-gray-50 text-center bg-gray-50/50">
           <p className="text-xs text-slate-400 font-medium leading-relaxed">
-            For more details or specific inquiries, please reach out to our legal department at legal@Porutkal.com
+            For more details or specific inquiries, please reach out to our legal department at legal@firesafetyshop.com
           </p>
         </div>
       </div>

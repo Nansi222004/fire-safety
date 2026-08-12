@@ -273,8 +273,8 @@ const Wishlist = () => {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: "My Porutkal Wishlist",
-          text: "Check out the products I saved on Porutkal!",
+          title: "My Fire Safety Shop Wishlist",
+          text: "Check out the products I saved on Fire Safety Shop!",
           url: shareUrl
         });
       } catch (err) {

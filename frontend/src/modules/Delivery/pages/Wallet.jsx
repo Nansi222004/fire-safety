@@ -358,9 +358,9 @@ const DeliveryWallet = () => {
                               <div className="p-2 bg-white rounded-2xl border border-slate-100 shadow-sm flex-shrink-0">
                                 <img
                                   src={`https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${encodeURIComponent(
-                                    `upi://pay?pa=${companyPaymentDetails?.upiId || "Porutkal.pay@upi"}&pn=${encodeURIComponent(
+                                    `upi://pay?pa=${companyPaymentDetails?.upiId || "firesafetyshop.pay@upi"}&pn=${encodeURIComponent(
                                       companyPaymentDetails?.accountName ||
-                                        "Porutkal Logistics",
+                                        "Fire Safety Shop Logistics",
                                     )}&am=${walletSummary.codLiability}&cu=INR`,
                                   )}`}
                                   alt="UPI QR Code"
@@ -393,13 +393,13 @@ const DeliveryWallet = () => {
                               <div className="flex items-center gap-2 p-3 bg-slate-50 border border-slate-100 rounded-2xl">
                                 <span className="text-xs font-mono font-bold text-slate-700 flex-1 truncate">
                                   {companyPaymentDetails?.upiId ||
-                                    "Porutkal.pay@upi"}
+                                    "firesafetyshop.pay@upi"}
                                 </span>
                                 <button
                                   onClick={() =>
                                     handleCopy(
                                       companyPaymentDetails?.upiId ||
-                                        "Porutkal.pay@upi",
+                                        "firesafetyshop.pay@upi",
                                       "UPI ID",
                                     )
                                   }
@@ -427,7 +427,7 @@ const DeliveryWallet = () => {
                                     </span>
                                     <span className="font-semibold text-slate-800 truncate block">
                                       {companyPaymentDetails?.accountName ||
-                                        "Porutkal LOGISTICS PVT LTD"}
+                                        "FIRE SAFETY SHOP LOGISTICS PVT LTD"}
                                     </span>
                                   </div>
                                   <div className="flex items-center justify-between min-w-0">

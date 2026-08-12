@@ -46,7 +46,7 @@ import accessoriesCategory from "../../../data/categories/accessories.png";
 import athleticsCategory from "../../../data/categories/Athletics.png";
 
 // Logo images
-import appLogo from "../../../data/logos/porutkal_logo.png";
+import appLogo from "../../../data/logos/safefire_logo.png";
 
 // Hero images
 import heroSlide1 from "../../../data/hero/slide1.png";

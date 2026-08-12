@@ -278,8 +278,8 @@ export const getWalletTransactions = asyncHandler(async (req, res) => {
 export const getCompanyPaymentDetails = asyncHandler(async (req, res) => {
   const settings = await Settings.findOne({ key: "company_payment_details" });
   const defaultDetails = {
-    upiId: "Porutkal.pay@upi",
-    accountName: "Porutkal LOGISTICS PVT LTD",
+    upiId: "firesafetyshop.pay@upi",
+    accountName: "FIRE SAFETY SHOP LOGISTICS PVT LTD",
     accountNumber: "50200081729012",
     bankName: "HDFC Bank",
     ifscCode: "HDFC0000103",

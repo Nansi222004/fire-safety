@@ -1,4 +1,4 @@
-import logoImage from "../../data/logos/porutkal_logo.png";
+import logoImage from "../../data/logos/safefire_logo.png";
 
 export const appLogo = {
   src: logoImage,

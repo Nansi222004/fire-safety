@@ -170,7 +170,7 @@ const MobileSidebar = ({ isOpen, onClose }) => {
             {/* Footer */}
             <div className="p-4 border-t border-gray-100 text-center">
               <p className="text-xs text-gray-400">
-                © 2026 Porutkal. All rights reserved.
+                © 2026 Fire Safety Shop. All rights reserved.
               </p>
             </div>
           </motion.div>

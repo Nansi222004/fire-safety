@@ -190,14 +190,14 @@ const DeliveryLayout = () => {
                     const el = document.createElement("span");
                     el.className =
                       "logo-fallback text-primary-600 font-extrabold text-sm";
-                    el.textContent = "Porutkal";
+                    el.textContent = "Fire Safety Shop";
                     p.appendChild(el);
                   }
                 }}
               />
             ) : (
               <span className="logo-fallback text-primary-600 font-extrabold text-sm">
-                Porutkal
+                Fire Safety Shop
               </span>
             )}
             <div className="flex flex-col">
@@ -310,7 +310,7 @@ const DeliveryLayout = () => {
                   />
                 ) : (
                   <span className="text-primary-600 font-extrabold text-sm">
-                    Porutkal
+                    Fire Safety Shop
                   </span>
                 )}
               </div>

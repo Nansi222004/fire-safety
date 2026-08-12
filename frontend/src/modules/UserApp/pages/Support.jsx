@@ -794,7 +794,7 @@ const Support = () => {
                 </a>
 
                 {/* Gmail */}
-                <a href="mailto:support@Porutkal.com" className="block">
+                <a href="mailto:support@firesafetyshop.com" className="block">
                   <motion.div
                     whileTap={{ scale: 0.98 }}
                     className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 cursor-pointer hover:border-blue-200 transition-colors"
@@ -805,7 +805,7 @@ const Support = () => {
                     <div className="flex-1">
                       <h3 className="font-bold text-gray-800 text-sm">Gmail</h3>
                       <p className="text-gray-500 text-sm">
-                        support@Porutkal.com
+                        support@firesafetyshop.com
                       </p>
                     </div>
                     <FiChevronRight className="text-gray-400" />
@@ -814,7 +814,7 @@ const Support = () => {
 
                 {/* Collaboration Request */}
                 <a
-                  href="mailto:collab@Porutkal.com?subject=Collaboration Request"
+                  href="mailto:collab@firesafetyshop.com?subject=Collaboration Request"
                   className="block"
                 >
                   <motion.div

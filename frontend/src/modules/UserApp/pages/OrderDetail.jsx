@@ -430,7 +430,7 @@ const MobileOrderDetail = () => {
           amount: Math.round((payload.amount || order.total || 0) * 100),
           currency: payload.currency || "INR",
           order_id: payload.razorpayOrderId,
-          name: "Porutkal",
+          name: "Fire Safety Shop",
           description: `Retry Payment — Order #${order.orderId}`,
           prefill: {
             name: order.shippingAddress?.name || "",

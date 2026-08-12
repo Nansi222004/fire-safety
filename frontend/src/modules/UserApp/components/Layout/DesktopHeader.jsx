@@ -155,12 +155,12 @@ const DesktopHeader = ({ onSearch }) => {
                   className="h-10 lg:h-12 w-auto object-contain"
                 />
                 <span className="text-xl lg:text-2xl font-black text-gray-800 tracking-tight">
-                  Porutkal
+                  Fire Safety Shop
                 </span>
               </div>
             ) : (
               <span className="text-2xl font-extrabold text-primary-600">
-                Porutkal
+                Fire Safety Shop
               </span>
             )}
           </Link>

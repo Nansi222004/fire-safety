@@ -6,7 +6,7 @@ const SocialShare = ({ productName, productUrl, productImage }) => {
   const [showShareMenu, setShowShareMenu] = useState(false);
 
   const currentUrl = productUrl || window.location.href;
-  const shareText = `Check out ${productName} on Porutkal E-commerce!`;
+  const shareText = `Check out ${productName} on Fire Safety Shop E-commerce!`;
 
   const shareToFacebook = () => {
     const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(currentUrl)}`;

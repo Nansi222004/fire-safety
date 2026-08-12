@@ -491,7 +491,7 @@ const MobileCheckout = () => {
             amount: Math.round((payload.amount || 0) * 100),
             currency: payload.currency || "INR",
             order_id: payload.razorpayOrderId,
-            name: "Porutkal",
+            name: "Fire Safety Shop",
             description: `Order #${payload.orderId}`,
             prefill: {
               name: normalizedShipping.name,

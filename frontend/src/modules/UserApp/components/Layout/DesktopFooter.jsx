@@ -19,7 +19,7 @@ const DesktopFooter = () => {
         <div className="space-y-6">
           <Link to="/" className="flex items-center gap-2">
             <span className="text-2xl font-black tracking-tight text-white uppercase">
-              {general.storeName || "Porutkal"}
+              {general.storeName || "Fire Safety Shop"}
             </span>
             <span className="w-2 h-2 rounded-full bg-pink-500 mt-1.5" />
           </Link>
@@ -153,7 +153,7 @@ const DesktopFooter = () => {
       {/* Bottom Bar */}
       <div className="max-w-[1440px] mx-auto px-8 lg:px-16 xl:px-20 mt-16 pt-8 border-t border-slate-800 flex flex-col lg:flex-row items-center justify-between gap-6">
         <p className="text-xs text-slate-500 font-semibold text-center lg:text-left">
-          © {new Date().getFullYear()} Porutkal Marketplace. All rights
+          © {new Date().getFullYear()} Fire Safety Shop Marketplace. All rights
           reserved. Developed with ❤️.
         </p>
         <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-xs text-slate-500 font-bold uppercase tracking-wider">
