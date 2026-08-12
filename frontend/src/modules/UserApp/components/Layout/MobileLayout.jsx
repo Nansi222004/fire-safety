@@ -56,7 +56,6 @@ const MobileLayout = ({ children, showBottomNav = true, showCartBar = true, show
 
   const shouldHideFooter = isAuthPage ||
     location.pathname === '/signup' ||
-    location.pathname.startsWith('/reels') ||
     location.pathname === '/explore' ||
     location.pathname === '/profile';
 

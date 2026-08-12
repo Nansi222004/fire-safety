@@ -48,7 +48,6 @@ const AdminHeader = ({ onMenuClick, isCollapsed, onToggleSidebar }) => {
       offers: 'Offers',
       promocodes: 'Promo Codes',
       'banner-library': 'Banner Library',
-      reels: 'Reel Moderation',
       payouts: 'Affiliate Payouts',
       'audit-logs': 'Audit Logs',
       'payout-requests': 'Payout Requests',

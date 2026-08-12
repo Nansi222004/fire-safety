@@ -137,16 +137,10 @@ import PolicyPage from "./modules/UserApp/pages/PolicyPage";
 import SimilarExplore from "./modules/UserApp/pages/SimilarExplore";
 import UserSupport from "./modules/UserApp/pages/Support";
 import ComingSoon from "./modules/UserApp/pages/ComingSoon";
-import ReelsPage from "./modules/Reels/pages/ReelsPage";
-import CreatorProfile from "./modules/Reels/pages/CreatorProfile";
-import CreatorChat from "./modules/Reels/pages/CreatorChat";
-import ContactRequest from "./modules/Reels/pages/ContactRequest";
-import FollowersList from "./modules/Reels/pages/FollowersList";
 import WalletPage from "./modules/Affiliate/pages/WalletPage";
 import ExplorePage from "./modules/Explore/pages/ExplorePage";
 import VendorAffiliateDashboard from "./modules/VendorAffiliate/pages/AffiliateDashboard";
 
-import ReelModeration from "./modules/AdminSocial/pages/ReelModeration";
 import AffiliatePayouts from "./modules/AdminSocial/pages/AffiliatePayouts";
 import AuditLogs from "./modules/AdminSocial/pages/AuditLogs";
 // Delivery Routes
@@ -471,46 +465,7 @@ const AppRoutes = () => {
           </RouteWrapper>
         }
       />
-      <Route
-        path="/reels"
-        element={
-          <RouteWrapper>
-            <ReelsPage />
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/creator/:id"
-        element={
-          <RouteWrapper>
-            <CreatorProfile />
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/chat/:id"
-        element={
-          <RouteWrapper>
-            <CreatorChat />
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/contact-request/:id"
-        element={
-          <RouteWrapper>
-            <ContactRequest />
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/followers/:id"
-        element={
-          <RouteWrapper>
-            <FollowersList />
-          </RouteWrapper>
-        }
-      />
+
       <Route
         path="/wallet"
         element={
@@ -674,7 +629,6 @@ const AppRoutes = () => {
         <Route path="customers/:id" element={<CustomerDetailPage />} />
         
         {/* Social Control Routes */}
-        <Route path="reels" element={<ReelModeration />} />
         <Route path="payouts" element={<AffiliatePayouts />} />
         <Route path="audit-logs" element={<AuditLogs />} />
 

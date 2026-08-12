@@ -12,9 +12,8 @@ const MobileBottomNav = () => {
   const { isAuthenticated } = useAuthStore();
 
   const navItems = [
-    { path: "/reels", icon: Clapperboard, label: "Reels" },
-    { path: "/explore", icon: FiCompass, label: "Explore" },
     { path: "/home", icon: FiHome, label: "Home" },
+    { path: "/explore", icon: FiCompass, label: "Explore" },
     { path: "/categories", icon: FiGrid, label: "Categories" },
     {
       path: isAuthenticated ? "/profile" : "/login",

@@ -17,7 +17,6 @@ import * as notificationController from '../controllers/notification.controller.
 import * as uploadController from '../controllers/upload.controller.js';
 import * as settingsController from '../controllers/settings.controller.js';
 import * as policyController from '../controllers/policy.controller.js';
-import * as reelController from '../controllers/reel.controller.js';
 import * as affiliateController from '../controllers/affiliate.controller.js';
 import * as escrowController from '../controllers/escrow.controller.js';
 import logisticsRoutes from './logistics.routes.js';
@@ -303,10 +302,6 @@ router.put('/settings/:key', ...adminAuth, audit('UPDATE_SETTINGS', 'Settings'),
 // ─── System Policies ──────────────────────────────────────────────────────────
 router.get('/policies/:type', ...adminAuth, policyController.getPolicy);
 router.put('/policies/:type', ...adminAuth, audit('UPDATE_POLICY', 'Policy'), policyController.updatePolicy);
-
-// ─── Reel Moderation ─────────────────────────────────────────────────────────
-router.get('/reels/pending', ...adminAuth, reelController.getPendingReels);
-router.patch('/reels/:id/moderate', ...adminAuth, audit('MODERATE_REEL', 'Reel'), reelController.moderateReel);
 
 // ─── Affiliate Management ───────────────────────────────────────────────────
 router.get('/affiliates/payouts/pending', ...adminAuth, affiliateController.getPendingPayouts);

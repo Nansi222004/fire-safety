@@ -45,7 +45,7 @@ const ExplorePage = () => {
                         {fashionVideos.map((video, index) => (
                             <div 
                                 key={video.id} 
-                                onClick={() => navigate('/reels', { state: { initialIndex: index } })}
+                                onClick={() => navigate('/shop')}
                                 className={`relative group cursor-pointer overflow-hidden bg-white/5 ${
                                     index % 10 === 2 || index % 10 === 5 ? 'row-span-2' : ''
                                 }`}

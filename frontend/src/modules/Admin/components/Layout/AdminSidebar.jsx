@@ -129,7 +129,6 @@ const getChildRoute = (parentRoute, childName) => {
       "Vendor Analytics": "/admin/vendors/vendor-analytics",
     },
     "/admin": {
-      "Moderate Reels": "/admin/reels",
       "Affiliate Payouts": "/admin/payouts",
       "Audit Logs": "/admin/audit-logs",
     },

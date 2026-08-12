@@ -409,7 +409,6 @@ const DesktopHeader = ({ onSearch }) => {
               { path: "/home", label: "Home" },
               { path: "/offers", label: "Offers", badge: "New" },
               { path: "/explore", label: "Explore" },
-              { path: "/reels", label: "Reels" },
               { path: "/shop", label: "Shop" },
               { path: "/new-arrivals", label: "New Arrivals" },
             ].map((link, idx) => {

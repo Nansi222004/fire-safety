@@ -56,7 +56,6 @@
     "title": "Social Control",
     "route": "/admin",
     "children": [
-      "Moderate Reels",
       "Affiliate Payouts",
       "Audit Logs"
     ]

@@ -17,7 +17,7 @@ const MobileProfile = () => {
   const navigate = useNavigate();
   const { user, updateProfile, uploadProfileAvatar, changePassword, logout, isLoading } = useAuthStore();
   const avatarInputRef = useRef(null);
-  const [activeTab, setActiveTab] = useState('grid'); // 'grid', 'reels', 'tags'
+  const [activeTab, setActiveTab] = useState('grid'); // 'grid', 'tags'
   const [editTab, setEditTab] = useState(null); // null, 'personal', 'password'
   const [showMenu, setShowMenu] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
@@ -90,18 +90,7 @@ const MobileProfile = () => {
         ))}
       </div>
     );
-    if (activeTab === 'reels') return (
-      <div className="grid grid-cols-3 gap-0.5">
-        {[1,2,3,4,5,6].map((i) => (
-          <div key={i} className="aspect-[9/16] bg-gray-100 relative overflow-hidden">
-            <div className="absolute bottom-2 left-2 flex items-center gap-1 text-white text-[10px] font-bold z-10">
-              <Clapperboard size={12} /> 12.4K
-            </div>
-            <img src={`https://picsum.photos/seed/reel-${i + 30}/300/533`} alt="reel" className="h-full w-full object-cover" />
-          </div>
-        ))}
-      </div>
-    );
+
     if (activeTab === 'tags') return (
       <div className="flex flex-col items-center justify-center py-20 px-10 text-center">
         <div className="h-20 w-20 rounded-full border-2 border-gray-800 flex items-center justify-center mb-4">
@@ -294,7 +283,6 @@ const MobileProfile = () => {
                 {/* Tabs */}
                 <div className="flex border-t border-gray-200">
                   <button onClick={() => setActiveTab('grid')} className={`flex-1 flex justify-center py-3 ${activeTab === 'grid' ? 'border-b-2 border-[#7C3AED] text-[#7C3AED]' : 'text-gray-400'}`}><Grid size={24} /></button>
-                  <button onClick={() => setActiveTab('reels')} className={`flex-1 flex justify-center py-3 ${activeTab === 'reels' ? 'border-b-2 border-[#7C3AED] text-[#7C3AED]' : 'text-gray-400'}`}><Clapperboard size={24} /></button>
                   <button onClick={() => setActiveTab('tags')} className={`flex-1 flex justify-center py-3 ${activeTab === 'tags' ? 'border-b-2 border-[#7C3AED] text-[#7C3AED]' : 'text-gray-400'}`}><UserSquare size={24} /></button>
                 </div>
 

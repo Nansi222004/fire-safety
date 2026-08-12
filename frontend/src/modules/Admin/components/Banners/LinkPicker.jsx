@@ -20,7 +20,6 @@ const STATIC_PAGES = [
   { label: 'Daily Deals', value: '/daily-deals' },
   { label: 'New Arrivals', value: '/new-arrivals' },
   { label: 'All Offers', value: '/offers' },
-  { label: 'Reels / Video Shopping', value: '/reels' },
   { label: 'Explore / Discover', value: '/explore' },
   { label: 'My Profile', value: '/profile' },
   { label: 'My Orders', value: '/orders' },

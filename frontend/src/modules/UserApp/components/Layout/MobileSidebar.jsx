@@ -24,7 +24,6 @@ const MobileSidebar = ({ isOpen, onClose }) => {
     { label: "Home", icon: FiHome, path: "/home" },
     { label: "Offers", icon: FiTag, path: "/offers" },
     { label: "Explore", icon: FiCompass, path: "/explore" },
-    { label: "Reels", icon: FiPlay, path: "/reels" },
   ];
 
   return (
