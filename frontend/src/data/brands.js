@@ -1,64 +1,28 @@
-import zaraLogo from "../../data/brands/zara.png";
-import forever21Logo from "../../data/brands/forever 21.png";
-import pumaLogo from "../../data/brands/puma.png";
-import levisLogo from "../../data/brands/levi's.png";
-import tommyHilfigerLogo from "../../data/brands/Tommy hilfiger.png";
-import fabindiaLogo from "../../data/brands/fabindia.png";
-import bibaLogo from "../../data/brands/biba.png";
-import manyavarLogo from "../../data/brands/manyavar.png";
-import allenSollyLogo from "../../data/brands/allen solly.png";
-import pantaloonsLogo from "../../data/brands/pantaloons.png";
-
 export const brands = [
   {
     id: 1,
-    name: "Zara",
-    logo: zaraLogo,
+    name: "Demo Safety Equipment",
+    logo: "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=200&q=80",
   },
   {
     id: 2,
-    name: "Forever 21",
-    logo: forever21Logo,
+    name: "Fire Safety Shop Direct",
+    logo: "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=200&q=80",
   },
   {
     id: 3,
-    name: "Puma",
-    logo: pumaLogo,
+    name: "Sample Fire Equipment",
+    logo: "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=200&q=80",
   },
   {
     id: 4,
-    name: "Levi's",
-    logo: levisLogo,
+    name: "Premier Safety Supply",
+    logo: "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=200&q=80",
   },
   {
     id: 5,
-    name: "Tommy Hilfiger",
-    logo: tommyHilfigerLogo,
-  },
-  {
-    id: 6,
-    name: "Fabindia",
-    logo: fabindiaLogo,
-  },
-  {
-    id: 7,
-    name: "Biba",
-    logo: bibaLogo,
-  },
-  {
-    id: 8,
-    name: "Manyavar",
-    logo: manyavarLogo,
-  },
-  {
-    id: 9,
-    name: "Allen Solly",
-    logo: allenSollyLogo,
-  },
-  {
-    id: 10,
-    name: "Pantaloons",
-    logo: pantaloonsLogo,
+    name: "Apex Fire Protection",
+    logo: "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=200&q=80",
   },
 ];
 

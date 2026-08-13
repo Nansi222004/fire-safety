@@ -73,9 +73,9 @@ export const getImageUrl = (image, fallback = "/placeholder.jpg") => {
 export const getPlaceholderImage = (
   width = 200,
   height = 200,
-  text = "Image",
-  bgColor = "#e5e7eb",
-  textColor = "#9ca3af"
+  text = "Fire Safety Equipment",
+  bgColor = "#fef2f2",
+  textColor = "#e31e24"
 ) => {
   const svg = `
     <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">

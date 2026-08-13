@@ -175,7 +175,7 @@ const DesktopHeader = ({ onSearch }) => {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={isListening ? "🎤 Listening... (Tap mic to stop)" : "Search for products, brands and more..."}
+                placeholder={isListening ? "🎤 Listening... (Tap mic to stop)" : "Search fire extinguishers, safety equipment, alarms..."}
                 className="w-full bg-transparent focus:outline-none text-xs lg:text-sm text-gray-700 placeholder:text-gray-400 py-1.5"
               />
 
@@ -406,10 +406,11 @@ const DesktopHeader = ({ onSearch }) => {
           <nav className="flex items-center gap-6 lg:gap-8 h-full">
             {[
               { path: "/home", label: "Home" },
-              { path: "/offers", label: "Offers", badge: "New" },
-              { path: "/explore", label: "Explore" },
-              { path: "/shop", label: "Shop" },
-              { path: "/new-arrivals", label: "New Arrivals" },
+              { path: "/shop", label: "Products" },
+              { path: "/services", label: "Services", badge: "On-Site" },
+              { path: "/safety-center", label: "Safety Center", badge: "Guide" },
+              { path: "/offers", label: "Offers" },
+              { path: "/new-arrivals", label: "New Equipment" },
             ].map((link, idx) => {
               const isActive = window.location.pathname === link.path;
               return (

@@ -1,4 +1,65 @@
+# Root GitIgnore for Safe Fire Multi-Vendor Project
+
+# Environment files (CRITICAL: Never commit .env or secrets)
+.env
+.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+!.env.example
+
+# Dependencies
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+backend/dist/
+frontend/dist/
+.next/
+out/
+
+# Uploads & Temp storage
+uploads/
+backend/uploads/
+backend/uploads/tmp/
+backend/uploads/delivery-docs/
+backend/uploads/products/
+tmp/
+temp/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.swp
+*.swo
+*~
+
+# Temporary scripts & branch artifacts
 branch_structure.json
 temp_auto_push.bat
 temp_interactive_push.bat
 test_file
+scratch/

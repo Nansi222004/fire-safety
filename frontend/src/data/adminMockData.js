@@ -1,6 +1,5 @@
-import blueJeansImg from "../../data/products/blue jeans.png";
-import summerDressImg from "../../data/products/summer dress.png";
-import sneakersImg from "../../data/products/sneakers.png";
+const extRedImg = "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=600&q=80";
+const extBlackImg = "https://images.unsplash.com/photo-1599481238640-4c1288750d7a?auto=format&fit=crop&w=600&q=80";
 
 // Mock analytics data for admin dashboard
 const generateDateRange = (days) => {
@@ -43,28 +42,20 @@ export const mockOrders = [
     total: 890.25,
     items: [
       {
+        id: 1,
+        productId: 1,
+        name: "ABC Dry Powder Fire Extinguisher 6kg",
+        quantity: 1,
+        price: 1699,
+        image: extRedImg,
+      },
+      {
         id: 2,
         productId: 2,
-        name: "Slim Fit Blue Jeans",
+        name: "CO₂ Fire Extinguisher 4.5kg",
         quantity: 1,
-        price: 79.99,
-        image: blueJeansImg,
-      },
-      {
-        id: 3,
-        productId: 3,
-        name: "Floral Summer Dress",
-        quantity: 1,
-        price: 59.99,
-        image: summerDressImg,
-      },
-      {
-        id: 5,
-        productId: 5,
-        name: "Casual Canvas Sneakers",
-        quantity: 1,
-        price: 49.99,
-        image: sneakersImg,
+        price: 3499,
+        image: extBlackImg,
       },
     ],
     paymentMethod: "upi",
@@ -147,38 +138,38 @@ export const mockOrders = [
 export const topProducts = [
   {
     id: 1,
-    name: "Classic White T-Shirt",
+    name: "ABC Dry Powder Fire Extinguisher 6kg",
     sales: 245,
-    revenue: 6122.55,
+    revenue: 416255,
     stock: 45,
   },
   {
     id: 2,
-    name: "Slim Fit Blue Jeans",
+    name: "CO₂ Carbon Dioxide Fire Extinguisher 4.5kg",
     sales: 189,
-    revenue: 15118.11,
+    revenue: 661311,
     stock: 120,
   },
   {
     id: 3,
-    name: "Floral Summer Dress",
+    name: "AFFF Foam Fire Extinguisher 9 Litre",
     sales: 156,
-    revenue: 9358.44,
-    stock: 8,
+    revenue: 358644,
+    stock: 35,
   },
   {
     id: 4,
-    name: "Leather Crossbody Bag",
+    name: "Commercial Fire Blanket 1.8m x 1.8m",
     sales: 142,
-    revenue: 12778.58,
+    revenue: 127658,
     stock: 65,
   },
   {
     id: 5,
-    name: "Casual Canvas Sneakers",
+    name: "Photoelectric Smoke Alarm Sensor",
     sales: 128,
-    revenue: 6398.72,
-    stock: 30,
+    revenue: 102272,
+    stock: 80,
   },
 ];
 
@@ -221,16 +212,16 @@ export const mockReturnRequests = [
     items: [
       {
         id: 1,
-        name: "Classic White T-Shirt",
+        name: "ABC Dry Powder Fire Extinguisher 6kg",
         quantity: 1,
-        price: 500,
+        price: 1699,
         reason: "Defective",
-        image: "/api/placeholder/100/100",
+        image: extRedImg,
       },
     ],
-    reason: "Product Defective",
-    description: "Product arrived damaged with holes in the fabric",
-    refundAmount: 500,
+    reason: "Gauge Pressure Low",
+    description: "Pressure gauge arrived showing below recommended green line",
+    refundAmount: 1699,
     status: "pending",
     refundStatus: "pending",
     createdAt: "2024-01-20T10:30:00",
@@ -248,16 +239,16 @@ export const mockReturnRequests = [
     items: [
       {
         id: 2,
-        name: "Slim Fit Blue Jeans",
+        name: "CO₂ Carbon Dioxide Fire Extinguisher 4.5kg",
         quantity: 1,
-        price: 890,
-        reason: "Wrong Size",
-        image: "/api/placeholder/100/100",
+        price: 3499,
+        reason: "Damaged Seal",
+        image: extBlackImg,
       },
     ],
-    reason: "Wrong Size",
-    description: "Ordered size M but received size L",
-    refundAmount: 890,
+    reason: "Damaged Safety Pin Seal",
+    description: "Safety seal was broken during transit",
+    refundAmount: 3499,
     status: "approved",
     refundStatus: "processed",
     createdAt: "2024-01-18T14:22:00",
@@ -311,15 +302,15 @@ export const mockReturnRequests = [
     items: [
       {
         id: 5,
-        name: "Casual Canvas Sneakers",
+        name: "Commercial Fire Blanket 1.8m x 1.8m",
         quantity: 1,
-        price: 320,
-        reason: "Defective",
-        image: "/api/placeholder/100/100",
+        price: 899,
+        reason: "Defective Pouch",
+        image: extRedImg,
       },
     ],
-    reason: "Product Defective",
-    description: "Sole came off after first wear",
+    reason: "Damaged Pouch Pouch",
+    description: "Wall mounting pouch tear upon arrival",
     refundAmount: 320,
     status: "rejected",
     refundStatus: "pending",

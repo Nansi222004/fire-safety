@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import mongoose from 'mongoose';
 import asyncHandler from '../utils/asyncHandler.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import ApiError from '../utils/ApiError.js';
@@ -244,7 +245,27 @@ const listProducts = asyncHandler(async (req, res) => {
     const filter = { isActive: true };
 
     if (category) {
+        const rawTokens = Array.isArray(category) ? category.map(String) : String(category).split(',');
+        const resolvedIds = [];
+        for (const token of rawTokens) {
+            const trimmed = token.trim();
+            if (!trimmed) continue;
+            let matchedCat = null;
+            if (mongoose.Types.ObjectId.isValid(trimmed)) {
+                matchedCat = await Category.findById(trimmed).select('_id').lean();
+            }
+            if (!matchedCat) {
+                matchedCat = await Category.findOne({ slug: trimmed }).select('_id').lean();
+            }
+            if (matchedCat) {
+                resolvedIds.push(String(matchedCat._id));
+            } else if (mongoose.Types.ObjectId.isValid(trimmed)) {
+                resolvedIds.push(trimmed);
+            }
+        }
+
         const fetchAllChildCategoryIds = async (id) => {
+            if (!mongoose.Types.ObjectId.isValid(id)) return [];
             const subs = await Category.find({ parentId: id, isActive: true }).select('_id').lean();
             let ids = subs.map(s => String(s._id));
             for (const subId of ids) {
@@ -253,9 +274,16 @@ const listProducts = asyncHandler(async (req, res) => {
             }
             return ids;
         };
-        const categoryId = String(category);
-        const categoryIds = [categoryId, ...(await fetchAllChildCategoryIds(categoryId))];
-        filter.categoryId = { $in: categoryIds };
+
+        let allCategoryIds = [...resolvedIds];
+        for (const catId of resolvedIds) {
+            const children = await fetchAllChildCategoryIds(catId);
+            allCategoryIds = [...allCategoryIds, ...children];
+        }
+
+        if (allCategoryIds.length > 0) {
+            filter.categoryId = { $in: allCategoryIds };
+        }
     }
 
     if (brand) filter.brandId = brand;
@@ -454,9 +482,27 @@ const getShopProducts = asyncHandler(async (req, res) => {
 
     // Categories (Including Child Categories)
     if (category) {
-        const categoryIds = Array.isArray(category) ? category.map(String) : String(category).split(',');
-        
+        const rawTokens = Array.isArray(category) ? category.map(String) : String(category).split(',');
+        const resolvedIds = [];
+        for (const token of rawTokens) {
+            const trimmed = token.trim();
+            if (!trimmed) continue;
+            let matchedCat = null;
+            if (mongoose.Types.ObjectId.isValid(trimmed)) {
+                matchedCat = await Category.findById(trimmed).select('_id').lean();
+            }
+            if (!matchedCat) {
+                matchedCat = await Category.findOne({ slug: trimmed }).select('_id').lean();
+            }
+            if (matchedCat) {
+                resolvedIds.push(String(matchedCat._id));
+            } else if (mongoose.Types.ObjectId.isValid(trimmed)) {
+                resolvedIds.push(trimmed);
+            }
+        }
+
         const fetchAllChildCategoryIds = async (id) => {
+            if (!mongoose.Types.ObjectId.isValid(id)) return [];
             const subs = await Category.find({ parentId: id, isActive: true }).select('_id').lean();
             let ids = subs.map(s => String(s._id));
             for (const subId of ids) {
@@ -466,13 +512,15 @@ const getShopProducts = asyncHandler(async (req, res) => {
             return ids;
         };
 
-        let expandedIds = [...categoryIds];
-        for (const catId of categoryIds) {
+        let expandedIds = [...resolvedIds];
+        for (const catId of resolvedIds) {
             const children = await fetchAllChildCategoryIds(catId);
             expandedIds = [...expandedIds, ...children];
         }
 
-        filter.categoryId = { $in: expandedIds };
+        if (expandedIds.length > 0) {
+            filter.categoryId = { $in: expandedIds };
+        }
     }
 
     // Brand Filter
@@ -1220,7 +1268,7 @@ router.get('/settings/general', listCache, asyncHandler(async (req, res) => {
     
     // Filter out private administrative fields to protect platform configuration data
     const publicSettings = {
-        storeName: value.storeName || "Porutkal E-commerce",
+        storeName: value.storeName || "Fire Safety Shop",
         storeDescription: value.storeDescription || "",
         contactEmail: value.contactEmail || "contact@example.com",
         contactPhone: value.contactPhone || "",
@@ -1278,21 +1326,26 @@ router.get('/policies/:policyKey', asyncHandler(async (req, res) => {
         'faq': 'faq'
     };
 
-    const docKey = policyKeyMap[policyKey];
+    const docKey = policyKeyMap[policyKey] || 'privacy';
     let policy = null;
     
-    if (docKey && doc) {
+    if (doc && doc[docKey]) {
         policy = doc[docKey];
     }
 
     if (!policy) {
-        return res.status(404).json(new ApiResponse(404, null, 'Policy not found.'));
+        policy = {
+            title: 'SafeFire Fire Safety Policies & Compliance',
+            content: '<h2>SafeFire Compliance</h2><p>All fire safety equipment, refilling services, and maintenance operations comply with statutory fire safety standards.</p>',
+            items: [],
+            lastUpdated: new Date()
+        };
     }
 
     res.status(200).json(new ApiResponse(200, {
         title: policy.title,
         content: policy.content,
-        items: policy.items,
+        items: policy.items || [],
         lastUpdated: policy.lastUpdated
     }, 'Public policy fetched.'));
 }));

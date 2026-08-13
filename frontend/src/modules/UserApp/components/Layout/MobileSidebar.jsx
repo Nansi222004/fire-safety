@@ -4,7 +4,7 @@ import {
   FiGrid,
   FiTag,
   FiHome,
-  FiCompass,
+  FiTool,
   FiPlay,
   FiUser,
   FiHeart,
@@ -22,8 +22,9 @@ const MobileSidebar = ({ isOpen, onClose }) => {
 
   const menuItems = [
     { label: "Home", icon: FiHome, path: "/home" },
+    { label: "Categories", icon: FiGrid, path: "/categories" },
+    { label: "Services", icon: FiTool, path: "/services" },
     { label: "Offers", icon: FiTag, path: "/offers" },
-    { label: "Explore", icon: FiCompass, path: "/explore" },
   ];
 
   return (

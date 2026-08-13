@@ -3,6 +3,7 @@ import app from "./app.js";
 import connectDB from "./config/db.js";
 import { validateEnv } from "./config/env.js";
 import { createServer } from "http";
+import mongoose from "mongoose";
 import { initSocket } from "./services/socket.service.js";
 import { initAssignmentScheduler } from "./services/assignmentService.js";
 import { initLogisticsListeners } from "./events/index.js";
@@ -27,26 +28,28 @@ const startServer = async () => {
       console.error("📦 Failed to initialize event registry:", err.message);
     }
 
-    // Idempotent migration for existing brands
-    try {
-      const Brand = (await import("./models/Brand.model.js")).default;
-      const updatedCount = await Brand.updateMany(
-        { visibility: { $exists: false } },
-        { $set: { visibility: "global", createdBy: "admin" } }
-      );
-      if (updatedCount.modifiedCount > 0) {
-        console.log(`📦 Migrated ${updatedCount.modifiedCount} existing brands to default global settings.`);
+    if (mongoose.connection.readyState === 1) {
+      // Idempotent migration for existing brands
+      try {
+        const Brand = (await import("./models/Brand.model.js")).default;
+        const updatedCount = await Brand.updateMany(
+          { visibility: { $exists: false } },
+          { $set: { visibility: "global", createdBy: "admin" } }
+        );
+        if (updatedCount.modifiedCount > 0) {
+          console.log(`📦 Migrated ${updatedCount.modifiedCount} existing brands to default global settings.`);
+        }
+      } catch (err) {
+        console.error("📦 Failed to run brand migration:", err.message);
       }
-    } catch (err) {
-      console.error("📦 Failed to run brand migration:", err.message);
-    }
 
-    // Seed default homepage sections
-    try {
-      const { seedHomepageSections } = await import("./scripts/seedHomeSections.js");
-      await seedHomepageSections();
-    } catch (err) {
-      console.error("📦 Failed to run homepage sections seeding:", err.message);
+      // Seed default homepage sections
+      try {
+        const { seedHomepageSections } = await import("./scripts/seedHomeSections.js");
+        await seedHomepageSections();
+      } catch (err) {
+        console.error("📦 Failed to run homepage sections seeding:", err.message);
+      }
     }
 
     try {
@@ -54,7 +57,7 @@ const startServer = async () => {
     } catch (err) {
       console.error("📦 Failed to init assignment scheduler:", err.message);
     }
-    
+
     // Auto-release escrow scanner
     try {
       const { releaseEscrowPayments } = await import("./cron/escrowCron.js");
@@ -76,7 +79,7 @@ const startServer = async () => {
     } catch (err) {
       console.error("📦 Failed to init wallet cron:", err.message);
     }
-    
+
     httpServer.listen(PORT, () => {
       console.log(`Server running on http://localhost:${PORT}`);
       console.log(`🚀 Environment: ${process.env.NODE_ENV || "development"}`);

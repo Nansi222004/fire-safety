@@ -21,10 +21,10 @@ const DesktopFooter = () => {
             <span className="text-2xl font-black tracking-tight text-white uppercase">
               {general.storeName || "Fire Safety Shop"}
             </span>
-            <span className="w-2 h-2 rounded-full bg-pink-500 mt-1.5" />
+            <span className="w-2 h-2 rounded-full bg-red-600 mt-1.5" />
           </Link>
           <p className="text-sm text-slate-400 font-medium leading-relaxed">
-            {general.storeDescription || "Your premium marketplace for multi-vendor apparel, beauty, electronics, and fashion accessories."}
+            {general.storeDescription || "Safety Today, Secure Tomorrow — Your trusted online store for fire protection and safety products."}
           </p>
           {(general.contactEmail || general.contactPhone || general.address) && (
             <div className="text-xs space-y-1.5 text-slate-400 font-medium pt-1">
@@ -61,14 +61,15 @@ const DesktopFooter = () => {
         {/* Categories Column */}
         <div className="space-y-6">
           <h4 className="text-sm font-bold uppercase text-white tracking-widest">
-            Shop Categories
+            Fire Protection Categories
           </h4>
           <ul className="space-y-3 text-sm font-medium">
             {[
-              { name: "Men's Apparel", path: "/categories" },
-              { name: "Women's Fashion", path: "/categories" },
-              { name: "Beauty & Grooming", path: "/categories" },
-              { name: "Gadgets & Gear", path: "/categories" },
+              { name: "ABC Extinguishers", path: "/categories" },
+              { name: "CO₂ Extinguishers", path: "/categories" },
+              { name: "Foam Extinguishers", path: "/categories" },
+              { name: "Fire Blankets & Equipment", path: "/categories" },
+              { name: "Safety Accessories", path: "/categories" },
             ].map((link, idx) => (
               <li key={idx}>
                 <Link

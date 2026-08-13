@@ -90,7 +90,7 @@ const MobileLogin = () => {
               {/* Header */}
               <div className="text-center mb-8">
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">Welcome Back</h1>
-                <p className="text-sm text-gray-600">Login to access your account</p>
+                <p className="text-xs text-gray-500 font-medium">Sign in to manage your fire safety products and services.</p>
               </div>
 
               {/* Login Form */}

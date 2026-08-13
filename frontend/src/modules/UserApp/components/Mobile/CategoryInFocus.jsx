@@ -13,37 +13,37 @@ const getButtonStyleClasses = (style = "primary", isDarkBg = false) => {
         return `${base} bg-transparent text-white border-2 border-white/80 hover:bg-white/10 hover:scale-[1.02]`;
       case "primary":
       default:
-        return `${base} bg-gradient-to-r from-primary-500 to-primary-600 text-white hover:from-primary-600 hover:to-primary-700 hover:scale-[1.02] shadow-[0_4px_15px_rgba(124,58,237,0.35)]`;
+        return `${base} bg-gradient-to-r from-red-600 to-red-700 text-white hover:from-red-700 hover:to-red-800 hover:scale-[1.02] shadow-[0_4px_15px_rgba(227,30,36,0.35)]`;
     }
   } else {
     switch (style) {
       case "secondary":
         return `${base} bg-slate-100 hover:bg-slate-200 text-slate-800 hover:scale-[1.02]`;
       case "outline":
-        return `${base} bg-transparent border-2 border-primary-600 text-primary-600 hover:bg-primary-50 hover:scale-[1.02]`;
+        return `${base} bg-transparent border-2 border-red-600 text-red-600 hover:bg-red-50 hover:scale-[1.02]`;
       case "primary":
       default:
-        return `${base} bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white hover:scale-[1.02] shadow-[0_4px_15px_rgba(109,40,217,0.35)]`;
+        return `${base} bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white hover:scale-[1.02] shadow-[0_4px_15px_rgba(227,30,36,0.35)]`;
     }
   }
 };
 
 const CategoryInFocus = ({ banner, items }) => {
   const defaultItems = [
-    { name: 'Conditioner', image: 'https://images.pexels.com/photos/4465124/pexels-photo-4465124.jpeg?auto=compress&cs=tinysrgb&w=200' },
-    { name: 'Foundation', image: 'https://images.pexels.com/photos/3373736/pexels-photo-3373736.jpeg?auto=compress&cs=tinysrgb&w=200' },
-    { name: 'Blush', image: 'https://images.pexels.com/photos/2533266/pexels-photo-2533266.jpeg?auto=compress&cs=tinysrgb&w=200' },
-    { name: 'Lipsticks', image: 'https://images.unsplash.com/photo-1586495777744-4413f21062fa?auto=format&fit=crop&w=200&q=80' },
-    { name: 'Mascara', image: 'https://images.pexels.com/photos/3373746/pexels-photo-3373746.jpeg?auto=compress&cs=tinysrgb&w=200' },
+    { name: 'ABC Extinguishers', image: 'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=300&q=80' },
+    { name: 'CO₂ Extinguishers', image: 'https://images.unsplash.com/photo-1599481238640-4c1288750d7a?auto=format&fit=crop&w=300&q=80' },
+    { name: 'Fire Blankets', image: 'https://images.unsplash.com/photo-1544027993-37dbfe43562a?auto=format&fit=crop&w=300&q=80' },
+    { name: 'Smoke Alarms', image: 'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=300&q=80' },
+    { name: 'Hose Reels', image: 'https://images.unsplash.com/photo-1599481238640-4c1288750d7a?auto=format&fit=crop&w=300&q=80' },
   ];
 
   const focusItems = items && items.length > 0 ? items : defaultItems;
   const displayBanner = banner || {
-    title: "BEST OF GLOBAL BEAUTY",
-    subtitle: "Up To 30% Off",
-    description: "Complimentary Gifts On Select Brands",
-    image: "https://images.pexels.com/photos/3738339/pexels-photo-3738339.jpeg?auto=compress&cs=tinysrgb&w=1200",
-    link: "/search?q=beauty"
+    title: "FIRE SAFETY EQUIPMENT SPOTLIGHT",
+    subtitle: "Up To 25% Off Bulk Orders",
+    description: "Certified fire extinguishers, smoke alarms & safety gear for workplace & home.",
+    image: "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=1200&q=80",
+    link: "/shop"
   };
 
   const handleBannerClick = (e) => {
@@ -85,7 +85,7 @@ const CategoryInFocus = ({ banner, items }) => {
                   {displayBanner.title}
                 </h3>
                 {displayBanner.subtitle && (
-                  <div className="bg-primary-500/20 text-primary-300 border border-primary-500/30 backdrop-blur-md rounded-full px-3 py-1 w-fit mb-2 shadow-sm">
+                  <div className="bg-red-500/20 text-red-300 border border-red-500/30 backdrop-blur-md rounded-full px-3 py-1 w-fit mb-2 shadow-sm">
                     <p className="text-white text-sm sm:text-base font-extrabold">{displayBanner.subtitle}</p>
                   </div>
                 )}
@@ -100,14 +100,6 @@ const CategoryInFocus = ({ banner, items }) => {
                   </span>
                 )}
               </div>
-              {/* Mock Global Store Logo (only shown on fallback) */}
-              {!banner && (
-                <div className="absolute top-4 right-4 text-right">
-                  <p className="text-white text-[8px] font-bold tracking-widest opacity-80">NYKAA</p>
-                  <p className="text-white text-xs font-black tracking-tighter">GLOBAL</p>
-                  <p className="text-white text-[8px] font-bold opacity-80">STORE</p>
-                </div>
-              )}
             </div>
           </motion.div>
         </Link>

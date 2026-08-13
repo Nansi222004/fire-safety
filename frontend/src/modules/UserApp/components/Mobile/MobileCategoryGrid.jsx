@@ -36,13 +36,13 @@ const MobileCategoryGrid = () => {
   // Color tints for circular category backgrounds
   const tints = [
     'bg-slate-50', // Slate/Gray
-    'bg-purple-50/80', // Purple
+    'bg-red-50/80', // Red
     'bg-emerald-50/80', // Green
     'bg-sky-50/80', // Blue
     'bg-amber-50/80', // Amber/Yellow
     'bg-rose-50/80', // Rose/Red
     'bg-teal-50/80', // Teal
-    'bg-indigo-50/80', // Indigo
+    'bg-slate-100/80', // Slate
   ];
 
   return (

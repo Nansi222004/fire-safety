@@ -127,9 +127,10 @@ body::-webkit-scrollbar {
 }
 
 /* Admin panel specific scrollbar - slightly thicker for better visibility */
+/* Admin panel specific scrollbar */
 .scrollbar-admin {
   scrollbar-width: thin;
-  scrollbar-color: rgba(124, 58, 237, 0.4) transparent;
+  scrollbar-color: rgba(227, 30, 36, 0.4) transparent;
 }
 
 .scrollbar-admin::-webkit-scrollbar {
@@ -144,20 +145,20 @@ body::-webkit-scrollbar {
 }
 
 .scrollbar-admin::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(124, 58, 237, 0.5) 0%, rgba(167, 139, 250, 0.5) 100%);
+  background: linear-gradient(180deg, rgba(227, 30, 36, 0.6) 0%, rgba(249, 128, 128, 0.6) 100%);
   border-radius: 10px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .scrollbar-admin::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, rgba(124, 58, 237, 0.7) 0%, rgba(167, 139, 250, 0.7) 100%);
+  background: linear-gradient(180deg, rgba(227, 30, 36, 0.8) 0%, rgba(200, 25, 31, 0.8) 100%);
   width: 7px;
-  box-shadow: 0 0 8px rgba(124, 58, 237, 0.3);
+  box-shadow: 0 0 8px rgba(227, 30, 36, 0.3);
 }
 
 .scrollbar-admin::-webkit-scrollbar-thumb:active {
-  background: linear-gradient(180deg, rgba(124, 58, 237, 0.9) 0%, rgba(167, 139, 250, 0.9) 100%);
+  background: linear-gradient(180deg, rgba(160, 20, 25, 0.9) 0%, rgba(126, 16, 20, 0.9) 100%);
 }
 
 /* Horizontal admin scrollbar */
@@ -206,34 +207,34 @@ body::-webkit-scrollbar {
   }
 
   .gradient-primary {
-    background: linear-gradient(135deg, #7C3AED 0%, #A78BFA 100%);
+    background: linear-gradient(135deg, #E31E24 0%, #C8191F 100%);
   }
 
   .gradient-secondary {
-    background: linear-gradient(135deg, #F97316 0%, #FB923C 100%);
+    background: linear-gradient(135deg, #1F1F1F 0%, #334155 100%);
   }
 
   .gradient-accent {
-    background: linear-gradient(135deg, #10B981 0%, #34D399 100%);
+    background: linear-gradient(135deg, #FF6A00 0%, #FB923C 100%);
   }
 
   .gradient-green {
-    background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+    background: linear-gradient(135deg, #3FAE5A 0%, #2E8B45 100%);
   }
 
   .gradient-red {
-    background: linear-gradient(135deg, #EF4444 0%, #F97316 100%);
+    background: linear-gradient(135deg, #E31E24 0%, #FF6A00 100%);
   }
 
   .text-gradient {
-    background: linear-gradient(135deg, #7C3AED 0%, #A78BFA 100%);
+    background: linear-gradient(135deg, #E31E24 0%, #FF6A00 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
   .shadow-glow {
-    box-shadow: 0 0 20px rgba(124, 58, 237, 0.3);
+    box-shadow: 0 0 20px rgba(227, 30, 36, 0.3);
   }
 
   .shadow-glow-green {

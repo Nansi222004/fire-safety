@@ -1150,7 +1150,7 @@ export const replyToInquiry = asyncHandler(async (req, res) => {
         <p style="font-size: 14px; font-weight: 850; color: #7c3aed; margin: 4px 0 0 0;">${storeName}</p>
       </div>
       <div style="background-color: #f8fafc; padding: 16px; text-align: center; border-top: 1px solid #e2e8f0;">
-        <p style="font-size: 11px; color: #94a3b8; margin: 0 0 4px 0;">This message was sent from ${storeName} through Porutkal Marketplace.</p>
+        <p style="font-size: 11px; color: #94a3b8; margin: 0 0 4px 0;">This message was sent from ${storeName} through Fire Safety Shop.</p>
         <p style="font-size: 11px; color: #94a3b8; margin: 0; font-weight: 600;">Please do not reply directly to this email.</p>
       </div>
     </div>

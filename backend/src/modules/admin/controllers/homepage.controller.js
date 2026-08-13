@@ -284,17 +284,6 @@ export const getHomepage = asyncHandler(async (req, res) => {
     // Push CMS resolved sections
     sections.push(...resolvedCmsSections);
 
-    // Add Best Sellers
-    sections.push({
-        type: 'best_sellers',
-        order: 10,
-        layout: 'horizontal',
-        minimumProducts: 4,
-        title: 'Best Sellers',
-        subtitle: 'Our most popular products based on sales',
-        data: bestSellers,
-    });
-
     // Add Top Rated
     sections.push({
         type: 'top_rated',

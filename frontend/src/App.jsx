@@ -134,11 +134,12 @@ import MobileCampaignSale from "./modules/UserApp/pages/CampaignSale";
 import MobileTrackOrder from "./modules/UserApp/pages/TrackOrder";
 import MobileOrderConfirmation from "./modules/UserApp/pages/OrderConfirmation";
 import PolicyPage from "./modules/UserApp/pages/PolicyPage";
+import SafetyCenter from "./modules/UserApp/pages/SafetyCenter";
 import SimilarExplore from "./modules/UserApp/pages/SimilarExplore";
 import UserSupport from "./modules/UserApp/pages/Support";
 import ComingSoon from "./modules/UserApp/pages/ComingSoon";
 import WalletPage from "./modules/Affiliate/pages/WalletPage";
-import ExplorePage from "./modules/Explore/pages/ExplorePage";
+import ServicesPage from "./modules/UserApp/pages/ServicesPage";
 import VendorAffiliateDashboard from "./modules/VendorAffiliate/pages/AffiliateDashboard";
 
 import AffiliatePayouts from "./modules/AdminSocial/pages/AffiliatePayouts";
@@ -475,11 +476,17 @@ const AppRoutes = () => {
         }
       />
       <Route
-        path="/explore"
+        path="/services"
         element={
           <RouteWrapper>
-            <ExplorePage />
+            <ServicesPage />
           </RouteWrapper>
+        }
+      />
+      <Route
+        path="/explore"
+        element={
+          <Navigate to="/services" replace />
         }
       />
 
@@ -576,6 +583,46 @@ const AppRoutes = () => {
         element={
           <RouteWrapper>
             <PolicyPage />
+          </RouteWrapper>
+        }
+      />
+      <Route
+        path="/privacy-policy"
+        element={
+          <RouteWrapper>
+            <PolicyPage defaultType="privacy-policy" />
+          </RouteWrapper>
+        }
+      />
+      <Route
+        path="/terms"
+        element={
+          <RouteWrapper>
+            <PolicyPage defaultType="terms-conditions" />
+          </RouteWrapper>
+        }
+      />
+      <Route
+        path="/support"
+        element={
+          <RouteWrapper>
+            <PolicyPage defaultType="faq" />
+          </RouteWrapper>
+        }
+      />
+      <Route
+        path="/policies"
+        element={
+          <RouteWrapper>
+            <PolicyPage defaultType="privacy-policy" />
+          </RouteWrapper>
+        }
+      />
+      <Route
+        path="/safety-center"
+        element={
+          <RouteWrapper>
+            <SafetyCenter />
           </RouteWrapper>
         }
       />

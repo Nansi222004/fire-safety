@@ -17,6 +17,8 @@ import CategoryInFocus from "../components/Mobile/CategoryInFocus";
 import DealsSection from "../components/Mobile/DealsSection";
 import TrustBar from "../components/Mobile/TrustBar";
 import LazyImage from "../../../shared/components/LazyImage";
+import heroBanner1 from "../../../assets/banners/hero_slide_1.png";
+import heroBanner2 from "../../../assets/banners/hero_slide_2.png";
 import {
   getMostPopular,
   getTrending,
@@ -31,11 +33,6 @@ import PageTransition from "../../../shared/components/PageTransition";
 import usePullToRefresh from "../hooks/usePullToRefresh";
 import toast from "react-hot-toast";
 import api from "../../../shared/utils/api";
-import heroSlide1 from "../../../../data/hero/slide1.png";
-import heroSlide2 from "../../../../data/hero/slide2.png";
-import heroSlide3 from "../../../../data/hero/slide3.png";
-import heroSlide4 from "../../../../data/hero/slide4.png";
-import stylishWatchImg from "../../../../data/products/stylish watch.png";
 
 const normalizeId = (value) => String(value ?? "").trim();
 const toNumber = (value, fallback = 0) => {
@@ -134,24 +131,40 @@ const deriveDailyDeals = (products = []) => {
 
 const DEFAULT_HERO_SLIDES = [
   {
-    image: heroSlide1,
-    link: "/search",
-    hasOverlay: false,
-  },
-  {
-    image: heroSlide2,
-    link: "/offers",
-    hasOverlay: false,
-  },
-  {
-    image: heroSlide3,
+    id: "hero-slide-1",
+    title: "Protect What Matters",
+    subtitle: "RELIABLE FIRE PROTECTION",
+    description: "Professional ABC dry powder & CO₂ fire extinguishers for home, workplace, and business.",
+    buttonText: "Shop Safety",
+    buttonStyle: "primary",
+    image: heroBanner1,
+    mobileImage: heroBanner1,
     link: "/categories",
-    hasOverlay: false,
+    hasOverlay: true,
   },
   {
-    image: heroSlide4,
-    link: "/new-arrivals",
-    hasOverlay: false,
+    id: "hero-slide-2",
+    title: "Complete Fire Safety",
+    subtitle: "CERTIFIED FIRE PROTECTION",
+    description: "Protecting homes, offices and industrial facilities with certified safety equipment.",
+    buttonText: "Explore Products",
+    buttonStyle: "primary",
+    image: heroBanner2,
+    mobileImage: heroBanner2,
+    link: "/categories",
+    hasOverlay: true,
+  },
+  {
+    id: "hero-slide-3",
+    title: "Safety Today, Secure Tomorrow",
+    subtitle: "CERTIFIED PROTECTION GEAR",
+    description: "Equip your facility with trusted fire safety accessories, exit signs, and safety gear.",
+    buttonText: "Shop Safety",
+    buttonStyle: "primary",
+    image: heroBanner1,
+    mobileImage: heroBanner1,
+    link: "/categories",
+    hasOverlay: true,
   },
 ];
 
@@ -223,7 +236,7 @@ const getButtonStyleClasses = (style = "primary", isDarkBg = false) => {
         return `${base} bg-transparent text-white border-2 border-white/80 hover:bg-white/10 hover:scale-[1.02]`;
       case "primary":
       default:
-        return `${base} bg-gradient-to-r from-primary-500 to-primary-600 text-white hover:from-primary-600 hover:to-primary-700 hover:scale-[1.02] shadow-[0_4px_20px_rgba(124,58,237,0.35)]`;
+        return `${base} bg-gradient-to-r from-primary-500 to-primary-600 text-white hover:from-primary-600 hover:to-primary-700 hover:scale-[1.02] shadow-[0_4px_20px_rgba(227,30,36,0.35)]`;
     }
   } else {
     switch (style) {
@@ -233,17 +246,14 @@ const getButtonStyleClasses = (style = "primary", isDarkBg = false) => {
         return `${base} bg-transparent border-2 border-primary-600 text-primary-600 hover:bg-primary-50 hover:scale-[1.02]`;
       case "primary":
       default:
-        return `${base} bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white hover:scale-[1.02] shadow-[0_4px_20px_rgba(109,40,217,0.35)]`;
+        return `${base} bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white hover:scale-[1.02] shadow-[0_4px_20px_rgba(227,30,36,0.35)]`;
     }
   }
 };
 
 const SECTION_COMPONENTS = {
   flash_sale: React.lazy(() => import('../components/HomeSections/FlashSaleSection')),
-  seasonal_collection: React.lazy(() => import('../components/HomeSections/SeasonalCollectionSection')),
-  promotional_banner: React.lazy(() => import('../components/HomeSections/PromotionalBannerSection')),
   best_sellers: React.lazy(() => import('../components/HomeSections/BestSellersSection')),
-  recently_viewed: React.lazy(() => import('../components/HomeSections/RecentlyViewedSection')),
   top_rated: React.lazy(() => import('../components/HomeSections/TopRatedSection'))
 };
 
@@ -391,7 +401,10 @@ const MobileHome = () => {
 
   const combinedSections = useMemo(() => {
     const all = [...homepageSections, ...userSections];
-    const sorted = all.sort((a, b) => a.order - b.order || b.priority - a.priority);
+    const excluded = ["recently_viewed", "seasonal_collection", "promotional_banner"];
+    const sorted = all
+      .filter((s) => !excluded.includes(s.type) && !excluded.includes(s.key))
+      .sort((a, b) => a.order - b.order || b.priority - a.priority);
     return sorted;
   }, [homepageSections, userSections]);
 
@@ -444,23 +457,25 @@ const MobileHome = () => {
             ["home_slider", "hero"].includes(String(banner?.type || "")),
           )
           .sort((a, b) => toNumber(a.order, 0) - toNumber(b.order, 0))
-          .map((banner, index) => ({
-            id: normalizeId(banner._id || banner.id || `home-slide-${index}`),
-            image: banner.image,
-            mobileImage: banner.mobileImage,
-            altText: banner.altText || "",
-            openInNewTab: !!banner.openInNewTab,
-            showButton: banner.showButton !== false,
-            buttonText: banner.buttonText || "Shop Now",
-            buttonStyle: banner.buttonStyle || "primary",
-            link: resolveBannerLink(banner),
-            title: banner.title || "Shop Smart. Live Better.",
-            subtitle: banner.subtitle || "BEST DEALS",
-            description:
-              banner.description ||
-              "Discover the best products at unbeatable prices. Quality you can trust.",
-            hasOverlay: !!banner.title,
-          }));
+          .map((banner, index) => {
+            const defaultSlide = DEFAULT_HERO_SLIDES[index % DEFAULT_HERO_SLIDES.length];
+            const slideImg = index === 0 ? heroBanner1 : (index === 1 ? heroBanner2 : heroBanner1);
+            return {
+              id: normalizeId(banner._id || banner.id || `home-slide-${index}`),
+              image: slideImg,
+              mobileImage: slideImg,
+              altText: banner.altText || defaultSlide.altText || "Fire Safety Banner",
+              openInNewTab: !!banner.openInNewTab,
+              showButton: banner.showButton !== false,
+              buttonText: banner.buttonText || defaultSlide.buttonText || "Explore Products",
+              buttonStyle: banner.buttonStyle || defaultSlide.buttonStyle || "primary",
+              link: resolveBannerLink(banner) || defaultSlide.link || "/categories",
+              title: banner.title || defaultSlide.title,
+              subtitle: banner.subtitle || defaultSlide.subtitle,
+              description: banner.description || defaultSlide.description,
+              hasOverlay: true,
+            };
+          });
         setSlides(bannerSlides.length > 0 ? bannerSlides : DEFAULT_HERO_SLIDES);
 
         const banners = allBanners
@@ -823,7 +838,7 @@ const MobileHome = () => {
           <div className="px-4 pb-4 pt-2">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               <div
-                className="relative w-full h-40 md:h-80 lg:h-[400px] xl:h-[450px] rounded-2xl md:rounded-3xl overflow-hidden lg:col-span-2 border border-slate-800/80 shadow-[0_12px_40px_rgba(0,0,0,0.35)]"
+                className="relative w-full h-48 sm:h-56 md:h-80 lg:h-[400px] xl:h-[450px] rounded-2xl md:rounded-3xl overflow-hidden lg:col-span-2 border border-slate-800/80 shadow-[0_12px_40px_rgba(0,0,0,0.35)]"
                 data-carousel
                 onTouchStart={onTouchStart}
                 onTouchMove={onTouchMove}
@@ -875,7 +890,7 @@ const MobileHome = () => {
                           className="w-full h-full object-cover pointer-events-none select-none"
                           draggable={false}
                           onError={(e) => {
-                            e.target.src = `https://via.placeholder.com/400x200?text=Slide+${index + 1}`;
+                            e.target.src = index % 2 === 0 ? heroBanner1 : heroBanner2;
                           }}
                         />
                       </picture>
@@ -884,25 +899,25 @@ const MobileHome = () => {
                       {slide.hasOverlay !== false && (
                         <>
                           <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent md:bg-gradient-to-r md:from-slate-950/90 md:via-slate-950/50 md:to-transparent z-10 pointer-events-none" />
-                          <div className="absolute inset-y-0 left-0 pl-6 pr-4 md:pl-16 flex flex-col justify-center text-left z-20 max-w-[65%] pointer-events-auto">
-                            <div className="space-y-2 md:space-y-4">
+                          <div className="absolute inset-y-0 left-0 pl-4 sm:pl-6 md:pl-16 pr-2 flex flex-col justify-center text-left z-20 max-w-[62%] sm:max-w-[60%] pointer-events-auto">
+                            <div className="space-y-1 sm:space-y-2 md:space-y-4">
                               {slide.subtitle && (
-                                <span className="inline-block bg-primary-500/15 text-primary-300 border border-primary-500/30 backdrop-blur-md px-3 py-0.5 md:px-3.5 md:py-1 rounded-full text-[9px] md:text-xs font-extrabold tracking-wider uppercase select-none shadow-[0_2px_10px_rgba(124,58,237,0.2)]">
+                                <span className="inline-block bg-primary-500/15 text-primary-300 border border-primary-500/30 backdrop-blur-md px-2.5 py-0.5 md:px-3.5 md:py-1 rounded-full text-[8px] sm:text-[9px] md:text-xs font-extrabold tracking-wider uppercase select-none">
                                   {slide.subtitle}
                                 </span>
                               )}
-                              <h2 className="text-white text-lg md:text-3xl lg:text-4xl xl:text-5xl font-black leading-tight tracking-tight drop-shadow-md">
+                              <h2 className="text-white text-sm sm:text-lg md:text-3xl lg:text-4xl xl:text-5xl font-black leading-tight tracking-tight drop-shadow-md">
                                 {slide.title || "Shop Smart. Live Better."}
                               </h2>
-                              <p className="text-slate-200 text-[10px] md:text-sm lg:text-base font-medium leading-relaxed max-w-sm line-clamp-2 md:line-clamp-none drop-shadow">
+                              <p className="text-slate-200 text-[9px] sm:text-[10px] md:text-sm lg:text-base font-medium leading-relaxed max-w-sm line-clamp-2 md:line-clamp-none drop-shadow">
                                 {slide.description ||
                                   "Discover the best products at unbeatable prices."}
                               </p>
                             </div>
 
-                            {/* Action buttons */}
+                            {/* Action button */}
                             {slide.showButton !== false && (
-                              <div className="flex items-center gap-3 md:gap-4 mt-4 md:mt-8">
+                              <div className="pt-2 sm:pt-3 md:pt-6">
                                 <button
                                   type="button"
                                   onClick={(e) => {
@@ -914,21 +929,8 @@ const MobileHome = () => {
                                     true,
                                   )}
                                 >
-                                  <span>{slide.buttonText || "Shop Now"}</span>
+                                  <span>{slide.buttonText || "Shop Safety"}</span>
                                   <span>&rarr;</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation(); // Avoid triggering parent click
-                                    navigate("/offers");
-                                  }}
-                                  className="flex items-center gap-1.5 md:gap-2 text-slate-200 font-bold text-[9px] md:text-sm hover:text-white transition-colors cursor-pointer select-none bg-slate-900/60 hover:bg-slate-900/80 border border-slate-700/60 backdrop-blur-md px-3 py-1.5 md:px-4 md:py-2 rounded-xl shadow-sm"
-                                >
-                                  <span className="w-5 h-5 md:w-7 md:h-7 rounded-full bg-slate-800/90 text-slate-200 flex items-center justify-center shadow border border-slate-700 text-xs font-bold font-mono">
-                                    &gt;
-                                  </span>
-                                  <span>Explore Deals</span>
                                 </button>
                               </div>
                             )}
@@ -937,27 +939,28 @@ const MobileHome = () => {
                       )}
                     </div>
                   ))}
-                </motion.div>
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 z-30 pointer-events-none">
-                  {slides.map((_, index) => (
-                    <button
-                      key={index}
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setCurrentSlide(index);
-                        setAutoSlidePaused(true);
-                        setTimeout(() => setAutoSlidePaused(false), 2000);
-                      }}
-                      className={`h-1.5 rounded-full transition-all duration-300 pointer-events-auto ${
-                        index === currentSlide
-                          ? "bg-gradient-to-r from-primary-400 to-primary-500 w-8 shadow-[0_0_10px_rgba(167,139,250,0.6)]"
-                          : "bg-white/40 hover:bg-white/70 w-2"
-                      }`}
-                    />
-                  ))}
+                  </motion.div>
+                  {/* Clean Slide Dots Indicator - Positioned cleanly in bottom right */}
+                  <div className="absolute bottom-3 right-4 flex items-center gap-1.5 z-30 pointer-events-none bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10">
+                    {slides.map((_, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCurrentSlide(index);
+                          setAutoSlidePaused(true);
+                          setTimeout(() => setAutoSlidePaused(false), 2000);
+                        }}
+                        className={`h-1.5 rounded-full transition-all duration-300 pointer-events-auto ${
+                          index === currentSlide
+                            ? "bg-red-500 w-5 shadow-[0_0_8px_rgba(227,30,36,0.8)]"
+                            : "bg-white/50 hover:bg-white/80 w-1.5"
+                        }`}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
 
               {/* Side Banner for Large Screens (Luxury Collection) */}
               <div
@@ -996,7 +999,7 @@ const MobileHome = () => {
                   )}
                 </div>
 
-                {/* Watch Image (Right side, absolute and offset) */}
+                {/* Fire Extinguisher Image (Right side, absolute and offset) */}
                 <div className="absolute right-0 bottom-0 top-0 w-[55%] flex items-center justify-end z-10 select-none overflow-hidden">
                   <picture className="h-[110%] w-auto object-contain translate-x-[12%] group-hover:scale-105 group-hover:translate-x-[8%] transition-transform duration-700 pointer-events-none select-none">
                     {sideBanner?.mobileImage && (
@@ -1006,13 +1009,13 @@ const MobileHome = () => {
                       />
                     )}
                     <img
-                      src={sideBanner?.image || stylishWatchImg}
-                      alt={sideBanner?.altText || "Premium Watch"}
-                      className="h-full w-auto object-contain pointer-events-none select-none"
+                      src={sideBanner?.image || "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=600&q=80"}
+                      alt={sideBanner?.altText || "Fire Extinguisher"}
+                      className="h-full w-auto object-contain pointer-events-none select-none rounded-2xl"
                       draggable={false}
                       onError={(e) => {
                         e.target.src =
-                          "https://via.placeholder.com/400x400?text=Premium+Watch";
+                          "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=600&q=80";
                       }}
                     />
                   </picture>
@@ -1020,9 +1023,6 @@ const MobileHome = () => {
               </div>
             </div>
           </div>
-
-          {/* Brand Logos Scroll */}
-          <BrandLogosScroll brands={computedBrands} />
 
           {/* Categories */}
           <MobileCategoryGrid />
@@ -1074,7 +1074,9 @@ const MobileHome = () => {
                 <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
               </div>
             }>
-              {combinedSections.map((section) => {
+              {combinedSections
+                .filter((section) => !['best_sellers', 'seasonal_collection', 'promotional_banner'].includes(section.type))
+                .map((section) => {
                 const Component = SECTION_COMPONENTS[section.type];
                 if (!Component) {
                   return null;

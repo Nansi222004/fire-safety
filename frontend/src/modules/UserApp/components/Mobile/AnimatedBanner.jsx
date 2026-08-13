@@ -28,51 +28,54 @@ const getButtonStyleClasses = (style = "primary", isDarkBg = false) => {
   }
 };
 
-// Hero images for the parallax effect
-import sneakersImg from "../../../../../data/products/sneakers.png";
-import watchImg from "../../../../../data/products/stylish watch.png";
-import sunglassImg from "../../../../../data/products/sunglass.png";
+import heroBanner1 from "../../../../assets/banners/hero_slide_1.png";
+import heroBanner2 from "../../../../assets/banners/hero_slide_2.png";
+
+// Fire Safety hero images for parallax banner
+const extRedImg = heroBanner1;
+const extBlackImg = heroBanner2;
+const safetyEqImg = heroBanner1;
 
 const defaultBanners = [
   {
     id: 1,
-    title: "Flash Sale",
-    subtitle: "Limited Time Offer",
-    discount: "Up to 50% OFF",
-    description: "Shop now before it ends!",
-    gradient: "from-red-500 via-pink-500 to-orange-500",
-    link: "/flash-sale",
+    title: "Protect What Matters",
+    subtitle: "Reliable Protection",
+    discount: "Shop Safety",
+    description: "Multi-purpose ABC powder & CO₂ fire extinguishers for home and office.",
+    gradient: "from-red-600 via-red-700 to-slate-900",
+    link: "/shop",
     icon: FiZap,
-    heroImage: sneakersImg,
+    heroImage: extRedImg,
   },
   {
     id: 2,
-    title: "Daily Deals",
-    subtitle: "New Deals Every Day",
-    discount: "Save 30%",
-    description: "Check out today's best deals",
-    gradient: "from-blue-500 via-purple-500 to-indigo-500",
-    link: "/daily-deals",
+    title: "On-Site Refill Service",
+    subtitle: "Certified Maintenance",
+    discount: "Book Technician",
+    description: "Doorstep fire extinguisher refilling, testing & safety audits.",
+    gradient: "from-red-700 via-slate-800 to-slate-950",
+    link: "/services",
     icon: FiTag,
-    heroImage: sunglassImg,
+    heroImage: extBlackImg,
   },
   {
     id: 3,
-    title: "Special Offers",
-    subtitle: "Exclusive Discounts",
-    discount: "Up to 40% OFF",
-    description: "Don't miss out!",
-    gradient: "from-green-500 via-teal-500 to-cyan-500",
-    link: "/offers",
+    title: "Certified Safety Equipment",
+    subtitle: "Essential Gear",
+    discount: "Explore Equipment",
+    description: "Fire blankets, photoelectric smoke alarms, and emergency exit signs.",
+    gradient: "from-amber-600 via-red-600 to-slate-900",
+    link: "/categories",
     icon: FiTag,
-    heroImage: watchImg,
+    heroImage: safetyEqImg,
   },
 ];
 
 const gradientPalette = [
-  "from-red-500 via-pink-500 to-orange-500",
-  "from-blue-500 via-purple-500 to-indigo-500",
-  "from-green-500 via-teal-500 to-cyan-500",
+  "from-red-600 via-red-700 to-slate-900",
+  "from-red-700 via-slate-800 to-slate-950",
+  "from-amber-600 via-red-600 to-slate-900",
 ];
 
 const KNOWN_USER_ROUTE_PATTERNS = [

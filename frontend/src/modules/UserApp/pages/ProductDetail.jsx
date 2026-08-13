@@ -918,7 +918,7 @@ const MobileProductDetail = () => {
                     <div className="flex items-center gap-2 pt-1">
                       <span className="text-sm text-slate-500 font-medium">Brand:</span>
                       <span className="text-sm font-bold text-gray-900 leading-none">
-                        {brand?.name || product.brandName || "Gucci"}
+                        {brand?.name || product.brandName || "Demo Safety Supplier"}
                       </span>
                     </div>
 
@@ -998,12 +998,12 @@ const MobileProductDetail = () => {
                   </div>
                                   {/* Tabs */}
                   <div className="flex items-center border-b border-gray-100 px-4">
-                    {["Description"].map((tab) => (
+                    {["Description", "Safety Information"].map((tab) => (
                       <button
                         key={tab}
                         onClick={() => setActiveTab(tab)}
                         className={`px-4 py-3 text-sm transition-all duration-200 ${activeTab === tab
-                            ? "text-pink-500 font-bold border-b-2 border-pink-500"
+                            ? "text-red-600 font-bold border-b-2 border-red-600"
                             : "text-slate-500 font-medium"
                           }`}
                       >
@@ -1015,8 +1015,8 @@ const MobileProductDetail = () => {
                   <div className="px-6 py-6 min-h-[160px]">
                     {activeTab === "Description" && (
                       <div className="space-y-4">
-                        <p className="text-xs text-teal-900 font-medium leading-relaxed">
-                          {product.description || "40+ years experience. Fugiat culpa deserunt labore ut occaecat eu velit cupidatat et aliqua officia."}
+                        <p className="text-xs text-slate-700 font-medium leading-relaxed">
+                          {product.description || "Certified fire protection equipment designed for optimal safety, rapid suppression, and reliable performance."}
                         </p>
 
                         <motion.div
@@ -1052,15 +1052,54 @@ const MobileProductDetail = () => {
                       </div>
                     )}
 
-                    <div className="flex items-center justify-center mt-4">
-                      <button
-                        onClick={() => setIsExpanded(!isExpanded)}
-                        className="flex items-center gap-1 text-pink-500 font-bold text-sm"
-                      >
-                        {isExpanded ? "Read Less" : "Read More"}
-                        {isExpanded ? <FiMinus className="text-xs" /> : <FiPlus className="text-xs" />}
-                      </button>
-                    </div>
+                    {activeTab === "Safety Information" && (
+                      <div className="space-y-4 text-xs text-slate-700 font-medium">
+                        <div className="p-4 bg-red-50/50 border border-red-100 rounded-2xl">
+                          <h4 className="font-bold text-red-700 text-sm mb-1">Fire Safety & Operating Guidance</h4>
+                          <p className="text-slate-600 text-xs">
+                            Ensure equipment is inspected regularly and maintained according to fire safety regulations.
+                          </p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 text-xs">
+                          <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                            <span className="text-slate-400 block text-[10px] uppercase font-bold">Fire Class</span>
+                            <span className="font-bold text-slate-900">{product.fireClass || "Class A, B, C"}</span>
+                          </div>
+                          <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                            <span className="text-slate-400 block text-[10px] uppercase font-bold">Capacity</span>
+                            <span className="font-bold text-slate-900">{product.capacity || "Standard"}</span>
+                          </div>
+                          <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                            <span className="text-slate-400 block text-[10px] uppercase font-bold">Rating</span>
+                            <span className="font-bold text-slate-900">{product.ratingText || "Safety Rated"}</span>
+                          </div>
+                          <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                            <span className="text-slate-400 block text-[10px] uppercase font-bold">Manufacturer Details</span>
+                            <span className="font-bold text-slate-900">{vendor?.storeName || product.vendorName || "Certified Supplier"}</span>
+                          </div>
+                        </div>
+                        <div className="pt-2">
+                          <Link
+                            to="/safety-center"
+                            className="inline-flex items-center gap-1 text-red-600 font-bold hover:underline"
+                          >
+                            <span>Learn P.A.S.S. technique & safety guides</span> &rarr;
+                          </Link>
+                        </div>
+                      </div>
+                    )}
+
+                    {activeTab === "Description" && (
+                      <div className="flex items-center justify-center mt-4">
+                        <button
+                          onClick={() => setIsExpanded(!isExpanded)}
+                          className="flex items-center gap-1 text-red-600 font-bold text-sm"
+                        >
+                          {isExpanded ? "Read Less" : "Read More"}
+                          {isExpanded ? <FiMinus className="text-xs" /> : <FiPlus className="text-xs" />}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
 

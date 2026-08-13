@@ -42,7 +42,7 @@ const usePullToRefresh = (onRefresh, options = {}) => {
       const deltaY = currentY.current - startY.current;
       
       if (deltaY > 0) {
-        e.preventDefault(); // Prevent default scroll
+        if (e.cancelable) e.preventDefault(); // Prevent default scroll safely
         const distance = Math.min(deltaY / resistance, threshold * 1.5);
         setPullDistance(distance);
       } else {

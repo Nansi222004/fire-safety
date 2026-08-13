@@ -4,32 +4,32 @@ import { FiTruck, FiShield, FiRotateCcw, FiPhoneCall } from 'react-icons/fi';
 const TrustBar = () => {
   const trustItems = [
     { 
-      title: 'Free Delivery', 
-      sub: 'On orders above ₹499', 
-      icon: FiTruck,
-      bg: 'bg-indigo-50',
-      color: 'text-indigo-600'
-    },
-    { 
-      title: 'Secure Payment', 
-      sub: '100% secure payments', 
+      title: 'Certified Safety Gear', 
+      sub: 'IS & ISO Quality Inspected', 
       icon: FiShield,
-      bg: 'bg-indigo-50',
-      color: 'text-indigo-600'
+      bg: 'bg-red-50 border border-red-100',
+      color: 'text-red-600'
     },
     { 
-      title: 'Easy Returns', 
-      sub: 'Within 7 days', 
+      title: 'AMC & Refill Support', 
+      sub: 'Scheduled System Maintenance', 
       icon: FiRotateCcw,
-      bg: 'bg-indigo-50',
-      color: 'text-indigo-600'
+      bg: 'bg-amber-50 border border-amber-100',
+      color: 'text-amber-600'
     },
     { 
-      title: '24/7 Support', 
-      sub: "We're here to help", 
+      title: 'Express Dispatch', 
+      sub: 'Fast & Secure Safety Shipping', 
+      icon: FiTruck,
+      bg: 'bg-red-50 border border-red-100',
+      color: 'text-red-600'
+    },
+    { 
+      title: '24/7 Demo Helpline', 
+      sub: 'Expert Technical Guidance', 
       icon: FiPhoneCall,
-      bg: 'bg-indigo-50',
-      color: 'text-indigo-600'
+      bg: 'bg-slate-100 border border-slate-200',
+      color: 'text-slate-800'
     },
   ];
 

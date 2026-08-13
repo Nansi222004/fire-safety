@@ -353,7 +353,7 @@ const Shop = () => {
                   onClick={() => shopBanner.ctaLink && navigate(shopBanner.ctaLink)}
                   className="relative rounded-2xl overflow-hidden h-56 sm:h-72 md:h-80 flex flex-col justify-center px-6 text-white cursor-pointer group shadow-sm"
                   style={{
-                    background: `linear-gradient(135deg, ${shopBanner.textColor === '#ffffff' ? '#7C3AED' : '#f3f4f6'}, #4F46E5)`
+                    background: `linear-gradient(135deg, ${shopBanner.textColor === '#ffffff' ? '#E31E24' : '#f3f4f6'}, #C8191F)`
                   }}
                 >
                   {shopBanner.desktopImage && (

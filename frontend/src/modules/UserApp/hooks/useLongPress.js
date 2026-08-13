@@ -12,9 +12,18 @@ const useLongPress = (onLongPress, delay = 500) => {
 
   const start = useCallback((event) => {
     if (onLongPress) {
-      targetRef.current = event.currentTarget;
+      const currentTarget = event.currentTarget;
+      const target = event.target;
+      const clientX = event.clientX || event.touches?.[0]?.clientX;
+      const clientY = event.clientY || event.touches?.[0]?.clientY;
       timeoutRef.current = setTimeout(() => {
-        onLongPress(event);
+        onLongPress({
+          ...event,
+          currentTarget,
+          target,
+          clientX,
+          clientY,
+        });
       }, delay);
     }
   }, [onLongPress, delay]);

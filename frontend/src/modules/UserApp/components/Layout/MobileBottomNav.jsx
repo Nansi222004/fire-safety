@@ -1,7 +1,7 @@
 import { createPortal } from "react-dom";
 import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FiHome, FiGrid, FiSearch, FiHeart, FiUser, FiCompass } from "react-icons/fi";
+import { FiHome, FiGrid, FiSearch, FiHeart, FiUser, FiTool } from "react-icons/fi";
 import { Clapperboard } from "lucide-react";
 import { useWishlistStore } from "../../../../shared/store/wishlistStore";
 import { useAuthStore } from "../../../../shared/store/authStore";
@@ -13,7 +13,7 @@ const MobileBottomNav = () => {
 
   const navItems = [
     { path: "/home", icon: FiHome, label: "Home" },
-    { path: "/explore", icon: FiCompass, label: "Explore" },
+    { path: "/services", icon: FiTool, label: "Services" },
     { path: "/categories", icon: FiGrid, label: "Categories" },
     {
       path: isAuthenticated ? "/profile" : "/login",
@@ -37,7 +37,7 @@ const MobileBottomNav = () => {
     },
     active: {
       scale: 1.1,
-      color: "#7C3AED", // Primary Buttons color
+      color: "#E31E24", // Fire Red Primary Color
       transition: {
         duration: 0.3,
         ease: "easeOut",

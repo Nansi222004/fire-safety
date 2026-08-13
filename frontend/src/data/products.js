@@ -1,536 +1,226 @@
-import whiteTShirtImg from "../../data/products/white t shirt.png";
-import blueJeansImg from "../../data/products/blue jeans.png";
-import summerDressImg from "../../data/products/summer dress.png";
-import leatherBagImg from "../../data/products/leather bag.png";
-import sneakersImg from "../../data/products/sneakers.png";
-import sunglassImg from "../../data/products/sunglass.png";
-import winterScarfImg from "../../data/products/winter scarf.png";
-import blazerImg from "../../data/products/blazer.png";
-import denimJacketImg from "../../data/products/denim jacket.png";
-import healsImg from "../../data/products/heals.png";
-import trackPantsImg from "../../data/products/track pants.png";
-import sweaterImg from "../../data/products/sweater.png";
-import leatherBootsImg from "../../data/products/leather boots.png";
-import stylishWatchImg from "../../data/products/stylish watch.png";
-import gownImg from "../../data/products/gown.png";
-import shirtImg from "../../data/products/shirt.png";
-import maxiImg from "../../data/products/maxi.png";
-import necklessImg from "../../data/products/neckless.png";
-import athlaticShoesImg from "../../data/products/athlatic shoes.png";
-import beltImg from "../../data/products/belt.png";
+const extRedImg = "/products/abc-dry-powder-fire-extinguisher-6kg.webp";
+const extBlackImg = "/products/co2-fire-extinguisher-4-5kg.webp";
+const extHoseImg = "/products/fire-hose-reel-30m.webp";
+const safetyEqImg = "/products/afff-foam-fire-extinguisher-9l.jpg";
 
 export const products = [
   {
     id: 1,
-    name: "Classic White T-Shirt",
+    name: "ABC Dry Powder Fire Extinguisher 6kg",
     unit: "Piece",
-    price: 24.99,
-    originalPrice: 29.99,
-    image: whiteTShirtImg,
-    images: [whiteTShirtImg, whiteTShirtImg, whiteTShirtImg],
+    price: 1699,
+    originalPrice: 2199,
+    image: extRedImg,
+    images: [extRedImg, extRedImg, extRedImg],
+    fireClass: "Class A, B, C",
+    capacity: "6 kg",
+    ratingText: "Safety Rated",
     variants: {
-      sizes: ["S", "M", "L", "XL"],
+      capacities: ["2kg", "4kg", "6kg", "9kg"],
       prices: {
-        S: 24.99,
-        M: 24.99,
-        L: 26.99,
-        XL: 26.99,
+        "2kg": 999,
+        "4kg": 1399,
+        "6kg": 1699,
+        "9kg": 2299,
       },
-      defaultVariant: { size: "M" },
+      defaultVariant: { capacity: "6kg" },
     },
     flashSale: true,
+    isNewArrival: true,
     stock: "in_stock",
     stockQuantity: 45,
-    rating: 4.5,
-    reviewCount: 128,
+    rating: 4.8,
+    reviewCount: 156,
     vendorId: 1,
-    vendorName: "Fashion Hub",
+    vendorName: "Demo Fire Safety Supplier",
     brandId: 1,
+    categoryId: 1,
+    categoryName: "ABC Fire Extinguishers",
+    description: "High-grade ABC dry powder fire extinguisher designed for multi-purpose protection against wood, paper, flammable liquid, and electrical fire hazards.",
   },
   {
     id: 2,
-    name: "Slim Fit Blue Jeans",
+    name: "CO₂ Carbon Dioxide Fire Extinguisher 4.5kg",
     unit: "Piece",
-    price: 79.99,
-    originalPrice: 89.99,
-    image: blueJeansImg,
+    price: 3499,
+    originalPrice: 3999,
+    image: extBlackImg,
+    images: [extBlackImg, extBlackImg],
+    fireClass: "Class B & Electrical",
+    capacity: "4.5 kg",
+    ratingText: "Safety Rated",
     flashSale: false,
+    isNewArrival: true,
     stock: "in_stock",
     stockQuantity: 120,
-    rating: 4.2,
+    rating: 4.9,
     reviewCount: 89,
     vendorId: 1,
-    vendorName: "Fashion Hub",
-    brandId: 4,
+    vendorName: "Demo Fire Safety Supplier",
+    brandId: 2,
+    categoryId: 2,
+    categoryName: "CO₂ Fire Extinguishers",
+    description: "Residue-free CO₂ carbon dioxide extinguisher engineered for electrical panels, server rooms, and liquid fire risks.",
   },
   {
     id: 3,
-    name: "Floral Summer Dress",
+    name: "AFFF Foam Fire Extinguisher 9 Litre",
     unit: "Piece",
-    price: 59.99,
-    image: summerDressImg,
+    price: 2299,
+    originalPrice: 2799,
+    image: extRedImg,
+    images: [extRedImg, extRedImg],
+    fireClass: "Class A & B",
+    capacity: "9 L",
+    ratingText: "Safety Rated",
     flashSale: false,
-    stock: "low_stock",
-    stockQuantity: 8,
-    rating: 4.0,
-    reviewCount: 45,
-    vendorId: 1,
-    vendorName: "Fashion Hub",
-    brandId: 2,
+    isNewArrival: false,
+    stock: "in_stock",
+    stockQuantity: 35,
+    rating: 4.7,
+    reviewCount: 64,
+    vendorId: 2,
+    vendorName: "Sample Equipment Supplier",
+    brandId: 3,
+    categoryId: 3,
+    categoryName: "Foam Fire Extinguishers",
+    description: "Aqueous Film Forming Foam (AFFF) extinguisher designed to blanketing fuel surfaces and preventing reignition.",
   },
   {
     id: 4,
-    name: "Leather Crossbody Bag",
+    name: "Clean Water-Based Fire Extinguisher 9 Litre",
     unit: "Piece",
-    price: 89.99,
-    originalPrice: 119.99,
-    image: leatherBagImg,
+    price: 1899,
+    originalPrice: 2299,
+    image: extHoseImg,
+    images: [extHoseImg, extHoseImg],
+    fireClass: "Class A",
+    capacity: "9 L",
+    ratingText: "Safety Rated",
     flashSale: true,
+    isNewArrival: false,
     stock: "in_stock",
     stockQuantity: 65,
-    rating: 4.7,
-    reviewCount: 156,
+    rating: 4.6,
+    reviewCount: 92,
     vendorId: 1,
-    vendorName: "Fashion Hub",
-    brandId: 6,
+    vendorName: "Demo Fire Safety Supplier",
+    brandId: 4,
+    categoryId: 4,
+    categoryName: "Water-Based Extinguishers",
+    description: "Pure water-based fire extinguisher tailored for paper, wood, textile, and solid combustible protection.",
   },
   {
     id: 5,
-    name: "Casual Canvas Sneakers",
-    unit: "Pair",
-    price: 49.99,
-    image: sneakersImg,
-    flashSale: false,
+    name: "Commercial Heavy-Duty Emergency Fire Blanket 1.2m x 1.8m",
+    unit: "Piece",
+    price: 799,
+    originalPrice: 999,
+    image: safetyEqImg,
+    images: [safetyEqImg, safetyEqImg],
+    fireClass: "Class F & Emergency Cover",
+    capacity: "1.2m x 1.8m",
+    ratingText: "Safety Rated",
+    flashSale: true,
+    isNewArrival: true,
     stock: "in_stock",
-    stockQuantity: 30,
-    rating: 4.3,
-    reviewCount: 72,
+    stockQuantity: 200,
+    rating: 4.8,
+    reviewCount: 210,
     vendorId: 2,
-    vendorName: "Tech Gear Pro",
-    brandId: 3,
+    vendorName: "Sample Equipment Supplier",
+    brandId: 1,
+    categoryId: 5,
+    categoryName: "Fire Blankets & Equipment",
+    description: "Heat-resistant woven fiberglass fire blanket for quick smothering of kitchen grease fires and emergency personal wrapping.",
   },
   {
     id: 6,
-    name: "Designer Sunglasses",
+    name: "Photoelectric Smoke & Fire Alarm Sensor",
     unit: "Piece",
-    price: 125.99,
-    originalPrice: 179.99,
-    image: sunglassImg,
-    images: [sunglassImg, sunglassImg, sunglassImg],
-    variants: {
-      colors: ["Black", "Brown", "Tortoise", "Silver"],
-      prices: {
-        Black: 125.99,
-        Brown: 129.99,
-        Tortoise: 135.99,
-        Silver: 139.99,
-      },
-      defaultVariant: { color: "Black" },
-    },
-    flashSale: true,
-    stock: "in_stock",
-    stockQuantity: 15,
-    rating: 4.8,
-    reviewCount: 234,
-    vendorId: 1,
-    vendorName: "Fashion Hub",
-    brandId: 5,
-  },
-  {
-    id: 7,
-    name: "Wool Winter Scarf",
-    unit: "Piece",
-    price: 34.99,
-    image: winterScarfImg,
-    flashSale: false,
-    stock: "in_stock",
-    stockQuantity: 200,
-    rating: 4.1,
-    reviewCount: 112,
-    vendorId: 1,
-    vendorName: "Fashion Hub",
-  },
-  {
-    id: 8,
-    name: "Formal Blazer Jacket",
-    unit: "Piece",
-    price: 149.99,
-    originalPrice: 199.99,
-    image: blazerImg,
-    flashSale: true,
-    stock: "low_stock",
-    stockQuantity: 5,
-    rating: 4.6,
-    reviewCount: 98,
-    vendorId: 1,
-    vendorName: "Fashion Hub",
-  },
-  {
-    id: 9,
-    name: "Denim Jacket",
-    unit: "Piece",
-    price: 69.99,
-    image: denimJacketImg,
-    flashSale: false,
-    stock: "in_stock",
-    stockQuantity: 85,
-    rating: 4.4,
-    reviewCount: 67,
-    vendorId: 1,
-    vendorName: "Fashion Hub",
-  },
-  {
-    id: 10,
-    name: "High Heel Pumps",
-    unit: "Pair",
-    price: 89.99,
-    originalPrice: 129.99,
-    image: healsImg,
-    flashSale: true,
-    stock: "in_stock",
-    stockQuantity: 55,
-    rating: 4.5,
-    reviewCount: 143,
-    vendorId: 1,
-    vendorName: "Fashion Hub",
-  },
-  {
-    id: 11,
-    name: "Sporty Track Pants",
-    unit: "Piece",
-    price: 54.99,
-    originalPrice: 69.99,
-    image: trackPantsImg,
-    images: [trackPantsImg, trackPantsImg],
-    variants: {
-      sizes: ["S", "M", "L", "XL", "XXL"],
-      prices: {
-        S: 54.99,
-        M: 54.99,
-        L: 56.99,
-        XL: 56.99,
-        XXL: 59.99,
-      },
-      defaultVariant: { size: "M" },
-    },
-    flashSale: false,
-    stock: "in_stock",
-    stockQuantity: 42,
-    rating: 4.3,
-    reviewCount: 189,
-    vendorId: 2,
-    vendorName: "Tech Gear Pro",
-  },
-  {
-    id: 12,
-    name: "Knit Cardigan Sweater",
-    unit: "Piece",
-    price: 74.99,
-    originalPrice: 99.99,
-    image: sweaterImg,
-    flashSale: false,
-    isNewArrival: true,
-    stock: "in_stock",
-    stockQuantity: 78,
-    rating: 4.6,
-    reviewCount: 201,
-    vendorId: 1,
-    vendorName: "Fashion Hub",
-  },
-  {
-    id: 13,
-    name: "Leather Ankle Boots",
-    unit: "Pair",
-    price: 119.99,
-    image: leatherBootsImg,
-    flashSale: false,
-    isNewArrival: true,
-    stock: "in_stock",
-    stockQuantity: 95,
-    rating: 4.4,
-    reviewCount: 167,
-    vendorId: 1,
-    vendorName: "Fashion Hub",
-  },
-  {
-    id: 14,
-    name: "Designer Wristwatch",
-    unit: "Piece",
-    price: 249.99,
-    originalPrice: 349.99,
-    image: stylishWatchImg,
+    price: 1199,
+    originalPrice: 1499,
+    image: safetyEqImg,
+    images: [safetyEqImg, safetyEqImg],
+    fireClass: "Early Warning Alarm",
+    capacity: "85dB Siren",
+    ratingText: "Safety Rated",
     flashSale: false,
     isNewArrival: true,
     stock: "in_stock",
     stockQuantity: 150,
     rating: 4.7,
-    reviewCount: 278,
-    vendorId: 2,
-    vendorName: "Tech Gear Pro",
-  },
-  {
-    id: 15,
-    name: "Silk Evening Gown",
-    unit: "Piece",
-    price: 189.99,
-    image: gownImg,
-    flashSale: false,
-    stock: "in_stock",
-    stockQuantity: 28,
-    rating: 4.2,
-    reviewCount: 94,
-    vendorId: 1,
-    vendorName: "Fashion Hub",
-  },
-  {
-    id: 16,
-    name: "Casual Flannel Shirt",
-    unit: "Piece",
-    price: 44.99,
-    originalPrice: 59.99,
-    image: shirtImg,
-    flashSale: true,
-    isNewArrival: true,
-    stock: "in_stock",
-    stockQuantity: 60,
-    rating: 4.5,
-    reviewCount: 145,
-    vendorId: 1,
-    vendorName: "Fashion Hub",
-  },
-  {
-    id: 17,
-    name: "Boho Maxi Skirt",
-    unit: "Piece",
-    price: 64.99,
-    originalPrice: 79.99,
-    image: maxiImg,
-    flashSale: true,
-    isNewArrival: true,
-    stock: "in_stock",
-    stockQuantity: 88,
-    rating: 4.6,
-    reviewCount: 192,
-    vendorId: 1,
-    vendorName: "Fashion Hub",
-  },
-  {
-    id: 18,
-    name: "Statement Necklace",
-    unit: "Piece",
-    price: 39.99,
-    originalPrice: 49.99,
-    image: necklessImg,
-    flashSale: true,
-    isNewArrival: true,
-    stock: "in_stock",
-    stockQuantity: 35,
-    rating: 4.8,
-    reviewCount: 256,
-    vendorId: 1,
-    vendorName: "Fashion Hub",
-  },
-  {
-    id: 19,
-    name: "Athletic Running Shoes",
-    unit: "Pair",
-    price: 94.99,
-    originalPrice: 129.99,
-    image: athlaticShoesImg,
-    flashSale: true,
-    isNewArrival: true,
-    stock: "low_stock",
-    stockQuantity: 12,
-    rating: 4.4,
     reviewCount: 178,
     vendorId: 2,
-    vendorName: "Tech Gear Pro",
+    vendorName: "Sample Equipment Supplier",
+    brandId: 5,
+    categoryId: 6,
+    categoryName: "Safety Accessories & Alarms",
+    description: "High-sensitivity photoelectric smoke detector with built-in 85dB acoustic warning siren and test button.",
   },
   {
-    id: 20,
-    name: "Classic Leather Belt",
+    id: 7,
+    name: "High-Pressure Fire Hose Reel 30 Meters",
     unit: "Piece",
-    price: 34.99,
-    originalPrice: 49.99,
-    image: beltImg,
+    price: 4299,
+    originalPrice: 4999,
+    image: extHoseImg,
+    images: [extHoseImg, extHoseImg],
+    fireClass: "Continuous Water Supply",
+    capacity: "30 m",
+    ratingText: "Safety Rated",
+    flashSale: false,
+    isNewArrival: false,
+    stock: "in_stock",
+    stockQuantity: 28,
+    rating: 4.8,
+    reviewCount: 42,
+    vendorId: 2,
+    vendorName: "Sample Equipment Supplier",
+    brandId: 3,
+    categoryId: 5,
+    categoryName: "Fire Blankets & Equipment",
+    description: "Heavy-duty wall-mounted manual fire hose reel with 30-meter reinforced rubber hose and jet/spray nozzle.",
+  },
+  {
+    id: 8,
+    name: "Automatic Ceiling Modular Fire Extinguisher 10kg",
+    unit: "Piece",
+    price: 5999,
+    originalPrice: 6999,
+    image: extRedImg,
+    images: [extRedImg, extRedImg],
+    fireClass: "Automatic Thermal Release",
+    capacity: "10 kg",
+    ratingText: "Safety Rated",
     flashSale: true,
     isNewArrival: true,
     stock: "in_stock",
-    stockQuantity: 52,
-    rating: 4.5,
-    reviewCount: 134,
+    stockQuantity: 18,
+    rating: 4.9,
+    reviewCount: 36,
     vendorId: 1,
-    vendorName: "Fashion Hub",
+    vendorName: "Demo Fire Safety Supplier",
+    brandId: 2,
+    categoryId: 1,
+    categoryName: "ABC Fire Extinguishers",
+    description: "Automatic thermal bulb sprinkler extinguisher designed for unmanned electrical rooms and storage areas.",
   },
 ];
 
-export const getMostPopular = () => products.slice(0, 10);
-export const getTrending = () => products.slice(10, 15);
+export const getMostPopular = () => products.slice(0, 6);
+export const getTrending = () => products.slice(2, 7);
 export const getFlashSale = () => products.filter((p) => p.flashSale);
-export const getProductById = (id) =>
-  products.find((p) => p.id === parseInt(id));
-
-// Get all products with offers (discounted products)
-export const getOffers = () => {
-  return products.filter((p) => p.originalPrice && p.originalPrice > p.price);
-};
-
-// Get daily deals (time-limited offers, can be subset of flash sale or special products)
-export const getDailyDeals = () => {
-  // For now, return a mix of flash sale products and products with good discounts
-  const flashSaleProducts = products.filter((p) => p.flashSale);
-  const discountedProducts = products.filter(
-    (p) => p.originalPrice && p.originalPrice > p.price && !p.flashSale
-  );
-  // Combine and return unique products
-  const allDeals = [...flashSaleProducts, ...discountedProducts.slice(0, 5)];
-  return allDeals.filter(
-    (p, index, self) => index === self.findIndex((t) => t.id === p.id)
-  );
-};
-
-// Get similar/recommended products
+export const getProductById = (id) => products.find((p) => String(p.id) === String(id));
+export const getOffers = () => products.filter((p) => p.originalPrice && p.originalPrice > p.price);
+export const getDailyDeals = () => products.filter((p) => p.flashSale || p.originalPrice > p.price);
 export const getSimilarProducts = (currentProductId, limit = 6) => {
-  const currentProduct = getProductById(currentProductId);
-  if (!currentProduct) return [];
-
-  // Filter out current product
-  let similar = products.filter((p) => p.id !== currentProduct.id);
-
-  // Try to find products in similar price range (±30%)
-  const priceRange = {
-    min: currentProduct.price * 0.7,
-    max: currentProduct.price * 1.3,
-  };
-
-  // First, try to get products in similar price range
-  let priceSimilar = similar.filter(
-    (p) => p.price >= priceRange.min && p.price <= priceRange.max
-  );
-
-  // If we have enough products in price range, use them
-  if (priceSimilar.length >= limit) {
-    // Shuffle and take limit
-    return priceSimilar.sort(() => Math.random() - 0.5).slice(0, limit);
-  }
-
-  // Otherwise, mix price-similar with other products
-  const remaining = limit - priceSimilar.length;
-  const otherProducts = similar
-    .filter((p) => !priceSimilar.some((ps) => ps.id === p.id))
-    .sort(() => Math.random() - 0.5)
-    .slice(0, remaining);
-
-  return [...priceSimilar, ...otherProducts].slice(0, limit);
+  const current = getProductById(currentProductId);
+  return products.filter((p) => String(p.id) !== String(currentProductId)).slice(0, limit);
 };
-
-// Get new arrivals (products marked as new)
-export const getNewArrivals = (limit = 8) => {
-  return products.filter((p) => p.isNewArrival).slice(0, limit);
-};
-
+export const getNewArrivals = (limit = 6) => products.filter((p) => p.isNewArrival).slice(0, limit);
 export const getAllNewArrivals = () => products.filter((p) => p.isNewArrival);
-
-// Get recommended products based on user behavior
-export const getRecommendedProducts = (limit = 6) => {
-  // Try to get wishlist and cart data from localStorage
-  let wishlistItems = [];
-  let cartItems = [];
-
-  try {
-    const wishlistStorage = localStorage.getItem("wishlist-storage");
-    if (wishlistStorage) {
-      const parsed = JSON.parse(wishlistStorage);
-      wishlistItems = parsed.state?.items || [];
-    }
-
-    const cartStorage = localStorage.getItem("cart-storage");
-    if (cartStorage) {
-      const parsed = JSON.parse(cartStorage);
-      cartItems = parsed.state?.items || [];
-    }
-  } catch (error) {
-    // If localStorage access fails, continue with empty arrays
-  }
-
-  let recommended = [];
-  const usedIds = new Set();
-
-  // 1. Get products similar to wishlist items
-  if (wishlistItems.length > 0) {
-    wishlistItems.forEach((item) => {
-      const similar = getSimilarProducts(item.id, 2);
-      similar.forEach((product) => {
-        if (
-          !usedIds.has(product.id) &&
-          !wishlistItems.some((w) => w.id === product.id)
-        ) {
-          recommended.push(product);
-          usedIds.add(product.id);
-        }
-      });
-    });
-  }
-
-  // 2. Get products similar to cart items
-  if (cartItems.length > 0) {
-    cartItems.forEach((item) => {
-      const similar = getSimilarProducts(item.id, 2);
-      similar.forEach((product) => {
-        if (
-          !usedIds.has(product.id) &&
-          !cartItems.some((c) => c.id === product.id)
-        ) {
-          recommended.push(product);
-          usedIds.add(product.id);
-        }
-      });
-    });
-  }
-
-  // 3. Fill remaining slots with trending products
-  const trending = getTrending();
-  trending.forEach((product) => {
-    if (recommended.length < limit && !usedIds.has(product.id)) {
-      recommended.push(product);
-      usedIds.add(product.id);
-    }
-  });
-
-  // 4. Fill remaining slots with popular products
-  if (recommended.length < limit) {
-    const popular = getMostPopular();
-    popular.forEach((product) => {
-      if (recommended.length < limit && !usedIds.has(product.id)) {
-        recommended.push(product);
-        usedIds.add(product.id);
-      }
-    });
-  }
-
-  // 5. If still not enough, add any remaining products
-  if (recommended.length < limit) {
-    products.forEach((product) => {
-      if (recommended.length < limit && !usedIds.has(product.id)) {
-        recommended.push(product);
-        usedIds.add(product.id);
-      }
-    });
-  }
-
-  // Return products in their determined priority order (wishlist -> cart -> trending -> popular)
-  // No random shuffle to maintain stability across renders
-  return recommended.slice(0, limit);
-};
-
-// Get all products
+export const getRecommendedProducts = (limit = 6) => products.slice(0, limit);
 export const getAllProducts = () => products;
-
-export const getProductsByBrand = (brandId) => {
-  return products.filter((p) => p.brandId === parseInt(brandId));
-};
-
-export const getProductsByVendor = (vendorId) => {
-  const targetId = String(vendorId ?? "").trim();
-  return products.filter((p) => String(p.vendorId ?? "").trim() === targetId);
-};
+export const getProductsByBrand = (brandId) => products.filter((p) => String(p.brandId) === String(brandId));
+export const getProductsByVendor = (vendorId) => products.filter((p) => String(p.vendorId) === String(vendorId));

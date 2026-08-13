@@ -33,14 +33,40 @@ export const useCategoryStore = create(
           const response = isAdminArea
             ? await getAllCategories()
             : await getPublicCategories();
-          const normalizedCategories = response.data.map(cat => ({
+          const rawList = Array.isArray(response?.data) 
+            ? response.data 
+            : (response?.data?.categories || []);
+          const normalizedCategories = rawList.map(cat => ({
             ...cat,
-            id: cat._id // Ensure UI compatibility by aliasing _id to id
+            id: cat._id || cat.id,
+            parentId: cat.parentId && typeof cat.parentId === 'object'
+              ? (cat.parentId._id || cat.parentId.id)
+              : cat.parentId
           }));
-          set({ categories: normalizedCategories, isLoading: false });
+          const cleanCategories = normalizedCategories.filter(c => 
+            c.name && 
+            !c.name.toLowerCase().includes('grocery') && 
+            !c.name.toLowerCase().includes('fruit') && 
+            !c.name.toLowerCase().includes('dairy') && 
+            !c.name.toLowerCase().includes('masala')
+          );
+          set({ 
+            categories: cleanCategories.length > 0 ? cleanCategories : initialCategories, 
+            isLoading: false 
+          });
         } catch (error) {
-          set({ isLoading: false });
-          // Error toast is handled in api.js interceptor
+          const legacyState = get().categories || [];
+          const cleanLegacy = legacyState.filter(c => 
+            c.name && 
+            !c.name.toLowerCase().includes('grocery') && 
+            !c.name.toLowerCase().includes('fruit') && 
+            !c.name.toLowerCase().includes('dairy') && 
+            !c.name.toLowerCase().includes('masala')
+          );
+          set({ 
+            categories: cleanLegacy.length > 0 ? cleanLegacy : initialCategories, 
+            isLoading: false 
+          });
         }
       },
 
@@ -157,14 +183,27 @@ export const useCategoryStore = create(
 
       // Get categories by parent
       getCategoriesByParent: (parentId) => {
+        if (!parentId) return [];
+        const targetParentId = typeof parentId === 'object' 
+          ? (parentId._id || parentId.id) 
+          : parentId;
+        const targetCat = get().categories.find(c => 
+          String(c.id) === String(targetParentId) || 
+          String(c._id) === String(targetParentId) || 
+          String(c.slug) === String(targetParentId)
+        );
+        const resolvedTargetIds = new Set(
+          [targetParentId, targetCat?.id, targetCat?._id, targetCat?.slug]
+            .filter(Boolean)
+            .map(String)
+        );
+
         return get().categories.filter((cat) => {
           const normalizedParent = cat.parentId && typeof cat.parentId === 'object'
             ? (cat.parentId._id || cat.parentId.id)
             : cat.parentId;
-          const targetParentId = parentId && typeof parentId === 'object' 
-            ? (parentId._id || parentId.id) 
-            : parentId;
-          return String(normalizedParent || '') === String(targetParentId || '');
+          if (!normalizedParent) return false;
+          return resolvedTargetIds.has(String(normalizedParent));
         });
       },
 

@@ -145,16 +145,16 @@ const MobileOrders = () => {
               ) : filteredOrders.length === 0 ? (
                 <EmptyState
                   icon={FiPackage}
-                  title="No orders found"
+                  title="No Orders Yet"
                   description={selectedStatus === 'all'
-                    ? "You haven't placed any orders yet"
+                    ? "Your fire safety purchases and service orders will appear here."
                     : `No ${selectedStatus} orders`}
                   actionButton={
                     <button
-                      onClick={() => navigate('/home')}
+                      onClick={() => navigate('/shop')}
                       className="bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white px-6 py-3 rounded-2xl font-bold shadow-md shadow-primary-500/20 active:scale-95 transition-all"
                     >
-                      Start Shopping
+                      Shop Safety Products
                     </button>
                   }
                   className="mt-6"

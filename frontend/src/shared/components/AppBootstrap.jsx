@@ -5,6 +5,7 @@ import { useAuthStore } from "../store/authStore";
 import { getSocket, joinRoom, leaveRoom } from "../utils/socket";
 import { useOrderStore } from "../store/orderStore";
 import { useSettingsStore } from "../store/settingsStore";
+import { useCategoryStore } from "../store/categoryStore";
 import { getPublicGeneralSettings } from "../services/publicService";
 import toast from "react-hot-toast";
 
@@ -67,6 +68,7 @@ const AppBootstrap = () => {
       }
     };
     loadPublicSettings();
+    useCategoryStore.getState().initialize();
   }, []);
 
   useEffect(() => {

@@ -26,8 +26,8 @@ const PromotionalBannerSection = ({
   };
 
   const textCardStyle = {
-    background: bannerBgColor || 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)',
-    backgroundImage: bannerBgGradient || (bannerBgColor ? 'none' : 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)')
+    background: bannerBgColor || 'linear-gradient(135deg, #E31E24 0%, #1F1F1F 100%)',
+    backgroundImage: bannerBgGradient || (bannerBgColor ? 'none' : 'linear-gradient(135deg, #E31E24 0%, #1F1F1F 100%)')
   };
 
   const badgeClass = isCustomBg

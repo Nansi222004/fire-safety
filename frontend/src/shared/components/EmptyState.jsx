@@ -15,7 +15,7 @@ const EmptyState = ({
             className={`flex flex-col items-center justify-center p-8 text-center bg-white rounded-2xl shadow-sm border border-gray-100 ${className}`}
         >
             {Icon && (
-                <div className="w-20 h-20 bg-primary-50 rounded-full flex items-center justify-center mb-6 text-primary-500">
+                <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-6 text-red-600 border border-red-100 shadow-sm">
                     <Icon size={40} strokeWidth={1.5} />
                 </div>
             )}

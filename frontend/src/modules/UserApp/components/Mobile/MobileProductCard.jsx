@@ -141,15 +141,21 @@ const MobileProductCard = ({ product }) => {
   };
 
   const handleLongPress = (e) => {
-    if (e && e.preventDefault) {
-      // e.preventDefault(); // Might interfere with scrolling?
+    const target = e?.currentTarget || e?.target;
+    if (target && typeof target.getBoundingClientRect === 'function') {
+      const rect = target.getBoundingClientRect();
+      setMenuPosition({
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+      });
+      setShowLongPressMenu(true);
+    } else if (e?.clientX && e?.clientY) {
+      setMenuPosition({
+        x: e.clientX,
+        y: e.clientY,
+      });
+      setShowLongPressMenu(true);
     }
-    const rect = e.currentTarget.getBoundingClientRect();
-    setMenuPosition({
-      x: rect.left + rect.width / 2,
-      y: rect.top + rect.height / 2,
-    });
-    setShowLongPressMenu(true);
   };
 
   const handleShare = () => {

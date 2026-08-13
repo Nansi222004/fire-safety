@@ -44,8 +44,8 @@ const SearchBar = ({ onSearch }) => {
     }
   });
 
-  // Popular searches (can be made dynamic later)
-  const popularSearches = ['Diapers', 'Vegetables', 'Meat', 'Fruits', 'Baby Care'];
+  // Popular searches
+  const popularSearches = ['ABC Extinguisher', 'CO2 Extinguisher', 'Smoke Alarm', 'Fire Blanket', 'Hose Reel'];
 
   // Get recent searches from localStorage
   const getRecentSearches = () => {
@@ -324,7 +324,7 @@ const SearchBar = ({ onSearch }) => {
 
               <div className="w-full bg-gray-50 p-3 rounded-2xl flex flex-wrap justify-center gap-1.5">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 w-full mb-0.5">Try saying</span>
-                {['T-shirts', 'Jackets', 'Sneakers'].map((hint) => (
+                {['ABC Extinguisher', 'Smoke Alarm', 'Fire Hose'].map((hint) => (
                   <span key={hint} className="px-2.5 py-0.5 bg-white border border-gray-100 rounded-full text-[10px] font-medium text-gray-600 shadow-sm">
                     "{hint}"
                   </span>

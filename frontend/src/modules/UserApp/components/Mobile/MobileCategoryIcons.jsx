@@ -2,19 +2,32 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { categories as fallbackCategories } from "../../../../data/categories";
-import { FiPackage, FiShoppingBag, FiStar, FiTag, FiZap } from "react-icons/fi";
-import { IoShirtOutline, IoBagHandleOutline } from "react-icons/io5";
-import { LuFootprints } from "react-icons/lu";
+import { 
+  FiPackage, 
+  FiShield, 
+  FiBell, 
+  FiTool, 
+  FiDroplet, 
+  FiActivity, 
+  FiDisc, 
+  FiLogOut, 
+  FiHardDrive, 
+  FiAlertTriangle 
+} from "react-icons/fi";
 import { useCategoryStore } from "../../../../shared/store/categoryStore";
 
-// Map category names to icons
+// Map Fire Safety category names to icons
 const categoryIcons = {
-  Clothing: IoShirtOutline,
-  Footwear: LuFootprints,
-  Bags: IoBagHandleOutline,
-  Jewelry: FiStar,
-  Accessories: FiTag,
-  Athletic: FiZap,
+  "ABC Fire Extinguishers": FiShield,
+  "CO₂ Fire Extinguishers": FiActivity,
+  "Foam Fire Extinguishers": FiDroplet,
+  "Water-Based Extinguishers": FiDroplet,
+  "Fire Blankets & Emergency Equipment": FiPackage,
+  "Fire Hoses & Hose Reels": FiDisc,
+  "Smoke & Fire Alarms": FiBell,
+  "Safety Helmets & PPE": FiShield,
+  "Emergency Exit & Safety Signs": FiLogOut,
+  "Fire Safety Accessories": FiTool,
 };
 
 const MobileCategoryIcons = () => {

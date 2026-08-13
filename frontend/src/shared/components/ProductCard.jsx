@@ -125,12 +125,21 @@ const ProductCard = ({
   };
 
   const handleLongPress = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    setMenuPosition({
-      x: rect.left + rect.width / 2,
-      y: rect.top + rect.height / 2,
-    });
-    setShowLongPressMenu(true);
+    const target = e?.currentTarget || e?.target;
+    if (target && typeof target.getBoundingClientRect === 'function') {
+      const rect = target.getBoundingClientRect();
+      setMenuPosition({
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+      });
+      setShowLongPressMenu(true);
+    } else if (e?.clientX && e?.clientY) {
+      setMenuPosition({
+        x: e.clientX,
+        y: e.clientY,
+      });
+      setShowLongPressMenu(true);
+    }
   };
 
   const handleShare = () => {
@@ -209,11 +218,16 @@ const ProductCard = ({
 
         {/* Product Info */}
         <div className="p-2.5 flex-1 flex flex-col">
-          {/* Featured Tag */}
-          <div className="mb-1">
-            <span className="text-[9px] font-bold bg-primary-500/10 text-primary-600 px-2 py-0.5 rounded-full uppercase tracking-wider">
-              Bestseller
+          {/* Fire Safety Spec Badge */}
+          <div className="mb-1 flex items-center gap-1.5 flex-wrap">
+            <span className="text-[9px] font-bold bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
+              {product.fireClass || product.capacity || "Safety Rated"}
             </span>
+            {product.capacity && product.fireClass && (
+              <span className="text-[9px] font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                {product.capacity}
+              </span>
+            )}
           </div>
 
           <Link to={productLink} className="block mb-0.5">

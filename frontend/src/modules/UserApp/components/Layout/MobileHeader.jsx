@@ -18,14 +18,14 @@ import SearchBar from "../../../../shared/components/SearchBar";
 import MobileCategoryIcons from "../Mobile/MobileCategoryIcons";
 import MobileSidebar from "./MobileSidebar";
 
-// Category gradient mapping - Very subtle pastel colors
+// Category gradient mapping - Subtle Fire Safety tones
 const categoryGradients = {
-  1: "from-pink-50 via-rose-50 to-pink-100", // Clothing - Pinkish
-  2: "from-amber-50 via-amber-100 to-yellow-50", // Footwear - Brownish
-  3: "from-orange-50 via-orange-100 to-orange-50", // Bags - Orangeish
-  4: "from-green-50 via-emerald-50 to-teal-50", // Jewelry - Greenish
-  5: "from-purple-50 via-purple-100 to-indigo-50", // Accessories - Purple
-  6: "from-blue-50 via-cyan-50 to-teal-50", // Athletic
+  1: "from-red-50 via-rose-50 to-red-100", // ABC Extinguishers - Red
+  2: "from-amber-50 via-amber-100 to-yellow-50", // CO2 Extinguishers - Amber
+  3: "from-orange-50 via-orange-100 to-orange-50", // Foam - Orange
+  4: "from-green-50 via-emerald-50 to-teal-50", // Water - Green
+  5: "from-red-50 via-rose-50 to-red-100", // Fire Blankets - Red
+  6: "from-blue-50 via-cyan-50 to-teal-50", // Accessories - Blue
 };
 
 const MobileHeader = ({ onSearch }) => {
@@ -94,49 +94,49 @@ const MobileHeader = ({ onSearch }) => {
 
   // Memoize gradient background style to prevent unnecessary re-renders
   const headerBackground = useMemo(() => {
-    // Category pages - keep existing category-specific gradients
+    // Category pages - Fire Safety category-specific subtle gradients
     if (currentCategoryId) {
       const gradientMap = {
-        1: "linear-gradient(to bottom, rgb(252, 231, 243) 0%, rgb(255, 240, 245) 50%, rgb(255, 255, 255) 100%)", // Pink - moderate
-        2: "linear-gradient(to bottom, rgb(254, 243, 199) 0%, rgb(255, 248, 220) 50%, rgb(255, 255, 255) 100%)", // Brown/Amber - moderate
-        3: "linear-gradient(to bottom, rgb(255, 237, 213) 0%, rgb(255, 245, 230) 50%, rgb(255, 255, 255) 100%)", // Orange - moderate
-        4: "linear-gradient(to bottom, rgb(209, 250, 229) 0%, rgb(236, 253, 245) 50%, rgb(255, 255, 255) 100%)", // Green - moderate
-        5: "linear-gradient(to bottom, rgb(243, 232, 255) 0%, rgb(250, 245, 255) 50%, rgb(255, 255, 255) 100%)", // Purple - moderate
-        6: "linear-gradient(to bottom, rgb(219, 234, 254) 0%, rgb(239, 246, 255) 50%, rgb(255, 255, 255) 100%)", // Blue - moderate
+        1: "linear-gradient(to bottom, rgb(254, 226, 226) 0%, rgb(254, 242, 242) 50%, rgb(255, 255, 255) 100%)", // Red - ABC
+        2: "linear-gradient(to bottom, rgb(254, 243, 199) 0%, rgb(255, 248, 220) 50%, rgb(255, 255, 255) 100%)", // Amber - CO2
+        3: "linear-gradient(to bottom, rgb(255, 237, 213) 0%, rgb(255, 245, 230) 50%, rgb(255, 255, 255) 100%)", // Orange - Foam
+        4: "linear-gradient(to bottom, rgb(209, 250, 229) 0%, rgb(236, 253, 245) 50%, rgb(255, 255, 255) 100%)", // Green - Water
+        5: "linear-gradient(to bottom, rgb(254, 226, 226) 0%, rgb(254, 242, 242) 50%, rgb(255, 255, 255) 100%)", // Red - Blankets
+        6: "linear-gradient(to bottom, rgb(219, 234, 254) 0%, rgb(239, 246, 255) 50%, rgb(255, 255, 255) 100%)", // Blue - Accessories
       };
       return (
         gradientMap[currentCategoryId] ||
-        "linear-gradient(to bottom, #EDE9FE 0%, #F5F3FF 50%, #FFFFFF 100%)"
+        "linear-gradient(to bottom, #FEE2E2 0%, #FEF2F2 50%, #FFFFFF 100%)"
       );
     }
 
     // Page-specific gradients
     const pageGradients = {
-      home: "linear-gradient(to bottom, rgb(196, 181, 253) 0%, rgb(221, 214, 254) 25%, rgb(245, 243, 255) 50%, rgb(255, 255, 255) 100%)", // Purple gradient for home - lighter intensity
+      home: "linear-gradient(to bottom, rgb(254, 226, 226) 0%, rgb(254, 242, 242) 30%, rgb(255, 255, 255) 100%)", // Fire Red subtle header tint
       product:
-        "linear-gradient(to bottom, rgb(237, 233, 254) 0%, rgb(245, 243, 255) 50%, rgb(255, 255, 255) 100%)", // Light purple
+        "linear-gradient(to bottom, rgb(254, 226, 226) 0%, rgb(255, 245, 245) 50%, rgb(255, 255, 255) 100%)", // Light red
       search:
-        "linear-gradient(to bottom, rgb(249, 115, 22) 0%, rgb(251, 146, 60) 30%, rgb(255, 237, 213) 60%, rgb(255, 255, 255) 100%)", // Orange gradient
+        "linear-gradient(to bottom, rgb(249, 115, 22) 0%, rgb(251, 146, 60) 30%, rgb(255, 237, 213) 60%, rgb(255, 255, 255) 100%)", // Safety Orange
       wishlist:
-        "linear-gradient(to bottom, rgb(239, 68, 68) 0%, rgb(248, 113, 113) 30%, rgb(254, 226, 226) 60%, rgb(255, 255, 255) 100%)", // Red/pink gradient
+        "linear-gradient(to bottom, rgb(239, 68, 68) 0%, rgb(248, 113, 113) 30%, rgb(254, 226, 226) 60%, rgb(255, 255, 255) 100%)", // Fire Red
       profile:
-        "linear-gradient(to bottom, rgb(16, 185, 129) 0%, rgb(52, 211, 153) 30%, rgb(209, 250, 229) 60%, rgb(255, 255, 255) 100%)", // Green gradient
+        "linear-gradient(to bottom, rgb(15, 23, 42) 0%, rgb(30, 41, 59) 30%, rgb(248, 250, 252) 70%, rgb(255, 255, 255) 100%)", // Dark Slate
       orders:
-        "linear-gradient(to bottom, rgb(59, 130, 246) 0%, rgb(96, 165, 250) 30%, rgb(219, 234, 254) 60%, rgb(255, 255, 255) 100%)", // Blue gradient
+        "linear-gradient(to bottom, rgb(15, 23, 42) 0%, rgb(30, 41, 59) 30%, rgb(248, 250, 252) 70%, rgb(255, 255, 255) 100%)", // Dark Slate
       orderDetail:
-        "linear-gradient(to bottom, rgb(59, 130, 246) 0%, rgb(96, 165, 250) 30%, rgb(219, 234, 254) 60%, rgb(255, 255, 255) 100%)", // Blue gradient
+        "linear-gradient(to bottom, rgb(15, 23, 42) 0%, rgb(30, 41, 59) 30%, rgb(248, 250, 252) 70%, rgb(255, 255, 255) 100%)", // Dark Slate
       checkout:
-        "linear-gradient(to bottom, rgb(16, 185, 129) 0%, rgb(52, 211, 153) 30%, rgb(209, 250, 229) 60%, rgb(255, 255, 255) 100%)", // Green gradient
+        "linear-gradient(to bottom, rgb(239, 68, 68) 0%, rgb(248, 113, 113) 30%, rgb(254, 226, 226) 60%, rgb(255, 255, 255) 100%)", // Fire Red
       offers:
-        "linear-gradient(to bottom, rgb(249, 115, 22) 0%, rgb(251, 146, 60) 30%, rgb(255, 237, 213) 60%, rgb(255, 255, 255) 100%)", // Orange gradient
+        "linear-gradient(to bottom, rgb(249, 115, 22) 0%, rgb(251, 146, 60) 30%, rgb(255, 237, 213) 60%, rgb(255, 255, 255) 100%)", // Safety Orange
       dailyDeals:
-        "linear-gradient(to bottom, rgb(234, 179, 8) 0%, rgb(250, 204, 21) 30%, rgb(254, 243, 199) 60%, rgb(255, 255, 255) 100%)", // Yellow gradient
+        "linear-gradient(to bottom, rgb(239, 68, 68) 0%, rgb(248, 113, 113) 30%, rgb(254, 226, 226) 60%, rgb(255, 255, 255) 100%)", // Fire Red
       flashSale:
-        "linear-gradient(to bottom, rgb(239, 68, 68) 0%, rgb(248, 113, 113) 30%, rgb(254, 226, 226) 60%, rgb(255, 255, 255) 100%)", // Red gradient
+        "linear-gradient(to bottom, rgb(239, 68, 68) 0%, rgb(248, 113, 113) 30%, rgb(254, 226, 226) 60%, rgb(255, 255, 255) 100%)", // Fire Red
       vendor:
-        "linear-gradient(to bottom, rgb(124, 58, 237) 0%, rgb(167, 139, 250) 30%, rgb(237, 233, 254) 60%, rgb(255, 255, 255) 100%)", // Purple gradient
+        "linear-gradient(to bottom, rgb(254, 226, 226) 0%, rgb(255, 245, 245) 50%, rgb(255, 255, 255) 100%)", // Light Red
       default:
-        "linear-gradient(to bottom, rgb(237, 233, 254) 0%, rgb(245, 243, 255) 50%, rgb(255, 255, 255) 100%)", // Light purple default
+        "linear-gradient(to bottom, rgb(254, 226, 226) 0%, rgb(255, 245, 245) 50%, rgb(255, 255, 255) 100%)", // Light Red default
     };
 
     return pageGradients[currentPage] || pageGradients.default;
@@ -386,14 +386,14 @@ const MobileHeader = ({ onSearch }) => {
                         const fallback = document.createElement("span");
                         fallback.className =
                           "logo-text-fallback text-primary-600 font-bold text-sm sm:text-lg";
-                        fallback.textContent = "LOGO";
+                        fallback.textContent = "Fire Safety Shop";
                         parent.appendChild(fallback);
                       }
                     }}
                   />
                 ) : (
                   <span className="logo-text-fallback text-primary-600 font-bold text-sm sm:text-lg">
-                    LOGO
+                    Fire Safety Shop
                   </span>
                 )}
               </div>
