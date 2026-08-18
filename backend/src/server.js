@@ -14,6 +14,15 @@ const httpServer = createServer(app);
 // Initialize Socket.io
 initSocket(httpServer);
 
+httpServer.on("error", (error) => {
+  if (error.code === "EADDRINUSE") {
+    console.error(`❌ Port ${PORT} is already in use. Please terminate the process running on port ${PORT} or change the PORT environment variable.`);
+    process.exit(1);
+  } else {
+    console.error("❌ Server error:", error);
+  }
+});
+
 const startServer = async () => {
   try {
     validateEnv();
@@ -80,16 +89,20 @@ const startServer = async () => {
       console.error("📦 Failed to init wallet cron:", err.message);
     }
 
-    httpServer.listen(PORT, () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-      console.log(`🚀 Environment: ${process.env.NODE_ENV || "development"}`);
-      console.log(`🔌 Socket.io initialized`);
-    });
+    if (!httpServer.listening) {
+      httpServer.listen(PORT, () => {
+        console.log(`Server running on http://localhost:${PORT}`);
+        console.log(`🚀 Environment: ${process.env.NODE_ENV || "development"}`);
+        console.log(`🔌 Socket.io initialized`);
+      });
+    }
   } catch (error) {
     console.error("📦 Server startup notice:", error.message);
-    httpServer.listen(PORT, () => {
-      console.log(`Server running in fallback mode on http://localhost:${PORT}`);
-    });
+    if (!httpServer.listening) {
+      httpServer.listen(PORT, () => {
+        console.log(`Server running in fallback mode on http://localhost:${PORT}`);
+      });
+    }
   }
 };
 
