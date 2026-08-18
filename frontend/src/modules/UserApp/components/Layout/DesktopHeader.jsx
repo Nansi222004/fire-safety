@@ -23,6 +23,7 @@ import {
   FiZap,
   FiCreditCard,
   FiMic,
+  FiBriefcase,
 } from "react-icons/fi";
 import { HiOutlineUserCircle } from "react-icons/hi";
 import { useState, useRef, useEffect } from "react";
@@ -259,6 +260,16 @@ const DesktopHeader = ({ onSearch }) => {
               <span className="text-xs lg:text-sm font-semibold tracking-wide hidden xl:inline">
                 Notifications
               </span>
+            </Link>
+
+            {/* Become a Vendor Button */}
+            <Link
+              to="/vendor/register"
+              className="hidden lg:flex items-center gap-1.5 px-3.5 py-1.5 border border-primary-600 text-primary-600 hover:bg-primary-600 hover:text-white rounded-full text-xs font-bold transition-all shadow-sm shrink-0"
+              title="Register as a Seller / Vendor"
+            >
+              <FiBriefcase className="text-sm" />
+              <span>Become a Seller</span>
             </Link>
 
 

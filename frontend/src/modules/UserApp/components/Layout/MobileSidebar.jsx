@@ -10,6 +10,7 @@ import {
   FiHeart,
   FiShoppingBag,
   FiCreditCard,
+  FiBriefcase,
 } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { appLogo } from "../../../../data/logos";
@@ -165,6 +166,14 @@ const MobileSidebar = ({ isOpen, onClose }) => {
                   <FiShoppingBag className="text-xl group-hover:scale-110 transition-transform" />
                   <span className="font-medium text-left">My Cart</span>
                 </button>
+                <Link
+                  to="/vendor/register"
+                  onClick={onClose}
+                  className="flex items-center gap-4 px-4 py-3 text-primary-600 bg-primary-50/60 hover:bg-primary-100 rounded-xl transition-all font-semibold group mt-2"
+                >
+                  <FiBriefcase className="text-xl group-hover:scale-110 transition-transform" />
+                  <span className="font-bold">Register as Vendor</span>
+                </Link>
               </nav>
             </div>
 

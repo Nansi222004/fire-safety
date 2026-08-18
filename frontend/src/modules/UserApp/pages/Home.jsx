@@ -835,10 +835,10 @@ const MobileHome = () => {
           ) : (
             <>
           {/* Hero Banner */}
-          <div className="px-4 pb-4 pt-2">
+          <div className="px-2 sm:px-3 pb-4 pt-2">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               <div
-                className="relative w-full h-48 sm:h-56 md:h-80 lg:h-[400px] xl:h-[450px] rounded-2xl md:rounded-3xl overflow-hidden lg:col-span-2 border border-slate-800/80 shadow-[0_12px_40px_rgba(0,0,0,0.35)]"
+                className="relative w-full h-48 sm:h-56 md:h-80 lg:h-[400px] xl:h-[450px] rounded-2xl md:rounded-3xl overflow-hidden lg:col-span-2 border border-slate-800/80"
                 data-carousel
                 onTouchStart={onTouchStart}
                 onTouchMove={onTouchMove}
@@ -965,7 +965,7 @@ const MobileHome = () => {
               {/* Side Banner for Large Screens (Luxury Collection) */}
               <div
                 onClick={() => handleBannerNavigation(sideBanner)}
-                className="hidden lg:flex lg:col-span-1 h-[400px] xl:h-[450px] rounded-3xl overflow-hidden relative bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-950 p-8 border border-slate-800/90 cursor-pointer group shadow-[0_12px_40px_rgba(0,0,0,0.4)]"
+                className="hidden lg:flex lg:col-span-1 h-[400px] xl:h-[450px] rounded-3xl overflow-hidden relative bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-950 p-8 border border-slate-800/90 cursor-pointer group"
               >
                 {/* Ambient glowing backlight behind watch */}
                 <div className="absolute -right-10 -bottom-10 w-56 h-56 bg-primary-500/10 rounded-full blur-3xl group-hover:bg-primary-500/20 transition-all duration-700 pointer-events-none" />
