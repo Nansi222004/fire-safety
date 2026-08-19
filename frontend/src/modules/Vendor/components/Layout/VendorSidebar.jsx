@@ -38,8 +38,6 @@ const iconMap = {
   Products: FiPackage,
   "Brand Requests": FiTag,
   "Category Requests": FiLayers,
-  "Website Builder": FiLayout,
-  "Store Builder": FiLayout,
   Orders: FiShoppingBag,
   "Returns & Exchanges": FiRefreshCw,
   "Product Reviews": FiStar,

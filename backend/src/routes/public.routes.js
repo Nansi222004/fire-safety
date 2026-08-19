@@ -21,16 +21,7 @@ import AppConfig from '../models/AppConfig.model.js';
 import HomeBanner from '../models/HomeBanner.model.js';
 
 const router = Router();
-import * as storefrontController from '../modules/vendor/controllers/storefront.controller.js';
 import { optionalAuth } from '../middlewares/authenticate.js';
-
-// GET /api/store/:slug (Public Storefront API)
-router.get('/store/:slug', storefrontController.getPublicStorefront);
-router.get('/store/:slug/page/:pageKey', storefrontController.getPublicStorefront);
-router.get('/store/:slug/products', storefrontController.getStorefrontProducts);
-router.get('/store/:slug/search', storefrontController.searchStorefrontProducts);
-router.get('/store/:slug/about', storefrontController.getStorefrontAbout);
-router.post('/store/:slug/contact', optionalAuth, storefrontController.createStorefrontInquiry);
 
 // GET /api/homepage (Public dynamic homepage data resolver)
 router.get('/homepage', getHomepage);

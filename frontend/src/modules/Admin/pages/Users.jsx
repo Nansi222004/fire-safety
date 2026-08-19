@@ -10,7 +10,7 @@ const Users = () => {
     {
       id: 1,
       name: 'Admin User',
-      email: 'admin@admin.com',
+      email: 'sfsappdevelopment@gmail.com',
       role: 'super_admin',
       status: 'active',
       lastLogin: new Date().toISOString(),

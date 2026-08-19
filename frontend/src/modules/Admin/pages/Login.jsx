@@ -80,7 +80,7 @@ const AdminLogin = () => {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                placeholder="admin@admin.com"
+                placeholder="sfsappdevelopment@gmail.com"
                 className="w-full pl-12 pr-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 placeholder:text-gray-400"
                 required
               />
@@ -139,7 +139,7 @@ const AdminLogin = () => {
         {/* Demo Credentials */}
         <div className="mt-6 p-4 bg-primary-50 rounded-xl">
           <p className="text-sm text-gray-700 font-semibold mb-2">Demo Credentials:</p>
-          <p className="text-xs text-gray-600">Email: admin@admin.com</p>
+          <p className="text-xs text-gray-600">Email: sfsappdevelopment@gmail.com</p>
           <p className="text-xs text-gray-600">Password: admin123</p>
         </div>
       </motion.div>

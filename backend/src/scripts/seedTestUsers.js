@@ -121,6 +121,7 @@ const seedTestUsers = async () => {
     await upsertDelivery('delivery@safefire.com', 'Demo Delivery Partner', '9876543212', 'Password123!');
 
     // Seed admin accounts (.demo & .com)
+    await upsertAdmin('sfsappdevelopment@gmail.com', 'Super Admin', 'admin123');
     await upsertAdmin('admin@safefire.demo', 'Safe Fire Admin', 'Password123!');
     await upsertAdmin('admin@safefire.com', 'Safe Fire Admin', 'Password123!');
 
@@ -131,6 +132,7 @@ const seedTestUsers = async () => {
     console.log('\n🎉 Test Users Seeding Completed Successfully!');
     console.log('----------------------------------------------------------------------');
     console.log('👤 Customer: customer@safefire.demo / customer@safefire.com | Password123!');
+    console.log('🛡️ Admin:    sfsappdevelopment@gmail.com                    | admin123');
     console.log('🛡️ Admin:    admin@safefire.demo    / admin@safefire.com    | Password123!');
     console.log('🏭 Vendor:   vendor@safefire.demo   / vendor@safefire.com   | Password123!');
     console.log('🚚 Delivery: delivery@safefire.demo / delivery@safefire.com | Password123!');

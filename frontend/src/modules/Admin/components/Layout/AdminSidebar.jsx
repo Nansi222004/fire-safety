@@ -358,7 +358,7 @@ const AdminSidebar = ({ isOpen, onClose, isCollapsed }) => {
                 {admin?.name || "Admin User"}
               </h2>
               <p className="text-xs text-gray-400 truncate">
-                {admin?.email || "admin@admin.com"}
+                {admin?.email || "sfsappdevelopment@gmail.com"}
               </p>
             </div>
           </div>

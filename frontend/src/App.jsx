@@ -194,8 +194,7 @@ import VendorProfile from "./modules/Vendor/pages/settings/ProfileSettings";
 import VendorPickupLocations from "./modules/Vendor/pages/PickupLocations";
 import VendorReports from "./modules/Vendor/pages/Reports";
 import VendorLanguageSettings from "./modules/Vendor/pages/LanguageSettings";
-import MobileStorefront from "./modules/UserApp/pages/Storefront";
-import VendorStoreManager from "./modules/Vendor/pages/VendorStoreManager";
+
 
 // Inner component that has access to useLocation
 const AppRoutes = () => {
@@ -233,94 +232,7 @@ const AppRoutes = () => {
           </RouteWrapper>
         }
       />
-      <Route
-        path="/store/:slug/category/:categorySlug"
-        element={
-          <RouteWrapper>
-            <MobileStorefront />
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/store/:slug/collection/:collectionSlug"
-        element={
-          <RouteWrapper>
-            <MobileStorefront />
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/store/:slug/collections/:collectionSlug"
-        element={
-          <RouteWrapper>
-            <MobileStorefront />
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/store/:slug/collections"
-        element={
-          <RouteWrapper>
-            <MobileStorefront />
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/store/:slug/search"
-        element={
-          <RouteWrapper>
-            <MobileStorefront />
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/store/:slug/products"
-        element={
-          <RouteWrapper>
-            <MobileStorefront />
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/store/:slug/about"
-        element={
-          <RouteWrapper>
-            <MobileStorefront />
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/store/:slug/contact"
-        element={
-          <RouteWrapper>
-            <MobileStorefront />
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/store/:slug/page/:pageKey"
-        element={
-          <RouteWrapper>
-            <MobileStorefront />
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/store/:slug/:pageKey"
-        element={
-          <RouteWrapper>
-            <MobileStorefront />
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/store/:slug"
-        element={
-          <RouteWrapper>
-            <MobileStorefront />
-          </RouteWrapper>
-        }
-      />
+
       <Route
         path="/category/:id"
         element={
@@ -847,7 +759,7 @@ const AppRoutes = () => {
         <Route path="settings/shipping-settings" element={<VendorSettings />} />
         <Route path="settings/profile" element={<VendorProfile />} />
         <Route path="profile" element={<VendorProfile />} />
-        <Route path="store-builder" element={<VendorStoreManager />} />
+
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
