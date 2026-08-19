@@ -36,7 +36,6 @@ import vendorMenu from "../../config/vendorMenu.json";
 const iconMap = {
   Dashboard: FiHome,
   Products: FiPackage,
-  "Affiliate Program": FiAward,
   "Brand Requests": FiTag,
   "Category Requests": FiLayers,
   "Website Builder": FiLayout,

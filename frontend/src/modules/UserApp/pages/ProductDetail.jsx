@@ -36,7 +36,7 @@ import PageTransition from "../../../shared/components/PageTransition";
 import Badge from "../../../shared/components/Badge";
 import ProductCard from "../../../shared/components/ProductCard";
 import { getVariantSignature } from "../../../shared/utils/variant";
-import AffiliateBadge from "../../Affiliate/components/AffiliateBadge";
+
 
 const FlipkartCompactCard = ({ product }) => {
   const navigate = useNavigate();

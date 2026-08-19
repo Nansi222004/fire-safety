@@ -53,14 +53,6 @@
     ]
   },
   {
-    "title": "Social Control",
-    "route": "/admin",
-    "children": [
-      "Affiliate Payouts",
-      "Audit Logs"
-    ]
-  },
-  {
     "title": "Delivery Management",
     "route": "/admin/delivery",
     "children": [

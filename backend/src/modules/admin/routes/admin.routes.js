@@ -16,8 +16,8 @@ import * as marketingController from '../controllers/marketing.controller.js';
 import * as notificationController from '../controllers/notification.controller.js';
 import * as uploadController from '../controllers/upload.controller.js';
 import * as settingsController from '../controllers/settings.controller.js';
+
 import * as policyController from '../controllers/policy.controller.js';
-import * as affiliateController from '../controllers/affiliate.controller.js';
 import * as escrowController from '../controllers/escrow.controller.js';
 import logisticsRoutes from './logistics.routes.js';
 import AppConfig from '../../../models/AppConfig.model.js';
@@ -303,9 +303,7 @@ router.put('/settings/:key', ...adminAuth, audit('UPDATE_SETTINGS', 'Settings'),
 router.get('/policies/:type', ...adminAuth, policyController.getPolicy);
 router.put('/policies/:type', ...adminAuth, audit('UPDATE_POLICY', 'Policy'), policyController.updatePolicy);
 
-// ─── Affiliate Management ───────────────────────────────────────────────────
-router.get('/affiliates/payouts/pending', ...adminAuth, affiliateController.getPendingPayouts);
-router.patch('/affiliates/:id/payouts/:payoutId', ...adminAuth, audit('PROCESS_AFFILIATE_PAYOUT', 'Affiliate'), affiliateController.completePayout);
+
 
 // ─── Escrow & Payout Management ──────────────────────────────────────────────
 router.get('/escrow/summary',                  ...adminAuth, escrowController.getEscrowSummary);

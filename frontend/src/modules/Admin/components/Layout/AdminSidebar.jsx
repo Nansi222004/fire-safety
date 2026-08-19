@@ -128,10 +128,7 @@ const getChildRoute = (parentRoute, childName) => {
       "Commission Rates": "/admin/vendors/commission-rates",
       "Vendor Analytics": "/admin/vendors/vendor-analytics",
     },
-    "/admin": {
-      "Affiliate Payouts": "/admin/payouts",
-      "Audit Logs": "/admin/audit-logs",
-    },
+
   };
 
   return routeMap[parentRoute]?.[childName] || parentRoute;

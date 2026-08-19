@@ -24,11 +24,6 @@
         "route": "/vendor/category-requests",
         "children": []
     },
-    {
-        "title": "Affiliate Program",
-        "route": "/vendor/affiliate",
-        "children": []
-    },
 
     {
         "title":  "Orders",

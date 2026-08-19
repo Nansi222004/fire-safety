@@ -138,12 +138,8 @@ import SafetyCenter from "./modules/UserApp/pages/SafetyCenter";
 import SimilarExplore from "./modules/UserApp/pages/SimilarExplore";
 import UserSupport from "./modules/UserApp/pages/Support";
 import ComingSoon from "./modules/UserApp/pages/ComingSoon";
-import WalletPage from "./modules/Affiliate/pages/WalletPage";
 import ServicesPage from "./modules/UserApp/pages/ServicesPage";
-import VendorAffiliateDashboard from "./modules/VendorAffiliate/pages/AffiliateDashboard";
 
-import AffiliatePayouts from "./modules/AdminSocial/pages/AffiliatePayouts";
-import AuditLogs from "./modules/AdminSocial/pages/AuditLogs";
 // Delivery Routes
 import DeliveryLogin from "./modules/Delivery/pages/Login";
 import DeliveryRegister from "./modules/Delivery/pages/Register";
@@ -467,14 +463,7 @@ const AppRoutes = () => {
         }
       />
 
-      <Route
-        path="/wallet"
-        element={
-          <RouteWrapper>
-            <WalletPage />
-          </RouteWrapper>
-        }
-      />
+
       <Route
         path="/services"
         element={
@@ -675,9 +664,7 @@ const AppRoutes = () => {
         <Route path="customers/transactions" element={<Transactions />} />
         <Route path="customers/:id" element={<CustomerDetailPage />} />
         
-        {/* Social Control Routes */}
-        <Route path="payouts" element={<AffiliatePayouts />} />
-        <Route path="audit-logs" element={<AuditLogs />} />
+
 
         <Route path="delivery" element={<DeliveryBoys />} />
         <Route path="delivery/delivery-boys" element={<DeliveryBoys />} />
@@ -803,7 +790,7 @@ const AppRoutes = () => {
         }>
         <Route index element={<Navigate to="/vendor/dashboard" replace />} />
         <Route path="dashboard" element={<VendorDashboard />} />
-        <Route path="affiliate" element={<VendorAffiliateDashboard />} />
+
 
         <Route path="products" element={<VendorProducts />} />
         <Route
