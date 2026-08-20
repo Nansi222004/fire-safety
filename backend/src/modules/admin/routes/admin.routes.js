@@ -16,6 +16,20 @@ import * as marketingController from '../controllers/marketing.controller.js';
 import * as notificationController from '../controllers/notification.controller.js';
 import * as uploadController from '../controllers/upload.controller.js';
 import * as settingsController from '../controllers/settings.controller.js';
+import * as serviceCategoryController from '../controllers/serviceCategory.controller.js';
+import {
+    serviceCategoryIdParamSchema,
+    createServiceCategorySchema,
+    updateServiceCategorySchema,
+    updateServiceCategoryStatusSchema,
+} from '../validators/serviceCategory.validator.js';
+import * as serviceController from '../controllers/service.controller.js';
+import {
+    serviceIdParamSchema,
+    createServiceSchema,
+    updateServiceSchema,
+    updateServiceStatusSchema,
+} from '../validators/service.validator.js';
 
 import * as policyController from '../controllers/policy.controller.js';
 import * as escrowController from '../controllers/escrow.controller.js';
@@ -118,6 +132,22 @@ router.post('/categories', ...adminAuth, validate(createCategorySchema), catalog
 router.patch('/categories/reorder', ...adminAuth, validate(reorderCategoriesSchema), catalogController.reorderCategories);
 router.put('/categories/:id', ...adminAuth, validate(categoryIdParamSchema, 'params'), validate(updateCategorySchema), catalogController.updateCategory);
 router.delete('/categories/:id', ...adminAuth, validate(categoryIdParamSchema, 'params'), catalogController.deleteCategory);
+
+// ─── Service Categories ───────────────────────────────────────────────────────
+router.get('/service-categories', ...adminAuth, serviceCategoryController.getAllServiceCategories);
+router.post('/service-categories', ...adminAuth, validate(createServiceCategorySchema), serviceCategoryController.createServiceCategory);
+router.get('/service-categories/:id', ...adminAuth, validate(serviceCategoryIdParamSchema, 'params'), serviceCategoryController.getServiceCategoryById);
+router.put('/service-categories/:id', ...adminAuth, validate(serviceCategoryIdParamSchema, 'params'), validate(updateServiceCategorySchema), serviceCategoryController.updateServiceCategory);
+router.patch('/service-categories/:id/status', ...adminAuth, validate(serviceCategoryIdParamSchema, 'params'), validate(updateServiceCategoryStatusSchema), serviceCategoryController.updateServiceCategoryStatus);
+router.delete('/service-categories/:id', ...adminAuth, validate(serviceCategoryIdParamSchema, 'params'), serviceCategoryController.deleteServiceCategory);
+
+// ─── Services Master ──────────────────────────────────────────────────────────
+router.get('/services', ...adminAuth, serviceController.getAllServices);
+router.post('/services', ...adminAuth, validate(createServiceSchema), serviceController.createService);
+router.get('/services/:id', ...adminAuth, validate(serviceIdParamSchema, 'params'), serviceController.getServiceById);
+router.put('/services/:id', ...adminAuth, validate(serviceIdParamSchema, 'params'), validate(updateServiceSchema), serviceController.updateService);
+router.patch('/services/:id/status', ...adminAuth, validate(serviceIdParamSchema, 'params'), validate(updateServiceStatusSchema), serviceController.updateServiceStatus);
+router.delete('/services/:id', ...adminAuth, validate(serviceIdParamSchema, 'params'), serviceController.deleteService);
 
 // ─── Brands ───────────────────────────────────────────────────────────────────
 router.get('/brands', ...adminAuth, catalogController.getAllBrands);

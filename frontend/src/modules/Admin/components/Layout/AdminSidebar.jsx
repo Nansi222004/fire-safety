@@ -7,6 +7,7 @@ import {
   FiRotateCcw,
   FiPackage,
   FiGrid,
+  FiLayers,
   FiTag,
   FiUsers,
   FiTruck,
@@ -34,6 +35,7 @@ const iconMap = {
   "Returns & Exchanges": FiRotateCcw,
   Products: FiPackage,
   Categories: FiGrid,
+  Services: FiLayers,
   Brands: FiTag,
   Customers: FiUsers,
   "Delivery Management": FiTruck,
@@ -63,6 +65,10 @@ const getChildRoute = (parentRoute, childName) => {
       "Manage Categories": "/admin/categories/manage-categories",
       "Category Requests": "/admin/categories/requests",
       "Category Order": "/admin/categories/category-order",
+    },
+    "/admin/services": {
+      "Categories": "/admin/services/categories",
+      "Manage Services": "/admin/services/manage-services",
     },
     "/admin/brands": {
       "Manage Brands": "/admin/brands",

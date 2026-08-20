@@ -24,6 +24,14 @@
         "route": "/vendor/category-requests",
         "children": []
     },
+    {
+        "title": "Services",
+        "route": "/vendor/services",
+        "children": [
+            "Available Services",
+            "My Services"
+        ]
+    },
 
     {
         "title":  "Orders",

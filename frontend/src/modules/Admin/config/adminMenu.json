@@ -36,6 +36,14 @@
     ]
   },
   {
+    "title": "Services",
+    "route": "/admin/services",
+    "children": [
+      "Categories",
+      "Manage Services"
+    ]
+  },
+  {
     "title": "Brands",
     "route": "/admin/brands",
     "children": [

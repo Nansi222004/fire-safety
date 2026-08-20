@@ -28,6 +28,7 @@ import {
   FiFile,
   FiAward,
   FiLayers,
+  FiTool,
 } from "react-icons/fi";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
 import vendorMenu from "../../config/vendorMenu.json";
@@ -38,6 +39,7 @@ const iconMap = {
   Products: FiPackage,
   "Brand Requests": FiTag,
   "Category Requests": FiLayers,
+  Services: FiTool,
   Orders: FiShoppingBag,
   "Returns & Exchanges": FiRefreshCw,
   "Product Reviews": FiStar,
@@ -63,6 +65,10 @@ const getChildRoute = (parentRoute, childName) => {
     "/vendor/products": {
       "Manage Products": "/vendor/products/manage-products",
       "Add Product": "/vendor/products/add-product",
+    },
+    "/vendor/services": {
+      "Available Services": "/vendor/services/available",
+      "My Services": "/vendor/services/my-services",
     },
     "/vendor/orders": {
       "All Orders": "/vendor/orders/all-orders",

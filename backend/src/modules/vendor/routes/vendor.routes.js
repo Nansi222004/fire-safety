@@ -15,6 +15,13 @@ import * as walletController from '../controllers/wallet.controller.js';
 import * as supportController from '../controllers/support.controller.js';
 import * as brandController from '../controllers/brand.controller.js';
 import * as categoryController from '../controllers/category.controller.js';
+import * as vendorServiceController from '../controllers/vendorService.controller.js';
+import {
+    vendorServiceIdParamSchema,
+    enableServiceParamSchema,
+    updateVendorServiceSchema,
+    updateVendorServiceStatusSchema,
+} from '../validators/vendorService.validator.js';
 
 import { authenticate } from '../../../middlewares/authenticate.js';
 import { authorize, enforceAccountStatus } from '../../../middlewares/authorize.js';
@@ -151,6 +158,15 @@ router.patch('/reviews/:id/response', ...vendorAuth, reviewController.addVendorR
 // Uploads (Cloudinary via temp local multer upload)
 router.post('/uploads/image', ...vendorAuth, uploadSingle('image'), uploadController.uploadImage);
 router.post('/uploads/images', ...vendorAuth, uploadMultiple('images', 8), uploadController.uploadImages);
+
+// Services
+router.get('/services/available', ...vendorAuth, vendorServiceController.getAvailableServices);
+router.get('/services', ...vendorAuth, vendorServiceController.getMyVendorServices);
+router.get('/services/:id', ...vendorAuth, validate(vendorServiceIdParamSchema, 'params'), vendorServiceController.getVendorServiceById);
+router.post('/services/:serviceId/enable', ...vendorAuth, validate(enableServiceParamSchema, 'params'), vendorServiceController.enableService);
+router.put('/services/:id', ...vendorAuth, validate(vendorServiceIdParamSchema, 'params'), validate(updateVendorServiceSchema), vendorServiceController.updateVendorService);
+router.patch('/services/:id/status', ...vendorAuth, validate(vendorServiceIdParamSchema, 'params'), validate(updateVendorServiceStatusSchema), vendorServiceController.updateVendorServiceStatus);
+router.delete('/services/:id', ...vendorAuth, validate(vendorServiceIdParamSchema, 'params'), vendorServiceController.deleteVendorService);
 
 
 

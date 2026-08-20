@@ -540,3 +540,26 @@ export const resubmitVendorBrandRequest = (id, data) => api.put(`/vendor/brand-r
 export const getVendorCategoryRequests = (params = {}) => api.get('/vendor/category-requests', { params });
 export const requestVendorCategory = (data) => api.post('/vendor/category-requests', data);
 export const resubmitVendorCategoryRequest = (id, data) => api.put(`/vendor/category-requests/${id}/resubmit`, data);
+
+// ─── VENDOR SERVICES ───────────────────────────────────────────────────────────
+export const getAvailableVendorServices = (params = {}) =>
+    api.get('/vendor/services/available', { params });
+
+export const getMyVendorServices = (params = {}) =>
+    api.get('/vendor/services', { params });
+
+export const getVendorServiceById = (id) =>
+    api.get(`/vendor/services/${id}`);
+
+export const enableVendorService = (serviceId) =>
+    api.post(`/vendor/services/${serviceId}/enable`);
+
+export const updateVendorService = (id, data) =>
+    api.put(`/vendor/services/${id}`, data);
+
+export const updateVendorServiceStatus = (id, isActive) =>
+    api.patch(`/vendor/services/${id}/status`, { isActive });
+
+export const deleteVendorService = (id) =>
+    api.delete(`/vendor/services/${id}`);
+

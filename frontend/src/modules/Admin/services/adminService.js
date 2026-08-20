@@ -348,3 +348,43 @@ export const updatePolicy = (type, content) =>
 export const getAdminNotifications = (params) => api.get('/admin/notifications', { params });
 export const markNotificationAsRead = (id) => api.put(`/admin/notifications/${id}/read`);
 export const markAllNotificationsAsRead = () => api.put('/admin/notifications/read-all');
+
+// ─── Service Categories ───────────────────────────────────────────────────────
+export const getAllServiceCategories = (params = {}) =>
+    api.get('/admin/service-categories', { params });
+
+export const getServiceCategoryById = (id) =>
+    api.get(`/admin/service-categories/${id}`);
+
+export const createServiceCategory = (data) =>
+    api.post('/admin/service-categories', data);
+
+export const updateServiceCategory = (id, data) =>
+    api.put(`/admin/service-categories/${id}`, data);
+
+export const updateServiceCategoryStatus = (id, isActive) =>
+    api.patch(`/admin/service-categories/${id}/status`, { isActive });
+
+export const deleteServiceCategory = (id) =>
+    api.delete(`/admin/service-categories/${id}`);
+
+// ─── Services Master ──────────────────────────────────────────────────────────
+export const getAllServices = (params = {}) =>
+    api.get('/admin/services', { params });
+
+export const getServiceById = (id) =>
+    api.get(`/admin/services/${id}`);
+
+export const createService = (data) =>
+    api.post('/admin/services', data);
+
+export const updateService = (id, data) =>
+    api.put(`/admin/services/${id}`, data);
+
+export const updateServiceStatus = (id, isActive) =>
+    api.patch(`/admin/services/${id}/status`, { isActive });
+
+export const deleteService = (id) =>
+    api.delete(`/admin/services/${id}`);
+
+
