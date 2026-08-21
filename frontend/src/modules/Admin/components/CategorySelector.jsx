@@ -20,7 +20,13 @@ const CategorySelector = ({
     getCategoriesByParent,
     getCategoryById,
     requestCategory,
+    initialize,
   } = useCategoryStore();
+
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
+
   const [isOpen, setIsOpen] = useState(false);
   const [hoveredCategoryId, setHoveredCategoryId] = useState(null);
   const containerRef = useRef(null);

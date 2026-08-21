@@ -29,7 +29,9 @@
         "route": "/vendor/services",
         "children": [
             "Available Services",
-            "My Services"
+            "My Services",
+            "Request New Service",
+            "My Requests"
         ]
     },
 

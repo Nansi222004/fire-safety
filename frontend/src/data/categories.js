@@ -1,6 +1,7 @@
 export const categories = [
   {
-    id: "abc-fire-extinguishers",
+    id: "65f1a2b3c4d5e6f7a8b9c001",
+    _id: "65f1a2b3c4d5e6f7a8b9c001",
     name: "ABC Fire Extinguishers",
     description: "Multi-purpose dry powder extinguishers for Class A, B, and C fire risks",
     image: "/products/abc-dry-powder-fire-extinguisher-6kg.webp",
@@ -8,7 +9,8 @@ export const categories = [
     isActive: true,
   },
   {
-    id: "co2-fire-extinguishers",
+    id: "65f1a2b3c4d5e6f7a8b9c002",
+    _id: "65f1a2b3c4d5e6f7a8b9c002",
     name: "CO₂ Fire Extinguishers",
     description: "Clean agent carbon dioxide extinguishers for electrical and liquid fires",
     image: "/products/co2-fire-extinguisher-4-5kg.webp",
@@ -16,7 +18,8 @@ export const categories = [
     isActive: true,
   },
   {
-    id: "foam-fire-extinguishers",
+    id: "65f1a2b3c4d5e6f7a8b9c003",
+    _id: "65f1a2b3c4d5e6f7a8b9c003",
     name: "Foam Fire Extinguishers",
     description: "Aqueous film forming foam extinguishers ideal for flammable liquid fires",
     image: "/products/afff-foam-fire-extinguisher-9l.jpg",
@@ -24,7 +27,8 @@ export const categories = [
     isActive: true,
   },
   {
-    id: "water-based-extinguishers",
+    id: "65f1a2b3c4d5e6f7a8b9c004",
+    _id: "65f1a2b3c4d5e6f7a8b9c004",
     name: "Water-Based Extinguishers",
     description: "Effective eco-friendly water extinguishers for solid combustible materials",
     image: "https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=600&q=80",
@@ -32,7 +36,8 @@ export const categories = [
     isActive: true,
   },
   {
-    id: "fire-blankets-equipment",
+    id: "65f1a2b3c4d5e6f7a8b9c005",
+    _id: "65f1a2b3c4d5e6f7a8b9c005",
     name: "Fire Blankets & Emergency Equipment",
     description: "Emergency fiberglass fire blankets, fire buckets, and safety kits",
     image: "https://images.unsplash.com/photo-1544027993-37dbfe43562a?auto=format&fit=crop&w=600&q=80",
@@ -40,7 +45,8 @@ export const categories = [
     isActive: true,
   },
   {
-    id: "fire-hoses-hose-reels",
+    id: "65f1a2b3c4d5e6f7a8b9c006",
+    _id: "65f1a2b3c4d5e6f7a8b9c006",
     name: "Fire Hoses & Hose Reels",
     description: "Commercial high-pressure hose reels, nozzles, and couplings",
     image: "/products/fire-hose-reel-30m.webp",
@@ -48,7 +54,8 @@ export const categories = [
     isActive: true,
   },
   {
-    id: "smoke-fire-alarms",
+    id: "65f1a2b3c4d5e6f7a8b9c007",
+    _id: "65f1a2b3c4d5e6f7a8b9c007",
     name: "Smoke & Fire Alarms",
     description: "Photoelectric smoke detectors, warning sirens, and heat sensors",
     image: "/products/photoelectric-smoke-fire-alarm.jpg",
@@ -56,7 +63,8 @@ export const categories = [
     isActive: true,
   },
   {
-    id: "safety-helmets-ppe",
+    id: "65f1a2b3c4d5e6f7a8b9c008",
+    _id: "65f1a2b3c4d5e6f7a8b9c008",
     name: "Safety Helmets & PPE",
     description: "Industrial safety helmets, heat-resistant gloves, and protective gear",
     image: "https://images.unsplash.com/photo-1544027993-37dbfe43562a?auto=format&fit=crop&w=600&q=80",
@@ -64,7 +72,8 @@ export const categories = [
     isActive: true,
   },
   {
-    id: "emergency-exit-signs",
+    id: "65f1a2b3c4d5e6f7a8b9c009",
+    _id: "65f1a2b3c4d5e6f7a8b9c009",
     name: "Emergency Exit & Safety Signs",
     description: "Photoluminescent & LED illuminated emergency exit indicators and signage",
     image: "https://images.unsplash.com/photo-1599481238640-4c1288750d7a?auto=format&fit=crop&w=600&q=80",
@@ -72,7 +81,8 @@ export const categories = [
     isActive: true,
   },
   {
-    id: "fire-safety-accessories",
+    id: "65f1a2b3c4d5e6f7a8b9c010",
+    _id: "65f1a2b3c4d5e6f7a8b9c010",
     name: "Fire Safety Accessories",
     description: "Wall mounting brackets, pressure gauges, safety pins & inspection tags",
     image: "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=600&q=80",

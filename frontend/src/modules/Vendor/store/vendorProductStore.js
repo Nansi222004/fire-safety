@@ -43,7 +43,6 @@ export const useVendorProductStore = create((set, get) => ({
                     page: currentPage,
                     limit: pageSize,
                 });
-                // api.js interceptor unwraps response.data, so res = { products, total, page, pages }
                 const { products = [], total = 0, page = currentPage, pages = 1 } = res.data ?? res;
                 allProducts.push(...products);
                 latestPagination = { total, page, pages };
@@ -96,7 +95,7 @@ export const useVendorProductStore = create((set, get) => ({
     /**
      * Create a new product and prepend it to the local list.
      * @param {object} data
-     * @returns {object|null} created product or null on error
+     * @returns {object|null} created product or throws error
      */
     addProduct: async (data) => {
         set({ isSaving: true });
@@ -110,9 +109,9 @@ export const useVendorProductStore = create((set, get) => ({
             }));
             toast.success('Product created successfully');
             return product;
-        } catch {
+        } catch (err) {
             set({ isSaving: false });
-            return null;
+            throw err;
         }
     },
 
@@ -122,7 +121,7 @@ export const useVendorProductStore = create((set, get) => ({
      * Update an existing product and refresh it in the local list.
      * @param {string} id
      * @param {object} data
-     * @returns {object|null} updated product or null on error
+     * @returns {object|null} updated product or throws error
      */
     editProduct: async (id, data) => {
         set({ isSaving: true });
@@ -137,9 +136,9 @@ export const useVendorProductStore = create((set, get) => ({
             }));
             toast.success('Product updated successfully');
             return updated;
-        } catch {
+        } catch (err) {
             set({ isSaving: false });
-            return null;
+            throw err;
         }
     },
 

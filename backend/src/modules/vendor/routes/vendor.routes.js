@@ -16,12 +16,17 @@ import * as supportController from '../controllers/support.controller.js';
 import * as brandController from '../controllers/brand.controller.js';
 import * as categoryController from '../controllers/category.controller.js';
 import * as vendorServiceController from '../controllers/vendorService.controller.js';
+import * as serviceRequestController from '../controllers/serviceRequest.controller.js';
 import {
     vendorServiceIdParamSchema,
     enableServiceParamSchema,
     updateVendorServiceSchema,
     updateVendorServiceStatusSchema,
 } from '../validators/vendorService.validator.js';
+import {
+    createServiceRequestSchema,
+    serviceRequestIdParamSchema,
+} from '../validators/serviceRequest.validator.js';
 
 import { authenticate } from '../../../middlewares/authenticate.js';
 import { authorize, enforceAccountStatus } from '../../../middlewares/authorize.js';
@@ -168,6 +173,9 @@ router.put('/services/:id', ...vendorAuth, validate(vendorServiceIdParamSchema, 
 router.patch('/services/:id/status', ...vendorAuth, validate(vendorServiceIdParamSchema, 'params'), validate(updateVendorServiceStatusSchema), vendorServiceController.updateVendorServiceStatus);
 router.delete('/services/:id', ...vendorAuth, validate(vendorServiceIdParamSchema, 'params'), vendorServiceController.deleteVendorService);
 
-
+// Service Requests
+router.post('/service-requests', ...vendorAuth, validate(createServiceRequestSchema), serviceRequestController.createServiceRequest);
+router.get('/service-requests', ...vendorAuth, serviceRequestController.getVendorServiceRequests);
+router.get('/service-requests/:id', ...vendorAuth, validate(serviceRequestIdParamSchema, 'params'), serviceRequestController.getVendorServiceRequestById);
 
 export default router;

@@ -24,12 +24,14 @@ import {
     updateServiceCategoryStatusSchema,
 } from '../validators/serviceCategory.validator.js';
 import * as serviceController from '../controllers/service.controller.js';
+import * as adminServiceRequestController from '../controllers/adminServiceRequest.controller.js';
 import {
     serviceIdParamSchema,
     createServiceSchema,
     updateServiceSchema,
     updateServiceStatusSchema,
 } from '../validators/service.validator.js';
+import { rejectServiceRequestSchema } from '../../vendor/validators/serviceRequest.validator.js';
 
 import * as policyController from '../controllers/policy.controller.js';
 import * as escrowController from '../controllers/escrow.controller.js';
@@ -148,6 +150,12 @@ router.get('/services/:id', ...adminAuth, validate(serviceIdParamSchema, 'params
 router.put('/services/:id', ...adminAuth, validate(serviceIdParamSchema, 'params'), validate(updateServiceSchema), serviceController.updateService);
 router.patch('/services/:id/status', ...adminAuth, validate(serviceIdParamSchema, 'params'), validate(updateServiceStatusSchema), serviceController.updateServiceStatus);
 router.delete('/services/:id', ...adminAuth, validate(serviceIdParamSchema, 'params'), serviceController.deleteService);
+
+// ─── Service Requests (Admin) ──────────────────────────────────────────────────
+router.get('/service-requests', ...adminAuth, adminServiceRequestController.getAllServiceRequests);
+router.get('/service-requests/:id', ...adminAuth, validate(serviceIdParamSchema, 'params'), adminServiceRequestController.getServiceRequestById);
+router.post('/service-requests/:id/approve', ...adminAuth, validate(serviceIdParamSchema, 'params'), adminServiceRequestController.approveServiceRequest);
+router.post('/service-requests/:id/reject', ...adminAuth, validate(serviceIdParamSchema, 'params'), validate(rejectServiceRequestSchema), adminServiceRequestController.rejectServiceRequest);
 
 // ─── Brands ───────────────────────────────────────────────────────────────────
 router.get('/brands', ...adminAuth, catalogController.getAllBrands);

@@ -5,6 +5,7 @@ import ApiResponse from '../utils/ApiResponse.js';
 import ApiError from '../utils/ApiError.js';
 import Product from '../models/Product.model.js';
 import Category from '../models/Category.model.js';
+import ServiceCategory from '../models/ServiceCategory.model.js';
 import Brand from '../models/Brand.model.js';
 import Vendor from '../models/Vendor.model.js';
 import Coupon from '../models/Coupon.model.js';
@@ -851,6 +852,14 @@ router.get('/categories/all', catalogCache, asyncHandler(async (req, res) => {
         .sort({ order: 1, name: 1 })
         .lean();
     res.status(200).json(new ApiResponse(200, categories, 'Categories fetched.'));
+}));
+
+// GET /api/service-categories (public)
+router.get('/service-categories/all', catalogCache, asyncHandler(async (req, res) => {
+    const categories = await ServiceCategory.find({ isActive: true })
+        .sort({ sortOrder: 1, name: 1 })
+        .lean();
+    res.status(200).json(new ApiResponse(200, categories, 'Service categories fetched.'));
 }));
 
 // GET /api/brands (public)

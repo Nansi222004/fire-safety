@@ -43,7 +43,10 @@ export const useCategoryStore = create(
               ? (cat.parentId._id || cat.parentId.id)
               : cat.parentId
           }));
-          const cleanCategories = normalizedCategories.filter(c => 
+          const filteredCategories = isAdminArea
+            ? normalizedCategories
+            : normalizedCategories.filter(c => c.isActive !== false);
+          const cleanCategories = filteredCategories.filter(c => 
             c.name && 
             !c.name.toLowerCase().includes('grocery') && 
             !c.name.toLowerCase().includes('fruit') && 

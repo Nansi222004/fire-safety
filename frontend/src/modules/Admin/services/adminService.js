@@ -131,6 +131,20 @@ export const approveCategoryRequest = (id, data = {}) =>
 export const rejectCategoryRequest = (id, rejectionReason) =>
     api.post(`/admin/category-requests/${id}/reject`, { rejectionReason });
 
+// ─── ADMIN SERVICE REQUESTS ────────────────────────────────────────────────────
+export const getAdminServiceRequests = (params = {}) =>
+    api.get('/admin/service-requests', { params });
+
+export const getAdminServiceRequestById = (id) =>
+    api.get(`/admin/service-requests/${id}`);
+
+export const approveServiceRequest = (id, data = {}) =>
+    api.post(`/admin/service-requests/${id}/approve`, data);
+
+export const rejectServiceRequest = (id, rejectionReason) =>
+    api.post(`/admin/service-requests/${id}/reject`, { rejectionReason });
+
+
 // ─── Vendors ──────────────────────────────────────────────────────────────────
 export const getAllVendors = (params = {}) =>
     api.get('/admin/vendors', { params });

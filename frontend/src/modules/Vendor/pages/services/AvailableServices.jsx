@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { FiSearch, FiCheck, FiPlus, FiLayers, FiClock, FiDollarSign, FiCalendar, FiTool, FiCheckCircle } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useVendorServiceStore } from '../../../../shared/store/vendorServiceStore';
-import { getAllServiceCategories } from '../../../Admin/services/adminService';
+import { getPublicServiceCategories } from '../../services/vendorService';
 import Pagination from '../../../Admin/components/Pagination';
 import AnimatedSelect from '../../../Admin/components/AnimatedSelect';
 import toast from 'react-hot-toast';
@@ -26,7 +26,7 @@ const AvailableServices = () => {
     fetchAvailableServices();
     const loadCategories = async () => {
       try {
-        const res = await getAllServiceCategories({ status: 'ACTIVE' });
+        const res = await getPublicServiceCategories();
         const list = Array.isArray(res?.data?.categories)
           ? res.data.categories
           : Array.isArray(res?.data)
@@ -108,26 +108,26 @@ const AvailableServices = () => {
     >
       {/* Header */}
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-slate-100 flex items-center gap-3">
-          <FiTool className="text-primary-500" />
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-3">
+          <FiTool className="text-primary-600" />
           Available Platform Services
         </h1>
-        <p className="text-sm text-slate-400 mt-1">
+        <p className="text-sm text-gray-600 mt-1">
           Browse platform-approved fire safety services and enable them for your store
         </p>
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="bg-slate-800 rounded-2xl p-4 shadow-md border border-slate-700 space-y-4">
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-200 space-y-4">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <div className="relative flex-1">
-            <FiSearch className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 text-lg" />
+            <FiSearch className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search available services by name, description..."
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm text-slate-200"
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm text-gray-800 placeholder-gray-400"
             />
           </div>
 
@@ -150,13 +150,13 @@ const AvailableServices = () => {
       {isLoading ? (
         <div className="text-center py-16">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary-500 border-t-transparent mb-3"></div>
-          <p className="text-slate-400 text-sm">Loading available services...</p>
+          <p className="text-gray-500 text-sm">Loading available services...</p>
         </div>
       ) : filteredServices.length === 0 ? (
-        <div className="text-center py-16 px-4 bg-slate-800/60 rounded-2xl border border-slate-700">
-          <FiTool className="mx-auto text-5xl text-slate-600 mb-3" />
-          <h3 className="text-lg font-bold text-slate-300">No services currently available</h3>
-          <p className="text-sm text-slate-500 mt-1 max-w-md mx-auto">
+        <div className="text-center py-16 px-4 bg-white rounded-2xl border border-gray-200 shadow-sm">
+          <FiTool className="mx-auto text-5xl text-gray-300 mb-3" />
+          <h3 className="text-lg font-bold text-gray-800">No services currently available</h3>
+          <p className="text-sm text-gray-600 mt-1 max-w-md mx-auto">
             {searchQuery || selectedCategory !== 'all'
               ? 'Try clearing your filters or search terms.'
               : 'You have enabled all available platform services, or no active services exist.'}
@@ -168,7 +168,7 @@ const AvailableServices = () => {
             {paginatedServices.map((service) => (
               <div
                 key={service.id || service._id}
-                className="bg-slate-800 rounded-2xl border border-slate-700 p-5 flex flex-col justify-between hover:border-slate-600 transition-all shadow-md">
+                className="bg-white rounded-2xl border border-gray-200 p-5 flex flex-col justify-between hover:border-primary-300 hover:shadow-md transition-all">
                 <div className="space-y-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
@@ -176,16 +176,16 @@ const AvailableServices = () => {
                         <img
                           src={service.image}
                           alt={service.name}
-                          className="w-12 h-12 object-cover rounded-xl border border-slate-700 flex-shrink-0"
+                          className="w-12 h-12 object-cover rounded-xl border border-gray-200 flex-shrink-0"
                         />
                       ) : (
-                        <div className="w-12 h-12 bg-primary-500/20 text-primary-400 rounded-xl flex items-center justify-center font-bold text-lg border border-primary-500/30 flex-shrink-0">
+                        <div className="w-12 h-12 bg-primary-50 text-primary-600 rounded-xl flex items-center justify-center font-bold text-lg border border-primary-100 flex-shrink-0">
                           {service.name.charAt(0).toUpperCase()}
                         </div>
                       )}
                       <div>
-                        <h3 className="font-bold text-white text-base line-clamp-1">{service.name}</h3>
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary-400">
+                        <h3 className="font-bold text-gray-900 text-base line-clamp-1">{service.name}</h3>
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary-600">
                           <FiLayers className="text-[10px]" />
                           {service.categoryId?.name || 'Fire Safety'}
                         </span>
@@ -194,20 +194,20 @@ const AvailableServices = () => {
                   </div>
 
                   {service.shortDescription && (
-                    <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+                    <p className="text-xs text-gray-600 line-clamp-2 leading-relaxed">
                       {service.shortDescription}
                     </p>
                   )}
 
-                  <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-700/60">
-                    <span className="px-2.5 py-1 bg-slate-900 border border-slate-700 rounded-lg text-[11px] font-medium text-slate-300">
+                  <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
+                    <span className="px-2.5 py-1 bg-gray-100 border border-gray-200 rounded-lg text-[11px] font-medium text-gray-700">
                       {formatPricingType(service.pricingType)}
                     </span>
-                    <span className="px-2.5 py-1 bg-blue-500/10 border border-blue-500/30 rounded-lg text-[11px] font-medium text-blue-400">
+                    <span className="px-2.5 py-1 bg-blue-50 border border-blue-200 rounded-lg text-[11px] font-medium text-blue-700">
                       {formatBookingType(service.bookingType)}
                     </span>
                     {service.estimatedDuration && (
-                      <span className="px-2.5 py-1 bg-slate-900 border border-slate-700 rounded-lg text-[11px] text-slate-400 flex items-center gap-1">
+                      <span className="px-2.5 py-1 bg-gray-100 border border-gray-200 rounded-lg text-[11px] text-gray-600 flex items-center gap-1">
                         <FiClock className="text-[10px]" />
                         {service.estimatedDuration}
                       </span>
@@ -215,8 +215,8 @@ const AvailableServices = () => {
                   </div>
                 </div>
 
-                <div className="pt-4 mt-4 border-t border-slate-700 flex items-center justify-between">
-                  <span className="text-[11px] text-slate-500">
+                <div className="pt-4 mt-4 border-t border-gray-100 flex items-center justify-between">
+                  <span className="text-[11px] text-gray-500">
                     {service.serviceFields?.length || 0} custom fields
                   </span>
                   <button
@@ -238,7 +238,7 @@ const AvailableServices = () => {
           </div>
 
           {filteredServices.length > itemsPerPage && (
-            <div className="p-4 border-t border-slate-700">
+            <div className="p-4 border-t border-gray-200">
               <Pagination
                 currentPage={currentPage}
                 totalPages={totalPages}

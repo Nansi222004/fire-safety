@@ -40,7 +40,8 @@
     "route": "/admin/services",
     "children": [
       "Categories",
-      "Manage Services"
+      "Manage Services",
+      "Service Requests"
     ]
   },
   {

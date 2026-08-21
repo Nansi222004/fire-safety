@@ -108,26 +108,26 @@ const MyVendorServices = () => {
     >
       {/* Header */}
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-slate-100 flex items-center gap-3">
-          <FiTool className="text-primary-500" />
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-3">
+          <FiTool className="text-primary-600" />
           My Store Services
         </h1>
-        <p className="text-sm text-slate-400 mt-1">
+        <p className="text-sm text-gray-600 mt-1">
           Manage services enabled for your store, configure custom prices, and service areas
         </p>
       </div>
 
       {/* Filters */}
-      <div className="bg-slate-800 rounded-2xl p-4 shadow-md border border-slate-700 space-y-4">
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-200 space-y-4">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <div className="relative flex-1">
-            <FiSearch className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 text-lg" />
+            <FiSearch className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search enabled services..."
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm text-slate-200"
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm text-gray-800 placeholder-gray-400"
             />
           </div>
 
@@ -163,13 +163,13 @@ const MyVendorServices = () => {
       {isLoading ? (
         <div className="text-center py-16">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary-500 border-t-transparent mb-3"></div>
-          <p className="text-slate-400 text-sm">Loading your store services...</p>
+          <p className="text-gray-500 text-sm">Loading your store services...</p>
         </div>
       ) : filteredServices.length === 0 ? (
-        <div className="text-center py-16 px-4 bg-slate-800/60 rounded-2xl border border-slate-700">
-          <FiTool className="mx-auto text-5xl text-slate-600 mb-3" />
-          <h3 className="text-lg font-bold text-slate-300">You haven't enabled any services yet</h3>
-          <p className="text-sm text-slate-500 mt-1 max-w-md mx-auto">
+        <div className="text-center py-16 px-4 bg-white rounded-2xl border border-gray-200 shadow-sm">
+          <FiTool className="mx-auto text-5xl text-gray-300 mb-3" />
+          <h3 className="text-lg font-bold text-gray-800">You haven't enabled any services yet</h3>
+          <p className="text-sm text-gray-600 mt-1 max-w-md mx-auto">
             {searchQuery || selectedCategory !== 'all' || selectedStatus !== 'all'
               ? 'Try clearing your search or filters.'
               : 'Go to "Available Services" tab to enable fire safety services for your store.'}
@@ -183,7 +183,7 @@ const MyVendorServices = () => {
               return (
                 <div
                   key={vs.id || vs._id}
-                  className="bg-slate-800 rounded-2xl border border-slate-700 p-5 flex flex-col justify-between hover:border-slate-600 transition-all shadow-md">
+                  className="bg-white rounded-2xl border border-gray-200 p-5 flex flex-col justify-between hover:border-primary-300 hover:shadow-md transition-all">
                   <div className="space-y-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3">
@@ -191,18 +191,18 @@ const MyVendorServices = () => {
                           <img
                             src={serviceMaster.image}
                             alt={serviceMaster.name}
-                            className="w-12 h-12 object-cover rounded-xl border border-slate-700 flex-shrink-0"
+                            className="w-12 h-12 object-cover rounded-xl border border-gray-200 flex-shrink-0"
                           />
                         ) : (
-                          <div className="w-12 h-12 bg-primary-500/20 text-primary-400 rounded-xl flex items-center justify-center font-bold text-lg border border-primary-500/30 flex-shrink-0">
+                          <div className="w-12 h-12 bg-primary-50 text-primary-600 rounded-xl flex items-center justify-center font-bold text-lg border border-primary-100 flex-shrink-0">
                             {(serviceMaster.name || 'S').charAt(0).toUpperCase()}
                           </div>
                         )}
                         <div>
-                          <h3 className="font-bold text-white text-base line-clamp-1">
+                          <h3 className="font-bold text-gray-900 text-base line-clamp-1">
                             {serviceMaster.name || 'Service Master'}
                           </h3>
-                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary-400">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary-600">
                             <FiLayers className="text-[10px]" />
                             {serviceMaster.categoryId?.name || 'Fire Safety'}
                           </span>
@@ -213,8 +213,8 @@ const MyVendorServices = () => {
                         onClick={() => handleToggleStatus(vs)}
                         className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-colors ${
                           vs.isActive
-                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                            : 'bg-slate-700 text-slate-400 border border-slate-600'
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : 'bg-gray-100 text-gray-600 border border-gray-200'
                         }`}
                         title="Click to toggle store availability">
                         {vs.isActive ? <FiCheckCircle /> : <FiXCircle />}
@@ -222,45 +222,45 @@ const MyVendorServices = () => {
                       </button>
                     </div>
 
-                    <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-700/80 space-y-1.5">
+                    <div className="p-3 bg-gray-50 rounded-xl border border-gray-100 space-y-1.5">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-slate-400">Store Rate:</span>
-                        <span className="font-bold text-white text-sm">{formatPriceDisplay(vs)}</span>
+                        <span className="text-gray-500">Store Rate:</span>
+                        <span className="font-bold text-gray-900 text-sm">{formatPriceDisplay(vs)}</span>
                       </div>
 
-                      <div className="flex items-center justify-between text-[11px] text-slate-400">
+                      <div className="flex items-center justify-between text-[11px] text-gray-500">
                         <span className="flex items-center gap-1">
-                          <FiMapPin className="text-slate-500" />
+                          <FiMapPin className="text-gray-400" />
                           Areas:
                         </span>
-                        <span className="text-slate-300 font-medium">
+                        <span className="text-gray-700 font-medium">
                           {vs.serviceAreas?.length ? `${vs.serviceAreas.length} pincodes` : 'All Areas'}
                         </span>
                       </div>
 
-                      <div className="flex items-center justify-between text-[11px] text-slate-400">
+                      <div className="flex items-center justify-between text-[11px] text-gray-500">
                         <span className="flex items-center gap-1">
-                          <FiClock className="text-slate-500" />
+                          <FiClock className="text-gray-400" />
                           Hours:
                         </span>
-                        <span className="text-slate-300 font-medium">
+                        <span className="text-gray-700 font-medium">
                           {vs.workingHours?.start || '09:00'} - {vs.workingHours?.end || '18:00'}
                         </span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="pt-4 mt-4 border-t border-slate-700 flex items-center justify-between gap-2">
+                  <div className="pt-4 mt-4 border-t border-gray-100 flex items-center justify-between gap-2">
                     <button
                       onClick={() => setEditingVs(vs)}
-                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl transition-colors text-xs font-semibold">
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl transition-colors text-xs font-semibold">
                       <FiSliders />
                       <span>Configure</span>
                     </button>
 
                     <button
                       onClick={() => handleDisable(vs.id || vs._id)}
-                      className="p-2 text-red-400 hover:bg-red-500/10 rounded-xl transition-colors border border-transparent hover:border-red-500/30"
+                      className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors border border-transparent hover:border-red-200"
                       title="Disable Service">
                       <FiTrash2 className="text-base" />
                     </button>
@@ -271,7 +271,7 @@ const MyVendorServices = () => {
           </div>
 
           {filteredServices.length > itemsPerPage && (
-            <div className="p-4 border-t border-slate-700">
+            <div className="p-4 border-t border-gray-200">
               <Pagination
                 currentPage={currentPage}
                 totalPages={totalPages}

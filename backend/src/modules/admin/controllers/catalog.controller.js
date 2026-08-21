@@ -10,6 +10,7 @@ import CategoryRequest from '../../../models/CategoryRequest.model.js';
 import { emitToRoom } from '../../../services/socket.service.js';
 import { slugify } from '../../../utils/slugify.js';
 import { createNotification } from '../../../services/notification.service.js';
+import { clearResponseCache } from '../../../middlewares/responseCache.js';
 import mongoose from 'mongoose';
 
 const sanitizeFaqs = (faqs) => {
@@ -498,10 +499,11 @@ export const getAllCategories = asyncHandler(async (req, res) => {
 // POST /api/admin/categories
 export const createCategory = asyncHandler(async (req, res) => {
     const payload = sanitizeCategoryPayload(req.body);
-    const { name, ...rest } = payload;
+    const { name, isActive = true, ...rest } = payload;
     await assertValidCategoryParent({ parentId: rest.parentId });
     const slug = slugify(name);
-    const category = await Category.create({ name, slug, ...rest });
+    const category = await Category.create({ name, slug, isActive, ...rest });
+    clearResponseCache();
     res.status(201).json(new ApiResponse(201, category, 'Category created.'));
 });
 
@@ -525,6 +527,7 @@ export const updateCategory = asyncHandler(async (req, res) => {
         runValidators: true,
     });
     if (!category) throw new ApiError(404, 'Category not found.');
+    clearResponseCache();
     res.status(200).json(new ApiResponse(200, category, 'Category updated.'));
 });
 
@@ -548,6 +551,7 @@ export const deleteCategory = asyncHandler(async (req, res) => {
     }
 
     await Category.findByIdAndDelete(req.params.id);
+    clearResponseCache();
     res.status(200).json(new ApiResponse(200, null, 'Category deleted.'));
 });
 
@@ -575,6 +579,7 @@ export const reorderCategories = asyncHandler(async (req, res) => {
         await Category.bulkWrite(bulkUpdates);
     }
 
+    clearResponseCache();
     const categories = await Category.find().sort({ order: 1, name: 1 });
     res.status(200).json(new ApiResponse(200, categories, 'Category order updated.'));
 });

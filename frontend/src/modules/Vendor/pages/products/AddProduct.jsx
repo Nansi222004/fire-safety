@@ -53,11 +53,11 @@ const AddProduct = () => {
     cancelable: true,
     taxIncluded: false,
     taxRate: 18,
-    weight: "",
+    weight: "1",
     dimensions: {
-      length: "",
-      breadth: "",
-      height: "",
+      length: "10",
+      breadth: "10",
+      height: "10",
     },
     description: "",
     tags: [],
@@ -77,6 +77,7 @@ const AddProduct = () => {
     relatedProducts: [],
     faqs: [],
   });
+  const [fieldErrors, setFieldErrors] = useState({});
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const [variantAxisInput, setVariantAxisInput] = useState({
     sizes: "",
@@ -110,6 +111,28 @@ const AddProduct = () => {
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
+    if (fieldErrors[name]) {
+      setFieldErrors((prev) => ({ ...prev, [name]: undefined }));
+    }
+  };
+
+  const handleDimensionChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      dimensions: {
+        ...prev.dimensions,
+        [name]: value,
+      },
+    }));
+    const key = `dimensions.${name}`;
+    if (fieldErrors[key] || fieldErrors.dimensions) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        [key]: undefined,
+        dimensions: undefined,
+      }));
+    }
   };
 
   const handleImageUpload = async (e) => {
@@ -348,6 +371,53 @@ const AddProduct = () => {
     }
   };
 
+  const validateForm = () => {
+    const errors = {};
+
+    if (!formData.name || String(formData.name).trim().length < 2) {
+      errors.name = "Product name is required (at least 2 characters)";
+    }
+
+    if (formData.price === "" || isNaN(parseFloat(formData.price)) || parseFloat(formData.price) < 0) {
+      errors.price = "Valid non-negative price is required";
+    }
+
+    if (
+      formData.stockQuantity === "" ||
+      isNaN(parseInt(formData.stockQuantity, 10)) ||
+      parseInt(formData.stockQuantity, 10) < 0
+    ) {
+      errors.stockQuantity = "Stock quantity must be 0 or greater";
+    }
+
+    const finalCategoryId = formData.subcategoryId || formData.categoryId;
+    if (!finalCategoryId) {
+      errors.categoryId = "Category selection is required";
+    }
+
+    const weightNum = parseFloat(formData.weight);
+    if (formData.weight === "" || isNaN(weightNum) || weightNum < 1) {
+      errors.weight = "Weight is required and must be at least 1 (kg/unit)";
+    }
+
+    const lengthNum = parseFloat(formData.dimensions?.length);
+    if (!formData.dimensions?.length || isNaN(lengthNum) || lengthNum < 1) {
+      errors["dimensions.length"] = "Length is required and must be at least 1 cm";
+    }
+
+    const breadthNum = parseFloat(formData.dimensions?.breadth);
+    if (!formData.dimensions?.breadth || isNaN(breadthNum) || breadthNum < 1) {
+      errors["dimensions.breadth"] = "Breadth is required and must be at least 1 cm";
+    }
+
+    const heightNum = parseFloat(formData.dimensions?.height);
+    if (!formData.dimensions?.height || isNaN(heightNum) || heightNum < 1) {
+      errors["dimensions.height"] = "Height is required and must be at least 1 cm";
+    }
+
+    return errors;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -356,8 +426,10 @@ const AddProduct = () => {
       return;
     }
 
-    if (!formData.name || !formData.price || !formData.stockQuantity || !formData.categoryId) {
-      toast.error("Please fill in all required fields");
+    const validationErrors = validateForm();
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors);
+      toast.error("Please correct the highlighted errors before submitting");
       return;
     }
 
@@ -377,11 +449,6 @@ const AddProduct = () => {
     const parsedMinimumOrderQuantity = formData.minimumOrderQuantity
       ? parseInt(formData.minimumOrderQuantity, 10)
       : null;
-
-    if (!Number.isFinite(parsedPrice) || !Number.isFinite(parsedStockQuantity)) {
-      toast.error("Please enter valid numeric values");
-      return;
-    }
 
     const hasInvalidFaq = (formData.faqs || []).some((faq) => {
       const question = String(faq?.question || "").trim();
@@ -406,11 +473,11 @@ const AddProduct = () => {
       categoryId: finalCategoryId,
       subcategoryId: formData.subcategoryId ? formData.subcategoryId : null,
       brandId: formData.brandId ?? null,
-      weight: parseFloat(formData.weight) || undefined,
+      weight: parseFloat(formData.weight) || 1,
       dimensions: {
-        length: parseFloat(formData.dimensions.length) || undefined,
-        breadth: parseFloat(formData.dimensions.breadth) || undefined,
-        height: parseFloat(formData.dimensions.height) || undefined,
+        length: parseFloat(formData.dimensions.length) || 10,
+        breadth: parseFloat(formData.dimensions.breadth) || 10,
+        height: parseFloat(formData.dimensions.height) || 10,
       },
       faqs: (formData.faqs || [])
         .map((faq) => ({
@@ -421,9 +488,19 @@ const AddProduct = () => {
       variants: buildVariantPayload(formData.variants || {}),
     };
 
-    const result = await addProduct(payload);
-    if (result) {
-      navigate("/vendor/products/manage-products");
+    try {
+      const result = await addProduct(payload);
+      if (result) {
+        navigate("/vendor/products/manage-products");
+      }
+    } catch (err) {
+      if (err?.response?.data?.errors && Array.isArray(err.response.data.errors)) {
+        const backendFieldErrors = {};
+        err.response.data.errors.forEach((d) => {
+          if (d.field) backendFieldErrors[d.field] = d.message;
+        });
+        setFieldErrors(backendFieldErrors);
+      }
     }
   };
 
@@ -460,9 +537,18 @@ const AddProduct = () => {
                 value={formData.name}
                 onChange={handleChange}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 text-sm ${
+                  fieldErrors.name
+                    ? "border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500"
+                    : "border-gray-300 focus:ring-primary-500"
+                }`}
                 placeholder="Enter product name"
               />
+              {fieldErrors.name && (
+                <p className="mt-1 text-xs text-red-600 font-medium flex items-center gap-1">
+                  <span>⚠️</span> {fieldErrors.name}
+                </p>
+              )}
             </div>
 
             <div>
@@ -489,6 +575,11 @@ const AddProduct = () => {
                 onChange={handleChange}
                 required
               />
+              {fieldErrors.categoryId && (
+                <p className="mt-1 text-xs text-red-600 font-medium flex items-center gap-1">
+                  <span>⚠️</span> {fieldErrors.categoryId}
+                </p>
+              )}
             </div>
 
             <div>
@@ -531,9 +622,18 @@ const AddProduct = () => {
                 required
                 min="0"
                 step="0.01"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 text-sm ${
+                  fieldErrors.price
+                    ? "border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500"
+                    : "border-gray-300 focus:ring-primary-500"
+                }`}
                 placeholder="0.00"
               />
+              {fieldErrors.price && (
+                <p className="mt-1 text-xs text-red-600 font-medium flex items-center gap-1">
+                  <span>⚠️</span> {fieldErrors.price}
+                </p>
+              )}
             </div>
 
             <div>
@@ -686,9 +786,18 @@ const AddProduct = () => {
                 onChange={handleChange}
                 required
                 min="0"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 text-sm ${
+                  fieldErrors.stockQuantity
+                    ? "border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500"
+                    : "border-gray-300 focus:ring-primary-500"
+                }`}
                 placeholder="0"
               />
+              {fieldErrors.stockQuantity && (
+                <p className="mt-1 text-xs text-red-600 font-medium flex items-center gap-1">
+                  <span>⚠️</span> {fieldErrors.stockQuantity}
+                </p>
+              )}
             </div>
 
             <div>
@@ -705,6 +814,117 @@ const AddProduct = () => {
                   { value: 'out_of_stock', label: 'Out of Stock' },
                 ]}
               />
+            </div>
+          </div>
+        </div>
+
+        {/* Package & Shipping Specifications */}
+        <div className="bg-slate-50 rounded-xl p-3 sm:p-4 border border-slate-200">
+          <h2 className="text-base font-bold text-gray-800 mb-1 flex items-center gap-2">
+            <span>📦</span> Package & Shipping Specifications
+          </h2>
+          <p className="text-xs text-gray-500 mb-3">
+            Required for shipping rate calculations. Weight and dimensions must be at least 1.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Weight (kg) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                name="weight"
+                value={formData.weight}
+                onChange={handleChange}
+                min="1"
+                step="0.1"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 text-sm ${
+                  fieldErrors.weight
+                    ? "border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500"
+                    : "border-gray-300 focus:ring-primary-500"
+                }`}
+                placeholder="e.g. 1"
+              />
+              {fieldErrors.weight && (
+                <p className="mt-1 text-xs text-red-600 font-medium flex items-center gap-1">
+                  <span>⚠️</span> {fieldErrors.weight}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Length (cm) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                name="length"
+                value={formData.dimensions?.length || ""}
+                onChange={handleDimensionChange}
+                min="1"
+                step="1"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 text-sm ${
+                  fieldErrors["dimensions.length"]
+                    ? "border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500"
+                    : "border-gray-300 focus:ring-primary-500"
+                }`}
+                placeholder="e.g. 10"
+              />
+              {fieldErrors["dimensions.length"] && (
+                <p className="mt-1 text-xs text-red-600 font-medium flex items-center gap-1">
+                  <span>⚠️</span> {fieldErrors["dimensions.length"]}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Breadth (cm) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                name="breadth"
+                value={formData.dimensions?.breadth || ""}
+                onChange={handleDimensionChange}
+                min="1"
+                step="1"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 text-sm ${
+                  fieldErrors["dimensions.breadth"]
+                    ? "border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500"
+                    : "border-gray-300 focus:ring-primary-500"
+                }`}
+                placeholder="e.g. 10"
+              />
+              {fieldErrors["dimensions.breadth"] && (
+                <p className="mt-1 text-xs text-red-600 font-medium flex items-center gap-1">
+                  <span>⚠️</span> {fieldErrors["dimensions.breadth"]}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Height (cm) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                name="height"
+                value={formData.dimensions?.height || ""}
+                onChange={handleDimensionChange}
+                min="1"
+                step="1"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 text-sm ${
+                  fieldErrors["dimensions.height"]
+                    ? "border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500"
+                    : "border-gray-300 focus:ring-primary-500"
+                }`}
+                placeholder="e.g. 10"
+              />
+              {fieldErrors["dimensions.height"] && (
+                <p className="mt-1 text-xs text-red-600 font-medium flex items-center gap-1">
+                  <span>⚠️</span> {fieldErrors["dimensions.height"]}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -976,93 +1196,6 @@ const AddProduct = () => {
                 </div>
               </div>
             )}
-          </div>
-        </div>
-
-        {/* Logistics & Shipping Info */}
-        <div>
-          <h2 className="text-base font-bold text-gray-800 mb-2">
-            Logistics & Shipping <span className="text-red-500">*</span>
-          </h2>
-          <p className="text-xs text-gray-500 mb-3">
-            Required for accurate courier rates (Shiprocket, Delhivery, etc).
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Weight (g) <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="number"
-                min="1"
-                required
-                value={formData.weight}
-                onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                placeholder="e.g. 500"
-              />
-              <p className="text-[10px] text-gray-500 mt-1">Package weight in grams.</p>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Length (cm) <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="number"
-                min="1"
-                required
-                value={formData.dimensions?.length}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    dimensions: { ...formData.dimensions, length: e.target.value },
-                  })
-                }
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                placeholder="e.g. 15"
-              />
-              <p className="text-[10px] text-gray-500 mt-1">Package length.</p>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Breadth (cm) <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="number"
-                min="1"
-                required
-                value={formData.dimensions?.breadth}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    dimensions: { ...formData.dimensions, breadth: e.target.value },
-                  })
-                }
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                placeholder="e.g. 12"
-              />
-              <p className="text-[10px] text-gray-500 mt-1">Package breadth/width.</p>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Height (cm) <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="number"
-                min="1"
-                required
-                value={formData.dimensions?.height}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    dimensions: { ...formData.dimensions, height: e.target.value },
-                  })
-                }
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                placeholder="e.g. 8"
-              />
-              <p className="text-[10px] text-gray-500 mt-1">Package height.</p>
-            </div>
           </div>
         </div>
 

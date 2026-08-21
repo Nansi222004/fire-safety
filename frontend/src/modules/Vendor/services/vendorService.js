@@ -563,3 +563,17 @@ export const updateVendorServiceStatus = (id, isActive) =>
 export const deleteVendorService = (id) =>
     api.delete(`/vendor/services/${id}`);
 
+// ─── VENDOR SERVICE REQUESTS ───────────────────────────────────────────────────
+export const createVendorServiceRequest = (data) =>
+    api.post('/vendor/service-requests', data);
+
+export const getVendorServiceRequests = (params = {}) =>
+    api.get('/vendor/service-requests', { params });
+
+export const getVendorServiceRequestById = (id) =>
+    api.get(`/vendor/service-requests/${id}`);
+
+export const getPublicServiceCategories = () =>
+    api.get('/service-categories/all');
+
+
