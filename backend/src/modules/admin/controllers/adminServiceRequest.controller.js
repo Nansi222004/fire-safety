@@ -98,16 +98,16 @@ export const approveServiceRequest = asyncHandler(async (req, res) => {
         throw new ApiError(400, 'Associated Service Category is inactive or deleted.');
     }
 
-    // Support Admin overriding parameters if supplied in req.body
-    const finalServiceName = String(req.body.serviceName || request.serviceName).trim();
-    const finalDescription = String(req.body.description ?? request.description).trim();
-    const finalShortDescription = String(req.body.shortDescription ?? request.shortDescription).trim();
-    const finalImage = String(req.body.image ?? request.image).trim();
-    const finalPricingType = req.body.pricingType || request.pricingType || 'FIXED';
-    const finalBookingType = req.body.bookingType || request.bookingType || 'SCHEDULED';
-    const finalDuration = String(req.body.estimatedDuration ?? request.estimatedDuration).trim();
-    const finalFields = Array.isArray(req.body.serviceFields) ? req.body.serviceFields : request.serviceFields;
-    const finalPrice = Math.max(0, Number(req.body.suggestedPrice ?? request.suggestedPrice) || 0);
+    // Use exact vendor-submitted parameters as-is
+    const finalServiceName = String(request.serviceName).trim();
+    const finalDescription = String(request.description || '').trim();
+    const finalShortDescription = String(request.shortDescription || '').trim();
+    const finalImage = String(request.image || '').trim();
+    const finalPricingType = request.pricingType || 'FIXED';
+    const finalBookingType = request.bookingType || 'SCHEDULED';
+    const finalDuration = String(request.estimatedDuration || '').trim();
+    const finalFields = request.serviceFields || [];
+    const finalPrice = Math.max(0, Number(request.suggestedPrice) || 0);
 
     const session = await mongoose.startSession();
     let approvedServiceDoc = null;

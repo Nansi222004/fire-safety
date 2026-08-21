@@ -109,7 +109,10 @@ app.use(
     },
     express.static(uploadsRoot)
 );
+import customerServiceRoutes from './modules/customer/routes/customerService.routes.js';
+
 app.use('/api', publicRoutes);                       // Public: products, categories, brands, coupons, banners
+app.use('/api/customer', customerServiceRoutes);      // Customer Services & Bookings: catalog, pincode check, bookings
 app.use('/api/user', userRoutes);                    // Customer: auth, addresses, wishlist, reviews, orders
 app.use('/api/user/payment', paymentRouter);         // Payment: initialize, retry, exchange-upgrade
 app.use('/api/admin', adminRoutes);                  // Admin: auth, vendors, orders, catalog, analytics

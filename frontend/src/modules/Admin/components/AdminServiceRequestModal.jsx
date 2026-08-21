@@ -1,43 +1,28 @@
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   FiX,
   FiCheckCircle,
   FiXCircle,
   FiAlertCircle,
   FiLayers,
-  FiDollarSign,
-  FiClock,
   FiUser,
-  FiEdit,
 } from "react-icons/fi";
 import { approveServiceRequest, rejectServiceRequest } from "../services/adminService";
 import toast from "react-hot-toast";
 
 const AdminServiceRequestModal = ({ request, onClose, onSuccess }) => {
-  const [isEditMode, setIsEditMode] = useState(false);
   const [showRejectInput, setShowRejectInput] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Editable parameters for Admin approval
-  const [overrideData, setOverrideData] = useState({
-    serviceName: request?.serviceName || "",
-    description: request?.description || "",
-    shortDescription: request?.shortDescription || "",
-    pricingType: request?.pricingType || "FIXED",
-    suggestedPrice: request?.suggestedPrice || 0,
-    bookingType: request?.bookingType || "SCHEDULED",
-    estimatedDuration: request?.estimatedDuration || "",
-  });
 
   if (!request) return null;
 
   const handleApprove = async () => {
     setIsSubmitting(true);
     try {
-      await approveServiceRequest(request._id || request.id, overrideData);
-      toast.success(`Service request approved and "${overrideData.serviceName}" master created!`);
+      await approveServiceRequest(request._id || request.id);
+      toast.success(`Service request approved and "${request.serviceName}" master created!`);
       onSuccess();
     } catch (err) {
       toast.error(err?.response?.data?.message || err?.message || "Failed to approve service request");
@@ -128,14 +113,14 @@ const AdminServiceRequestModal = ({ request, onClose, onSuccess }) => {
               Provide Rejection Reason
             </h3>
             <p className="text-xs text-red-700">
-              This reason will be displayed to the vendor so they understand why the service master request was rejected.
+              This reason will be displayed to the vendor so they understand why the request was rejected and what to correct.
             </p>
             <textarea
               rows={3}
               required
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
-              placeholder="e.g. This service already exists on the platform under 'Fire Extinguisher Maintenance'. Please enable it from Available Services."
+              placeholder="e.g. Please fix the spelling in the service name and select Fixed Rate pricing before re-submitting."
               className="w-full p-3 bg-white border border-red-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
             />
             <div className="flex items-center justify-end gap-3">
@@ -157,38 +142,17 @@ const AdminServiceRequestModal = ({ request, onClose, onSuccess }) => {
           </form>
         ) : (
           <>
-            {/* Request Data Review / Edit Mode */}
+            {/* Request Data Read-Only Review */}
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
-                  Service Master Specification
-                </h3>
-                {request.status === "pending" && (
-                  <button
-                    type="button"
-                    onClick={() => setIsEditMode(!isEditMode)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-lg transition-colors"
-                  >
-                    <FiEdit />
-                    <span>{isEditMode ? "Lock Values" : "Edit Before Approving"}</span>
-                  </button>
-                )}
-              </div>
+              <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
+                Vendor Submitted Specification (Read-Only)
+              </h3>
 
               {/* Data Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-200">
                 <div>
                   <label className="block text-[11px] font-semibold text-gray-500 mb-1">Service Name</label>
-                  {isEditMode ? (
-                    <input
-                      type="text"
-                      value={overrideData.serviceName}
-                      onChange={(e) => setOverrideData((p) => ({ ...p, serviceName: e.target.value }))}
-                      className="w-full px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs font-bold text-gray-900"
-                    />
-                  ) : (
-                    <p className="text-sm font-bold text-gray-900">{overrideData.serviceName}</p>
-                  )}
+                  <p className="text-sm font-bold text-gray-900">{request.serviceName}</p>
                 </div>
 
                 <div>
@@ -198,84 +162,31 @@ const AdminServiceRequestModal = ({ request, onClose, onSuccess }) => {
 
                 <div>
                   <label className="block text-[11px] font-semibold text-gray-500 mb-1">Pricing Type</label>
-                  {isEditMode ? (
-                    <select
-                      value={overrideData.pricingType}
-                      onChange={(e) => setOverrideData((p) => ({ ...p, pricingType: e.target.value }))}
-                      className="w-full px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs"
-                    >
-                      <option value="FIXED">Fixed Rate</option>
-                      <option value="PER_UNIT">Per Unit Rate</option>
-                      <option value="SIZE_BASED">Size Based</option>
-                      <option value="CUSTOM_QUOTE">Custom Quote</option>
-                    </select>
-                  ) : (
-                    <p className="text-xs font-bold text-gray-800">{overrideData.pricingType}</p>
-                  )}
+                  <p className="text-xs font-bold text-gray-800">{request.pricingType}</p>
                 </div>
 
                 <div>
                   <label className="block text-[11px] font-semibold text-gray-500 mb-1">Suggested Rate (₹)</label>
-                  {isEditMode ? (
-                    <input
-                      type="number"
-                      value={overrideData.suggestedPrice}
-                      onChange={(e) => setOverrideData((p) => ({ ...p, suggestedPrice: e.target.value }))}
-                      className="w-full px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs"
-                    />
-                  ) : (
-                    <p className="text-xs font-bold text-gray-800">₹{overrideData.suggestedPrice || 0}</p>
-                  )}
+                  <p className="text-xs font-bold text-gray-800">₹{request.suggestedPrice || 0}</p>
                 </div>
 
                 <div>
                   <label className="block text-[11px] font-semibold text-gray-500 mb-1">Booking Type</label>
-                  {isEditMode ? (
-                    <select
-                      value={overrideData.bookingType}
-                      onChange={(e) => setOverrideData((p) => ({ ...p, bookingType: e.target.value }))}
-                      className="w-full px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs"
-                    >
-                      <option value="SCHEDULED">Scheduled</option>
-                      <option value="INSTANT">Instant</option>
-                      <option value="SITE_VISIT">Site Visit</option>
-                      <option value="CUSTOM_QUOTE">Custom Quote</option>
-                    </select>
-                  ) : (
-                    <p className="text-xs font-bold text-gray-800">{overrideData.bookingType}</p>
-                  )}
+                  <p className="text-xs font-bold text-gray-800">{request.bookingType}</p>
                 </div>
 
                 <div>
                   <label className="block text-[11px] font-semibold text-gray-500 mb-1">Estimated Duration</label>
-                  {isEditMode ? (
-                    <input
-                      type="text"
-                      value={overrideData.estimatedDuration}
-                      onChange={(e) => setOverrideData((p) => ({ ...p, estimatedDuration: e.target.value }))}
-                      className="w-full px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs"
-                    />
-                  ) : (
-                    <p className="text-xs font-bold text-gray-800">{overrideData.estimatedDuration || "N/A"}</p>
-                  )}
+                  <p className="text-xs font-bold text-gray-800">{request.estimatedDuration || "N/A"}</p>
                 </div>
               </div>
 
               {/* Description */}
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">Detailed Description</label>
-                {isEditMode ? (
-                  <textarea
-                    rows={3}
-                    value={overrideData.description}
-                    onChange={(e) => setOverrideData((p) => ({ ...p, description: e.target.value }))}
-                    className="w-full p-3 bg-white border border-gray-300 rounded-xl text-xs"
-                  />
-                ) : (
-                  <p className="text-xs text-gray-700 bg-gray-50 p-3 rounded-xl border border-gray-200">
-                    {overrideData.description || "No description provided."}
-                  </p>
-                )}
+                <p className="text-xs text-gray-700 bg-gray-50 p-3 rounded-xl border border-gray-200">
+                  {request.description || "No description provided."}
+                </p>
               </div>
 
               {/* Vendor Suggested Dynamic Form Fields */}

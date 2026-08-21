@@ -142,6 +142,9 @@ import SimilarExplore from "./modules/UserApp/pages/SimilarExplore";
 import UserSupport from "./modules/UserApp/pages/Support";
 import ComingSoon from "./modules/UserApp/pages/ComingSoon";
 import ServicesPage from "./modules/UserApp/pages/ServicesPage";
+import ServiceDetailPage from "./modules/UserApp/pages/ServiceDetailPage";
+import ServiceBookingSuccessPage from "./modules/UserApp/pages/ServiceBookingSuccessPage";
+import MyServiceBookingsPage from "./modules/UserApp/pages/MyServiceBookingsPage";
 
 // Delivery Routes
 import DeliveryLogin from "./modules/Delivery/pages/Login";
@@ -539,6 +542,42 @@ const AppRoutes = () => {
         element={
           <RouteWrapper>
             <SimilarExplore />
+          </RouteWrapper>
+        }
+      />
+      <Route
+        path="/services"
+        element={
+          <RouteWrapper>
+            <ServicesPage />
+          </RouteWrapper>
+        }
+      />
+      <Route
+        path="/services/:slug"
+        element={
+          <RouteWrapper>
+            <ServiceDetailPage />
+          </RouteWrapper>
+        }
+      />
+      <Route
+        path="/booking-success/:id"
+        element={
+          <RouteWrapper>
+            <ProtectedRoute>
+              <ServiceBookingSuccessPage />
+            </ProtectedRoute>
+          </RouteWrapper>
+        }
+      />
+      <Route
+        path="/customer/my-bookings"
+        element={
+          <RouteWrapper>
+            <ProtectedRoute>
+              <MyServiceBookingsPage />
+            </ProtectedRoute>
           </RouteWrapper>
         }
       />
