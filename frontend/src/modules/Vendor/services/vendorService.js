@@ -576,4 +576,17 @@ export const getVendorServiceRequestById = (id) =>
 export const getPublicServiceCategories = () =>
     api.get('/service-categories/all');
 
+// ─── VENDOR SERVICE BOOKINGS ───────────────────────────────────────────────────
+export const getVendorServiceBookings = (params = {}) =>
+    api.get('/vendor/service-bookings', { params });
+
+export const getVendorServiceBookingById = (id) =>
+    api.get(`/vendor/service-bookings/${id}`);
+
+export const updateVendorServiceBookingStatus = (id, data) =>
+    api.patch(`/vendor/service-bookings/${id}/status`, data);
+
+export const updateVendorServiceBookingNotes = (id, notes) =>
+    api.patch(`/vendor/service-bookings/${id}/notes`, { notes });
+
 

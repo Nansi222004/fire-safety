@@ -50,6 +50,7 @@ import CategoryOrder from "./modules/Admin/pages/categories/CategoryOrder";
 import ServiceCategories from "./modules/Admin/pages/services/ServiceCategories";
 import ServicesMaster from "./modules/Admin/pages/services/ServicesMaster";
 import AdminServiceRequests from "./modules/Admin/pages/services/AdminServiceRequests";
+import AdminServiceBookings from "./modules/Admin/pages/services/AdminServiceBookings";
 // Customers child pages
 import ViewCustomers from "./modules/Admin/pages/customers/ViewCustomers";
 import CustomerAddresses from "./modules/Admin/pages/customers/Addresses";
@@ -180,6 +181,7 @@ import AvailableServices from "./modules/Vendor/pages/services/AvailableServices
 import MyVendorServices from "./modules/Vendor/pages/services/MyVendorServices";
 import RequestService from "./modules/Vendor/pages/services/RequestService";
 import VendorServiceRequests from "./modules/Vendor/pages/services/VendorServiceRequests";
+import VendorServiceBookings from "./modules/Vendor/pages/services/VendorServiceBookings";
 import VendorOrders from "./modules/Vendor/pages/Orders";
 import VendorAllOrders from "./modules/Vendor/pages/orders/AllOrders";
 import VendorOrderTracking from "./modules/Vendor/pages/orders/OrderTracking";
@@ -611,6 +613,7 @@ const AppRoutes = () => {
         <Route path="services/categories" element={<ServiceCategories />} />
         <Route path="services/manage-services" element={<ServicesMaster />} />
         <Route path="services/service-requests" element={<AdminServiceRequests />} />
+        <Route path="services/bookings" element={<AdminServiceBookings />} />
         <Route path="brands" element={<BrandManagement />} />
         <Route path="brands/requests" element={<AdminBrandRequests />} />
         <Route path="orders" element={<AdminOrders />} />
@@ -768,6 +771,7 @@ const AppRoutes = () => {
         <Route path="services/my-services" element={<MyVendorServices />} />
         <Route path="services/request-new" element={<RequestService />} />
         <Route path="services/my-requests" element={<VendorServiceRequests />} />
+        <Route path="services/service-bookings" element={<VendorServiceBookings />} />
         <Route path="orders" element={<VendorOrders />} />
         <Route path="orders/all-orders" element={<VendorAllOrders />} />
         <Route path="orders/order-tracking" element={<VendorOrderTracking />} />

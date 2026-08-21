@@ -55,14 +55,28 @@ const ServiceBookingSuccessPage = () => {
               </div>
 
               <div>
-                <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200 uppercase">
-                  BOOKING CONFIRMED
-                </span>
+                {!isLoading && booking ? (
+                  booking.status === 'confirmed' ? (
+                    <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200 uppercase">
+                      Booking Confirmed
+                    </span>
+                  ) : (
+                    <span className="text-[11px] font-bold text-amber-600 bg-amber-50 px-3 py-1 rounded-full border border-amber-200 uppercase">
+                      Booking Pending
+                    </span>
+                  )
+                ) : (
+                  <span className="text-[11px] font-bold text-amber-600 bg-amber-50 px-3 py-1 rounded-full border border-amber-200 uppercase">
+                    Booking Received
+                  </span>
+                )}
                 <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-2">
                   Service Booking Received!
                 </h1>
                 <p className="text-xs text-slate-500 mt-1">
-                  A certified technician has been assigned and will arrive as scheduled.
+                  {!isLoading && booking && booking.status === 'confirmed'
+                    ? 'A certified technician has been assigned and will arrive as scheduled.'
+                    : 'Your booking is received and awaiting vendor confirmation.'}
                 </p>
               </div>
 

@@ -401,4 +401,11 @@ export const updateServiceStatus = (id, isActive) =>
 export const deleteService = (id) =>
     api.delete(`/admin/services/${id}`);
 
+// ─── Service Bookings ──────────────────────────────────────────────────────────
+export const getAdminServiceBookings = (params = {}) =>
+    api.get('/admin/service-bookings', { params });
+
+export const getAdminServiceBookingById = (id) =>
+    api.get(`/admin/service-bookings/${id}`);
+
 

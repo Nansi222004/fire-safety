@@ -17,6 +17,7 @@ import * as brandController from '../controllers/brand.controller.js';
 import * as categoryController from '../controllers/category.controller.js';
 import * as vendorServiceController from '../controllers/vendorService.controller.js';
 import * as serviceRequestController from '../controllers/serviceRequest.controller.js';
+import * as vendorBookingController from '../controllers/vendorBooking.controller.js';
 import {
     vendorServiceIdParamSchema,
     enableServiceParamSchema,
@@ -177,5 +178,11 @@ router.delete('/services/:id', ...vendorAuth, validate(vendorServiceIdParamSchem
 router.post('/service-requests', ...vendorAuth, validate(createServiceRequestSchema), serviceRequestController.createServiceRequest);
 router.get('/service-requests', ...vendorAuth, serviceRequestController.getVendorServiceRequests);
 router.get('/service-requests/:id', ...vendorAuth, validate(serviceRequestIdParamSchema, 'params'), serviceRequestController.getVendorServiceRequestById);
+
+// Service Bookings
+router.get('/service-bookings', ...vendorAuth, vendorBookingController.getVendorBookings);
+router.get('/service-bookings/:id', ...vendorAuth, vendorBookingController.getVendorBookingById);
+router.patch('/service-bookings/:id/status', ...vendorAuth, vendorBookingController.updateBookingStatus);
+router.patch('/service-bookings/:id/notes', ...vendorAuth, vendorBookingController.updateVendorNotes);
 
 export default router;

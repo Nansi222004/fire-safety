@@ -17,6 +17,7 @@ import * as notificationController from '../controllers/notification.controller.
 import * as uploadController from '../controllers/upload.controller.js';
 import * as settingsController from '../controllers/settings.controller.js';
 import * as serviceCategoryController from '../controllers/serviceCategory.controller.js';
+import * as adminBookingController from '../controllers/adminBooking.controller.js';
 import {
     serviceCategoryIdParamSchema,
     createServiceCategorySchema,
@@ -350,5 +351,9 @@ router.patch('/escrow/withdrawals/:id/status', ...adminAuth, audit('PROCESS_VEND
 
 // ─── Logistics Management ────────────────────────────────────────────────────
 router.use('/logistics', ...adminAuth, logisticsRoutes);
+
+// ─── Service Bookings ────────────────────────────────────────────────────────
+router.get('/service-bookings', ...adminAuth, adminBookingController.getAllBookings);
+router.get('/service-bookings/:id', ...adminAuth, adminBookingController.getAdminBookingById);
 
 export default router;

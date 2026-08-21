@@ -1,5 +1,17 @@
 import mongoose from 'mongoose';
 
+const statusHistorySchema = new mongoose.Schema(
+    {
+        previousStatus: { type: String, default: '' },
+        newStatus: { type: String, required: true },
+        changedBy: { type: mongoose.Schema.Types.ObjectId },
+        changedByRole: { type: String, enum: ['customer', 'vendor', 'admin', 'system'], default: 'system' },
+        note: { type: String, default: '' },
+        changedAt: { type: Date, default: Date.now },
+    },
+    { _id: true }
+);
+
 const serviceBookingSchema = new mongoose.Schema(
     {
         bookingId: {
@@ -111,10 +123,24 @@ const serviceBookingSchema = new mongoose.Schema(
             type: String,
             default: '',
         },
+        cancelledBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            default: null,
+        },
+        cancelledByRole: {
+            type: String,
+            enum: ['customer', 'vendor', 'admin', 'system'],
+            default: null,
+        },
         cancellationReason: {
             type: String,
             default: '',
         },
+        cancelledAt: {
+            type: Date,
+            default: null,
+        },
+        statusHistory: [statusHistorySchema],
     },
     { timestamps: true }
 );

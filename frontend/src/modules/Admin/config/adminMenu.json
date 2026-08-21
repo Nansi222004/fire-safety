@@ -41,7 +41,8 @@
     "children": [
       "Categories",
       "Manage Services",
-      "Service Requests"
+      "Service Requests",
+      "Service Bookings"
     ]
   },
   {

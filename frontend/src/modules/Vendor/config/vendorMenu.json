@@ -30,6 +30,7 @@
         "children": [
             "Available Services",
             "My Services",
+            "Service Bookings",
             "Request New Service",
             "My Requests"
         ]

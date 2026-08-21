@@ -70,6 +70,7 @@ const getChildRoute = (parentRoute, childName) => {
       "Categories": "/admin/services/categories",
       "Manage Services": "/admin/services/manage-services",
       "Service Requests": "/admin/services/service-requests",
+      "Service Bookings": "/admin/services/bookings",
     },
     "/admin/brands": {
       "Manage Brands": "/admin/brands",

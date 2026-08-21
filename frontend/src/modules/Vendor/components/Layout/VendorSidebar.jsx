@@ -69,6 +69,7 @@ const getChildRoute = (parentRoute, childName) => {
     "/vendor/services": {
       "Available Services": "/vendor/services/available",
       "My Services": "/vendor/services/my-services",
+      "Service Bookings": "/vendor/services/service-bookings",
       "Request New Service": "/vendor/services/request-new",
       "My Requests": "/vendor/services/my-requests",
     },
