@@ -53,7 +53,7 @@ const Tickets = () => {
       category: categoryFilter === 'all' ? undefined : categoryFilter,
       dateRange: dateFilter === 'all' ? undefined : dateFilter
     });
-  }, [searchQuery, statusFilter, sourceFilter, priorityFilter, categoryFilter, dateFilter, fetchTickets]);
+  }, [searchQuery, statusFilter, sourceFilter, priorityFilter, categoryFilter, dateFilter]);
 
   useEffect(() => {
     const token = localStorage.getItem('admin-token') || localStorage.getItem('token');

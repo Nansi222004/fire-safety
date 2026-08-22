@@ -1,24 +1,30 @@
 import { useState, useEffect, useMemo } from 'react';
-import { FiSearch, FiCheck, FiPlus, FiLayers, FiClock, FiDollarSign, FiCalendar, FiTool, FiCheckCircle } from 'react-icons/fi';
+import { FiSearch, FiCheck, FiPlus, FiLayers, FiClock, FiDollarSign, FiCalendar, FiTool, FiSliders, FiHelpCircle } from 'react-icons/fi';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { useVendorServiceStore } from '../../../../shared/store/vendorServiceStore';
 import { getPublicServiceCategories } from '../../services/vendorService';
+import ServiceConfigModal from '../../components/ServiceConfigModal';
 import Pagination from '../../../Admin/components/Pagination';
 import AnimatedSelect from '../../../Admin/components/AnimatedSelect';
 import toast from 'react-hot-toast';
 
 const AvailableServices = () => {
+  const navigate = useNavigate();
   const {
     availableServices,
     isLoading,
     fetchAvailableServices,
     enableService,
+    updateServiceConfig,
   } = useVendorServiceStore();
 
   const [categories, setCategories] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [enablingId, setEnablingId] = useState(null);
+  const [activeConfigService, setActiveConfigService] = useState(null);
+  const [activeVendorService, setActiveVendorService] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 9;
 
@@ -68,15 +74,32 @@ const AvailableServices = () => {
     setCurrentPage(1);
   }, [searchQuery, selectedCategory]);
 
-  const handleEnable = async (serviceId) => {
-    if (enablingId) return;
-    setEnablingId(serviceId);
+  const handleOpenEnableConfig = (service) => {
+    setActiveConfigService(service);
+    setActiveVendorService(null);
+  };
+
+  const handleSaveConfig = async (payload) => {
+    if (!activeConfigService) return;
+
+    setEnablingId(activeConfigService._id || activeConfigService.id);
     try {
-      await enableService(serviceId);
+      // 1. Enable service for vendor
+      const res = await enableService(activeConfigService._id || activeConfigService.id);
+      const vsDoc = res?.data || res;
+      const vsId = vsDoc?._id || vsDoc?.id;
+
+      if (vsId) {
+        // 2. Update config with price, serviceAreas, dailyCapacity, workingHours
+        await updateServiceConfig(vsId, payload);
+      }
+      fetchAvailableServices();
+      toast.success('Service enabled and configured successfully!');
     } catch (err) {
-      // Handled in store/interceptor
+      console.error('Failed to enable service:', err);
     } finally {
       setEnablingId(null);
+      setActiveConfigService(null);
     }
   };
 
@@ -109,11 +132,11 @@ const AvailableServices = () => {
       {/* Header */}
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-3">
-          <FiTool className="text-primary-600" />
-          Available Platform Services
+          <FiTool className="text-[#E31E24]" />
+          Available Fire Safety Services
         </h1>
         <p className="text-sm text-gray-600 mt-1">
-          Browse platform-approved fire safety services and enable them for your store
+          Select and enable certified fire safety services for your store. Set custom pricing, service pincodes, and capacity.
         </p>
       </div>
 
@@ -127,7 +150,7 @@ const AvailableServices = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search available services by name, description..."
-              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm text-gray-800 placeholder-gray-400"
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E31E24] text-sm text-gray-800 placeholder-gray-400"
             />
           </div>
 
@@ -149,7 +172,7 @@ const AvailableServices = () => {
       {/* Grid Listing */}
       {isLoading ? (
         <div className="text-center py-16">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary-500 border-t-transparent mb-3"></div>
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-[#E31E24] border-t-transparent mb-3"></div>
           <p className="text-gray-500 text-sm">Loading available services...</p>
         </div>
       ) : filteredServices.length === 0 ? (
@@ -168,7 +191,7 @@ const AvailableServices = () => {
             {paginatedServices.map((service) => (
               <div
                 key={service.id || service._id}
-                className="bg-white rounded-2xl border border-gray-200 p-5 flex flex-col justify-between hover:border-primary-300 hover:shadow-md transition-all">
+                className="bg-white rounded-2xl border border-gray-200 p-5 flex flex-col justify-between hover:border-red-300 hover:shadow-md transition-all">
                 <div className="space-y-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
@@ -179,13 +202,13 @@ const AvailableServices = () => {
                           className="w-12 h-12 object-cover rounded-xl border border-gray-200 flex-shrink-0"
                         />
                       ) : (
-                        <div className="w-12 h-12 bg-primary-50 text-primary-600 rounded-xl flex items-center justify-center font-bold text-lg border border-primary-100 flex-shrink-0">
-                          {service.name.charAt(0).toUpperCase()}
+                        <div className="w-12 h-12 bg-red-50 text-[#E31E24] rounded-xl flex items-center justify-center font-bold text-lg border border-red-100 flex-shrink-0">
+                          <FiTool />
                         </div>
                       )}
                       <div>
                         <h3 className="font-bold text-gray-900 text-base line-clamp-1">{service.name}</h3>
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary-600">
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#E31E24]">
                           <FiLayers className="text-[10px]" />
                           {service.categoryId?.name || 'Fire Safety'}
                         </span>
@@ -203,7 +226,7 @@ const AvailableServices = () => {
                     <span className="px-2.5 py-1 bg-gray-100 border border-gray-200 rounded-lg text-[11px] font-medium text-gray-700">
                       {formatPricingType(service.pricingType)}
                     </span>
-                    <span className="px-2.5 py-1 bg-blue-50 border border-blue-200 rounded-lg text-[11px] font-medium text-blue-700">
+                    <span className="px-2.5 py-1 bg-red-50 border border-red-200 rounded-lg text-[11px] font-medium text-[#E31E24]">
                       {formatBookingType(service.bookingType)}
                     </span>
                     {service.estimatedDuration && (
@@ -217,18 +240,18 @@ const AvailableServices = () => {
 
                 <div className="pt-4 mt-4 border-t border-gray-100 flex items-center justify-between">
                   <span className="text-[11px] text-gray-500">
-                    {service.serviceFields?.length || 0} custom fields
+                    {service.serviceFields?.length || 0} required fields
                   </span>
                   <button
-                    onClick={() => handleEnable(service.id || service._id)}
+                    onClick={() => handleOpenEnableConfig(service)}
                     disabled={enablingId === (service.id || service._id)}
-                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-xl hover:from-primary-500 hover:to-primary-600 transition-all font-semibold text-xs shadow-md disabled:opacity-50">
+                    className="flex items-center gap-2 px-4 py-2 bg-[#E31E24] hover:bg-[#c6151b] text-white rounded-xl transition-all font-bold text-xs shadow-sm shadow-[#E31E24]/20 disabled:opacity-50">
                     {enablingId === (service.id || service._id) ? (
                       <span>Enabling...</span>
                     ) : (
                       <>
                         <FiPlus />
-                        <span>Enable Service</span>
+                        <span>Enable & Configure</span>
                       </>
                     )}
                   </button>
@@ -250,8 +273,38 @@ const AvailableServices = () => {
           )}
         </>
       )}
+
+      {/* Bottom CTA Card: Request New Service */}
+      <div className="mt-8 bg-slate-900 text-white rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-slate-800">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-red-500/20 border border-red-500/30 rounded-xl flex items-center justify-center text-red-400 text-lg">
+            <FiHelpCircle />
+          </div>
+          <div>
+            <h3 className="font-bold text-white text-sm sm:text-base">Can't find the service you provide?</h3>
+            <p className="text-xs text-slate-300">Submit a new fire safety service request for Admin review and catalog listing.</p>
+          </div>
+        </div>
+        <button
+          onClick={() => navigate('/vendor/services/request-new')}
+          className="px-4 py-2.5 bg-[#E31E24] hover:bg-[#c6151b] text-white font-bold rounded-xl text-xs transition-all shadow-sm shadow-[#E31E24]/20 whitespace-nowrap"
+        >
+          Request New Service
+        </button>
+      </div>
+
+      {/* Modal Configuration */}
+      {activeConfigService && (
+        <ServiceConfigModal
+          isOpen={!!activeConfigService}
+          onClose={() => setActiveConfigService(null)}
+          serviceMaster={activeConfigService}
+          onSave={handleSaveConfig}
+        />
+      )}
     </motion.div>
   );
 };
 
 export default AvailableServices;
+

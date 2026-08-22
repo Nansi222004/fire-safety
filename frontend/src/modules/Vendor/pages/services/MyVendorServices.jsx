@@ -3,9 +3,10 @@ import { FiSearch, FiSliders, FiTrash2, FiCheckCircle, FiXCircle, FiTool, FiMapP
 import { motion } from 'framer-motion';
 import { useVendorServiceStore } from '../../../../shared/store/vendorServiceStore';
 import { getAllServiceCategories } from '../../../Admin/services/adminService';
-import VendorServiceConfigModal from '../../components/Services/VendorServiceConfigModal';
+import ServiceConfigModal from '../../components/ServiceConfigModal';
 import Pagination from '../../../Admin/components/Pagination';
 import AnimatedSelect from '../../../Admin/components/AnimatedSelect';
+import toast from 'react-hot-toast';
 
 const MyVendorServices = () => {
   const {
@@ -14,6 +15,7 @@ const MyVendorServices = () => {
     fetchMyServices,
     toggleStatus,
     disableService,
+    updateServiceConfig,
   } = useVendorServiceStore();
 
   const [categories, setCategories] = useState([]);
@@ -86,6 +88,19 @@ const MyVendorServices = () => {
     }
   };
 
+  const handleSaveConfig = async (payload) => {
+    if (!editingVs) return;
+    const id = editingVs._id || editingVs.id;
+    try {
+      await updateServiceConfig(id, payload);
+      fetchMyServices();
+      setEditingVs(null);
+      toast.success('Service configuration updated successfully!');
+    } catch (err) {
+      console.error('Failed to update service config:', err);
+    }
+  };
+
   const formatPriceDisplay = (vs) => {
     const pricingType = vs.serviceId?.pricingType;
     if (pricingType === 'CUSTOM_QUOTE') {
@@ -109,11 +124,11 @@ const MyVendorServices = () => {
       {/* Header */}
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-3">
-          <FiTool className="text-primary-600" />
+          <FiTool className="text-[#E31E24]" />
           My Store Services
         </h1>
         <p className="text-sm text-gray-600 mt-1">
-          Manage services enabled for your store, configure custom prices, and service areas
+          Manage services enabled for your store, configure custom prices, service area pincodes, and daily capacity
         </p>
       </div>
 
@@ -127,7 +142,7 @@ const MyVendorServices = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search enabled services..."
-              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm text-gray-800 placeholder-gray-400"
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E31E24] text-sm text-gray-800 placeholder-gray-400"
             />
           </div>
 
@@ -162,7 +177,7 @@ const MyVendorServices = () => {
       {/* My Services Grid */}
       {isLoading ? (
         <div className="text-center py-16">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary-500 border-t-transparent mb-3"></div>
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-[#E31E24] border-t-transparent mb-3"></div>
           <p className="text-gray-500 text-sm">Loading your store services...</p>
         </div>
       ) : filteredServices.length === 0 ? (
@@ -183,7 +198,7 @@ const MyVendorServices = () => {
               return (
                 <div
                   key={vs.id || vs._id}
-                  className="bg-white rounded-2xl border border-gray-200 p-5 flex flex-col justify-between hover:border-primary-300 hover:shadow-md transition-all">
+                  className="bg-white rounded-2xl border border-gray-200 p-5 flex flex-col justify-between hover:border-red-300 hover:shadow-md transition-all">
                   <div className="space-y-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3">
@@ -194,15 +209,15 @@ const MyVendorServices = () => {
                             className="w-12 h-12 object-cover rounded-xl border border-gray-200 flex-shrink-0"
                           />
                         ) : (
-                          <div className="w-12 h-12 bg-primary-50 text-primary-600 rounded-xl flex items-center justify-center font-bold text-lg border border-primary-100 flex-shrink-0">
-                            {(serviceMaster.name || 'S').charAt(0).toUpperCase()}
+                          <div className="w-12 h-12 bg-red-50 text-[#E31E24] rounded-xl flex items-center justify-center font-bold text-lg border border-red-100 flex-shrink-0">
+                            <FiTool />
                           </div>
                         )}
                         <div>
                           <h3 className="font-bold text-gray-900 text-base line-clamp-1">
                             {serviceMaster.name || 'Service Master'}
                           </h3>
-                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary-600">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#E31E24]">
                             <FiLayers className="text-[10px]" />
                             {serviceMaster.categoryId?.name || 'Fire Safety'}
                           </span>
@@ -233,18 +248,18 @@ const MyVendorServices = () => {
                           <FiMapPin className="text-gray-400" />
                           Areas:
                         </span>
-                        <span className="text-gray-700 font-medium">
-                          {vs.serviceAreas?.length ? `${vs.serviceAreas.length} pincodes` : 'All Areas'}
+                        <span className="text-gray-700 font-medium truncate max-w-[140px]">
+                          {vs.serviceAreas?.length ? vs.serviceAreas.join(', ') : 'No areas added'}
                         </span>
                       </div>
 
                       <div className="flex items-center justify-between text-[11px] text-gray-500">
                         <span className="flex items-center gap-1">
                           <FiClock className="text-gray-400" />
-                          Hours:
+                          Hours / Limit:
                         </span>
                         <span className="text-gray-700 font-medium">
-                          {vs.workingHours?.start || '09:00'} - {vs.workingHours?.end || '18:00'}
+                          {vs.workingHours?.start || '09:00'} - {vs.workingHours?.end || '18:00'} ({vs.dailyCapacity || 10}/day)
                         </span>
                       </div>
                     </div>
@@ -255,7 +270,7 @@ const MyVendorServices = () => {
                       onClick={() => setEditingVs(vs)}
                       className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl transition-colors text-xs font-semibold">
                       <FiSliders />
-                      <span>Configure</span>
+                      <span>Edit Configuration</span>
                     </button>
 
                     <button
@@ -285,13 +300,12 @@ const MyVendorServices = () => {
       )}
 
       {editingVs && (
-        <VendorServiceConfigModal
-          vendorService={editingVs}
+        <ServiceConfigModal
+          isOpen={!!editingVs}
           onClose={() => setEditingVs(null)}
-          onSave={() => {
-            fetchMyServices();
-            setEditingVs(null);
-          }}
+          vendorService={editingVs}
+          serviceMaster={editingVs.serviceId}
+          onSave={handleSaveConfig}
         />
       )}
     </motion.div>
@@ -299,3 +313,4 @@ const MyVendorServices = () => {
 };
 
 export default MyVendorServices;
+

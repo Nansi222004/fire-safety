@@ -111,7 +111,10 @@ const AllOrders = () => {
     const vendorItem = order.vendorItems?.find(
       (vi) => vi.vendorId?.toString() === vendorId?.toString()
     );
-    return vendorItem?.status ?? order.status ?? 'pending';
+    const vendorShipment = order.shipments?.find(
+      (s) => s.vendorId?.toString() === vendorId?.toString()
+    );
+    return vendorShipment?.status ?? vendorItem?.status ?? order.status ?? 'pending';
   };
 
   const handleStatusChange = async (orderId, newStatus) => {

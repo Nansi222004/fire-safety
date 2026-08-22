@@ -42,7 +42,11 @@ const OrderDetail = () => {
       if (showLoading) setIsLoading(true);
       try {
         const response = await getOrderById(id);
-        const o = response.data;
+        const o = response?.data ?? response;
+
+        if (!o || (!o._id && !o.orderId)) {
+          throw new Error('Order not found');
+        }
 
         // Normalize data to match UI structure
         const normalizedOrder = {

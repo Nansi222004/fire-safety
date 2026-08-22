@@ -69,6 +69,22 @@ export const getVendorOrders = asyncHandler(async (req, res) => {
         const filteredItems = (order.items || []).filter(item => String(item.vendorId) === String(req.user.id));
         const filteredVendorItems = (order.vendorItems || []).filter(vi => String(vi.vendorId) === String(req.user.id));
         
+        // Sync real-time status from shipment or top-level order status
+        const vendorShipment = (order.shipments || []).find(s => String(s.vendorId) === String(req.user.id));
+        if (vendorShipment && vendorShipment.status) {
+            filteredVendorItems.forEach(vi => {
+                if (vi.status !== 'cancelled') {
+                    vi.status = vendorShipment.status;
+                }
+            });
+        } else if (order.status === 'delivered' || order.status === 'shipped') {
+            filteredVendorItems.forEach(vi => {
+                if (vi.status !== 'cancelled') {
+                    vi.status = order.status;
+                }
+            });
+        }
+
         const vi = filteredVendorItems[0] || {};
         const vSubtotal = vi.subtotal || 0;
         const vDiscount = vi.discount || 0;
@@ -145,6 +161,22 @@ export const getVendorOrderById = asyncHandler(async (req, res) => {
     const comm = commissionDoc;
     const filteredItems = (orderObj.items || []).filter(item => String(item.vendorId) === String(req.user.id));
     const filteredVendorItems = (orderObj.vendorItems || []).filter(vi => String(vi.vendorId) === String(req.user.id));
+    
+    // Sync real-time status from shipment or top-level order status
+    const vendorShipment = (orderObj.shipments || []).find(s => String(s.vendorId) === String(req.user.id));
+    if (vendorShipment && vendorShipment.status) {
+        filteredVendorItems.forEach(vi => {
+            if (vi.status !== 'cancelled') {
+                vi.status = vendorShipment.status;
+            }
+        });
+    } else if (orderObj.status === 'delivered' || orderObj.status === 'shipped') {
+        filteredVendorItems.forEach(vi => {
+            if (vi.status !== 'cancelled') {
+                vi.status = orderObj.status;
+            }
+        });
+    }
     
     const vi = filteredVendorItems[0] || {};
     const vSubtotal = vi.subtotal || 0;

@@ -39,9 +39,10 @@ export const useAuthStore = create(
           localStorage.setItem('token', accessToken);
           localStorage.setItem('refresh-token', refreshToken);
 
-          // Merge cart after login
-          const { mergeCart } = (await import('./useStore')).useCartStore.getState();
-          await mergeCart();
+          // Merge cart asynchronously in background so login returns immediately
+          import('./useStore').then(m => {
+            m.useCartStore.getState().mergeCart().catch(err => console.error("Error merging cart post-login:", err));
+          });
 
           return { success: true, user };
         } catch (error) {
@@ -293,6 +294,7 @@ export const useAuthStore = create(
 
       // Initialize auth state from localStorage
       initialize: () => {
+        set({ isLoading: false });
         const token = localStorage.getItem('token');
         if (token) {
           const storedState = JSON.parse(localStorage.getItem('auth-storage') || '{}');
@@ -303,6 +305,7 @@ export const useAuthStore = create(
               token,
               refreshToken: refreshToken || null,
               isAuthenticated: true,
+              isLoading: false,
             });
           }
         }
@@ -311,6 +314,13 @@ export const useAuthStore = create(
     {
       name: 'auth-storage',
       storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        user: state.user,
+        token: state.token,
+        refreshToken: state.refreshToken,
+        isAuthenticated: state.isAuthenticated,
+        pendingEmail: state.pendingEmail,
+      }),
     }
   )
 );

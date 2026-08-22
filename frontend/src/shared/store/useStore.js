@@ -103,60 +103,44 @@ export const useCartStore = create(
       addItem: async (item) => {
         const authState = useAuthStore.getState();
         const currentUserId = getCurrentAuthUserId();
-        
-        // Optimistic update logic
+
+        if (!authState?.isAuthenticated) {
+          toast.error("Please log in to add items to your cart");
+          setPostLoginAction({ type: "cart:add", payload: item });
+          const fromPath = typeof window !== "undefined"
+            ? `${window.location.pathname || ""}${window.location.search || ""}${window.location.hash || ""}`
+            : "/home";
+          setPostLoginRedirect(fromPath || "/home");
+          redirectToLogin();
+          return false;
+        }
+
+        const quantityToAdd = item.quantity || 1;
         const lineKey = getCartLineKey(item.id, item.variant);
         const existingItem = get().items.find(i => i.cartLineKey === lineKey);
-        const quantityToAdd = item.quantity || 1;
         const newQuantity = existingItem ? existingItem.quantity + quantityToAdd : quantityToAdd;
 
-        // Stock check (local)
+        // Stock check
         if (item.stockQuantity !== undefined && newQuantity > item.stockQuantity) {
             toast.error(`Only ${item.stockQuantity} items available in stock`);
             return false;
         }
 
-        if (authState?.isAuthenticated) {
-          try {
-            const response = await api.post("/user/cart/add", {
-              productId: item.id,
-              variant: item.variant,
-              quantity: quantityToAdd
-            });
-            const cart = response?.data || response;
-            set({ items: (cart.items || []).map(mapBackendItemToStore), ownerUserId: currentUserId });
-          } catch (error) {
-            // Error handled by API interceptor
-            return false;
-          }
-        } else {
-          // Guest mode
-          const itemWithLineKey = {
-            ...item,
-            cartLineKey: lineKey,
-            quantity: newQuantity,
-            vendorId: item.vendorId || 1,
-            vendorName: item.vendorName || "Vendor",
-          };
-
-          set((state) => {
-            if (existingItem) {
-              return {
-                items: state.items.map(i => i.cartLineKey === lineKey ? itemWithLineKey : i),
-                ownerUserId: null
-              };
-            }
-            return {
-              items: [...state.items, { ...itemWithLineKey, quantity: quantityToAdd }],
-              ownerUserId: null
-            };
+        try {
+          const response = await api.post("/user/cart/add", {
+            productId: item.id,
+            variant: item.variant,
+            quantity: quantityToAdd
           });
+          const cart = response?.data || response;
+          set({ items: (cart.items || []).map(mapBackendItemToStore), ownerUserId: currentUserId });
+          toast.success("Added to cart");
+          const { triggerCartAnimation } = useUIStore.getState();
+          triggerCartAnimation();
+          return true;
+        } catch (error) {
+          return false;
         }
-
-        toast.success("Added to cart");
-        const { triggerCartAnimation } = useUIStore.getState();
-        triggerCartAnimation();
-        return true;
       },
 
       removeItem: async (id, variant = null) => {

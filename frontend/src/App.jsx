@@ -617,10 +617,10 @@ const AppRoutes = () => {
         <Route path="brands" element={<BrandManagement />} />
         <Route path="brands/requests" element={<AdminBrandRequests />} />
         <Route path="orders" element={<AdminOrders />} />
-        <Route path="orders/:id" element={<OrderDetail />} />
-        <Route path="orders/:id/invoice" element={<Invoice />} />
         <Route path="orders/all-orders" element={<AllOrders />} />
         <Route path="orders/order-tracking" element={<OrderTracking />} />
+        <Route path="orders/:id" element={<OrderDetail />} />
+        <Route path="orders/:id/invoice" element={<Invoice />} />
         <Route path="return-requests" element={<ReturnRequests />} />
         <Route path="return-requests/:id" element={<ReturnRequestDetail />} />
         <Route path="customers" element={<Customers />} />

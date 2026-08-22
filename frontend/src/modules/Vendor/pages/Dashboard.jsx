@@ -155,6 +155,20 @@ const VendorDashboard = () => {
         </div>
       )}
 
+      {/* Service Setup Onboarding Card */}
+      <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h3 className="font-bold text-red-900 text-sm sm:text-base">Complete Your Service Setup</h3>
+          <p className="text-xs sm:text-sm text-red-700">Enable and configure the fire safety services your store offers to start receiving customer service bookings.</p>
+        </div>
+        <button
+          onClick={() => navigate("/vendor/services/available")}
+          className="px-4 py-2 bg-[#E31E24] hover:bg-[#c6151b] text-white rounded-lg text-xs sm:text-sm font-bold shadow-md transition-colors whitespace-nowrap"
+        >
+          Set Up Services
+        </button>
+      </div>
+
       {/* Header */}
       <div className="flex flex-col gap-4">
         <div className="lg:hidden">
