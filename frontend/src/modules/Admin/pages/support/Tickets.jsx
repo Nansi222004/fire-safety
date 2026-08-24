@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { FiSearch, FiEye, FiMessageSquare, FiSend, FiX, FiAlertCircle } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 import DataTable from '../../components/DataTable';
 import Badge from '../../../../shared/components/Badge';
 import AnimatedSelect from '../../components/AnimatedSelect';
@@ -29,6 +30,7 @@ const Tickets = () => {
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [replyMessage, setReplyMessage] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isSending, setIsSending] = useState(false);
 
   // Close Confirmation Modal State
   const [confirmCloseModal, setConfirmCloseModal] = useState({ isOpen: false, pendingStatus: null });
@@ -55,8 +57,23 @@ const Tickets = () => {
     });
   }, [searchQuery, statusFilter, sourceFilter, priorityFilter, categoryFilter, dateFilter, fetchTickets]);
 
+  const scrollToBottom = useCallback((force = false) => {
+    const container = chatContainerRef.current;
+    if (!container) return;
+
+    if (force) {
+      container.scrollTop = container.scrollHeight;
+    } else {
+      const threshold = 150; // pixels from bottom
+      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= threshold;
+      if (isNearBottom) {
+        container.scrollTop = container.scrollHeight;
+      }
+    }
+  }, []);
+
   useEffect(() => {
-    const token = localStorage.getItem('admin-token') || localStorage.getItem('token');
+    const token = localStorage.getItem('adminToken') || localStorage.getItem('admin-token') || localStorage.getItem('token');
     if (!token) return;
 
     const socket = getSocket(token);
@@ -64,18 +81,26 @@ const Tickets = () => {
 
     joinRoom('admin_room');
 
-    const scrollToBottom = (force = false) => {
-      const container = chatContainerRef.current;
-      if (!container) return;
-
-      if (force) {
-        container.scrollTop = container.scrollHeight;
-      } else {
-        const threshold = 150; // pixels from bottom
-        const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= threshold;
-        if (isNearBottom) {
-          container.scrollTop = container.scrollHeight;
-        }
+    const handleNotification = (payload) => {
+      if (payload.type === 'new_support_ticket') {
+        toast.success(`New Ticket from ${payload.from || 'Customer'}: "${payload.subject || 'Support Request'}"`);
+        fetchTickets({
+          search: searchQuery,
+          status: statusFilter === 'all' ? undefined : statusFilter,
+          source: sourceFilter === 'all' ? undefined : sourceFilter,
+          priority: priorityFilter === 'all' ? undefined : priorityFilter,
+          category: categoryFilter === 'all' ? undefined : categoryFilter,
+          dateRange: dateFilter === 'all' ? undefined : dateFilter
+        });
+      } else if (payload.type === 'new_support_message' || payload.type === 'support_ticket_update') {
+        fetchTickets({
+          search: searchQuery,
+          status: statusFilter === 'all' ? undefined : statusFilter,
+          source: sourceFilter === 'all' ? undefined : sourceFilter,
+          priority: priorityFilter === 'all' ? undefined : priorityFilter,
+          category: categoryFilter === 'all' ? undefined : categoryFilter,
+          dateRange: dateFilter === 'all' ? undefined : dateFilter
+        });
       }
     };
 
@@ -136,13 +161,15 @@ const Tickets = () => {
       }
     };
 
+    socket.on('new_notification', handleNotification);
     socket.on('new_support_message', handleNewMessage);
 
     return () => {
+      socket.off('new_notification', handleNotification);
       socket.off('new_support_message', handleNewMessage);
       leaveRoom('admin_room');
     };
-  }, [selectedTicket?.id, selectedTicket?._id]);
+  }, [selectedTicket?.id, selectedTicket?._id, searchQuery, statusFilter, sourceFilter, priorityFilter, categoryFilter, dateFilter, fetchTickets]);
 
   useEffect(() => {
     if (selectedTicket) {
@@ -158,14 +185,14 @@ const Tickets = () => {
         scrollToBottom(true);
       }
     }
-  }, [selectedTicket?.messages]);
+  }, [selectedTicket?.messages, scrollToBottom]);
 
   useEffect(() => {
     const activeId = selectedTicket?.id || selectedTicket?._id;
     if (activeId) {
       scrollToBottom(true);
     }
-  }, [selectedTicket?.id, selectedTicket?._id]);
+  }, [selectedTicket?.id, selectedTicket?._id, scrollToBottom]);
 
   useEffect(() => {
     const activeId = selectedTicket?.id || selectedTicket?._id;
@@ -186,12 +213,28 @@ const Tickets = () => {
 
   const handleReply = async () => {
     const message = replyMessage.trim();
-    if (!message) return;
-    const success = await addReply(selectedTicket.id, message);
-    if (success) {
-      setReplyMessage('');
-      const updated = await useSupportStore.getState().fetchTicketById(selectedTicket.id);
-      if (updated) setSelectedTicket(updated);
+    if (!message || isSending) return;
+    setIsSending(true);
+    setReplyMessage('');
+    try {
+      const res = await addReply(selectedTicket.id, message);
+      if (res) {
+        const updated = await useSupportStore.getState().fetchTicketById(selectedTicket.id);
+        if (updated) setSelectedTicket(updated);
+      } else {
+        setReplyMessage(message);
+      }
+    } catch (err) {
+      setReplyMessage(message);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleReply();
     }
   };
 
@@ -587,7 +630,7 @@ const Tickets = () => {
                       {selectedTicket.messages?.map((msg, idx) => (
                         <div key={idx} className={`flex flex-col ${msg.senderType === 'admin' ? 'items-end' : 'items-start'}`}>
                           <div className={`max-w-[85%] p-3 rounded-2xl text-sm ${msg.senderType === 'admin'
-                              ? 'bg-primary-650 text-white rounded-br-none'
+                              ? 'bg-primary-600 text-white rounded-br-none'
                               : 'bg-gray-100 text-gray-800 rounded-bl-none'
                             }`}>
                             {msg.message}
@@ -612,12 +655,14 @@ const Tickets = () => {
                       <textarea
                         value={replyMessage}
                         onChange={(e) => setReplyMessage(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        disabled={isSending}
                         placeholder="Type your response..."
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 text-sm resize-none h-20"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 text-sm resize-none h-20 disabled:opacity-50"
                       />
                       <button
                         onClick={handleReply}
-                        disabled={!replyMessage.trim() || isLoading}
+                        disabled={!replyMessage.trim() || isLoading || isSending}
                         className="px-4 py-2 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors disabled:opacity-50 flex items-center justify-center shadow-md shadow-primary-100"
                         title="Send Message"
                       >

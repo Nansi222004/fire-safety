@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { FiMessageCircle, FiSend, FiUser } from 'react-icons/fi';
 import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
 import { useSupportStore } from '../../../../shared/store/supportStore';
 import { getSocket, joinRoom } from '../../../../shared/utils/socket';
 import { useAdminAuthStore } from '../../store/adminStore';
@@ -18,15 +19,18 @@ const LiveChat = () => {
   }, [fetchTickets]);
 
   useEffect(() => {
-    const token = localStorage.getItem('admin-token') || localStorage.getItem('token');
+    const token = localStorage.getItem('adminToken') || localStorage.getItem('admin-token') || localStorage.getItem('token');
     if (!token) return;
 
     const socket = getSocket(token);
     if (!socket) return;
 
     const handleNotification = (payload) => {
-      if (payload.type === 'new_support_message' || payload.type === 'support_ticket_update') {
+      if (payload.type === 'new_support_message' || payload.type === 'support_ticket_update' || payload.type === 'new_support_ticket') {
         fetchTickets({ limit: 200 });
+        if (payload.type === 'new_support_ticket') {
+          toast.success(`New Ticket from ${payload.from || 'Customer'}: "${payload.subject || 'Support Request'}"`);
+        }
       }
     };
 

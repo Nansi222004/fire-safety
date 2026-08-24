@@ -7,7 +7,25 @@ let socket = null;
 let currentToken = null;
 const joinedRooms = new Set();
 
-export const getSocket = (token) => {
+const getActiveToken = (tokenInput) => {
+    if (tokenInput) return tokenInput;
+    if (typeof window === 'undefined') return null;
+    const path = window.location.pathname;
+    if (path.startsWith('/admin')) {
+        return localStorage.getItem('adminToken') || localStorage.getItem('admin-token') || localStorage.getItem('token');
+    }
+    if (path.startsWith('/vendor')) {
+        return localStorage.getItem('vendor-token') || localStorage.getItem('token');
+    }
+    if (path.startsWith('/delivery')) {
+        return localStorage.getItem('delivery-token') || localStorage.getItem('token');
+    }
+    return localStorage.getItem('token') || localStorage.getItem('user-token');
+};
+
+export const getSocket = (tokenInput) => {
+    const token = getActiveToken(tokenInput);
+
     if (token && token !== currentToken) {
         if (socket) {
             console.log('🔌 Token changed. Reconnecting socket...');
@@ -21,7 +39,7 @@ export const getSocket = (token) => {
     if (!socket && token) {
         socket = io(SOCKET_URL, {
             auth: { token },
-            transports: ['websocket', 'polling'],
+            transports: ['polling', 'websocket'],
             withCredentials: true
         });
 
@@ -34,8 +52,8 @@ export const getSocket = (token) => {
             });
         });
 
-        socket.on('disconnect', () => {
-            console.log('🔌 Disconnected from socket server');
+        socket.on('disconnect', (reason) => {
+            console.log(`🔌 Disconnected from socket server (${reason})`);
         });
 
         socket.on('error', (err) => {
