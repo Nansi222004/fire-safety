@@ -16,7 +16,7 @@ const LiveChat = () => {
     fetchTickets({
       limit: 200,
     });
-  }, [fetchTickets]);
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem('adminToken') || localStorage.getItem('admin-token') || localStorage.getItem('token');

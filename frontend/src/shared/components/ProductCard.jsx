@@ -45,7 +45,7 @@ const ProductCard = ({
   });
   const buttonRef = useRef(null);
 
-  const handleAddToCart = (e) => {
+  const handleAddToCart = async (e) => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
@@ -62,11 +62,22 @@ const ProductCard = ({
       return;
     }
 
-    const isLargeScreen = window.innerWidth >= 1024;
+    const addedToCart = await addItem({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      originalPrice: product.originalPrice,
+      image: product.image,
+      quantity: 1,
+      stockQuantity: product.stockQuantity,
+      vendorId: product.vendorId,
+      vendorName: product.vendorName,
+    });
+    if (!addedToCart) return;
 
+    const isLargeScreen = window.innerWidth >= 1024;
     if (!isLargeScreen) {
       setIsAdding(true);
-
       const buttonRect = buttonRef.current?.getBoundingClientRect();
       const startX = buttonRect ? buttonRect.left + buttonRect.width / 2 : 0;
       const startY = buttonRect ? buttonRect.top + buttonRect.height / 2 : 0;
@@ -98,21 +109,6 @@ const ProductCard = ({
 
       setTimeout(() => setIsAdding(false), 600);
     }
-
-    const addedToCart = addItem({
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      originalPrice: product.originalPrice,
-      image: product.image,
-      quantity: 1,
-      stockQuantity: product.stockQuantity,
-      vendorId: product.vendorId,
-      vendorName: product.vendorName,
-    });
-    if (!addedToCart) return;
-    triggerCartAnimation();
-    toast.success("Added to cart!");
   };
 
   const handleRemoveFromCart = (e) => {

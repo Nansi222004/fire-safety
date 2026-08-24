@@ -94,6 +94,16 @@ const OrderTracking = () => {
     return steps;
   };
 
+  const handleSelectOrder = (order) => {
+    setSelectedOrder(order);
+    setTimeout(() => {
+      const panel = document.getElementById("tracking-details-panel");
+      if (panel) {
+        panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+    }, 50);
+  };
+
   const columns = [
     {
       key: "id",
@@ -128,13 +138,25 @@ const OrderTracking = () => {
       key: "actions",
       label: "Actions",
       sortable: false,
-      render: (_, row) => (
-        <button
-          onClick={() => setSelectedOrder(row)}
-          className="px-3 py-1 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-semibold">
-          Track
-        </button>
-      ),
+      render: (_, row) => {
+        const isSelected = selectedOrder?.id === row.id;
+        return (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleSelectOrder(row);
+            }}
+            className={`px-3 py-1 rounded-lg transition-all text-sm font-semibold ${
+              isSelected
+                ? "bg-green-600 text-white hover:bg-green-700 ring-2 ring-green-300"
+                : "bg-primary-600 text-white hover:bg-primary-700"
+            }`}
+          >
+            {isSelected ? "Tracking..." : "Track"}
+          </button>
+        );
+      },
     },
   ];
 
@@ -178,13 +200,14 @@ const OrderTracking = () => {
                 columns={columns}
                 pagination={true}
                 itemsPerPage={10}
+                onRowClick={handleSelectOrder}
               />
             )}
           </div>
         </div>
 
         {selectedOrder && (
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+          <div id="tracking-details-panel" className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-gray-800">
                 Tracking Details
@@ -241,7 +264,7 @@ const OrderTracking = () => {
                 })}
               </div>
               <button
-                onClick={() => navigate(`/admin/orders/${selectedOrder.id}`)}
+                onClick={() => navigate(`/admin/orders/${selectedOrder._id || selectedOrder.id}`)}
                 className="w-full mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-semibold">
                 View Full Details
               </button>

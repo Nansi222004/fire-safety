@@ -47,9 +47,9 @@ const VendorLayout = () => {
     const handleNewNotification = (notif) => {
       addNotification(notif);
       toast.success(
-        <div className="flex flex-col gap-1">
-          <p className="font-semibold text-sm">{notif.title}</p>
-          <p className="text-xs text-gray-600">{notif.message}</p>
+        <div className="flex flex-col gap-1 text-white">
+          <p className="font-semibold text-sm text-white">{notif.title}</p>
+          <p className="text-xs text-gray-200 leading-relaxed">{notif.message}</p>
         </div>,
         {
           duration: 6000,

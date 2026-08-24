@@ -490,7 +490,11 @@ const ProductForm = () => {
       errors.stockQuantity = "Stock quantity must be 0 or greater";
     }
 
-    const finalCategoryId = formData.subcategoryId || formData.categoryId;
+    const finalCategoryId = (formData.subcategoryId && String(formData.subcategoryId).trim())
+      ? formData.subcategoryId
+      : (formData.categoryId && String(formData.categoryId).trim())
+      ? formData.categoryId
+      : null;
     if (!finalCategoryId) {
       errors.categoryId = "Category selection is required";
     }
@@ -533,7 +537,11 @@ const ProductForm = () => {
       return;
     }
 
-    const finalCategoryId = formData.subcategoryId ?? formData.categoryId ?? null;
+    const finalCategoryId = (formData.subcategoryId && String(formData.subcategoryId).trim())
+      ? formData.subcategoryId
+      : (formData.categoryId && String(formData.categoryId).trim())
+      ? formData.categoryId
+      : null;
 
     const parsedPrice = parseFloat(formData.price);
     const parsedOriginalPrice = formData.originalPrice
@@ -565,7 +573,7 @@ const ProductForm = () => {
       totalAllowedQuantity: parsedTotalAllowedQuantity,
       minimumOrderQuantity: parsedMinimumOrderQuantity,
       categoryId: finalCategoryId,
-      subcategoryId: formData.subcategoryId ? formData.subcategoryId : null,
+      subcategoryId: (formData.subcategoryId && String(formData.subcategoryId).trim()) ? formData.subcategoryId : null,
       brandId: formData.brandId ?? null,
       weight: parseFloat(formData.weight) || 1,
       dimensions: {

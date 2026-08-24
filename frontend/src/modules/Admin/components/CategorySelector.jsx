@@ -328,13 +328,7 @@ const CategorySelector = ({
                               : "text-gray-900"
                           }`}
                           onClick={() => {
-                            if (!hasSubcategories) {
-                              handleCategorySelect(category.id);
-                            } else {
-                              setHoveredCategoryId(
-                                hoveredCategoryId === category.id ? null : category.id
-                              );
-                            }
+                            handleCategorySelect(category.id);
                           }}
                           onMouseEnter={() => {
                             if (hasSubcategories) {

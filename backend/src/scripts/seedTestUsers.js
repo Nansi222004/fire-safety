@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import User from '../models/User.model.js';
 import Admin from '../models/Admin.model.js';
 import Vendor from '../models/Vendor.model.js';
+import DeliveryBoy from '../models/DeliveryBoy.model.js';
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/safe-fire';
 
@@ -47,6 +48,36 @@ const upsertDelivery = async (email, name, phone, password) => {
       role: 'delivery',
       isVerified: true,
       isActive: true,
+    });
+  }
+
+  let deliveryBoy = await DeliveryBoy.findOne({ email }).select('+password');
+  if (deliveryBoy) {
+    deliveryBoy.name = name;
+    deliveryBoy.password = password;
+    deliveryBoy.phone = phone;
+    deliveryBoy.applicationStatus = 'approved';
+    deliveryBoy.isActive = true;
+    deliveryBoy.isAvailable = true;
+    deliveryBoy.status = 'available';
+    await deliveryBoy.save();
+  } else {
+    await DeliveryBoy.create({
+      name,
+      email,
+      password,
+      phone,
+      vehicleType: 'Bike',
+      vehicleNumber: 'DL-01-SF-100',
+      address: '101 Safety Street, Mumbai',
+      applicationStatus: 'approved',
+      isActive: true,
+      isAvailable: true,
+      status: 'available',
+      documents: {
+        drivingLicense: '/uploads/delivery-docs/sample-license.pdf',
+        aadharCard: '/uploads/delivery-docs/sample-aadhar.pdf',
+      },
     });
   }
 };

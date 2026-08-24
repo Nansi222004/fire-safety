@@ -17,15 +17,15 @@ export const useSupportStore = create((set, get) => ({
         set({ isLoading: true });
         try {
             const response = await adminService.getAllTickets(params);
-            const payload = response?.tickets ? response : (response?.data || {});
+            const payload = response?.tickets !== undefined ? response : (response?.data || response || {});
             set({
-                tickets: payload.tickets || [],
+                tickets: Array.isArray(payload.tickets) ? payload.tickets : [],
                 pagination: payload.pagination || { total: 0, page: 1, limit: 10, pages: 1 },
-                isLoading: false
+                isLoading: false,
+                error: null,
             });
         } catch (error) {
             set({ error: error.message, isLoading: false });
-            toast.error(error.message || 'Failed to fetch tickets');
         }
     },
 
@@ -33,11 +33,11 @@ export const useSupportStore = create((set, get) => ({
         set({ isLoading: true });
         try {
             const response = await adminService.getTicketById(id);
+            const payload = (response?.id || response?._id) ? response : (response?.data || response);
             set({ isLoading: false });
-            return response?.id || response?._id ? response : (response?.data || null);
+            return payload;
         } catch (error) {
             set({ isLoading: false });
-            toast.error(error.message || 'Failed to fetch ticket details');
             return null;
         }
     },
@@ -47,13 +47,12 @@ export const useSupportStore = create((set, get) => ({
             await adminService.updateTicketStatus(id, data);
             set((state) => ({
                 tickets: state.tickets.map((t) =>
-                    t.id === id ? { ...t, ...data } : t
+                    (t.id === id || t._id === id) ? { ...t, ...data } : t
                 )
             }));
             toast.success('Ticket updated successfully');
             return true;
         } catch (error) {
-            toast.error(error.message || 'Failed to update ticket');
             return false;
         }
     },
@@ -62,12 +61,12 @@ export const useSupportStore = create((set, get) => ({
         set({ isLoading: true });
         try {
             const response = await adminService.addTicketMessage(id, message);
+            const payload = response?.message !== undefined ? response : (response?.data || response || true);
             set({ isLoading: false });
             toast.success('Reply added successfully');
-            return response?.id || response?._id ? response : (response?.data || response || true);
+            return payload;
         } catch (error) {
             set({ isLoading: false });
-            toast.error(error.message || 'Failed to add reply');
             return null;
         }
     }

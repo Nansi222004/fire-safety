@@ -13,6 +13,7 @@ import {
 } from "react-icons/fi";
 import MobileLayout from "../components/Layout/MobileLayout";
 import PageTransition from "../../../shared/components/PageTransition";
+import ServiceBookingWizard from "../components/ServiceBookingWizard";
 import { getServiceCatalog } from "../services/customerServiceApi";
 
 const ServicesPage = () => {
@@ -22,6 +23,7 @@ const ServicesPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeBookingService, setActiveBookingService] = useState(null);
 
   const fetchCatalog = async () => {
     setIsLoading(true);
@@ -187,10 +189,10 @@ const ServicesPage = () => {
 
                         <button
                           type="button"
-                          onClick={() => navigate(`/services/${service.slug || service._id}`)}
+                          onClick={() => setActiveBookingService(service)}
                           className="w-full py-2.5 bg-[#E31E24] hover:bg-[#c6151b] text-white font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm shadow-[#E31E24]/20 active:scale-98"
                         >
-                          <span>Check Pincode & Book</span>
+                          <span>Book Service</span>
                           <FiArrowRight className="text-xs" />
                         </button>
                       </div>
@@ -201,6 +203,15 @@ const ServicesPage = () => {
             </section>
           </div>
         </div>
+
+        {/* Multi-Step Customer Booking Wizard */}
+        {activeBookingService && (
+          <ServiceBookingWizard
+            isOpen={!!activeBookingService}
+            onClose={() => setActiveBookingService(null)}
+            service={activeBookingService}
+          />
+        )}
       </MobileLayout>
     </PageTransition>
   );

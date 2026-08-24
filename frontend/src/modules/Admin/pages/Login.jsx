@@ -137,10 +137,17 @@ const AdminLogin = () => {
         </form>
 
         {/* Demo Credentials */}
-        <div className="mt-6 p-4 bg-primary-50 rounded-xl">
-          <p className="text-sm text-gray-700 font-semibold mb-2">Demo Credentials:</p>
-          <p className="text-xs text-gray-600">Email: sfsappdevelopment@gmail.com</p>
-          <p className="text-xs text-gray-600">Password: admin123</p>
+        <div
+          onClick={() => setFormData({ email: 'sfsappdevelopment@gmail.com', password: 'admin123' })}
+          className="mt-6 p-4 bg-primary-50 rounded-xl cursor-pointer hover:bg-primary-100 transition-colors border border-primary-200 group"
+          title="Click to autofill test credentials"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-gray-700 font-semibold">Demo Credentials:</p>
+            <span className="text-xs text-primary-600 font-medium group-hover:underline">Click to autofill</span>
+          </div>
+          <p className="text-xs text-gray-600">Email: <span className="font-medium text-gray-800">sfsappdevelopment@gmail.com</span></p>
+          <p className="text-xs text-gray-600">Password: <span className="font-medium text-gray-800">admin123</span></p>
         </div>
       </motion.div>
     </div>

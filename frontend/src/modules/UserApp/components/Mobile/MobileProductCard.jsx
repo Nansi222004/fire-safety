@@ -42,7 +42,7 @@ const MobileProductCard = ({ product }) => {
   });
   const buttonRef = useRef(null);
 
-  const handleAddToCart = (e) => {
+  const handleAddToCart = async (e) => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
@@ -59,15 +59,25 @@ const MobileProductCard = ({ product }) => {
       return;
     }
 
-    const isLargeScreen = window.innerWidth >= 1024;
+    const addedToCart = await addItem({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      originalPrice: product.originalPrice,
+      image: product.image,
+      quantity: 1,
+      stockQuantity: product.stockQuantity,
+      vendorId: product.vendorId,
+      vendorName: product.vendorName,
+    });
+    if (!addedToCart) return;
 
+    const isLargeScreen = window.innerWidth >= 1024;
     if (!isLargeScreen) {
-      // Get button position
       const buttonRect = buttonRef.current?.getBoundingClientRect();
       const startX = buttonRect ? buttonRect.left + buttonRect.width / 2 : 0;
       const startY = buttonRect ? buttonRect.top + buttonRect.height / 2 : 0;
 
-      // Get cart bar position (prefer cart bar over header icon)
       setTimeout(() => {
         const cartBar = document.querySelector("[data-cart-bar]");
         let endX = window.innerWidth / 2;
@@ -78,7 +88,6 @@ const MobileProductCard = ({ product }) => {
           endX = cartRect.left + cartRect.width / 2;
           endY = cartRect.top + cartRect.height / 2;
         } else {
-          // Fallback to cart icon in header
           const cartIcon = document.querySelector("[data-cart-icon]");
           if (cartIcon) {
             const cartRect = cartIcon.getBoundingClientRect();
@@ -94,20 +103,6 @@ const MobileProductCard = ({ product }) => {
         setShowFlyingItem(true);
       }, 50);
     }
-
-    const addedToCart = addItem({
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      originalPrice: product.originalPrice,
-      image: product.image,
-      quantity: 1,
-      stockQuantity: product.stockQuantity,
-      vendorId: product.vendorId,
-      vendorName: product.vendorName,
-    });
-    if (!addedToCart) return;
-    triggerCartAnimation();
   };
 
   const handleRemoveFromCart = (e) => {

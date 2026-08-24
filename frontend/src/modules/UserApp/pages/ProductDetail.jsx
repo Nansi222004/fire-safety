@@ -539,7 +539,7 @@ const MobileProductDetail = () => {
     }
   }, [product?.id, fetchReviews]);
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (!product) return;
     if (product.stock === "out_of_stock") {
       toast.error("Product is out of stock");
@@ -591,7 +591,7 @@ const MobileProductDetail = () => {
       return;
     }
 
-    const addedToCart = addItem({
+    const addedToCart = await addItem({
       id: product.id,
       name: product.name,
       price: finalPrice,
@@ -604,8 +604,6 @@ const MobileProductDetail = () => {
       vendorName: vendor?.storeName || vendor?.name || product.vendorName,
     });
     if (!addedToCart) return;
-    triggerCartAnimation();
-    toast.success("Added to cart!");
   };
 
   const handleRemoveFromCart = () => {

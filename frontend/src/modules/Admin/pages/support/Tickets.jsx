@@ -55,7 +55,7 @@ const Tickets = () => {
       category: categoryFilter === 'all' ? undefined : categoryFilter,
       dateRange: dateFilter === 'all' ? undefined : dateFilter
     });
-  }, [searchQuery, statusFilter, sourceFilter, priorityFilter, categoryFilter, dateFilter, fetchTickets]);
+  }, [searchQuery, statusFilter, sourceFilter, priorityFilter, categoryFilter, dateFilter]);
 
   const scrollToBottom = useCallback((force = false) => {
     const container = chatContainerRef.current;

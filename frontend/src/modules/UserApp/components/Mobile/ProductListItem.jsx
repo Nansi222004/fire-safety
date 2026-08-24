@@ -28,7 +28,7 @@ const ProductListItem = ({ product, index, isFlashSale = false }) => {
     (item) => item.id === product.id && hasNoVariant(item)
   );
 
-  const handleAddToCart = (e) => {
+  const handleAddToCart = async (e) => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
@@ -45,7 +45,7 @@ const ProductListItem = ({ product, index, isFlashSale = false }) => {
       return;
     }
 
-    const addedToCart = addItem({
+    const addedToCart = await addItem({
       id: product.id,
       name: product.name,
       price: product.price,

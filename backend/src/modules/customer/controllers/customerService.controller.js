@@ -117,43 +117,16 @@ export const checkServiceability = asyncHandler(async (req, res) => {
         })
         .lean();
 
-    // Filter vendors matching pincode (either explicit match OR empty serviceAreas meaning all areas)
+    // Filter vendors strictly matching pincode in vs.serviceAreas (no empty = all)
     let servicingVendors = vendorServices.filter((vs) => {
-        if (!vs.vendorId || vs.vendorId.status === 'suspended' || vs.vendorId.isActive === false) {
+        if (!vs.vendorId || vs.vendorId.status === 'suspended' || vs.vendorId.status === 'rejected' || vs.vendorId.isActive === false) {
             return false;
         }
-        if (!vs.serviceAreas || vs.serviceAreas.length === 0) {
-            return true; // Serves all pincodes
+        if (!vs.serviceAreas || !Array.isArray(vs.serviceAreas) || vs.serviceAreas.length === 0) {
+            return false; // Must explicitly list supported pincodes
         }
         return vs.serviceAreas.some((a) => String(a).trim() === cleanPincode);
     });
-
-    // Default Pincode Serviceability Overrides per requirements:
-    // 400002 -> Non-serviceable
-    // 400001 -> Default Serviceable
-    if (cleanPincode === '400002') {
-        servicingVendors = [];
-    } else if (cleanPincode === '400001' && servicingVendors.length === 0) {
-        const approvedVendor = await Vendor.findOne({ status: 'approved' }).lean();
-        const realVendorId = approvedVendor?._id || serviceMaster._id;
-        const realVendorStoreName = approvedVendor?.storeName || approvedVendor?.name || 'SafeFire Express Service Center (Mumbai 400001)';
-
-        servicingVendors.push({
-            _id: serviceMaster._id,
-            vendorId: {
-                _id: realVendorId,
-                storeName: realVendorStoreName,
-                name: approvedVendor?.name || 'SafeFire Certified Team',
-                email: approvedVendor?.email || 'mumbai.service@safefire.com',
-                phone: approvedVendor?.phone || '+91 98765 43210',
-                rating: approvedVendor?.rating || 4.9,
-            },
-            price: 499,
-            workingHours: { start: '09:00', end: '18:00' },
-            dailyCapacity: 15,
-            serviceAreas: ['400001'],
-        });
-    }
 
     if (servicingVendors.length === 0) {
         const generalSettingsDoc = await Settings.findOne({ key: 'general' }).lean();
@@ -227,59 +200,79 @@ export const createBooking = asyncHandler(async (req, res) => {
         throw new ApiError(400, 'Missing required booking details (service, vendor, pincode, address, date, timeslot).');
     }
 
+    const cleanPincode = String(pincode).trim();
+
+    // 1. Verify Service Master exists and is active
     const serviceMaster = await Service.findById(serviceId).populate('categoryId', 'name').lean();
     if (!serviceMaster || !serviceMaster.isActive) {
-        throw new ApiError(404, 'Service Master not found.');
+        throw new ApiError(404, 'Selected Service is inactive or not found.');
     }
 
-    // 1. Resolve vendor account from checkout
-    let resolvedVendor = vendorId ? await Vendor.findById(vendorId).lean() : null;
+    // 2. Independently verify Vendor Account exists, is approved, and active
+    const resolvedVendor = await Vendor.findOne({
+        _id: vendorId,
+        isActive: true,
+        status: 'approved',
+    }).lean();
 
-    // 2. Find matching VendorService for the selected vendor (for custom pricing/config)
-    let vendorService = null;
-    if (resolvedVendor) {
-        vendorService = await VendorService.findOne({
-            serviceId,
-            vendorId: resolvedVendor._id,
-            isActive: true,
-        }).lean();
-    }
-
-    // 3. If no specific vendor was resolved, find any vendor offering this service
     if (!resolvedVendor) {
-        vendorService = await VendorService.findOne({
-            serviceId,
-            isActive: true,
-        }).lean();
+        throw new ApiError(400, 'Selected Service Provider is currently inactive or not approved.');
+    }
 
-        if (vendorService) {
-            resolvedVendor = await Vendor.findById(vendorService.vendorId).lean();
+    // 3. Verify VendorService configuration exists for vendorId + serviceId and is active
+    const vendorService = await VendorService.findOne({
+        serviceId: serviceMaster._id,
+        vendorId: resolvedVendor._id,
+        isActive: true,
+    }).lean();
+
+    if (!vendorService) {
+        throw new ApiError(400, 'Selected Service Provider does not offer this service.');
+    }
+
+    // 4. Verify VendorService strictly covers the requested Pincode
+    const isPincodeCovered = vendorService.serviceAreas &&
+        Array.isArray(vendorService.serviceAreas) &&
+        vendorService.serviceAreas.some((a) => String(a).trim() === cleanPincode);
+
+    if (!isPincodeCovered) {
+        throw new ApiError(400, `Selected Service Provider does not service pincode ${cleanPincode}.`);
+    }
+
+    // 5. Verify Capacity Protection for booking date
+    const startOfDay = new Date(bookingDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(bookingDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const existingBookingsCount = await ServiceBooking.countDocuments({
+        vendorId: resolvedVendor._id,
+        bookingDate: { $gte: startOfDay, $lte: endOfDay },
+        status: { $in: ['pending', 'confirmed', 'assigned', 'in_progress'] },
+    });
+
+    const dailyLimit = vendorService.dailyCapacity || 10;
+    if (existingBookingsCount >= dailyLimit) {
+        throw new ApiError(400, 'Selected Service Provider is fully booked for this date. Please select another date.');
+    }
+
+    // 6. Calculate Pricing & Taxes cleanly
+    let unitPrice = vendorService.price || 0;
+    if (variant && variant.key && vendorService.variantPrices) {
+        let vPrice = null;
+        if (typeof vendorService.variantPrices.get === 'function') {
+            vPrice = vendorService.variantPrices.get(variant.key);
+        } else if (typeof vendorService.variantPrices === 'object') {
+            vPrice = vendorService.variantPrices[variant.key];
         }
-    }
-
-    // 4. Fallback if still not resolved: pick any approved vendor
-    if (!resolvedVendor) {
-        resolvedVendor = await Vendor.findOne({ status: 'approved' }).lean();
-    }
-
-    if (!resolvedVendor) {
-        throw new ApiError(400, 'No active approved vendor available to fulfill this service booking.');
-    }
-
-    const resolvedVendorId = resolvedVendor._id;
-
-    // Calculate Pricing
-    let unitPrice = vendorService?.price || variant?.price || 499;
-    if (variant && variant.key && vendorService?.variantPrices && vendorService?.variantPrices?.get) {
-        const vPrice = vendorService.variantPrices.get(variant.key);
-        if (typeof vPrice === 'number') unitPrice = vPrice;
-    } else if (variant && variant.price && typeof variant.price === 'number') {
+        if (typeof vPrice === 'number' && vPrice > 0) unitPrice = vPrice;
+    } else if (variant && typeof variant.price === 'number' && variant.price > 0) {
         unitPrice = variant.price;
     }
 
     const qty = Math.max(1, Number(quantity) || 1);
     const subtotal = unitPrice * qty;
-    const tax = Math.round(subtotal * 0.18 * 100) / 100; // 18% GST standard estimate
+    const tax = 0; // Dynamic/configurable tax fallback per requirement
     const total = subtotal + tax;
 
     const bookingId = `SB-${Date.now().toString().slice(-6)}${Math.floor(100 + Math.random() * 900)}`;
@@ -288,14 +281,14 @@ export const createBooking = asyncHandler(async (req, res) => {
         bookingId,
         userId: req.user.id || req.user._id,
         serviceId: serviceMaster._id,
-        vendorId: resolvedVendorId,
-        vendorServiceId: vendorService?._id || serviceMaster._id,
+        vendorId: resolvedVendor._id,
+        vendorServiceId: vendorService._id,
         serviceName: serviceMaster.name,
         categoryName: serviceMaster.categoryId?.name || 'Fire Safety',
         serviceImage: serviceMaster.image || '',
         variant: variant || {},
         quantity: qty,
-        pincode: String(pincode).trim(),
+        pincode: cleanPincode,
         serviceAddress,
         bookingDate: new Date(bookingDate),
         timeSlot,

@@ -17,12 +17,14 @@ export const getServiceBySlug = (slug) =>
  */
 export const checkPincodeServiceability = (data) =>
   api.post('/customer/services/check-serviceability', data);
+export const checkServiceability = checkPincodeServiceability;
 
 /**
  * Create a new Service Booking
  */
 export const createServiceBooking = (data) =>
   api.post('/customer/bookings', data);
+export const createBooking = createServiceBooking;
 
 /**
  * Fetch Customer's Service Bookings List

@@ -419,17 +419,35 @@ const MobileCheckout = () => {
       city: String(formData.city || "").trim(),
       zipCode: String(formData.zipCode || "").trim(),
       state: String(formData.state || "").trim(),
-      country: String(formData.country || "").trim(),
+      country: String(formData.country || "India").trim(),
     };
 
-    const missingRequired = Object.values(normalizedShipping).some((v) => !v);
-    if (missingRequired) {
-      toast.error("Please fill all shipping details correctly.");
+    if (!normalizedShipping.name) {
+      toast.error("Please enter your Full Name.");
       return;
     }
-
+    if (!normalizedShipping.email) {
+      toast.error("Please enter a valid Email address.");
+      return;
+    }
     if (normalizedShipping.phone.length !== 10) {
-      toast.error("Please enter a valid 10-digit phone number.");
+      toast.error(`Phone number must be 10 digits (currently ${normalizedShipping.phone.length} digits).`);
+      return;
+    }
+    if (!normalizedShipping.address) {
+      toast.error("Please enter your Street Address.");
+      return;
+    }
+    if (!normalizedShipping.city) {
+      toast.error("Please enter your City.");
+      return;
+    }
+    if (!normalizedShipping.state) {
+      toast.error("Please enter your State.");
+      return;
+    }
+    if (!normalizedShipping.zipCode) {
+      toast.error("Please enter your Pincode / Zip Code.");
       return;
     }
 
@@ -659,6 +677,7 @@ const MobileCheckout = () => {
                           name="name"
                           value={formData.name}
                           onChange={handleInputChange}
+                          placeholder="Demo Customer"
                           required
                           className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 text-base"
                         />
@@ -673,23 +692,97 @@ const MobileCheckout = () => {
                             name="email"
                             value={formData.email}
                             onChange={handleInputChange}
+                            placeholder="customer@safefire.com"
                             required
                             className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 text-base"
                           />
                         </div>
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Phone Number
+                            Phone Number (10 digits)
                           </label>
                           <input
                             type="tel"
                             name="phone"
                             value={formData.phone}
                             onChange={handleInputChange}
+                            placeholder="9876543210"
+                            maxLength={10}
                             required
                             className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 text-base"
                           />
                         </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Street Address
+                        </label>
+                        <input
+                          type="text"
+                          name="address"
+                          value={formData.address}
+                          onChange={handleInputChange}
+                          placeholder="Flat / House No., Building, Street Name"
+                          required
+                          className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 text-base"
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            City
+                          </label>
+                          <input
+                            type="text"
+                            name="city"
+                            value={formData.city}
+                            onChange={handleInputChange}
+                            placeholder="City"
+                            required
+                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 text-base"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            State
+                          </label>
+                          <input
+                            type="text"
+                            name="state"
+                            value={formData.state}
+                            onChange={handleInputChange}
+                            placeholder="State"
+                            required
+                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 text-base"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Pincode / Zip Code
+                          </label>
+                          <input
+                            type="text"
+                            name="zipCode"
+                            value={formData.zipCode}
+                            onChange={handleInputChange}
+                            placeholder="6-digit Pincode"
+                            required
+                            className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 text-base"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Country
+                        </label>
+                        <input
+                          type="text"
+                          name="country"
+                          value={formData.country || "India"}
+                          onChange={handleInputChange}
+                          required
+                          className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 text-base"
+                        />
                       </div>
                     </div>
                   </motion.div>
