@@ -5,7 +5,7 @@ import DeliveryBoy from '../models/DeliveryBoy.model.js';
 import Vendor from '../models/Vendor.model.js';
 import ReturnRequest from '../models/ReturnRequest.model.js';
 import { createNotification } from './notification.service.js';
-import { notifyOrderUpdate } from './socket.service.js';
+import { notifyOrderUpdate, notifyReturnUpdate } from './socket.service.js';
 import { buildOrderItemsSummary, buildReturnItemsSummary } from '../utils/notificationProductFormatter.js';
 
 const calculateDistance = (lat1, lon1, lat2, lon2) => {
@@ -617,7 +617,20 @@ export const autoAssignReturnPickupPartner = async (returnRequestId) => {
         }
         await returnRequest.save();
 
+        // Dual-write to Shipment (type: 'reverse')
+        await Shipment.findOneAndUpdate(
+            { returnRequestId: returnRequest._id, type: 'reverse' },
+            { $set: { deliveryBoyId: selectedRider._id, deliveryAssignmentStatus: 'assigned' } }
+        );
+
         console.log(`[Auto Assign Return] Return request ${returnRequest._id} assigned to ${selectedRider.name} via ${assignmentMethod}`);
+
+        // Notify vendor and delivery rooms via WebSockets
+        const populatedReturn = await ReturnRequest.findById(returnRequest._id)
+            .populate('deliveryBoyId', 'name phone email');
+        if (populatedReturn) {
+            notifyReturnUpdate(populatedReturn);
+        }
 
         // Dispatch notification to delivery partner
         const itemsText = buildReturnItemsSummary(returnRequest.items);

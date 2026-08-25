@@ -145,18 +145,22 @@ const OrderDetail = () => {
     };
 
     const statusOptions = [
+        { value: 'payment_pending', label: 'Payment Pending', color: 'yellow' },
         { value: 'pending', label: 'Pending', color: 'yellow' },
         { value: 'processing', label: 'Processing', color: 'blue' },
         { value: 'ready_for_pickup', label: 'Ready for Pickup', color: 'purple' },
         { value: 'shipped', label: 'Shipped', color: 'green' },
+        { value: 'delivered', label: 'Delivered', color: 'green' },
         { value: 'cancelled', label: 'Cancelled', color: 'red' },
     ];
 
     const transitionMap = {
+        payment_pending: ['payment_pending', 'pending', 'processing', 'cancelled'],
         pending: ['pending', 'processing', 'cancelled'],
         processing: ['processing', 'ready_for_pickup', 'cancelled'],
-        ready_for_pickup: ['ready_for_pickup'],
-        shipped: ['shipped'],
+        ready_for_pickup: ['ready_for_pickup', 'shipped', 'cancelled'],
+        shipped: ['shipped', 'delivered'],
+        delivered: ['delivered'],
         cancelled: ['cancelled'],
     };
 
@@ -165,10 +169,13 @@ const OrderDetail = () => {
         (vi) => vi.vendorId?.toString() === vendorId?.toString()
     );
     const currentStatus = String(vendorItem?.status ?? order?.status ?? 'pending').toLowerCase();
-    const allowedStatuses = transitionMap[currentStatus] || [currentStatus];
-    const visibleStatusOptions = statusOptions.filter((option) =>
+    const allowedStatuses = transitionMap[currentStatus] || ['pending', 'processing', 'ready_for_pickup', 'cancelled'];
+    let visibleStatusOptions = statusOptions.filter((option) =>
         allowedStatuses.includes(option.value)
     );
+    if (visibleStatusOptions.length === 0) {
+        visibleStatusOptions = statusOptions;
+    }
 
     // Items this vendor sold in this order
     const vendorItems = vendorItem?.items ?? [];
