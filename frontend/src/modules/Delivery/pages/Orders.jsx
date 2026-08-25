@@ -134,6 +134,7 @@ const DeliveryOrders = () => {
     try {
       await acceptOrder(orderId);
       toast.success('Order accepted successfully');
+      loadOrders(currentPage, filter);
     } catch {
       // Handled by API interceptor
     }
@@ -500,7 +501,7 @@ const DeliveryOrders = () => {
                     </div>
 
                     <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                      {order.status === 'pending' && (
+                      {order.status === 'pending' && order.deliveryAssignmentStatus !== 'accepted' && (
                         <button
                           onClick={() => handleAcceptOrder(order.id)}
                           disabled={isUpdatingOrderStatus}
@@ -508,6 +509,12 @@ const DeliveryOrders = () => {
                         >
                           {isUpdatingOrderStatus ? 'Please wait...' : 'Accept Order'}
                         </button>
+                      )}
+                      {order.deliveryAssignmentStatus === 'accepted' && order.status !== 'in-transit' && order.status !== 'completed' && (
+                        <div className="flex-1 px-3 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-bold text-center flex items-center justify-center gap-1">
+                          <FiCheckCircle className="text-emerald-600" />
+                          <span>Accepted</span>
+                        </div>
                       )}
                       {order.status === 'in-transit' && (
                         <button

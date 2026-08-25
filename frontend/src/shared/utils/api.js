@@ -198,7 +198,7 @@ api.interceptors.response.use(
       error.response?.data?.message ||
       error.message ||
       'Something went wrong';
-    
+
     if (!error.response?.data?.requiresConfirmation) {
       toast.error(message);
     }
