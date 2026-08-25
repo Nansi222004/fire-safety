@@ -733,6 +733,14 @@ export const acceptOrder = asyncHandler(async (req, res) => {
     // ─ Idempotency + state guard ───────────────────────────────────────────
     const assignmentStatus = shipment.deliveryAssignmentStatus;
 
+    if (assignmentStatus === 'accepted') {
+        const responseData = { ...(order.toObject ? order.toObject() : order) };
+        if (!IS_PRODUCTION && shipment.pickupOtpDebug) {
+            responseData.pickupOtpDebug = shipment.pickupOtpDebug;
+        }
+        return res.status(200).json(new ApiResponse(200, responseData, 'Order offer already accepted.'));
+    }
+
     if (assignmentStatus !== 'assigned') {
         throw new ApiError(409, `Cannot accept order. Assignment status is ${assignmentStatus}.`);
     }

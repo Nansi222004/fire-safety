@@ -628,7 +628,7 @@ const AppRoutes = () => {
         <Route path="customers/addresses" element={<CustomerAddresses />} />
         <Route path="customers/transactions" element={<Transactions />} />
         <Route path="customers/:id" element={<CustomerDetailPage />} />
-        
+
 
 
         <Route path="delivery" element={<DeliveryBoys />} />
