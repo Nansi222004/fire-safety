@@ -21,7 +21,10 @@ export const useBrandStore = create(
           const response = isVendorArea
             ? await getVendorBrands()
             : await getAllBrands();
-          const normalizedBrands = response.data.map(brand => ({
+          const brandsData = Array.isArray(response?.data)
+            ? response.data
+            : (Array.isArray(response) ? response : (response?.data?.brands || response?.brands || []));
+          const normalizedBrands = brandsData.map(brand => ({
             ...brand,
             id: brand._id // Ensure UI compatibility by aliasing _id to id
           }));
@@ -51,9 +54,10 @@ export const useBrandStore = create(
         set({ isLoading: true });
         try {
           const response = await createBrand(brandData);
+          const brandRes = response?.data || response;
           const newBrand = {
-            ...response.data,
-            id: response.data._id
+            ...brandRes,
+            id: brandRes._id
           };
 
           set((state) => ({
@@ -73,9 +77,10 @@ export const useBrandStore = create(
         set({ isLoading: true });
         try {
           const response = await updateBrand(id, brandData);
+          const brandRes = response?.data || response;
           const updatedBrand = {
-            ...response.data,
-            id: response.data._id
+            ...brandRes,
+            id: brandRes._id
           };
 
           set((state) => ({
@@ -133,9 +138,9 @@ export const useBrandStore = create(
         set({ isLoading: true });
         try {
           const response = await getVendorBrandRequests(params);
-          const payload = response.data;
+          const payload = response?.data || response || {};
           set({
-            brandRequests: payload.requests || payload,
+            brandRequests: payload.requests || (Array.isArray(payload) ? payload : []),
             isLoading: false
           });
           return payload;
@@ -152,7 +157,7 @@ export const useBrandStore = create(
           const response = await requestVendorBrand(brandData);
           set({ isLoading: false });
           toast.success('Brand request submitted successfully');
-          return response.data;
+          return response?.data || response;
         } catch (error) {
           set({ isLoading: false });
           throw error;
@@ -166,7 +171,7 @@ export const useBrandStore = create(
           const response = await resubmitVendorBrandRequest(id, brandData);
           set({ isLoading: false });
           toast.success('Brand request resubmitted successfully');
-          return response.data;
+          return response?.data || response;
         } catch (error) {
           set({ isLoading: false });
           throw error;
