@@ -48,20 +48,22 @@ const isValidDeliveryDocToken = (relativePath, rawToken) => {
 };
 
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
-const ALLOWED_ORIGINS = process.env.FRONTEND_URL
-    ? process.env.FRONTEND_URL.split(',').map((o) => o.trim())
-    : ['http://localhost:5173'];
+const envOrigins = [process.env.FRONTEND_URL, process.env.CLIENT_URL]
+    .filter(Boolean)
+    .flatMap((u) => u.split(','))
+    .map((o) => o.trim().replace(/\/+$/, ''));
+const ALLOWED_ORIGINS = envOrigins.length > 0 ? envOrigins : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173'];
 
 // ─── Security Middleware ─────────────────────────────────────────────────────
 app.use(helmet());
 app.use(mongoSanitize());
 app.use(cors({
-    origin: IS_PRODUCTION
-        ? (origin, callback) => {
-            if (!origin || ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
-            callback(new Error(`CORS policy: Origin ${origin} not allowed.`));
-        }
-        : true, // Allow all origins in development
+    origin: (origin, callback) => {
+        if (!origin || !IS_PRODUCTION) return callback(null, true);
+        const normalized = origin.trim().replace(/\/+$/, '');
+        if (ALLOWED_ORIGINS.includes(normalized)) return callback(null, true);
+        callback(new Error(`CORS policy: Origin ${origin} not allowed.`));
+    },
     credentials: true,
 }));
 
