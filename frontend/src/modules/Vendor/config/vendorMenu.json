@@ -1,0 +1,133 @@
+[
+    {
+        "title":  "Dashboard",
+        "route":  "/vendor/dashboard",
+        "children":  [
+
+                     ]
+    },
+    {
+        "title":  "Products",
+        "route":  "/vendor/products",
+        "children":  [
+                         "Manage Products",
+                         "Add Product"
+                     ]
+    },
+    {
+        "title": "Brand Requests",
+        "route": "/vendor/brand-requests",
+        "children": []
+    },
+    {
+        "title": "Category Requests",
+        "route": "/vendor/category-requests",
+        "children": []
+    },
+    {
+        "title": "Services",
+        "route": "/vendor/services",
+        "children": [
+            "Available Services",
+            "My Services",
+            "Service Bookings",
+            "Request New Service",
+            "My Requests"
+        ]
+    },
+
+    {
+        "title":  "Orders",
+        "route":  "/vendor/orders",
+        "children":  [
+                         "All Orders",
+                         "Order Tracking"
+                     ]
+    },
+    {
+        "title":  "Returns & Exchanges",
+        "route":  "/vendor/return-requests",
+        "children":  [
+
+                     ]
+    },
+    {
+        "title":  "Product Reviews",
+        "route":  "/vendor/product-reviews",
+        "children":  [
+
+                     ]
+    },
+    {
+        "title":  "Stock Management",
+        "route":  "/vendor/stock-management",
+        "children":  [
+
+                     ]
+    },
+    {
+        "title":  "Wallet History",
+        "route":  "/vendor/wallet-history",
+        "children":  [
+
+                     ]
+    },
+    {
+        "title": "Support Tickets",
+        "route": "/vendor/support-tickets",
+        "children": []
+    },
+
+    {
+        "title":  "Customers",
+        "route":  "/vendor/customers",
+        "children":  [
+
+                     ]
+    },
+    {
+        "title":  "Inventory Reports",
+        "route":  "/vendor/inventory-reports",
+        "children":  [
+
+                     ]
+    },
+    {
+        "title":  "Performance Metrics",
+        "route":  "/vendor/performance-metrics",
+        "children":  [
+
+                     ]
+    },
+    {
+        "title":  "Analytics",
+        "route":  "/vendor/analytics",
+        "children":  [
+
+                     ]
+    },
+    {
+        "title":  "Earnings",
+        "route":  "/vendor/earnings",
+        "children":  [
+                         "Earnings Overview",
+                         "Commission History",
+                         "Settlement History"
+                     ]
+    },
+    {
+        "title":  "Settings",
+        "route":  "/vendor/settings",
+        "children":  [
+                         "Store Settings",
+                         "Payment Settings"
+                     ]
+    },
+    {
+        "title":  "Profile",
+        "route":  "/vendor/profile",
+        "children":  [
+
+                     ]
+    }
+]

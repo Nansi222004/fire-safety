@@ -1,0 +1,155 @@
+[
+  {
+    "title": "Dashboard",
+    "route": "/admin/dashboard",
+    "children": []
+  },
+  {
+    "title": "Orders",
+    "route": "/admin/orders",
+    "children": [
+      "All Orders",
+      "Order Tracking"
+    ]
+  },
+  {
+    "title": "Returns & Exchanges",
+    "route": "/admin/return-requests",
+    "children": []
+  },
+  {
+    "title": "Products",
+    "route": "/admin/products",
+    "children": [
+      "Manage Products",
+      "Add Product",
+      "Product Ratings"
+    ]
+  },
+  {
+    "title": "Categories",
+    "route": "/admin/categories",
+    "children": [
+      "Manage Categories",
+      "Category Requests",
+      "Category Order"
+    ]
+  },
+  {
+    "title": "Services",
+    "route": "/admin/services",
+    "children": [
+      "Categories",
+      "Manage Services",
+      "Service Requests",
+      "Service Bookings"
+    ]
+  },
+  {
+    "title": "Brands",
+    "route": "/admin/brands",
+    "children": [
+      "Manage Brands",
+      "Brand Requests"
+    ]
+  },
+  {
+    "title": "Customers",
+    "route": "/admin/customers",
+    "children": [
+      "View Customers",
+      "Addresses",
+      "Transactions"
+    ]
+  },
+  {
+    "title": "Delivery Management",
+    "route": "/admin/delivery",
+    "children": [
+      "Delivery Boys",
+      "Cash Collection",
+      "Payout Requests",
+      "Courier Settlements"
+    ]
+  },
+  {
+    "title": "Vendors",
+    "route": "/admin/vendors",
+    "children": [
+      "Manage Vendors",
+      "Pending Approvals",
+      "Commission Rates",
+      "Vendor Analytics"
+    ]
+  },
+  {
+    "title": "Marketing",
+    "route": "/admin/marketing",
+    "children": [
+      "Home Sliders",
+      "Home Content",
+      "Homepage Sections",
+      "Banner Library",
+      "Offers",
+      "Promo Codes"
+    ]
+  },
+  {
+    "title": "Notifications",
+    "route": "/admin/notifications",
+    "children": [
+      "Push Notifications",
+      "Custom Messages"
+    ]
+  },
+  {
+    "title": "Support Desk",
+    "route": "/admin/support",
+    "children": [
+      "Live Chat",
+      "Support Categories",
+      "Tickets"
+    ]
+  },
+  {
+    "title": "Reports",
+    "route": "/admin/reports",
+    "children": [
+      "Sales Report",
+      "Inventory Report"
+    ]
+  },
+  {
+    "title": "Analytics & Finance",
+    "route": "/admin/finance",
+    "children": [
+      "Revenue Overview",
+      "Profit & Loss",
+      "Order Trends",
+      "Payment Breakdown",
+      "Tax Reports",
+      "Refund Reports",
+      "Escrow & Payouts"
+    ]
+  },
+  {
+    "title": "Settings",
+    "route": "/admin/settings",
+    "children": [
+      "General",
+      "Payment & Shipping",
+      "Logistics & Delivery"
+    ]
+  },
+  {
+    "title": "Policies",
+    "route": "/admin/policies",
+    "children": [
+      "Privacy Policy",
+      "Refund Policy",
+      "Terms & Conditions",
+      "Seller Terms & Conditions",
+      "Frequently Asked Questions"
+    ]
+  }
+]

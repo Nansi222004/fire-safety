@@ -1,0 +1,428 @@
+import { useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  FiHome,
+  FiShoppingBag,
+  FiRotateCcw,
+  FiPackage,
+  FiGrid,
+  FiLayers,
+  FiTag,
+  FiUsers,
+  FiTruck,
+  FiImage,
+  FiPercent,
+  FiBell,
+  FiMessageCircle,
+  FiFileText,
+  FiBarChart2,
+  FiSettings,
+  FiGlobe,
+  FiShield,
+  FiDatabase,
+  FiChevronDown,
+  FiX,
+  FiUser,
+} from "react-icons/fi";
+import { useAdminAuthStore } from "../../store/adminStore";
+import adminMenu from "../../config/adminMenu.json";
+
+// Icon mapping for menu items
+const iconMap = {
+  Dashboard: FiHome,
+  Orders: FiShoppingBag,
+  "Returns & Exchanges": FiRotateCcw,
+  Products: FiPackage,
+  Categories: FiGrid,
+  Services: FiLayers,
+  Brands: FiTag,
+  Customers: FiUsers,
+  "Delivery Management": FiTruck,
+  Marketing: FiImage,
+  Notifications: FiBell,
+  "Support Desk": FiMessageCircle,
+  Reports: FiFileText,
+  "Analytics & Finance": FiBarChart2,
+  Settings: FiSettings,
+  Policies: FiShield,
+  "Social Control": FiShield,
+};
+
+// Helper function to convert child name to route path
+const getChildRoute = (parentRoute, childName) => {
+  const routeMap = {
+    "/admin/orders": {
+      "All Orders": "/admin/orders/all-orders",
+      "Order Tracking": "/admin/orders/order-tracking",
+    },
+    "/admin/products": {
+      "Manage Products": "/admin/products/manage-products",
+      "Add Product": "/admin/products/add-product",
+      "Product Ratings": "/admin/products/product-ratings",
+    },
+    "/admin/categories": {
+      "Manage Categories": "/admin/categories/manage-categories",
+      "Category Requests": "/admin/categories/requests",
+      "Category Order": "/admin/categories/category-order",
+    },
+    "/admin/services": {
+      "Categories": "/admin/services/categories",
+      "Manage Services": "/admin/services/manage-services",
+      "Service Requests": "/admin/services/service-requests",
+      "Service Bookings": "/admin/services/bookings",
+    },
+    "/admin/brands": {
+      "Manage Brands": "/admin/brands",
+      "Brand Requests": "/admin/brands/requests",
+    },
+    "/admin/customers": {
+      "View Customers": "/admin/customers/view-customers",
+      Addresses: "/admin/customers/addresses",
+      Transactions: "/admin/customers/transactions",
+    },
+    "/admin/delivery": {
+      "Delivery Boys": "/admin/delivery/delivery-boys",
+      "Cash Collection": "/admin/delivery/cash-collection",
+      "Payout Requests": "/admin/delivery/payout-requests",
+      "Courier Settlements": "/admin/delivery/courier-settlements",
+    },
+    "/admin/marketing": {
+      "Home Sliders": "/admin/marketing/home-sliders",
+      "Home Content": "/admin/marketing/home-content",
+      "Homepage Sections": "/admin/marketing/homepage-sections",
+      "Banner Library": "/admin/marketing/banner-library",
+      Offers: "/admin/marketing/offers",
+      "Promo Codes": "/admin/marketing/promocodes",
+    },
+    "/admin/notifications": {
+      "All Notifications": "/admin/notifications",
+      "Push Notifications": "/admin/notifications/push-notifications",
+      "Custom Messages": "/admin/notifications/custom-messages",
+    },
+    "/admin/support": {
+      "Live Chat": "/admin/support/live-chat",
+      "Support Categories": "/admin/support/ticket-types",
+      Tickets: "/admin/support/tickets",
+    },
+    "/admin/reports": {
+      "Sales Report": "/admin/reports/sales-report",
+      "Inventory Report": "/admin/reports/inventory-report",
+    },
+    "/admin/finance": {
+      "Revenue Overview": "/admin/finance/revenue-overview",
+      "Profit & Loss": "/admin/finance/profit-loss",
+      "Order Trends": "/admin/finance/order-trends",
+      "Payment Breakdown": "/admin/finance/payment-breakdown",
+      "Tax Reports": "/admin/finance/tax-reports",
+      "Refund Reports": "/admin/finance/refund-reports",
+      "Escrow & Payouts": "/admin/finance/escrow-dashboard",
+    },
+    "/admin/settings": {
+      General: "/admin/settings/general",
+      "Payment & Shipping": "/admin/settings/payment-shipping",
+      "Logistics & Delivery": "/admin/settings/logistics",
+    },
+    "/admin/policies": {
+      "Privacy Policy": "/admin/policies/privacy-policy",
+      "Refund Policy": "/admin/policies/refund-policy",
+      "Terms & Conditions": "/admin/policies/terms-conditions",
+      "Seller Terms & Conditions": "/admin/policies/seller-terms",
+      "Frequently Asked Questions": "/admin/policies/faq",
+    },
+    "/admin/vendors": {
+      "Manage Vendors": "/admin/vendors/manage-vendors",
+      "Pending Approvals": "/admin/vendors/pending-approvals",
+      "Commission Rates": "/admin/vendors/commission-rates",
+      "Vendor Analytics": "/admin/vendors/vendor-analytics",
+    },
+
+  };
+
+  return routeMap[parentRoute]?.[childName] || parentRoute;
+};
+
+const AdminSidebar = ({ isOpen, onClose, isCollapsed }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { admin } = useAdminAuthStore();
+  const [expandedItems, setExpandedItems] = useState({});
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Check if mobile on mount and resize
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  // Auto-close sidebar on mobile when route changes
+  useEffect(() => {
+    // Only close when route actually changes, not when sidebar opens
+    if (window.innerWidth < 1024) {
+      onClose();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]); // Only trigger on route changes
+
+  // Check if a menu item is active
+  const isActive = (item) => {
+    if (item.route === "/admin/dashboard") {
+      return location.pathname === "/admin/dashboard";
+    }
+    if (item.route === "/admin") {
+      // Social Control should only be active on its exact page or its children's pages
+      if (location.pathname === "/admin" || location.pathname === "/admin/") return true;
+      const children = item.children || [];
+      return children.some((child) => {
+        const childRoute = getChildRoute(item.route, child);
+        return location.pathname === childRoute || location.pathname.startsWith(childRoute + "/");
+      });
+    }
+    return (
+      location.pathname === item.route ||
+      location.pathname.startsWith(item.route + "/")
+    );
+  };
+
+  // Auto-expand menu items when their route is active
+  useEffect(() => {
+    const activeItem = adminMenu.find((item) => isActive(item));
+    if (activeItem && activeItem.children && activeItem.children.length > 0) {
+      setExpandedItems((prev) => {
+        // If the parent is already expanded, keep it expanded (don't close others)
+        if (prev[activeItem.title]) {
+          return prev;
+        }
+        // Otherwise, expand this one
+        return {
+          [activeItem.title]: true,
+        };
+      });
+    } else {
+      // If not on an active item section, check if we should close expanded items
+      const currentParent = adminMenu.find((item) => isActive(item));
+      // If we're on a parent route without children, close all expanded items
+      if (
+        currentParent &&
+        (!currentParent.children || currentParent.children.length === 0)
+      ) {
+        setExpandedItems({});
+      }
+    }
+  }, [location.pathname]);
+
+  // Toggle expanded state for menu items with children
+  const toggleExpand = (title, closeOthers = true) => {
+    setExpandedItems((prev) => {
+      if (closeOthers) {
+        // Close all other expanded items and toggle the clicked one
+        return {
+          [title]: !prev[title],
+        };
+      } else {
+        // Just toggle the clicked item
+        return {
+          ...prev,
+          [title]: !prev[title],
+        };
+      }
+    });
+  };
+
+  // Close all expanded items
+  const closeAllExpanded = () => {
+    setExpandedItems({});
+  };
+
+  // Handle menu item click
+  const handleMenuItemClick = (route, parentTitle = null) => {
+    // If navigating to a child route, keep the parent expanded
+    if (parentTitle) {
+      setExpandedItems((prev) => {
+        // Close all other expanded items, but keep the current parent open
+        return {
+          [parentTitle]: true,
+        };
+      });
+    } else {
+      // If navigating to a parent route without children, close all expanded items
+      closeAllExpanded();
+    }
+    navigate(route);
+    if (window.innerWidth < 1024) {
+      onClose();
+    }
+  };
+
+  // Render menu item
+  const renderMenuItem = (item) => {
+    const Icon = iconMap[item.title] || FiPackage;
+    const hasChildren = item.children && item.children.length > 0;
+    const isExpanded = expandedItems[item.title];
+    const active = isActive(item);
+
+    return (
+      <div key={item.route} className="mb-1">
+        {/* Main Menu Item */}
+        <div
+          className={`
+            flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 cursor-pointer
+            ${active
+              ? "bg-gradient-to-r from-primary-600 to-primary-700 text-white font-bold shadow-md shadow-primary-500/20 active:scale-95"
+              : "text-slate-300 hover:bg-slate-700/60 font-medium"
+            }
+          `}
+          onClick={() => {
+            if (hasChildren) {
+              if (isExpanded) {
+                // If it is already expanded, collapse it
+                toggleExpand(item.title, true);
+              } else {
+                // If it is collapsed, expand it and navigate to its landing page (if not /admin prefix namespace)
+                toggleExpand(item.title, true);
+                if (item.route !== "/admin") {
+                  handleMenuItemClick(item.route, item.title);
+                }
+              }
+            } else {
+              // Close all expanded items when clicking on a parent without children
+              handleMenuItemClick(item.route);
+            }
+          }}>
+          <Icon
+            className={`text-xl flex-shrink-0 ${active ? "text-white" : "text-slate-400"
+              }`}
+          />
+          <span className="font-medium flex-1 text-sm">{item.title}</span>
+          {hasChildren && (
+            <motion.div
+              animate={{ rotate: isExpanded ? 180 : 0 }}
+              transition={{ duration: 0.2 }}>
+              <FiChevronDown className="text-slate-400 text-sm" />
+            </motion.div>
+          )}
+        </div>
+
+        {/* Children Items */}
+        <AnimatePresence>
+          {hasChildren && isExpanded && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden">
+              <div className="ml-4 mt-1 pl-4 border-l-2 border-slate-700 space-y-1">
+                {item.children.map((child, index) => {
+                  const childRoute = getChildRoute(item.route, child);
+                  const isChildActive =
+                    location.pathname === childRoute ||
+                    (childRoute !== item.route &&
+                      location.pathname.startsWith(childRoute));
+
+                  return (
+                    <div
+                      key={index}
+                      onClick={() =>
+                        handleMenuItemClick(childRoute, item.title)
+                      }
+                      className={`
+                        px-3 py-2 text-xs rounded-xl transition-all cursor-pointer
+                        ${isChildActive
+                          ? "bg-primary-500/20 text-white font-bold border-l-2 border-primary-500"
+                          : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 font-medium"
+                        }
+                      `}>
+                      {child}
+                    </div>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  };
+
+  // Sidebar content
+  const sidebarContent = (
+    <div className="h-full flex flex-col bg-slate-800 shadow-xl">
+      {/* Header Section */}
+      <div className="p-4 border-b border-slate-700 bg-slate-900">
+        {/* Header with Close Button and Admin Info */}
+        <div className="flex items-center justify-between gap-3">
+          {/* Admin User Info */}
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
+              <FiUser className="text-white text-xl" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="font-semibold text-white text-sm truncate">
+                {admin?.name || "Admin User"}
+              </h2>
+              <p className="text-xs text-gray-400 truncate">
+                {admin?.email || "sfsappdevelopment@gmail.com"}
+              </p>
+            </div>
+          </div>
+
+          {/* Close Button - Mobile Only */}
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0 lg:hidden"
+            aria-label="Close sidebar">
+            <FiX className="text-xl text-gray-300" />
+          </button>
+        </div>
+      </div>
+
+      {/* Navigation Menu */}
+      <nav className="flex-1 overflow-y-auto p-3 scrollbar-admin lg:pb-3">
+        {adminMenu.map((item) => renderMenuItem(item))}
+      </nav>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Mobile: Overlay Backdrop */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-black/50 z-[9998] lg:hidden"
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Sidebar - Mobile Drawer */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ x: -300 }}
+            animate={{ x: 0 }}
+            exit={{ x: -300 }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="fixed left-0 top-0 bottom-0 w-64 z-[10000] lg:hidden">
+            {sidebarContent}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Sidebar - Desktop Fixed */}
+      <div className={`hidden lg:flex fixed left-0 top-0 bottom-0 w-64 z-40 transition-transform duration-300 ${isCollapsed ? '-translate-x-full' : 'translate-x-0'}`}>
+        {sidebarContent}
+      </div>
+    </>
+  );
+};
+
+export default AdminSidebar;

@@ -1,0 +1,1486 @@
+import { useState, useEffect, useMemo } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { FiSave, FiX, FiUpload } from "react-icons/fi";
+import { motion } from "framer-motion";
+import { useVendorAuthStore } from "../../store/vendorAuthStore";
+import { useVendorProductStore } from "../../store/vendorProductStore";
+import { useCategoryStore } from "../../../../shared/store/categoryStore";
+import { useBrandStore } from "../../../../shared/store/brandStore";
+import { uploadVendorImage, uploadVendorImages } from "../../services/vendorService";
+import CategorySelector from "../../../Admin/components/CategorySelector";
+import AnimatedSelect from "../../../Admin/components/AnimatedSelect";
+import BrandSelector from "../../components/BrandSelector";
+import toast from "react-hot-toast";
+import {
+  parseVariantAxis,
+  buildVariantCombinations,
+  syncVariantPricesWithAxes,
+  buildVariantPayload,
+  normalizeVariantStateForForm,
+} from "../../utils/variantHelpers";
+
+const ProductForm = () => {
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const { vendor } = useVendorAuthStore();
+  const { fetchProductById, editProduct, addProduct, getById, isSaving } =
+    useVendorProductStore();
+  const isEdit = id && id !== "new";
+
+  const vendorId = vendor?.id;
+
+  const { categories, initialize: initCategories } = useCategoryStore();
+  const { brands, initialize: initBrands } = useBrandStore();
+
+  const [formData, setFormData] = useState({
+    name: "",
+    unit: "",
+    price: "",
+    originalPrice: "",
+    image: "",
+    images: [],
+    categoryId: null,
+    subcategoryId: null,
+    brandId: null,
+    stock: "in_stock",
+    stockQuantity: "",
+    totalAllowedQuantity: "",
+    minimumOrderQuantity: "",
+    warrantyPeriod: "",
+    guaranteePeriod: "",
+    hsnCode: "",
+    flashSale: false,
+    isNewArrival: false,
+    isFeatured: false,
+    isVisible: true,
+    codAllowed: true,
+    returnable: true,
+    cancelable: true,
+    taxIncluded: false,
+    taxRate: 18,
+    weight: "1",
+    dimensions: {
+      length: "10",
+      breadth: "10",
+      height: "10",
+    },
+    description: "",
+    tags: [],
+    variants: {
+      sizes: [],
+      colors: [],
+      materials: [],
+      attributes: [],
+      prices: {},
+      stockMap: {},
+      imageMap: {},
+      defaultVariant: {},
+      defaultSelection: {},
+    },
+    seoTitle: "",
+    seoDescription: "",
+    relatedProducts: [],
+    faqs: [],
+  });
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const [variantAxisInput, setVariantAxisInput] = useState({
+    sizes: "",
+    colors: "",
+  });
+  const variantCombinations = useMemo(
+    () =>
+      buildVariantCombinations(
+        formData.variants?.sizes || [],
+        formData.variants?.colors || [],
+        formData.variants?.attributes || []
+      ),
+    [formData.variants?.sizes, formData.variants?.colors, formData.variants?.attributes]
+  );
+
+  const normalizeId = (value) => {
+    if (!value) return null;
+    if (typeof value === "object") return value._id ?? value.id ?? null;
+    return value;
+  };
+
+  const findCategoryPlacement = (catId, subcatId, cats) => {
+    const targetId = subcatId || catId;
+    const item = cats.find((c) => String(c._id ?? c.id) === String(targetId));
+    if (!item) return { primaryCategoryId: catId, subcategoryId: subcatId };
+    if (item.parentId) return { primaryCategoryId: item.parentId, subcategoryId: item._id ?? item.id };
+    return { primaryCategoryId: item._id ?? item.id, subcategoryId: null };
+  };
+
+  useEffect(() => {
+    initCategories();
+    initBrands();
+  }, [initCategories, initBrands]);
+
+  useEffect(() => {
+    if (!vendorId) {
+      toast.error("Please log in to edit products");
+      navigate("/vendor/login");
+      return;
+    }
+
+    if (isEdit) {
+      const cached = getById(id);
+      if (cached) {
+        populateForm(cached, categories);
+      } else {
+        fetchProductById(id).then((product) => {
+          if (!product) {
+            toast.error("Product not found");
+            navigate("/vendor/products/manage-products");
+            return;
+          }
+          populateForm(product, categories);
+        });
+      }
+    }
+  }, [vendorId, isEdit, id, navigate, getById, fetchProductById, categories]);
+
+  const populateForm = (product, categoriesList) => {
+    const rawCat = normalizeId(product.categoryId ?? product.category);
+    const rawSubcat = normalizeId(product.subcategoryId ?? product.subcategory);
+    const { primaryCategoryId, subcategoryId } = findCategoryPlacement(
+      rawCat,
+      rawSubcat,
+      categoriesList
+    );
+
+    const rawVariants = product.variants || {};
+    const normalizedVariants = {
+      sizes: Array.isArray(rawVariants.sizes) ? rawVariants.sizes : [],
+      colors: Array.isArray(rawVariants.colors) ? rawVariants.colors : [],
+      materials: Array.isArray(rawVariants.materials) ? rawVariants.materials : [],
+      attributes: Array.isArray(rawVariants.attributes) ? rawVariants.attributes : [],
+      prices: rawVariants.prices && typeof rawVariants.prices === "object" ? rawVariants.prices : {},
+      stockMap: rawVariants.stockMap && typeof rawVariants.stockMap === "object" ? rawVariants.stockMap : {},
+      imageMap: rawVariants.imageMap && typeof rawVariants.imageMap === "object" ? rawVariants.imageMap : {},
+      defaultVariant: rawVariants.defaultVariant || {},
+      defaultSelection: rawVariants.defaultSelection || {},
+    };
+
+    setFormData({
+      name: product.name || "",
+      unit: product.unit || "",
+      price: product.price ?? "",
+      originalPrice: product.originalPrice ?? "",
+      image: product.image || "",
+      images: product.images || [],
+      categoryId: primaryCategoryId,
+      subcategoryId: subcategoryId,
+      brandId: normalizeId(product.brandId ?? product.brand),
+      stock: product.stock || "in_stock",
+      stockQuantity: product.stockQuantity ?? "",
+      totalAllowedQuantity: product.totalAllowedQuantity ?? "",
+      minimumOrderQuantity: product.minimumOrderQuantity ?? "",
+      warrantyPeriod: product.warrantyPeriod || "",
+      guaranteePeriod: product.guaranteePeriod || "",
+      hsnCode: product.hsnCode || "",
+      flashSale: Boolean(product.flashSale),
+      isNewArrival: Boolean(product.isNewArrival),
+      isFeatured: Boolean(product.isFeatured),
+      isVisible: product.isVisible ?? true,
+      codAllowed: product.codAllowed ?? true,
+      returnable: product.returnable ?? true,
+      cancelable: product.cancelable ?? true,
+      taxIncluded: product.taxIncluded ?? false,
+      taxRate: product.taxRate ?? 18,
+      weight: product.weight || "1",
+      dimensions: {
+        length: product.dimensions?.length || "10",
+        breadth: product.dimensions?.breadth || "10",
+        height: product.dimensions?.height || "10",
+      },
+      description: product.description || "",
+      tags: product.tags || [],
+      variants: normalizedVariants,
+      seoTitle: product.seoTitle || "",
+      seoDescription: product.seoDescription || "",
+      relatedProducts: product.relatedProducts || [],
+      faqs: Array.isArray(product.faqs) ? product.faqs : [],
+    });
+  };
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+    if (fieldErrors[name]) {
+      setFieldErrors((prev) => ({ ...prev, [name]: undefined }));
+    }
+  };
+
+  const handleDimensionChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      dimensions: {
+        ...prev.dimensions,
+        [name]: value,
+      },
+    }));
+    const key = `dimensions.${name}`;
+    if (fieldErrors[key] || fieldErrors.dimensions) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        [key]: undefined,
+        dimensions: undefined,
+      }));
+    }
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (!file.type.startsWith("image/")) {
+        toast.error("Please select an image file");
+        return;
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Image size should be less than 5MB");
+        return;
+      }
+
+      setIsUploadingMedia(true);
+      try {
+        const res = await uploadVendorImage(file, "vendors/products");
+        const uploaded = res?.data ?? res;
+        setFormData((prev) => ({
+          ...prev,
+          image: uploaded?.url || "",
+        }));
+        toast.success("Main image uploaded");
+      } catch {
+        // errors handled by api.js
+      } finally {
+        setIsUploadingMedia(false);
+      }
+    }
+  };
+
+  const handleGalleryUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    const validFiles = files.filter((file) => {
+      if (!file.type.startsWith("image/")) {
+        toast.error(`${file.name} is not an image file`);
+        return false;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(`${file.name} size should be less than 5MB`);
+        return false;
+      }
+      return true;
+    });
+
+    if (validFiles.length === 0) return;
+
+    setIsUploadingMedia(true);
+    try {
+      const res = await uploadVendorImages(validFiles, "vendors/products");
+      const uploaded = res?.data ?? res;
+      const uploadedUrls = Array.isArray(uploaded)
+        ? uploaded.map((u) => u?.url).filter(Boolean)
+        : [];
+
+      setFormData((prev) => ({
+        ...prev,
+        images: [...prev.images, ...uploadedUrls],
+      }));
+      toast.success(`${uploadedUrls.length} image(s) added to gallery`);
+    } catch {
+      // errors handled by api.js
+    } finally {
+      setIsUploadingMedia(false);
+    }
+  };
+
+  const removeGalleryImage = (index) => {
+    setFormData({
+      ...formData,
+      images: formData.images.filter((_, i) => i !== index),
+    });
+  };
+
+  const handleFaqChange = (index, field, value) => {
+    setFormData((prev) => {
+      const nextFaqs = [...(prev.faqs || [])];
+      nextFaqs[index] = {
+        ...(nextFaqs[index] || { question: "", answer: "" }),
+        [field]: value,
+      };
+      return { ...prev, faqs: nextFaqs };
+    });
+  };
+
+  const addFaq = () => {
+    setFormData((prev) => ({
+      ...prev,
+      faqs: [...(prev.faqs || []), { question: "", answer: "" }],
+    }));
+  };
+
+  const removeFaq = (index) => {
+    setFormData((prev) => ({
+      ...prev,
+      faqs: (prev.faqs || []).filter((_, i) => i !== index),
+    }));
+  };
+
+  const updateVariantAxes = (axis, rawText) => {
+    const parsed = parseVariantAxis(rawText);
+    const nextSizes = axis === "sizes" ? parsed : (formData.variants?.sizes || []);
+    const nextColors = axis === "colors" ? parsed : (formData.variants?.colors || []);
+    const synced = syncVariantPricesWithAxes(
+      formData.variants?.prices || {},
+      formData.variants?.stockMap || {},
+      formData.variants?.imageMap || {},
+      nextSizes,
+      nextColors,
+      formData.variants?.attributes || [],
+      formData.price
+    );
+
+    setFormData((prev) => ({
+      ...prev,
+      variants: {
+        ...prev.variants,
+        sizes: nextSizes,
+        colors: nextColors,
+        prices: synced.prices,
+        stockMap: synced.stockMap,
+        imageMap: synced.imageMap,
+        defaultVariant: {
+          size: String(prev.variants?.defaultVariant?.size || ""),
+          color: String(prev.variants?.defaultVariant?.color || ""),
+        },
+      },
+    }));
+  };
+
+  const updateVariantAttributes = (nextAttributes) => {
+    const synced = syncVariantPricesWithAxes(
+      formData.variants?.prices || {},
+      formData.variants?.stockMap || {},
+      formData.variants?.imageMap || {},
+      formData.variants?.sizes || [],
+      formData.variants?.colors || [],
+      nextAttributes,
+      formData.price
+    );
+
+    setFormData((prev) => ({
+      ...prev,
+      variants: {
+        ...prev.variants,
+        attributes: nextAttributes,
+        prices: synced.prices,
+        stockMap: synced.stockMap,
+        imageMap: synced.imageMap,
+      },
+    }));
+  };
+
+  const addAttributeRow = () => {
+    const current = Array.isArray(formData.variants?.attributes) ? formData.variants.attributes : [];
+    updateVariantAttributes([...current, { name: "", values: [] }]);
+  };
+
+  const removeAttributeRow = (index) => {
+    const current = Array.isArray(formData.variants?.attributes) ? formData.variants.attributes : [];
+    updateVariantAttributes(current.filter((_, i) => i !== index));
+  };
+
+  const updateAttributeName = (index, name) => {
+    const current = Array.isArray(formData.variants?.attributes) ? formData.variants.attributes : [];
+    const next = [...current];
+    next[index] = { ...(next[index] || {}), name: String(name || "") };
+    updateVariantAttributes(next);
+  };
+
+  const updateAttributeValues = (index, rawValues) => {
+    const current = Array.isArray(formData.variants?.attributes) ? formData.variants.attributes : [];
+    const next = [...current];
+    const values = parseVariantAxis(rawValues);
+    next[index] = { ...(next[index] || {}), values };
+    updateVariantAttributes(next);
+  };
+
+  const addVariantAxisValues = (axis, rawInput) => {
+    const parsed = parseVariantAxis(rawInput);
+    if (!parsed.length) return;
+    const current = Array.isArray(formData?.variants?.[axis]) ? formData.variants[axis] : [];
+    const merged = parseVariantAxis([...current, ...parsed].join(", "));
+    updateVariantAxes(axis, merged.join(", "));
+    setVariantAxisInput((prev) => ({ ...prev, [axis]: "" }));
+  };
+
+  const removeVariantAxisValue = (axis, valueToRemove) => {
+    const current = Array.isArray(formData?.variants?.[axis]) ? formData.variants[axis] : [];
+    const next = current.filter((value) => String(value) !== String(valueToRemove));
+    updateVariantAxes(axis, next.join(", "));
+  };
+
+  const handleVariantAxisInputKeyDown = (axis, e) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addVariantAxisValues(axis, variantAxisInput[axis]);
+    }
+  };
+
+  const handleVariantImageUpload = async (variantKey, file) => {
+    if (!file || !variantKey) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image size should be less than 5MB");
+      return;
+    }
+
+    setIsUploadingMedia(true);
+    try {
+      const res = await uploadVendorImage(file, "vendors/products/variants");
+      const uploaded = res?.data ?? res;
+      const imageUrl = uploaded?.url || "";
+      if (!imageUrl) return;
+      setFormData((prev) => ({
+        ...prev,
+        variants: {
+          ...prev.variants,
+          imageMap: {
+            ...(prev.variants?.imageMap || {}),
+            [variantKey]: imageUrl,
+          },
+        },
+      }));
+      toast.success("Variant image uploaded");
+    } catch {
+      // api interceptor handles error toast
+    } finally {
+      setIsUploadingMedia(false);
+    }
+  };
+
+  const validateForm = () => {
+    const errors = {};
+
+    if (!formData.name || String(formData.name).trim().length < 2) {
+      errors.name = "Product name is required (at least 2 characters)";
+    }
+
+    if (formData.price === "" || isNaN(parseFloat(formData.price)) || parseFloat(formData.price) < 0) {
+      errors.price = "Valid non-negative price is required";
+    }
+
+    if (
+      formData.stockQuantity === "" ||
+      isNaN(parseInt(formData.stockQuantity, 10)) ||
+      parseInt(formData.stockQuantity, 10) < 0
+    ) {
+      errors.stockQuantity = "Stock quantity must be 0 or greater";
+    }
+
+    const finalCategoryId = (formData.subcategoryId && String(formData.subcategoryId).trim())
+      ? formData.subcategoryId
+      : (formData.categoryId && String(formData.categoryId).trim())
+      ? formData.categoryId
+      : null;
+    if (!finalCategoryId) {
+      errors.categoryId = "Category selection is required";
+    }
+
+    const weightNum = parseFloat(formData.weight);
+    if (formData.weight === "" || isNaN(weightNum) || weightNum < 1) {
+      errors.weight = "Weight is required and must be at least 1 (kg/unit)";
+    }
+
+    const lengthNum = parseFloat(formData.dimensions?.length);
+    if (!formData.dimensions?.length || isNaN(lengthNum) || lengthNum < 1) {
+      errors["dimensions.length"] = "Length is required and must be at least 1 cm";
+    }
+
+    const breadthNum = parseFloat(formData.dimensions?.breadth);
+    if (!formData.dimensions?.breadth || isNaN(breadthNum) || breadthNum < 1) {
+      errors["dimensions.breadth"] = "Breadth is required and must be at least 1 cm";
+    }
+
+    const heightNum = parseFloat(formData.dimensions?.height);
+    if (!formData.dimensions?.height || isNaN(heightNum) || heightNum < 1) {
+      errors["dimensions.height"] = "Height is required and must be at least 1 cm";
+    }
+
+    return errors;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!vendorId) {
+      toast.error("Please log in to save products");
+      return;
+    }
+
+    const validationErrors = validateForm();
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors);
+      toast.error("Please correct the highlighted errors before submitting");
+      return;
+    }
+
+    const finalCategoryId = (formData.subcategoryId && String(formData.subcategoryId).trim())
+      ? formData.subcategoryId
+      : (formData.categoryId && String(formData.categoryId).trim())
+      ? formData.categoryId
+      : null;
+
+    const parsedPrice = parseFloat(formData.price);
+    const parsedOriginalPrice = formData.originalPrice
+      ? parseFloat(formData.originalPrice)
+      : null;
+    const parsedStockQuantity = parseInt(formData.stockQuantity, 10);
+    const parsedTotalAllowedQuantity = formData.totalAllowedQuantity
+      ? parseInt(formData.totalAllowedQuantity, 10)
+      : null;
+    const parsedMinimumOrderQuantity = formData.minimumOrderQuantity
+      ? parseInt(formData.minimumOrderQuantity, 10)
+      : null;
+
+    const hasInvalidFaq = (formData.faqs || []).some((faq) => {
+      const question = String(faq?.question || "").trim();
+      const answer = String(faq?.answer || "").trim();
+      return (question && !answer) || (!question && answer);
+    });
+    if (hasInvalidFaq) {
+      toast.error("Each FAQ must have both question and answer");
+      return;
+    }
+
+    const payload = {
+      ...formData,
+      price: parsedPrice,
+      originalPrice: parsedOriginalPrice,
+      stockQuantity: parsedStockQuantity,
+      totalAllowedQuantity: parsedTotalAllowedQuantity,
+      minimumOrderQuantity: parsedMinimumOrderQuantity,
+      categoryId: finalCategoryId,
+      subcategoryId: (formData.subcategoryId && String(formData.subcategoryId).trim()) ? formData.subcategoryId : null,
+      brandId: formData.brandId ?? null,
+      weight: parseFloat(formData.weight) || 1,
+      dimensions: {
+        length: parseFloat(formData.dimensions.length) || 10,
+        breadth: parseFloat(formData.dimensions.breadth) || 10,
+        height: parseFloat(formData.dimensions.height) || 10,
+      },
+      faqs: (formData.faqs || [])
+        .map((faq) => ({
+          question: String(faq?.question || "").trim(),
+          answer: String(faq?.answer || "").trim(),
+        }))
+        .filter((faq) => faq.question && faq.answer),
+      variants: buildVariantPayload(formData.variants || {}),
+    };
+
+    try {
+      let result;
+      if (isEdit) {
+        result = await editProduct(id, payload);
+      } else {
+        result = await addProduct(payload);
+      }
+
+      if (result) {
+        navigate("/vendor/products/manage-products");
+      }
+    } catch (err) {
+      if (err?.response?.data?.errors && Array.isArray(err.response.data.errors)) {
+        const backendFieldErrors = {};
+        err.response.data.errors.forEach((d) => {
+          if (d.field) backendFieldErrors[d.field] = d.message;
+        });
+        setFieldErrors(backendFieldErrors);
+      }
+    }
+  };
+
+  if (!vendorId) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-500">Please log in to manage products</p>
+      </div>
+    );
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-3">
+      {/* Form */}
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white rounded-3xl p-5 sm:p-8 shadow-sm border border-slate-200/80 space-y-6">
+        {/* Basic Information */}
+        <div>
+          <h2 className="text-lg font-black text-gray-900 tracking-tight mb-3">
+            Basic Information
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Product Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                required
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 text-sm ${
+                  fieldErrors.name
+                    ? "border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500"
+                    : "border-gray-300 focus:ring-primary-500"
+                }`}
+                placeholder="Enter product name"
+              />
+              {fieldErrors.name && (
+                <p className="mt-1 text-xs text-red-600 font-medium flex items-center gap-1">
+                  <span>⚠️</span> {fieldErrors.name}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Unit
+              </label>
+              <input
+                type="text"
+                name="unit"
+                value={formData.unit}
+                onChange={handleChange}
+                placeholder="e.g., Piece, Kilogram, Gram, Pair"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Category <span className="text-red-500">*</span>
+              </label>
+              <CategorySelector
+                value={formData.categoryId}
+                subcategoryId={formData.subcategoryId}
+                onChange={handleChange}
+                required
+              />
+              {fieldErrors.categoryId && (
+                <p className="mt-1 text-xs text-red-600 font-medium flex items-center gap-1">
+                  <span>⚠️</span> {fieldErrors.categoryId}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <BrandSelector
+                name="brandId"
+                value={formData.brandId || ""}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Description
+              </label>
+              <textarea
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                placeholder="Enter product description..."
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Pricing */}
+        <div>
+          <h2 className="text-base font-bold text-gray-800 mb-2">Pricing</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Price <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                name="price"
+                value={formData.price}
+                onChange={handleChange}
+                required
+                min="0"
+                step="0.01"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 text-sm ${
+                  fieldErrors.price
+                    ? "border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500"
+                    : "border-gray-300 focus:ring-primary-500"
+                }`}
+                placeholder="0.00"
+              />
+              {fieldErrors.price && (
+                <p className="mt-1 text-xs text-red-600 font-medium flex items-center gap-1">
+                  <span>⚠️</span> {fieldErrors.price}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Original Price (for discount)
+              </label>
+              <input
+                type="number"
+                name="originalPrice"
+                value={formData.originalPrice}
+                onChange={handleChange}
+                min="0"
+                step="0.01"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                placeholder="0.00"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Product Media */}
+        <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-xl p-3 sm:p-4 border-2 border-primary-200 shadow-lg">
+          <h2 className="text-base font-bold text-primary-800 mb-3 flex items-center gap-2">
+            <FiUpload className="text-lg" />
+            Product Media
+          </h2>
+
+          <div className="space-y-3">
+            {/* Main Image */}
+            <div className="bg-white rounded-lg p-3 border border-primary-200">
+              <h3 className="text-sm font-semibold text-gray-800 mb-2">
+                Main Image
+              </h3>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Upload Main Image
+                </label>
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    id="main-image-upload"
+                  />
+                  <label
+                    htmlFor="main-image-upload"
+                    className="flex items-center justify-center gap-2 w-full px-3 py-2 border-2 border-dashed border-primary-300 rounded-lg cursor-pointer hover:border-primary-500 hover:bg-primary-50 transition-colors bg-white">
+                    <FiUpload className="text-base text-primary-600" />
+                    <span className="text-xs font-medium text-gray-700">
+                      {formData.image
+                        ? "Change Main Image"
+                        : "Choose Main Image"}
+                    </span>
+                  </label>
+                </div>
+                {formData.image && (
+                  <div className="mt-2 flex items-start gap-3">
+                    <img
+                      src={formData.image}
+                      alt="Main Preview"
+                      className="w-24 h-24 object-cover rounded-lg border-2 border-primary-300 shadow-md"
+                      onError={(e) => {
+                        e.target.style.display = "none";
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, image: "" })}
+                      className="mt-1 px-3 py-1.5 text-xs text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors font-medium">
+                      Remove Image
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Product Gallery */}
+            <div className="bg-white rounded-lg p-3 border border-primary-200">
+              <h3 className="text-sm font-semibold text-gray-800 mb-2">
+                Product Gallery
+              </h3>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Upload Gallery Images (Multiple)
+                </label>
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleGalleryUpload}
+                    className="hidden"
+                    id="gallery-upload"
+                  />
+                  <label
+                    htmlFor="gallery-upload"
+                    className="flex items-center justify-center gap-2 w-full px-3 py-2 border-2 border-dashed border-primary-300 rounded-lg cursor-pointer hover:border-primary-500 hover:bg-primary-50 transition-colors bg-white">
+                    <FiUpload className="text-base text-primary-600" />
+                    <span className="text-xs font-medium text-gray-700">
+                      Choose Gallery Images
+                    </span>
+                  </label>
+                </div>
+                {formData.images && formData.images.length > 0 && (
+                  <div className="mt-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                      {formData.images.map((img, index) => (
+                        <div key={index} className="relative group">
+                          <img
+                            src={img}
+                            alt={`Gallery ${index + 1}`}
+                            className="w-full h-24 object-cover rounded-lg border-2 border-primary-300 shadow-md"
+                            onError={(e) => {
+                              e.target.style.display = "none";
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeGalleryImage(index)}
+                            className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                            title="Remove image">
+                            <FiX className="text-xs" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {formData.images.length} image(s) in gallery
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Inventory */}
+        <div>
+          <h2 className="text-base font-bold text-gray-800 mb-2">Inventory</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Stock Quantity <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                name="stockQuantity"
+                value={formData.stockQuantity}
+                onChange={handleChange}
+                required
+                min="0"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 text-sm ${
+                  fieldErrors.stockQuantity
+                    ? "border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500"
+                    : "border-gray-300 focus:ring-primary-500"
+                }`}
+                placeholder="0"
+              />
+              {fieldErrors.stockQuantity && (
+                <p className="mt-1 text-xs text-red-600 font-medium flex items-center gap-1">
+                  <span>⚠️</span> {fieldErrors.stockQuantity}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Stock Status
+              </label>
+              <AnimatedSelect
+                name="stock"
+                value={formData.stock}
+                onChange={handleChange}
+                options={[
+                  { value: 'in_stock', label: 'In Stock' },
+                  { value: 'low_stock', label: 'Low Stock' },
+                  { value: 'out_of_stock', label: 'Out of Stock' },
+                ]}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Package & Shipping Specifications */}
+        <div className="bg-slate-50 rounded-xl p-3 sm:p-4 border border-slate-200">
+          <h2 className="text-base font-bold text-gray-800 mb-1 flex items-center gap-2">
+            <span>📦</span> Package & Shipping Specifications
+          </h2>
+          <p className="text-xs text-gray-500 mb-3">
+            Required for shipping rate calculations. Weight and dimensions must be at least 1.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Weight (kg) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                name="weight"
+                value={formData.weight}
+                onChange={handleChange}
+                min="1"
+                step="0.1"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 text-sm ${
+                  fieldErrors.weight
+                    ? "border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500"
+                    : "border-gray-300 focus:ring-primary-500"
+                }`}
+                placeholder="e.g. 1"
+              />
+              {fieldErrors.weight && (
+                <p className="mt-1 text-xs text-red-600 font-medium flex items-center gap-1">
+                  <span>⚠️</span> {fieldErrors.weight}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Length (cm) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                name="length"
+                value={formData.dimensions?.length || ""}
+                onChange={handleDimensionChange}
+                min="1"
+                step="1"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 text-sm ${
+                  fieldErrors["dimensions.length"]
+                    ? "border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500"
+                    : "border-gray-300 focus:ring-primary-500"
+                }`}
+                placeholder="e.g. 10"
+              />
+              {fieldErrors["dimensions.length"] && (
+                <p className="mt-1 text-xs text-red-600 font-medium flex items-center gap-1">
+                  <span>⚠️</span> {fieldErrors["dimensions.length"]}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Breadth (cm) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                name="breadth"
+                value={formData.dimensions?.breadth || ""}
+                onChange={handleDimensionChange}
+                min="1"
+                step="1"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 text-sm ${
+                  fieldErrors["dimensions.breadth"]
+                    ? "border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500"
+                    : "border-gray-300 focus:ring-primary-500"
+                }`}
+                placeholder="e.g. 10"
+              />
+              {fieldErrors["dimensions.breadth"] && (
+                <p className="mt-1 text-xs text-red-600 font-medium flex items-center gap-1">
+                  <span>⚠️</span> {fieldErrors["dimensions.breadth"]}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Height (cm) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                name="height"
+                value={formData.dimensions?.height || ""}
+                onChange={handleDimensionChange}
+                min="1"
+                step="1"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 text-sm ${
+                  fieldErrors["dimensions.height"]
+                    ? "border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500"
+                    : "border-gray-300 focus:ring-primary-500"
+                }`}
+                placeholder="e.g. 10"
+              />
+              {fieldErrors["dimensions.height"] && (
+                <p className="mt-1 text-xs text-red-600 font-medium flex items-center gap-1">
+                  <span>⚠️</span> {fieldErrors["dimensions.height"]}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Product Variants */}
+        <div>
+          <h2 className="text-base font-bold text-gray-800 mb-2">
+            Product Variants
+          </h2>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Sizes
+              </label>
+              <div className="space-y-2">
+                <div className="flex flex-wrap gap-2">
+                  {(formData.variants?.sizes || []).map((size) => (
+                    <span
+                      key={size}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-50 text-blue-700 text-xs border border-blue-200"
+                    >
+                      {size}
+                      <button
+                        type="button"
+                        onClick={() => removeVariantAxisValue("sizes", size)}
+                        className="text-blue-700 hover:text-blue-900"
+                      >
+                        <FiX className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={variantAxisInput.sizes}
+                    onChange={(e) =>
+                      setVariantAxisInput((prev) => ({ ...prev, sizes: e.target.value }))
+                    }
+                    onKeyDown={(e) => handleVariantAxisInputKeyDown("sizes", e)}
+                    onBlur={() => addVariantAxisValues("sizes", variantAxisInput.sizes)}
+                    placeholder="Type size and press Enter (e.g. S, M, L)"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => addVariantAxisValues("sizes", variantAxisInput.sizes)}
+                    className="px-3 py-2 text-xs font-semibold border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Colors
+              </label>
+              <div className="space-y-2">
+                <div className="flex flex-wrap gap-2">
+                  {(formData.variants?.colors || []).map((color) => (
+                    <span
+                      key={color}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs border border-emerald-200"
+                    >
+                      {color}
+                      <button
+                        type="button"
+                        onClick={() => removeVariantAxisValue("colors", color)}
+                        className="text-emerald-700 hover:text-emerald-900"
+                      >
+                        <FiX className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={variantAxisInput.colors}
+                    onChange={(e) =>
+                      setVariantAxisInput((prev) => ({ ...prev, colors: e.target.value }))
+                    }
+                    onKeyDown={(e) => handleVariantAxisInputKeyDown("colors", e)}
+                    onBlur={() => addVariantAxisValues("colors", variantAxisInput.colors)}
+                    placeholder="Type color and press Enter (e.g. Red, Blue)"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => addVariantAxisValues("colors", variantAxisInput.colors)}
+                    className="px-3 py-2 text-xs font-semibold border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-gray-700">
+                  Dynamic Attributes (optional)
+                </label>
+                <button
+                  type="button"
+                  onClick={addAttributeRow}
+                  className="px-2 py-1 text-xs font-semibold border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Add Attribute
+                </button>
+              </div>
+              <p className="text-[11px] text-gray-500 mb-2">
+                Example: RAM {"->"} 8GB, 16GB | Storage {"->"} 128GB, 256GB
+              </p>
+              <div className="space-y-2">
+                {(formData.variants?.attributes || []).map((attribute, index) => (
+                  <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-2 items-center">
+                    <input
+                      type="text"
+                      value={attribute?.name || ""}
+                      onChange={(e) => updateAttributeName(index, e.target.value)}
+                      placeholder="Attribute name"
+                      className="md:col-span-3 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                    />
+                    <input
+                      type="text"
+                      value={(attribute?.values || []).join(", ")}
+                      onChange={(e) => updateAttributeValues(index, e.target.value)}
+                      placeholder="Values (comma separated)"
+                      className="md:col-span-8 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeAttributeRow(index)}
+                      className="md:col-span-1 px-2 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-600"
+                      aria-label="Remove attribute"
+                    >
+                      <FiX className="w-4 h-4 mx-auto" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {variantCombinations.length > 0 && (
+              <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                <p className="text-xs font-semibold text-gray-700 mb-2">
+                  Variant Prices
+                </p>
+                <div className="space-y-2">
+                  {variantCombinations.map((combo) => (
+                    <div key={combo.key} className="grid grid-cols-1 md:grid-cols-4 gap-2 items-center">
+                      <p className="text-xs text-gray-700 md:col-span-1">
+                        {combo.label || ((combo.size || "Any Size") + " / " + (combo.color || "Any Color"))}
+                      </p>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData.variants?.prices?.[combo.key] ?? ""}
+                        onChange={(e) => {
+                          const nextValue = e.target.value;
+                          setFormData((prev) => ({
+                            ...prev,
+                            variants: {
+                              ...prev.variants,
+                              prices: {
+                                ...(prev.variants?.prices || {}),
+                                [combo.key]: nextValue === "" ? "" : Number(nextValue),
+                              },
+                            },
+                          }));
+                        }}
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-xs"
+                        placeholder="Use base price"
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={formData.variants?.stockMap?.[combo.key] ?? ""}
+                        onChange={(e) => {
+                          const nextValue = e.target.value;
+                          setFormData((prev) => ({
+                            ...prev,
+                            variants: {
+                              ...prev.variants,
+                              stockMap: {
+                                ...(prev.variants?.stockMap || {}),
+                                [combo.key]: nextValue === "" ? "" : Number(nextValue),
+                              },
+                            },
+                          }));
+                        }}
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-xs"
+                        placeholder="Variant stock"
+                      />
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          id={`variant-image-${combo.key}`}
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleVariantImageUpload(combo.key, file);
+                            e.target.value = "";
+                          }}
+                        />
+                        <label
+                          htmlFor={`variant-image-${combo.key}`}
+                          className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs cursor-pointer hover:bg-gray-100"
+                        >
+                          Upload
+                        </label>
+                        {formData.variants?.imageMap?.[combo.key] && (
+                          <img
+                            src={formData.variants.imageMap[combo.key]}
+                            alt="Variant"
+                            className="w-8 h-8 rounded object-cover border border-gray-300"
+                          />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-2 mt-3">
+                  <select
+                    value={formData.variants?.defaultVariant?.size || ""}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        variants: {
+                          ...prev.variants,
+                          defaultVariant: {
+                            ...(prev.variants?.defaultVariant || {}),
+                            size: e.target.value,
+                          },
+                        },
+                      }))
+                    }
+                    className="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-xs"
+                  >
+                    <option value="">Default size (optional)</option>
+                    {(formData.variants?.sizes || []).map((size) => (
+                      <option key={size} value={size}>{size}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={formData.variants?.defaultVariant?.color || ""}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        variants: {
+                          ...prev.variants,
+                          defaultVariant: {
+                            ...(prev.variants?.defaultVariant || {}),
+                            color: e.target.value,
+                          },
+                        },
+                      }))
+                    }
+                    className="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-xs"
+                  >
+                    <option value="">Default color (optional)</option>
+                    {(formData.variants?.colors || []).map((color) => (
+                      <option key={color} value={color}>{color}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Tags */}
+        <div>
+          <h2 className="text-base font-bold text-gray-800 mb-2">Tags</h2>
+          <div>
+            <input
+              type="text"
+              value={(formData.tags || []).join(", ")}
+              onChange={(e) => {
+                const tags = e.target.value
+                  .split(",")
+                  .map((t) => t.trim())
+                  .filter((t) => t);
+                setFormData({ ...formData, tags });
+              }}
+              placeholder="tag1, tag2, tag3"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Separate tags with commas
+            </p>
+          </div>
+        </div>
+
+        {/* Options */}
+        <div>
+          <h2 className="text-base font-bold text-gray-800 mb-2">
+            Product Options
+          </h2>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                name="flashSale"
+                checked={formData.flashSale}
+                onChange={handleChange}
+                className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+              />
+              <span className="text-xs font-semibold text-gray-700">
+                Flash Sale
+              </span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                name="isNewArrival"
+                checked={formData.isNewArrival}
+                onChange={handleChange}
+                className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+              />
+              <span className="text-xs font-semibold text-gray-700">
+                New Arrival
+              </span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                name="isFeatured"
+                checked={formData.isFeatured}
+                onChange={handleChange}
+                className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+              />
+              <span className="text-xs font-semibold text-gray-700">
+                Featured Product
+              </span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                name="isVisible"
+                checked={formData.isVisible}
+                onChange={handleChange}
+                className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+              />
+              <span className="text-xs font-semibold text-gray-700">
+                Visible to Customers
+              </span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                name="taxIncluded"
+                checked={formData.taxIncluded}
+                onChange={handleChange}
+                className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+              />
+              <span className="text-xs font-semibold text-gray-700">
+                Tax Included in Prices
+              </span>
+            </label>
+            <div className="flex flex-col gap-1 w-full max-w-xs mt-2">
+              <label className="text-xs font-semibold text-gray-700">
+                GST Rate (%)
+              </label>
+              <input
+                type="number"
+                name="taxRate"
+                value={formData.taxRate !== undefined ? formData.taxRate : 18}
+                onChange={handleChange}
+                min="0"
+                max="100"
+                className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm bg-white"
+                placeholder="e.g. 18"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-3 border-t border-gray-200">
+          <button
+            type="button"
+            onClick={() => navigate("/vendor/products/manage-products")}
+            className="w-full sm:w-auto px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-semibold text-sm">
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={isSaving || isUploadingMedia}
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 gradient-green text-white rounded-lg hover:shadow-glow-green transition-all font-semibold text-sm disabled:opacity-60 disabled:cursor-not-allowed">
+            <FiSave />
+            {isUploadingMedia ? "Uploading Media..." : isSaving ? "Saving..." : isEdit ? "Update Product" : "Create Product"}
+          </button>
+        </div>
+
+        {/* Product FAQs */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-base font-bold text-gray-800">Product FAQs</h2>
+            <button
+              type="button"
+              onClick={addFaq}
+              className="px-3 py-1.5 text-xs font-semibold bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              Add FAQ
+            </button>
+          </div>
+          <div className="space-y-3">
+            {(formData.faqs || []).map((faq, index) => (
+              <div key={index} className="border border-gray-200 rounded-lg p-3 bg-gray-50 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-gray-600">FAQ #{index + 1}</p>
+                  <button
+                    type="button"
+                    onClick={() => removeFaq(index)}
+                    className="text-xs text-red-600 hover:text-red-700"
+                  >
+                    Remove
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={faq.question || ""}
+                  onChange={(e) => handleFaqChange(index, "question", e.target.value)}
+                  placeholder="Question"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm bg-white"
+                />
+                <textarea
+                  value={faq.answer || ""}
+                  onChange={(e) => handleFaqChange(index, "answer", e.target.value)}
+                  rows={2}
+                  placeholder="Answer"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm bg-white"
+                />
+              </div>
+            ))}
+            {(formData.faqs || []).length === 0 && (
+              <p className="text-xs text-gray-500">No FAQs added yet.</p>
+            )}
+          </div>
+        </div>
+      </form>
+    </motion.div>
+  );
+};
+
+export default ProductForm;
+
