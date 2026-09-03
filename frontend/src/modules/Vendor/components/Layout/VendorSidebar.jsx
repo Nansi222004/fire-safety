@@ -262,6 +262,31 @@ const VendorSidebar = ({ isOpen, onClose, isCollapsed }) => {
     );
   };
 
+  const caps = vendor?.vendorCapabilities || { sellsProducts: true, providesServices: false };
+
+  const productTitles = new Set([
+    'Products',
+    'Brand Requests',
+    'Category Requests',
+    'Orders',
+    'Returns & Exchanges',
+    'Product Reviews',
+    'Stock Management',
+    'Inventory Reports',
+  ]);
+
+  const serviceTitles = new Set(['Services']);
+
+  const filteredMenu = vendorMenu.filter((item) => {
+    if (productTitles.has(item.title) && caps.sellsProducts === false) {
+      return false;
+    }
+    if (serviceTitles.has(item.title) && caps.providesServices === false) {
+      return false;
+    }
+    return true;
+  });
+
   // Sidebar content
   const sidebarContent = (
     <div className="h-full flex flex-col bg-slate-800 shadow-xl">
@@ -296,7 +321,7 @@ const VendorSidebar = ({ isOpen, onClose, isCollapsed }) => {
 
       {/* Navigation Menu */}
       <nav className="flex-1 overflow-y-auto p-3 scrollbar-admin lg:pb-3">
-        {vendorMenu.map((item) => renderMenuItem(item))}
+        {filteredMenu.map((item) => renderMenuItem(item))}
       </nav>
     </div>
   );

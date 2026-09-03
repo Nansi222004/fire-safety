@@ -1,14 +1,19 @@
 import { useState, useEffect, useMemo } from 'react';
-import { FiSearch, FiSliders, FiTrash2, FiCheckCircle, FiXCircle, FiTool, FiMapPin, FiClock, FiDollarSign, FiLayers } from 'react-icons/fi';
+import { FiSearch, FiSliders, FiTrash2, FiCheckCircle, FiXCircle, FiTool, FiMapPin, FiClock, FiDollarSign, FiLayers, FiAlertCircle } from 'react-icons/fi';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { useVendorServiceStore } from '../../../../shared/store/vendorServiceStore';
-import { getAllServiceCategories } from '../../../Admin/services/adminService';
+import { useVendorAuthStore } from '../../store/vendorAuthStore';
+import { getPublicServiceCategories } from '../../services/vendorService';
 import ServiceConfigModal from '../../components/ServiceConfigModal';
 import Pagination from '../../../Admin/components/Pagination';
 import AnimatedSelect from '../../../Admin/components/AnimatedSelect';
 import toast from 'react-hot-toast';
 
 const MyVendorServices = () => {
+  const { vendor } = useVendorAuthStore();
+  const canProvideServices = vendor?.vendorCapabilities?.providesServices ?? true;
+
   const {
     myServices,
     isLoading,
@@ -31,7 +36,7 @@ const MyVendorServices = () => {
     fetchMyServices();
     const loadCategories = async () => {
       try {
-        const res = await getAllServiceCategories();
+        const res = await getPublicServiceCategories();
         const list = Array.isArray(res?.data?.categories)
           ? res.data.categories
           : Array.isArray(res?.data)
@@ -131,6 +136,24 @@ const MyVendorServices = () => {
           Manage services enabled for your store, configure custom prices, service area pincodes, and daily capacity
         </p>
       </div>
+
+      {/* Product-Only Warning Banner */}
+      {!canProvideServices && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3">
+            <FiAlertCircle className="text-amber-600 text-xl flex-shrink-0" />
+            <p className="text-xs text-amber-900 font-medium leading-relaxed">
+              <strong className="font-bold">Product-Only Vendor Account:</strong> Your account is currently configured for Products only. To offer fire safety services, turn on "Services" capability in Profile Settings.
+            </p>
+          </div>
+          <Link
+            to="/vendor/settings"
+            className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl transition-colors whitespace-nowrap shadow-xs"
+          >
+            Update Capabilities
+          </Link>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-200 space-y-4">

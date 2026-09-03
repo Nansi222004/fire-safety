@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useVendorAuthStore } from '../store/vendorAuthStore';
+import CapabilityAccessRequired from './CapabilityAccessRequired';
 
 const decodeJwtPayload = (token) => {
   try {
@@ -14,8 +15,8 @@ const decodeJwtPayload = (token) => {
   }
 };
 
-const VendorProtectedRoute = ({ children }) => {
-  const { isAuthenticated, token, logout } = useVendorAuthStore();
+const VendorProtectedRoute = ({ children, requiredCapability = null }) => {
+  const { isAuthenticated, token, vendor, logout } = useVendorAuthStore();
   const location = useLocation();
   const accessToken = token || localStorage.getItem('vendor-token');
   const payload = decodeJwtPayload(accessToken);
@@ -33,6 +34,18 @@ const VendorProtectedRoute = ({ children }) => {
 
   if (!isAuthenticated || !accessToken || isExpired || (role && accessToken && role !== 'vendor')) {
     return <Navigate to="/vendor/login" state={{ from: location }} replace />;
+  }
+
+  // Capability Route Guard
+  if (requiredCapability) {
+    const caps = vendor?.vendorCapabilities || { sellsProducts: true, providesServices: false };
+    const req = String(requiredCapability).toLowerCase();
+    if ((req === 'products' || req === 'sellsproducts') && caps.sellsProducts === false) {
+      return <CapabilityAccessRequired requiredCapability="products" />;
+    }
+    if ((req === 'services' || req === 'providesservices') && caps.providesServices === false) {
+      return <CapabilityAccessRequired requiredCapability="services" />;
+    }
   }
 
   return children;

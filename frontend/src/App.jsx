@@ -757,21 +757,25 @@ const AppRoutes = () => {
         <Route path="dashboard" element={<VendorDashboard />} />
 
 
-        <Route path="products" element={<VendorProducts />} />
-        <Route
-          path="products/manage-products"
-          element={<VendorManageProducts />}
-        />
-        <Route path="products/add-product" element={<VendorAddProduct />} />
-        <Route path="products/:id" element={<VendorProductForm />} />
-        <Route path="brand-requests" element={<VendorBrandRequests />} />
-        <Route path="category-requests" element={<VendorCategoryRequests />} />
+        {/* Products Capability Routes */}
+        <Route path="products" element={<VendorProtectedRoute requiredCapability="products"><VendorProducts /></VendorProtectedRoute>} />
+        <Route path="products/manage-products" element={<VendorProtectedRoute requiredCapability="products"><VendorManageProducts /></VendorProtectedRoute>} />
+        <Route path="products/add-product" element={<VendorProtectedRoute requiredCapability="products"><VendorAddProduct /></VendorProtectedRoute>} />
+        <Route path="products/:id" element={<VendorProtectedRoute requiredCapability="products"><VendorProductForm /></VendorProtectedRoute>} />
+        <Route path="brand-requests" element={<VendorProtectedRoute requiredCapability="products"><VendorBrandRequests /></VendorProtectedRoute>} />
+        <Route path="category-requests" element={<VendorProtectedRoute requiredCapability="products"><VendorCategoryRequests /></VendorProtectedRoute>} />
+        <Route path="stock-management" element={<VendorProtectedRoute requiredCapability="products"><VendorStockManagement /></VendorProtectedRoute>} />
+        <Route path="inventory-reports" element={<VendorProtectedRoute requiredCapability="products"><VendorInventoryReports /></VendorProtectedRoute>} />
+        <Route path="product-reviews" element={<VendorProtectedRoute requiredCapability="products"><VendorProductReviews /></VendorProtectedRoute>} />
+
+        {/* Services Capability Routes */}
         <Route path="services" element={<Navigate to="/vendor/services/available" replace />} />
-        <Route path="services/available" element={<AvailableServices />} />
-        <Route path="services/my-services" element={<MyVendorServices />} />
-        <Route path="services/request-new" element={<RequestService />} />
-        <Route path="services/my-requests" element={<VendorServiceRequests />} />
-        <Route path="services/service-bookings" element={<VendorServiceBookings />} />
+        <Route path="services/available" element={<VendorProtectedRoute requiredCapability="services"><AvailableServices /></VendorProtectedRoute>} />
+        <Route path="services/my-services" element={<VendorProtectedRoute requiredCapability="services"><MyVendorServices /></VendorProtectedRoute>} />
+        <Route path="services/request-new" element={<VendorProtectedRoute requiredCapability="services"><RequestService /></VendorProtectedRoute>} />
+        <Route path="services/my-requests" element={<VendorProtectedRoute requiredCapability="services"><VendorServiceRequests /></VendorProtectedRoute>} />
+        <Route path="services/service-bookings" element={<VendorProtectedRoute requiredCapability="services"><VendorServiceBookings /></VendorProtectedRoute>} />
+
         <Route path="orders" element={<VendorOrders />} />
         <Route path="orders/all-orders" element={<VendorAllOrders />} />
         <Route path="orders/order-tracking" element={<VendorOrderTracking />} />
@@ -788,7 +792,6 @@ const AppRoutes = () => {
           path="earnings/settlement-history"
           element={<VendorEarnings />}
         />
-        <Route path="stock-management" element={<VendorStockManagement />} />
         <Route path="wallet-history" element={<VendorWalletHistory />} />
         <Route path="notifications" element={<VendorNotifications />} />
         <Route path="return-requests" element={<VendorReturnRequests />} />
@@ -796,7 +799,6 @@ const AppRoutes = () => {
           path="return-requests/:id"
           element={<VendorReturnRequestDetail />}
         />
-        <Route path="product-reviews" element={<VendorProductReviews />} />
 
         <Route path="pickup-locations" element={<VendorPickupLocations />} />
         <Route path="customers/:id" element={<VendorCustomerDetail />} />

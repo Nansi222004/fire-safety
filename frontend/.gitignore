@@ -89,4 +89,14 @@ storybook-static
 # Temporary folders
 tmp/
 temp/
+scratch/
+scratch/**
+**/scratch/
+**/scratch/**
+tests/
+test/
+**/tests/
+**/test/
+tests/**
+test/**
 

@@ -35,6 +35,10 @@ export const registerSchema = Joi.object({
         license: Joi.string().allow('').optional(),
         identity: Joi.string().allow('').optional(),
     }).optional(),
+    vendorCapabilities: Joi.object({
+        sellsProducts: Joi.boolean().default(true),
+        providesServices: Joi.boolean().default(false),
+    }).optional(),
 });
 
 export const loginSchema = Joi.object({

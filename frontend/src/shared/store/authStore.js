@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import api from '../utils/api';
+import { registerFCMToken, removeFCMToken } from '../../services/pushNotificationService';
 
 export const useAuthStore = create(
   persist(
@@ -38,6 +39,9 @@ export const useAuthStore = create(
 
           localStorage.setItem('token', accessToken);
           localStorage.setItem('refresh-token', refreshToken);
+
+          // Register FCM push token
+          registerFCMToken(true).catch(() => {});
 
           // Merge cart asynchronously in background so login returns immediately
           import('./useStore').then(m => {
@@ -124,6 +128,9 @@ export const useAuthStore = create(
           localStorage.setItem('token', accessToken);
           localStorage.setItem('refresh-token', refreshToken);
 
+          // Register FCM push token
+          registerFCMToken(true).catch(() => {});
+
           // Merge cart after OTP verification
           const { mergeCart } = (await import('./useStore')).useCartStore.getState();
           await mergeCart();
@@ -194,6 +201,9 @@ export const useAuthStore = create(
         if (refreshToken) {
           api.post('/user/auth/logout', { refreshToken }).catch(() => {});
         }
+
+        // Remove FCM push token
+        removeFCMToken().catch(() => {});
 
         set({
           user: null,

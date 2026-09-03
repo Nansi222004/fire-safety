@@ -194,13 +194,35 @@ api.interceptors.response.use(
       }
     }
 
-    const message =
-      error.response?.data?.message ||
-      error.message ||
-      'Something went wrong';
-    
-    if (!error.response?.data?.requiresConfirmation) {
-      toast.error(message);
+    // Helper to format clean, human-friendly error messages (never show raw "Request failed with status code 403")
+    const getCleanErrorMessage = (err) => {
+      const serverMsg = err.response?.data?.message;
+      if (serverMsg && typeof serverMsg === 'string' && !serverMsg.startsWith('Request failed with status code')) {
+        return serverMsg;
+      }
+
+      const status = err.response?.status;
+      if (status === 400) return 'Invalid request details. Please check your input.';
+      if (status === 401) return 'Session expired or authentication failed. Please login again.';
+      if (status === 403) return 'Access restricted. Your account may be pending approval or deactivated.';
+      if (status === 404) return 'Requested item or resource not found.';
+      if (status === 409) return 'Conflict detected. Please refresh and try again.';
+      if (status >= 500) return 'Server is temporarily unavailable. Please try again shortly.';
+
+      if (err.message === 'Network Error' || !err.response) {
+        return 'Unable to connect to server. Please check your internet connection.';
+      }
+
+      return 'An unexpected error occurred. Please try again.';
+    };
+
+    const cleanMessage = getCleanErrorMessage(error);
+    // Standardize error.message so catch blocks never see raw status code strings
+    error.message = cleanMessage;
+
+    if (!error.response?.data?.requiresConfirmation && !error.toastShown) {
+      error.toastShown = true;
+      toast.error(cleanMessage);
     }
 
     if (error.response?.status === 401) {

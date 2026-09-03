@@ -39,6 +39,10 @@ const vendorSchema = new mongoose.Schema(
                 coordinates: [Number] // [lng, lat]
             }
         },
+        vendorCapabilities: {
+            sellsProducts: { type: Boolean, default: true },
+            providesServices: { type: Boolean, default: false }
+        },
 
         // Warehouse / Pickup Address — required for courier provider pickup scheduling.
         // This is distinct from the business registration address above.
@@ -106,6 +110,15 @@ const vendorSchema = new mongoose.Schema(
                 reason: { type: String },
             }
         ],
+        // FCM Push Notification Tokens
+        fcmTokens: {
+            type: [String],
+            default: [],
+        },
+        fcmTokenMobile: {
+            type: [String],
+            default: [],
+        },
     },
     { timestamps: true }
 );

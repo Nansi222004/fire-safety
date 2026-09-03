@@ -47,6 +47,23 @@ const VendorRegister = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  const [vendorCapabilities, setVendorCapabilities] = useState({
+    sellsProducts: true,
+    providesServices: false,
+  });
+
+  const toggleCapability = (cap) => {
+    setVendorCapabilities((prev) => {
+      const next = { ...prev, [cap]: !prev[cap] };
+      // Prevent unselecting both
+      if (!next.sellsProducts && !next.providesServices) {
+        toast.error('At least one capability (Products or Services) must be selected.');
+        return prev;
+      }
+      return next;
+    });
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -80,6 +97,12 @@ const VendorRegister = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Capability Validation
+    if (!vendorCapabilities.sellsProducts && !vendorCapabilities.providesServices) {
+      toast.error('At least one offering (Products or Services) must be selected.');
+      return;
+    }
 
     // Required Field Validations
     if (!formData.name || !formData.email || !formData.phone || !formData.password || !formData.storeName) {
@@ -128,6 +151,7 @@ const VendorRegister = () => {
       payload.append('phone', formData.phone.trim());
       payload.append('storeName', formData.storeName.trim());
       payload.append('storeDescription', formData.storeDescription.trim());
+      payload.append('vendorCapabilities', JSON.stringify(vendorCapabilities));
       payload.append('address', JSON.stringify({
         street: formData.address.street.trim(),
         city: formData.address.city.trim(),
@@ -236,8 +260,71 @@ const VendorRegister = () => {
               className="lg:col-span-8 bg-white rounded-2xl border border-[#E5E7EB] p-6 md:p-8 shadow-sm"
             >
               <form onSubmit={handleSubmit} className="space-y-8">
-                
-                {/* 5. Personal Information Section */}
+
+                {/* 0. Marketplace Capabilities Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 border-b border-[#E5E7EB] pb-3">
+                    <span className="w-7 h-7 rounded-lg bg-[#FEF2F2] text-[#E31E24] font-bold text-xs flex items-center justify-center border border-red-100">
+                      ★
+                    </span>
+                    <div>
+                      <h2 className="text-base font-bold text-[#0F172A] uppercase tracking-wider text-xs">
+                        What would you like to offer on SafeFire?
+                      </h2>
+                      <p className="text-xs text-[#64748B]">Select one or both marketplace modules you wish to participate in.</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                    {/* Products Card */}
+                    <div
+                      onClick={() => toggleCapability('sellsProducts')}
+                      className={`p-5 rounded-2xl border-2 cursor-pointer transition-all ${
+                        vendorCapabilities.sellsProducts
+                          ? 'border-[#E31E24] bg-[#FEF2F2]/40 shadow-sm'
+                          : 'border-[#E5E7EB] bg-white hover:border-gray-300 opacity-70'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="text-2xl mb-2">🛒</div>
+                        <div className={`w-5 h-5 rounded-md border flex items-center justify-center text-xs font-bold ${
+                          vendorCapabilities.sellsProducts ? 'bg-[#E31E24] border-[#E31E24] text-white' : 'border-gray-300 bg-white'
+                        }`}>
+                          {vendorCapabilities.sellsProducts && '✓'}
+                        </div>
+                      </div>
+                      <h3 className="font-bold text-[#0F172A] text-sm mb-1">FIRE SAFETY PRODUCTS</h3>
+                      <p className="text-xs text-[#64748B] leading-relaxed">
+                        Sell fire safety equipment and products through the SafeFire marketplace.
+                      </p>
+                    </div>
+
+                    {/* Services Card */}
+                    <div
+                      onClick={() => toggleCapability('providesServices')}
+                      className={`p-5 rounded-2xl border-2 cursor-pointer transition-all ${
+                        vendorCapabilities.providesServices
+                          ? 'border-[#E31E24] bg-[#FEF2F2]/40 shadow-sm'
+                          : 'border-[#E5E7EB] bg-white hover:border-gray-300 opacity-70'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="text-2xl mb-2">🛠️</div>
+                        <div className={`w-5 h-5 rounded-md border flex items-center justify-center text-xs font-bold ${
+                          vendorCapabilities.providesServices ? 'bg-[#E31E24] border-[#E31E24] text-white' : 'border-gray-300 bg-white'
+                        }`}>
+                          {vendorCapabilities.providesServices && '✓'}
+                        </div>
+                      </div>
+                      <h3 className="font-bold text-[#0F172A] text-sm mb-1">FIRE SAFETY SERVICES</h3>
+                      <p className="text-xs text-[#64748B] leading-relaxed">
+                        Provide professional fire safety maintenance, refill, and installation services to customers.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 1. Personal Information Section */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-3 border-b border-[#E5E7EB] pb-3">
                     <span className="w-7 h-7 rounded-lg bg-[#FEF2F2] text-[#E31E24] font-bold text-xs flex items-center justify-center border border-red-100">

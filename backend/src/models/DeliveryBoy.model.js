@@ -56,7 +56,16 @@ const deliveryBoySchema = new mongoose.Schema(
                 upiId: String
             },
             select: false
-        }
+        },
+        // FCM Push Notification Tokens
+        fcmTokens: {
+            type: [String],
+            default: [],
+        },
+        fcmTokenMobile: {
+            type: [String],
+            default: [],
+        },
     },
     { timestamps: true }
 );

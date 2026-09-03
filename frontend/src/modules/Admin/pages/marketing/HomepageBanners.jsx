@@ -38,7 +38,7 @@ const HomepageBanners = () => {
   const [ctaLink, setCtaLink] = useState('');
   const [textColor, setTextColor] = useState('#ffffff');
   const [buttonColor, setButtonColor] = useState('#ffffff');
-  const [backgroundColor, setBackgroundColor] = useState('#7c3aed');
+  const [backgroundColor, setBackgroundColor] = useState('#E31E24');
   const [gradient, setGradient] = useState('');
   const [overlayOpacity, setOverlayOpacity] = useState(0.3);
   const [tagsInput, setTagsInput] = useState('');
@@ -106,7 +106,7 @@ const HomepageBanners = () => {
     setCtaLink('');
     setTextColor('#ffffff');
     setButtonColor('#ffffff');
-    setBackgroundColor('#7c3aed');
+    setBackgroundColor('#E31E24');
     setGradient('');
     setOverlayOpacity(0.3);
     setTagsInput('');
@@ -131,7 +131,7 @@ const HomepageBanners = () => {
     setCtaLink(banner.ctaLink || '');
     setTextColor(banner.textColor || '#ffffff');
     setButtonColor(banner.buttonColor || '#ffffff');
-    setBackgroundColor(banner.backgroundColor || '#7c3aed');
+    setBackgroundColor(banner.backgroundColor || '#E31E24');
     setGradient(banner.gradient || '');
     setOverlayOpacity(banner.overlayOpacity ?? 0.3);
     setTagsInput(Array.isArray(banner.tags) ? banner.tags.join(', ') : '');

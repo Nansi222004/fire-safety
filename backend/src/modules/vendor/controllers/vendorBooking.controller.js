@@ -2,8 +2,8 @@ import asyncHandler from '../../../utils/asyncHandler.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
 import ServiceBooking from '../../../models/ServiceBooking.model.js';
-import Notification from '../../../models/Notification.model.js';
 import { emitToRoom } from '../../../services/socket.service.js';
+import { createNotification } from '../../../services/notification.service.js';
 
 // Allowed State Machine Transitions map
 const ALLOWED_TRANSITIONS = {
@@ -12,22 +12,6 @@ const ALLOWED_TRANSITIONS = {
     in_progress: ['completed', 'cancelled'],
     completed: [],
     cancelled: [],
-};
-
-// Helper to create notification safely
-const createNotification = async (recipientId, recipientType, title, message, data = {}) => {
-    try {
-        await Notification.create({
-            recipientId,
-            recipientType: String(recipientType || 'user').toLowerCase(),
-            type: 'system',
-            title,
-            message,
-            data,
-        });
-    } catch (err) {
-        console.error('Failed to create notification:', err.message);
-    }
 };
 
 /**

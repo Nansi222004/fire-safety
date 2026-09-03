@@ -5,25 +5,9 @@ import ServiceCategory from '../../../models/ServiceCategory.model.js';
 import Service from '../../../models/Service.model.js';
 import VendorService from '../../../models/VendorService.model.js';
 import ServiceBooking from '../../../models/ServiceBooking.model.js';
-import Notification from '../../../models/Notification.model.js';
 import Settings from '../../../models/Settings.model.js';
 import Vendor from '../../../models/Vendor.model.js';
-
-// Helper to create notifications safely
-const createNotification = async (recipientId, recipientType, title, message, data = {}) => {
-    try {
-        await Notification.create({
-            recipientId,
-            recipientType: String(recipientType || 'vendor').toLowerCase(),
-            type: 'system',
-            title,
-            message,
-            data,
-        });
-    } catch (err) {
-        console.error('Failed to create notification:', err.message);
-    }
-};
+import { createNotification } from '../../../services/notification.service.js';
 
 /**
  * @desc    Get active Service Categories and Service Masters for Customer Browsing
@@ -113,13 +97,16 @@ export const checkServiceability = asyncHandler(async (req, res) => {
     })
         .populate({
             path: 'vendorId',
-            select: 'storeName name email phone address rating logo isActive isApproved status',
+            select: 'storeName name email phone address rating logo isActive isApproved status vendorCapabilities',
         })
         .lean();
 
     // Filter vendors strictly matching pincode in vs.serviceAreas (no empty = all)
     let servicingVendors = vendorServices.filter((vs) => {
-        if (!vs.vendorId || vs.vendorId.status === 'suspended' || vs.vendorId.status === 'rejected' || vs.vendorId.isActive === false) {
+        if (!vs.vendorId || vs.vendorId.status !== 'approved' || vs.vendorId.isActive === false) {
+            return false;
+        }
+        if (vs.vendorId.vendorCapabilities?.providesServices === false) {
             return false;
         }
         if (!vs.serviceAreas || !Array.isArray(vs.serviceAreas) || vs.serviceAreas.length === 0) {
@@ -208,15 +195,15 @@ export const createBooking = asyncHandler(async (req, res) => {
         throw new ApiError(404, 'Selected Service is inactive or not found.');
     }
 
-    // 2. Independently verify Vendor Account exists, is approved, and active
+    // 2. Independently verify Vendor Account exists, is approved, active, and provides services capability
     const resolvedVendor = await Vendor.findOne({
         _id: vendorId,
         isActive: true,
         status: 'approved',
     }).lean();
 
-    if (!resolvedVendor) {
-        throw new ApiError(400, 'Selected Service Provider is currently inactive or not approved.');
+    if (!resolvedVendor || resolvedVendor.vendorCapabilities?.providesServices === false) {
+        throw new ApiError(400, 'Selected Service Provider is currently inactive, not approved, or does not provide services.');
     }
 
     // 3. Verify VendorService configuration exists for vendorId + serviceId and is active
@@ -239,7 +226,41 @@ export const createBooking = asyncHandler(async (req, res) => {
         throw new ApiError(400, `Selected Service Provider does not service pincode ${cleanPincode}.`);
     }
 
-    // 5. Verify Capacity Protection for booking date
+    // 4b. BUG-002 FIX: Verify working hours on backend
+    if (vendorService.workingHours && vendorService.workingHours.start && vendorService.workingHours.end) {
+        const timeMatch = String(timeSlot || '').match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+        if (timeMatch) {
+            let hours = parseInt(timeMatch[1], 10);
+            const minutes = parseInt(timeMatch[2], 10);
+            const period = timeMatch[3] ? timeMatch[3].toUpperCase() : null;
+            if (period === 'PM' && hours < 12) hours += 12;
+            if (period === 'AM' && hours === 12) hours = 0;
+            const slotMinutes = hours * 60 + minutes;
+
+            const parseHHMM = (str) => {
+                const m = String(str || '').match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+                if (!m) return null;
+                let h = parseInt(m[1], 10);
+                const mins = parseInt(m[2], 10);
+                const p = m[3] ? m[3].toUpperCase() : null;
+                if (p === 'PM' && h < 12) h += 12;
+                if (p === 'AM' && h === 12) h = 0;
+                return h * 60 + mins;
+            };
+
+            const startMins = parseHHMM(vendorService.workingHours.start) ?? 540;
+            const endMins = parseHHMM(vendorService.workingHours.end) ?? 1080;
+
+            if (slotMinutes < startMins || slotMinutes >= endMins) {
+                throw new ApiError(
+                    400,
+                    `Selected time slot (${timeSlot}) is outside vendor working hours (${vendorService.workingHours.start} - ${vendorService.workingHours.end}).`
+                );
+            }
+        }
+    }
+
+    // 5. BUG-003 FIX: Verify Capacity Protection for booking date scoped to specific vendorServiceId
     const startOfDay = new Date(bookingDate);
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date(bookingDate);
@@ -247,6 +268,7 @@ export const createBooking = asyncHandler(async (req, res) => {
 
     const existingBookingsCount = await ServiceBooking.countDocuments({
         vendorId: resolvedVendor._id,
+        vendorServiceId: vendorService._id,
         bookingDate: { $gte: startOfDay, $lte: endOfDay },
         status: { $in: ['pending', 'confirmed', 'assigned', 'in_progress'] },
     });
@@ -306,9 +328,9 @@ export const createBooking = asyncHandler(async (req, res) => {
         notes,
     });
 
-    // Notify Vendor
+    // BUG-001 FIX: Notify Vendor (use resolvedVendor._id)
     await createNotification(
-        resolvedVendorId,
+        resolvedVendor._id,
         'vendor',
         'New Service Booking Received!',
         `New booking #${booking.bookingId} for "${serviceMaster.name}" on ${new Date(bookingDate).toLocaleDateString()}.`,
@@ -390,14 +412,13 @@ export const cancelBooking = asyncHandler(async (req, res) => {
     booking.cancellationReason = reason;
     await booking.save();
 
-    // Notify Vendor of Cancellation
+    // BUG-004 FIX: Notify Vendor of Cancellation with correct arguments
     await createNotification(
         booking.vendorId,
-        'Vendor',
-        'SERVICE_BOOKING_CANCELLED',
+        'vendor',
         'Service Booking Cancelled',
         `Booking #${booking.bookingId} for "${booking.serviceName}" has been cancelled by customer.`,
-        { bookingId: booking._id }
+        { bookingId: String(booking._id), bookingNumber: booking.bookingId }
     );
 
     res.status(200).json(

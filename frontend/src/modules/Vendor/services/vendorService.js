@@ -548,6 +548,8 @@ export const getAvailableVendorServices = (params = {}) =>
 export const getMyVendorServices = (params = {}) =>
     api.get('/vendor/services', { params });
 
+export const getVendorServices = getMyVendorServices;
+
 export const getVendorServiceById = (id) =>
     api.get(`/vendor/services/${id}`);
 

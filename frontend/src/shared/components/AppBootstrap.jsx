@@ -7,6 +7,7 @@ import { useOrderStore } from "../store/orderStore";
 import { useSettingsStore } from "../store/settingsStore";
 import { useCategoryStore } from "../store/categoryStore";
 import { getPublicGeneralSettings } from "../services/publicService";
+import { initializePushNotifications, setupForegroundNotificationHandler, registerFCMToken } from "../../services/pushNotificationService";
 import toast from "react-hot-toast";
 
 const PRODUCTS_CACHE_KEY = "user-catalog-products-cache";
@@ -52,10 +53,25 @@ const AppBootstrap = () => {
   useEffect(() => {
     if (isAuthenticated) {
       fetchCart();
+      registerFCMToken().catch(() => {});
     }
   }, [isAuthenticated, fetchCart]);
 
   useEffect(() => {
+    // Initialize FCM Push Notifications and foreground message listener
+    initializePushNotifications();
+    setupForegroundNotificationHandler((payload) => {
+      console.log("[Push Notification Foreground]:", payload);
+      // If payload has a link, we can trigger custom in-app handling if desired
+      if (payload?.data?.link && document.visibilityState === 'visible') {
+        const title = payload.notification?.title || payload.data?.title || 'SafeFire Alert';
+        const msg = payload.notification?.body || payload.data?.body || payload.data?.message || '';
+        if (title && msg) {
+          toast(msg, { icon: '🔔' });
+        }
+      }
+    });
+
     const loadPublicSettings = async () => {
       try {
         const res = await getPublicGeneralSettings();
