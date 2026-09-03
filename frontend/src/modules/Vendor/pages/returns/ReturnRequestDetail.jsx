@@ -14,9 +14,10 @@ import {
   FiAlertCircle,
   FiEdit,
 } from "react-icons/fi";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import Badge from "../../../../shared/components/Badge";
 import AnimatedSelect from "../../../Admin/components/AnimatedSelect";
+import ConfirmModal from "../../../Admin/components/ConfirmModal";
 import { formatPrice } from "../../../../shared/utils/helpers";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
 import {
@@ -39,6 +40,23 @@ const ReturnRequestDetail = () => {
   const [returnRequest, setReturnRequest] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [status, setStatus] = useState("");
+
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    confirmText: "Confirm",
+    type: "info",
+    onConfirm: null,
+  });
+
+  const [rejectModalState, setRejectModalState] = useState({
+    isOpen: false,
+    title: "Reject Return Request",
+    reason: "",
+    required: false,
+    onConfirm: null,
+  });
 
   const getOtpStatusText = (verified, expiresAt) => {
     if (verified) return 'Verified ✅';
@@ -269,13 +287,14 @@ const ReturnRequestDetail = () => {
                 <>
                   <button
                     onClick={() => {
-                      if (
-                        window.confirm(
-                          "Are you sure you want to approve this return request?"
-                        )
-                      ) {
-                        handleStatusUpdate("approved", "approve");
-                      }
+                      setConfirmModal({
+                        isOpen: true,
+                        title: "Approve Return Request",
+                        message: "Are you sure you want to approve this return request?",
+                        confirmText: "Approve",
+                        type: "info",
+                        onConfirm: () => handleStatusUpdate("approved", "approve"),
+                      });
                     }}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-semibold">
                     <FiCheck className="text-sm" />
@@ -283,19 +302,15 @@ const ReturnRequestDetail = () => {
                   </button>
                   <button
                     onClick={() => {
-                      if (
-                        window.confirm(
-                          "Are you sure you want to reject this return request?"
-                        )
-                      ) {
-                        const reason = window.prompt(
-                          "Optional rejection reason (visible in return details):",
-                          returnRequest?.rejectionReason || ""
-                        );
-                        handleStatusUpdate("rejected", "reject", {
-                          rejectionReason: reason || "",
-                        });
-                      }
+                      setRejectModalState({
+                        isOpen: true,
+                        title: "Reject Return Request",
+                        reason: returnRequest?.rejectionReason || "",
+                        required: false,
+                        onConfirm: (reason) => {
+                          handleStatusUpdate("rejected", "reject", { rejectionReason: reason || "" });
+                        },
+                      });
                     }}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-semibold">
                     <FiX className="text-sm" />
@@ -312,9 +327,14 @@ const ReturnRequestDetail = () => {
                       const confirmMsg = isExchange
                         ? "Confirm you received the returned product? This will restore catalog inventory and begin replacement preparation."
                         : "Confirm you received the returned product? This will process the refund and restore catalog inventory.";
-                      if (window.confirm(confirmMsg)) {
-                        handleStatusUpdate(isExchange ? "replacement_preparing" : "completed", "confirm-received");
-                      }
+                      setConfirmModal({
+                        isOpen: true,
+                        title: "Confirm Product Received",
+                        message: confirmMsg,
+                        confirmText: "Confirm Received",
+                        type: "info",
+                        onConfirm: () => handleStatusUpdate(isExchange ? "replacement_preparing" : "completed", "confirm-received"),
+                      });
                     }}
                     className={`flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-semibold disabled:bg-gray-300 disabled:cursor-not-allowed`}>
                     <FiCheck className="text-sm" />
@@ -322,14 +342,20 @@ const ReturnRequestDetail = () => {
                   </button>
                   <button
                     onClick={() => {
-                      if (window.confirm("Are you sure you want to reject this return request after inspection?")) {
-                        const reason = window.prompt("Enter rejection reason (required):");
-                        if (!reason || !reason.trim()) {
-                          toast.error("Rejection reason is required.");
-                          return;
-                        }
-                        handleStatusUpdate("rejected", "reject", { rejectionReason: reason.trim() });
-                      }
+                      setRejectModalState({
+                        isOpen: true,
+                        title: "Reject Return After Inspection",
+                        reason: "",
+                        required: true,
+                        onConfirm: (reason) => {
+                          if (!reason || !reason.trim()) {
+                            toast.error("Rejection reason is required.");
+                            return false;
+                          }
+                          handleStatusUpdate("rejected", "reject", { rejectionReason: reason.trim() });
+                          return true;
+                        },
+                      });
                     }}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-750 transition-colors text-sm font-semibold">
                     <FiX className="text-sm" />
@@ -340,9 +366,14 @@ const ReturnRequestDetail = () => {
               {returnRequest.status === "replacement_preparing" && (
                 <button
                   onClick={() => {
-                    if (window.confirm("Are you sure the replacement package is ready for dispatch?")) {
-                      handleStatusUpdate("replacement_ready", "mark-ready");
-                    }
+                    setConfirmModal({
+                      isOpen: true,
+                      title: "Mark Replacement Ready",
+                      message: "Are you sure the replacement package is ready for dispatch?",
+                      confirmText: "Mark Ready",
+                      type: "info",
+                      onConfirm: () => handleStatusUpdate("replacement_ready", "mark-ready"),
+                    });
                   }}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-semibold">
                   <FiPackage className="text-sm" />
@@ -948,6 +979,89 @@ const ReturnRequestDetail = () => {
           </div>
         </div>
       </div>
+
+      {/* Confirmation Modal Card */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={() => {
+          if (confirmModal.onConfirm) confirmModal.onConfirm();
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        }}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText || "Confirm"}
+        type={confirmModal.type || "info"}
+      />
+
+      {/* Custom Rejection Reason Modal Card */}
+      <AnimatePresence>
+        {rejectModalState.isOpen && (
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setRejectModalState((prev) => ({ ...prev, isOpen: false }))}
+              className="fixed inset-0 bg-black/50"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative z-10 space-y-4"
+            >
+              <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                  <FiAlertCircle className="text-red-500" />
+                  {rejectModalState.title}
+                </h3>
+                <button
+                  onClick={() => setRejectModalState((prev) => ({ ...prev, isOpen: false }))}
+                  className="p-1 text-gray-400 hover:text-gray-600 rounded-lg"
+                >
+                  <FiX className="text-lg" />
+                </button>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                  Rejection Reason {rejectModalState.required ? <span className="text-red-500">*</span> : "(Optional)"}
+                </label>
+                <textarea
+                  value={rejectModalState.reason}
+                  onChange={(e) => setRejectModalState((prev) => ({ ...prev, reason: e.target.value }))}
+                  placeholder="Enter rejection reason..."
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  onClick={() => setRejectModalState((prev) => ({ ...prev, isOpen: false }))}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    const result = rejectModalState.onConfirm
+                      ? rejectModalState.onConfirm(rejectModalState.reason)
+                      : true;
+                    if (result !== false) {
+                      setRejectModalState((prev) => ({ ...prev, isOpen: false }));
+                    }
+                  }}
+                  className="px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 transition-colors shadow-sm"
+                >
+                  Confirm Rejection
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };

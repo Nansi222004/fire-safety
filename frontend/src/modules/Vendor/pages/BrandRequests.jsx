@@ -78,7 +78,7 @@ const BrandRequests = () => {
     setIsUploadingLogo(true);
     try {
       const response = await uploadVendorImage(file, "brands");
-      const logoUrl = response?.data?.url;
+      const logoUrl = response?.data?.url || response?.url;
       if (!logoUrl) {
         toast.error("Logo upload failed");
         return;

@@ -35,7 +35,7 @@ export const useCategoryStore = create(
             : await getPublicCategories();
           const rawList = Array.isArray(response?.data) 
             ? response.data 
-            : (response?.data?.categories || []);
+            : (Array.isArray(response) ? response : (response?.data?.categories || response?.categories || []));
           const normalizedCategories = rawList.map(cat => ({
             ...cat,
             id: cat._id || cat.id,
@@ -96,9 +96,10 @@ export const useCategoryStore = create(
         set({ isLoading: true });
         try {
           const response = await createCategory(categoryData);
+          const catRes = response?.data || response;
           const newCategory = {
-            ...response.data,
-            id: response.data._id
+            ...catRes,
+            id: catRes._id
           };
 
           set((state) => ({
@@ -118,9 +119,10 @@ export const useCategoryStore = create(
         set({ isLoading: true });
         try {
           const response = await updateCategory(id, categoryData);
+          const catRes = response?.data || response;
           const updatedCategory = {
-            ...response.data,
-            id: response.data._id
+            ...catRes,
+            id: catRes._id
           };
 
           set((state) => ({
@@ -225,7 +227,8 @@ export const useCategoryStore = create(
         set({ isLoading: true });
         try {
           const response = await reorderCategoriesApi(categoryIds);
-          const normalizedCategories = (response.data || []).map((cat) => ({
+          const rawCategories = Array.isArray(response?.data) ? response.data : (Array.isArray(response) ? response : []);
+          const normalizedCategories = rawCategories.map((cat) => ({
             ...cat,
             id: cat._id,
           }));
@@ -243,9 +246,9 @@ export const useCategoryStore = create(
         set({ isLoading: true });
         try {
           const response = await getVendorCategoryRequests(params);
-          const payload = response.data;
+          const payload = response?.data || response || {};
           set({
-            categoryRequests: payload.requests || payload,
+            categoryRequests: payload.requests || (Array.isArray(payload) ? payload : []),
             isLoading: false
           });
           return payload;
@@ -262,7 +265,7 @@ export const useCategoryStore = create(
           const response = await requestVendorCategory(categoryData);
           set({ isLoading: false });
           toast.success('Category request submitted successfully');
-          return response.data;
+          return response?.data || response;
         } catch (error) {
           set({ isLoading: false });
           throw error;
@@ -276,7 +279,7 @@ export const useCategoryStore = create(
           const response = await resubmitVendorCategoryRequest(id, categoryData);
           set({ isLoading: false });
           toast.success('Category request resubmitted successfully');
-          return response.data;
+          return response?.data || response;
         } catch (error) {
           set({ isLoading: false });
           throw error;

@@ -70,7 +70,7 @@ const CategoryRequests = () => {
     setIsUploadingImage(true);
     try {
       const response = await uploadVendorImage(file, "categories");
-      const imageUrl = response?.data?.url;
+      const imageUrl = response?.data?.url || response?.url;
       if (!imageUrl) {
         toast.error("Image upload failed");
         return;

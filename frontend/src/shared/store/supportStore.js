@@ -61,7 +61,7 @@ export const useSupportStore = create((set, get) => ({
         set({ isLoading: true });
         try {
             const response = await adminService.addTicketMessage(id, message);
-            const payload = response?.message !== undefined ? response : (response?.data || response);
+            const payload = response?.message !== undefined ? response : (response?.data || response || true);
             set({ isLoading: false });
             toast.success('Reply added successfully');
             return payload;

@@ -86,8 +86,9 @@ const BrandSelector = ({ value, onChange, name = "brandId", error }) => {
     setIsUploadingLogo(true);
     try {
       const res = await uploadVendorImage(file, "brands");
-      if (res?.data?.url) {
-        setFormData((prev) => ({ ...prev, logo: res.data.url }));
+      const logoUrl = res?.data?.url || res?.url;
+      if (logoUrl) {
+        setFormData((prev) => ({ ...prev, logo: logoUrl }));
         toast.success("Logo uploaded successfully");
       }
     } catch (err) {

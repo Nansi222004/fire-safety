@@ -4,9 +4,10 @@ import logger from '../utils/logger.js';
 
 let io;
 
+const DEFAULT_DEV_ORIGINS = ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:5174', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:5173'];
 const ALLOWED_ORIGINS = process.env.FRONTEND_URL
-    ? process.env.FRONTEND_URL.split(',').map((o) => o.trim())
-    : ['http://localhost:5173'];
+    ? [...new Set([...process.env.FRONTEND_URL.split(',').map((o) => o.trim()), ...DEFAULT_DEV_ORIGINS])]
+    : DEFAULT_DEV_ORIGINS;
 
 // Rooms that require authentication to join
 const PROTECTED_ROOM_PREFIXES = ['user_', 'vendor_', 'delivery_', 'order_', 'chat_', 'admin_'];
@@ -17,7 +18,7 @@ const isProtectedRoom = (room) =>
 export const initSocket = (server) => {
     io = new Server(server, {
         cors: {
-            origin: ALLOWED_ORIGINS,
+            origin: process.env.NODE_ENV === 'production' ? ALLOWED_ORIGINS : (origin, callback) => callback(null, true),
             methods: ['GET', 'POST'],
             credentials: true,
         },

@@ -241,9 +241,15 @@ class OwnFleetProvider extends BaseProvider {
 
         try {
             // Trigger background assignment process
-            autoAssignDeliveryPartner(shipment._id).catch(err => {
-                console.error(`[${PROVIDER_ID}] Background assignment failed: ${err.message}`);
-            });
+            if (shipment.type === 'reverse' && shipment.returnRequestId) {
+                autoAssignReturnPickupPartner(shipment.returnRequestId).catch(err => {
+                    console.error(`[${PROVIDER_ID}] Background return assignment failed: ${err.message}`);
+                });
+            } else {
+                autoAssignDeliveryPartner(shipment._id).catch(err => {
+                    console.error(`[${PROVIDER_ID}] Background assignment failed: ${err.message}`);
+                });
+            }
 
             // Update status immediately so frontend knows it's searching for a driver
             shipment.deliveryAssignmentStatus = 'pending';

@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import SupportTicket from '../../../models/SupportTicket.model.js';
 import TicketType from '../../../models/TicketType.model.js';
 import ApiError from '../../../utils/ApiError.js';
@@ -48,6 +49,17 @@ export const createTicket = asyncHandler(async (req, res) => {
             senderType: 'user',
             message: trimmedMessage
         }]
+    });
+
+    // Fetch user profile for notification
+    const user = await mongoose.model('User').findById(req.user.id);
+
+    // Real-time notification to Admin
+    emitToRoom('admin_room', 'new_notification', {
+        type: 'new_support_ticket',
+        ticketId: ticket._id,
+        from: user?.name || 'Customer',
+        subject: ticket.subject
     });
 
     res.status(201).json(

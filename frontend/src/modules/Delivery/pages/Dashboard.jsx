@@ -152,19 +152,19 @@ const DeliveryDashboard = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-br from-primary-600 to-primary-800 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden"
+          className="bg-gradient-to-br from-primary-600 to-primary-800 rounded-3xl p-4 sm:p-6 text-white shadow-xl relative overflow-hidden"
         >
           {/* Decorative gradients */}
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16" />
           <div className="absolute -bottom-8 -left-8 w-24 h-24 bg-white/5 rounded-full" />
 
-          <div className="flex items-start justify-between mb-4 relative z-10">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center font-black text-white text-base shadow-sm flex-shrink-0">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4 relative z-10">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center font-black text-white text-sm sm:text-base shadow-sm flex-shrink-0">
                 {initials}
               </div>
               <div className="flex-1 min-w-0">
-                <h1 className="text-lg font-extrabold tracking-tight truncate leading-tight">
+                <h1 className="text-base sm:text-lg font-extrabold tracking-tight truncate leading-tight">
                   {deliveryBoy?.name || 'Delivery Boy'}
                 </h1>
                 <p className="text-primary-100 text-[10px] font-bold uppercase tracking-wider mt-0.5">
@@ -177,7 +177,7 @@ const DeliveryDashboard = () => {
               </div>
             </div>
             
-            <div className="relative" ref={statusMenuRef}>
+            <div className="relative flex-shrink-0" ref={statusMenuRef}>
               <button
                 onClick={() => setStatusMenuOpen(!statusMenuOpen)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-white text-xs font-bold transition-all shadow-md ${getStatusButtonColor(deliveryBoy?.status)}`}
@@ -222,17 +222,17 @@ const DeliveryDashboard = () => {
             </div>
           </div>
           
-          <div className="mt-5 flex items-center gap-4 border-t border-white/10 pt-4 text-xs font-semibold text-primary-100 z-10 relative">
-            <div className="flex items-center gap-1.5">
+          <div className="mt-4 flex flex-wrap items-center gap-2 sm:gap-4 border-t border-white/10 pt-3 sm:pt-4 text-xs font-semibold text-primary-100 z-10 relative">
+            <div className="flex items-center gap-1.5 flex-shrink-0">
               <FiTruck className="text-sm" />
               <span>{deliveryBoy?.vehicleType || 'Bike'}</span>
             </div>
-            <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
-            <div className="font-mono bg-white/10 px-2 py-0.5 rounded-md">
+            <div className="w-1.5 h-1.5 rounded-full bg-white/20 hidden xs:inline-block" />
+            <div className="font-mono bg-white/10 px-2 py-0.5 rounded-md text-[11px] sm:text-xs max-w-full truncate">
               {deliveryBoy?.vehicleNumber || 'N/A'}
             </div>
-            <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
-            <div className="text-amber-300 flex items-center gap-1">
+            <div className="w-1.5 h-1.5 rounded-full bg-white/20 hidden xs:inline-block" />
+            <div className="text-amber-300 flex items-center gap-1 flex-shrink-0">
               <span>★</span>
               <span>{Number(deliveryBoy?.rating || 5.0).toFixed(1)}</span>
             </div>

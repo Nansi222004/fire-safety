@@ -765,15 +765,21 @@ router.get('/similar/:id', detailCache, asyncHandler(async (req, res) => {
 }));
 
 const getProductDetail = asyncHandler(async (req, res) => {
-    const product = await Product.findById(req.params.id)
+    const query = Product.findById(req.params.id)
         .populate('categoryId', 'name')
-        .populate('brandId', 'name')
-        .populate({
+        .populate('brandId', 'name');
+
+    if (mongoose.models.VendorStore) {
+        query.populate({
             path: 'vendorId',
             select: 'storeName storeLogo rating storefrontId isVerified',
             populate: { path: 'storefrontId', select: 'slug' }
-        })
-        .lean();
+        });
+    } else {
+        query.populate('vendorId', 'storeName storeLogo rating isVerified');
+    }
+
+    const product = await query.lean();
     if (!product) throw new ApiError(404, 'Product not found.');
     res.status(200).json(new ApiResponse(200, product, 'Product detail.'));
 });
@@ -902,74 +908,82 @@ router.get('/vendors/all', detailCache, asyncHandler(async (req, res) => {
 
 // GET /api/vendors/:id (public)
 router.get('/vendors/:id', detailCache, asyncHandler(async (req, res) => {
-    let vendor = await Vendor.findOne({
+    let query = Vendor.findOne({
         _id: req.params.id,
         status: 'approved',
-    })
-    .populate('storefrontId', 'slug');
+    });
 
+    if (mongoose.models.VendorStore) {
+        query.populate('storefrontId', 'slug');
+    }
+
+    let vendor = await query;
     if (!vendor) throw new ApiError(404, 'Vendor not found.');
 
-    if (!vendor.storefrontId) {
-        const { default: VendorStore } = await import('../models/VendorStore.model.js');
-        const { default: StorePage } = await import('../models/StorePage.model.js');
-        const { slugify } = await import('../utils/slugify.js');
+    if (!vendor.storefrontId && mongoose.models.VendorStore) {
+        try {
+            const { default: VendorStore } = await import('../models/VendorStore.model.js');
+            const { default: StorePage } = await import('../models/StorePage.model.js');
+            const { slugify } = await import('../utils/slugify.js');
 
-        let baseSlug = slugify(vendor.storeName || vendor.name || 'store');
-        let uniqueSlug = baseSlug;
-        let suffix = 1;
-        while (await VendorStore.exists({ slug: uniqueSlug })) {
-            uniqueSlug = `${baseSlug}-${suffix}`;
-            suffix += 1;
+            let baseSlug = slugify(vendor.storeName || vendor.name || 'store');
+            let uniqueSlug = baseSlug;
+            let suffix = 1;
+            while (await VendorStore.exists({ slug: uniqueSlug })) {
+                uniqueSlug = `${baseSlug}-${suffix}`;
+                suffix += 1;
+            }
+
+            const store = await VendorStore.create({
+                vendorId: vendor._id,
+                storeName: vendor.storeName || vendor.name,
+                slug: uniqueSlug,
+                description: vendor.storeDescription || '',
+                logo: vendor.storeLogo || '',
+                verified: vendor.isVerified || false,
+                navigation: [
+                    { title: 'Home', iconName: 'FiHome', target: { type: 'page', path: 'home' }, order: 1, enabled: true },
+                    { title: 'About', iconName: 'FiInfo', target: { type: 'custom', path: '/about' }, order: 2, enabled: true }
+                ]
+            });
+
+            await StorePage.create({
+                ownerId: vendor._id,
+                ownerType: 'vendor',
+                pageType: 'home',
+                pageKey: 'home',
+                slug: 'home',
+                title: 'Home Page',
+                pageSettings: { title: 'Home Page', enabled: true },
+                sections: [
+                    {
+                        sectionType: 'Text Block',
+                        title: `Welcome to ${store.storeName}`,
+                        subtitle: 'Designing high-quality collections for our marketplace.',
+                        order: 1,
+                        enabled: true
+                    }
+                ],
+                publishedSections: [
+                    {
+                        sectionType: 'Text Block',
+                        title: `Welcome to ${store.storeName}`,
+                        subtitle: 'Designing high-quality collections for our marketplace.',
+                        order: 1,
+                        enabled: true
+                    }
+                ],
+                status: 'published',
+                publishVersion: 1
+            });
+
+            vendor.storefrontId = store._id;
+            await vendor.save();
+
+            vendor = await Vendor.findOne({ _id: vendor._id }).populate('storefrontId', 'slug');
+        } catch (err) {
+            console.warn('[VendorStore] Optional storefront creation skipped:', err.message);
         }
-
-        const store = await VendorStore.create({
-            vendorId: vendor._id,
-            storeName: vendor.storeName || vendor.name,
-            slug: uniqueSlug,
-            description: vendor.storeDescription || '',
-            logo: vendor.storeLogo || '',
-            verified: vendor.isVerified || false,
-            navigation: [
-                { title: 'Home', iconName: 'FiHome', target: { type: 'page', path: 'home' }, order: 1, enabled: true },
-                { title: 'About', iconName: 'FiInfo', target: { type: 'custom', path: '/about' }, order: 2, enabled: true }
-            ]
-        });
-
-        await StorePage.create({
-            ownerId: vendor._id,
-            ownerType: 'vendor',
-            pageType: 'home',
-            pageKey: 'home',
-            slug: 'home',
-            title: 'Home Page',
-            pageSettings: { title: 'Home Page', enabled: true },
-            sections: [
-                {
-                    sectionType: 'Text Block',
-                    title: `Welcome to ${store.storeName}`,
-                    subtitle: 'Designing high-quality collections for our marketplace.',
-                    order: 1,
-                    enabled: true
-                }
-            ],
-            publishedSections: [
-                {
-                    sectionType: 'Text Block',
-                    title: `Welcome to ${store.storeName}`,
-                    subtitle: 'Designing high-quality collections for our marketplace.',
-                    order: 1,
-                    enabled: true
-                }
-            ],
-            status: 'published',
-            publishVersion: 1
-        });
-
-        vendor.storefrontId = store._id;
-        await vendor.save();
-
-        vendor = await Vendor.findOne({ _id: vendor._id }).populate('storefrontId', 'slug');
     }
 
     res.status(200).json(new ApiResponse(200, toPublicVendor(vendor.toObject()), 'Vendor detail fetched.'));
