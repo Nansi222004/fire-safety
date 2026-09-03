@@ -1,7 +1,14 @@
 import { io } from 'socket.io-client';
 
-const rawSocketUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000').trim().replace(/\/api\/?$/, '').replace(/\/+$/, '');
-const SOCKET_URL = rawSocketUrl || 'http://localhost:5000';
+const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+
+if (!rawApiBaseUrl || typeof rawApiBaseUrl !== 'string' || !rawApiBaseUrl.trim()) {
+    throw new Error(
+        'VITE_API_BASE_URL is not configured. Please set VITE_API_BASE_URL in your environment variables (e.g., VITE_API_BASE_URL=http://localhost:5000/api for local development or VITE_API_BASE_URL=https://firesafetyshop.in/api for production).'
+    );
+}
+
+const SOCKET_URL = rawApiBaseUrl.trim().replace(/\/api\/?$/, '').replace(/\/+$/, '');
 
 let socket = null;
 let currentToken = null;
