@@ -1,7 +1,6 @@
-import logoImage from "../assets/fire-safety-logo.jpg";
+import logoImage from "../../data/logos/safefire_logo.png";
 
 export const appLogo = {
   src: logoImage,
-  alt: "Fire Safety Shop Logo",
+  alt: "App Logo",
 };
-

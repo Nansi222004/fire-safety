@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import toast from "react-hot-toast";
-import logoImage from "../../assets/fire-safety-logo.jpg";
+import logoImage from "../../../data/logos/safefire_logo.png";
 import api from "../utils/api";
 
 const defaultSettings = {

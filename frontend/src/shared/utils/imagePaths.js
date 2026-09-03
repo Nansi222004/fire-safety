@@ -1,4 +1,4 @@
-import appLogo from "../../assets/fire-safety-logo.jpg";
+import appLogo from "../../../data/logos/safefire_logo.png";
 
 // Fire Safety visual placeholders
 const extRedImg = "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=800&q=80";
@@ -19,9 +19,6 @@ export const imageMap = {
   // Logos
   "/images/logos/logo.png": appLogo,
   "/images/logos/safefire_logo.png": appLogo,
-  "/images/logos/fire-safety-logo.jpg": appLogo,
-  "/logos/safefire_logo.png": appLogo,
-  "/logos/fire-safety-logo.jpg": appLogo,
 
   // Hero & Banners
   "/images/hero/slide1.png": extRedImg,
