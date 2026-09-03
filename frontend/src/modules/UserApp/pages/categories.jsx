@@ -18,7 +18,7 @@ const ALL_CATEGORY = {
   id: "all",
   name: "All",
   description: "Certified fire extinguishers, hoses, alarms & safety gear across all categories",
-  image: "/logos/safefire_logo.png",
+  image: "/logos/fire-safety-logo.jpg",
   isAll: true,
 };
 

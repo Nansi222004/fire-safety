@@ -22,7 +22,7 @@ const seedCustomProducts = async () => {
           slug: 'safefire',
           visibility: 'global',
           isActive: true,
-          logo: '/logos/safefire_logo.png',
+          logo: '/logos/fire-safety-logo.jpg',
         },
       },
       { upsert: true, new: true }
