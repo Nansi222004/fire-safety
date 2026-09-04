@@ -1,7 +1,8 @@
 import { io } from 'socket.io-client';
 
-const rawSocketUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000').trim().replace(/\/api\/?$/, '').replace(/\/+$/, '');
-const SOCKET_URL = rawSocketUrl || 'http://localhost:5000';
+const rawApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000').trim();
+const SOCKET_URL = rawApiBaseUrl.replace(/\/api\/?$/, '').replace(/\/+$/, '') || 'http://localhost:5000';
+
 
 let socket = null;
 let currentToken = null;

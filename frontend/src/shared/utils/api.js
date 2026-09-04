@@ -159,7 +159,24 @@ const runRefresh = async (scope) => {
 api.interceptors.request.use(
   (config) => {
     const scope = getScopeFromUrl(config.url || '');
-    const token = localStorage.getItem(AUTH_SCOPES[scope].accessKey);
+    let token = localStorage.getItem(AUTH_SCOPES[scope]?.accessKey);
+
+    // If no token found under determined scope and URL is not strictly scope-prefixed, check active path scope or fallback
+    if (!token && (!config.url || (!config.url.startsWith('/user') && !config.url.startsWith('/admin') && !config.url.startsWith('/vendor') && !config.url.startsWith('/delivery')))) {
+      const pathScope = getScopeFromPath();
+      const pathToken = localStorage.getItem(AUTH_SCOPES[pathScope]?.accessKey);
+      if (pathToken) {
+        token = pathToken;
+      } else {
+        token =
+          localStorage.getItem('adminToken') ||
+          localStorage.getItem('vendor-token') ||
+          localStorage.getItem('delivery-token') ||
+          localStorage.getItem('token') ||
+          localStorage.getItem('user-token');
+      }
+    }
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

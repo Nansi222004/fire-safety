@@ -302,6 +302,25 @@ export const useAuthStore = create(
         }
       },
 
+      // Fetch fresh profile & wallet data
+      fetchUserProfile: async () => {
+        try {
+          const response = await api.get('/user/auth/profile');
+          const payload = response?.data?.user || response?.data || response;
+          if (payload) {
+            const currentUser = get().user || {};
+            const nextUser = {
+              ...currentUser,
+              ...payload,
+            };
+            set({ user: nextUser });
+            return nextUser;
+          }
+        } catch (error) {
+          // silent fallback
+        }
+      },
+
       // Initialize auth state from localStorage
       initialize: () => {
         set({ isLoading: false });

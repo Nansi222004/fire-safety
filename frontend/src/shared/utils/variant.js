@@ -28,7 +28,6 @@ export const formatVariantLabel = (variant = {}) => {
     })
     .join(" | ");
 };
-
 const toEntries = (value) => {
   if (!value) return [];
   if (value instanceof Map) return Array.from(value.entries());

@@ -184,3 +184,75 @@ export const sendTestNotification = asyncHandler(async (req, res) => {
         result,
     });
 });
+
+/**
+ * @desc    Broadcast push notification to target audience (Admin only / Authenticated)
+ * @route   POST /api/fcm-tokens/broadcast
+ * @access  Private
+ */
+export const sendBroadcastNotification = asyncHandler(async (req, res) => {
+    const { title, message, target = 'all', data = {} } = req.body;
+
+    if (!title || !message) {
+        throw new ApiError(400, 'Title and message are required.');
+    }
+
+    let tokens = [];
+
+    if (target === 'customers' || target === 'customer') {
+        const users = await User.find({ status: { $ne: 'deleted' } }).select('fcmTokens fcmTokenMobile').lean();
+        users.forEach(u => tokens.push(...(u.fcmTokens || []), ...(u.fcmTokenMobile || [])));
+    } else if (target === 'vendors' || target === 'vendor') {
+        const vendors = await Vendor.find({ status: { $ne: 'deleted' } }).select('fcmTokens fcmTokenMobile').lean();
+        vendors.forEach(v => tokens.push(...(v.fcmTokens || []), ...(v.fcmTokenMobile || [])));
+    } else if (target === 'delivery-boy' || target === 'delivery') {
+        const deliveryBoys = await DeliveryBoy.find({ status: { $ne: 'deleted' } }).select('fcmTokens fcmTokenMobile').lean();
+        deliveryBoys.forEach(d => tokens.push(...(d.fcmTokens || []), ...(d.fcmTokenMobile || [])));
+    } else if (target === 'admin' || target === 'admins') {
+        const admins = await Admin.find().select('fcmTokens fcmTokenMobile').lean();
+        admins.forEach(a => tokens.push(...(a.fcmTokens || []), ...(a.fcmTokenMobile || [])));
+    } else {
+        const [users, vendors, deliveryBoys, admins] = await Promise.all([
+            User.find().select('fcmTokens fcmTokenMobile').lean(),
+            Vendor.find().select('fcmTokens fcmTokenMobile').lean(),
+            DeliveryBoy.find().select('fcmTokens fcmTokenMobile').lean(),
+            Admin.find().select('fcmTokens fcmTokenMobile').lean(),
+        ]);
+        users.forEach(u => tokens.push(...(u.fcmTokens || []), ...(u.fcmTokenMobile || [])));
+        vendors.forEach(v => tokens.push(...(v.fcmTokens || []), ...(v.fcmTokenMobile || [])));
+        deliveryBoys.forEach(d => tokens.push(...(d.fcmTokens || []), ...(d.fcmTokenMobile || [])));
+        admins.forEach(a => tokens.push(...(a.fcmTokens || []), ...(a.fcmTokenMobile || [])));
+    }
+
+    const uniqueTokens = [...new Set(tokens.filter(Boolean))];
+
+    if (uniqueTokens.length === 0) {
+        return res.status(200).json({
+            success: true,
+            message: 'No registered FCM tokens found for target audience.',
+            data: { target, tokenCount: 0, result: { successCount: 0, failureCount: 0 } },
+        });
+    }
+
+    const result = await sendPushNotification(uniqueTokens, {
+        title,
+        body: message,
+        data: {
+            ...data,
+            type: 'broadcast',
+            target,
+            timestamp: new Date().toISOString(),
+        },
+    });
+
+    res.status(200).json({
+        success: true,
+        message: `Push notification broadcast dispatched to ${uniqueTokens.length} device(s).`,
+        data: {
+            target,
+            tokenCount: uniqueTokens.length,
+            result,
+        },
+    });
+});
+

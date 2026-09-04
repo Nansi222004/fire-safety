@@ -28,6 +28,7 @@ const walletTransactionSchema = new mongoose.Schema(
                 'reward',
                 'promo_credit',
                 'wallet_payment',
+                'gift_card_redemption',
                 'admin_adjustment',
                 'reversal',
             ],
@@ -59,6 +60,11 @@ const walletTransactionSchema = new mongoose.Schema(
         returnRequestId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'ReturnRequest',
+            index: true,
+        },
+        giftCardId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'GiftCard',
             index: true,
         },
         description: {

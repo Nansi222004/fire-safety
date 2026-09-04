@@ -17,6 +17,7 @@ import webhookRouter from './modules/user/routes/webhook.routes.js';
 import paymentRouter from './modules/user/routes/payment.routes.js';
 import fcmTokenRoutes from './routes/fcmToken.routes.js';
 import customerServiceRoutes from './modules/customer/routes/customerService.routes.js';
+import giftCardRoutes, { adminGiftCardRouter } from './routes/giftCard.routes.js';
 
 // Middleware imports
 import { apiLimiter } from './middlewares/rateLimiter.js';
@@ -24,6 +25,7 @@ import errorHandler from './middlewares/errorHandler.js';
 import notFound from './middlewares/notFound.js';
 
 const app = express();
+app.set('trust proxy', 1);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const uploadsRoot = path.resolve(__dirname, '../uploads');
@@ -48,20 +50,22 @@ const isValidDeliveryDocToken = (relativePath, rawToken) => {
 };
 
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
-const ALLOWED_ORIGINS = process.env.FRONTEND_URL
-    ? process.env.FRONTEND_URL.split(',').map((o) => o.trim())
-    : ['http://localhost:5173'];
+const envOrigins = [process.env.FRONTEND_URL, process.env.CLIENT_URL]
+    .filter(Boolean)
+    .flatMap((u) => u.split(','))
+    .map((o) => o.trim().replace(/\/+$/, ''));
+const ALLOWED_ORIGINS = envOrigins.length > 0 ? envOrigins : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173'];
 
 // ─── Security Middleware ─────────────────────────────────────────────────────
 app.use(helmet());
 app.use(mongoSanitize());
 app.use(cors({
-    origin: IS_PRODUCTION
-        ? (origin, callback) => {
-            if (!origin || ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
-            callback(new Error(`CORS policy: Origin ${origin} not allowed.`));
-        }
-        : true, // Allow all origins in development
+    origin: (origin, callback) => {
+        if (!origin || !IS_PRODUCTION) return callback(null, true);
+        const normalized = origin.trim().replace(/\/+$/, '');
+        if (ALLOWED_ORIGINS.includes(normalized)) return callback(null, true);
+        callback(new Error(`CORS policy: Origin ${origin} not allowed.`));
+    },
     credentials: true,
 }));
 
@@ -118,6 +122,9 @@ app.use('/api/vendor/fcm-tokens', fcmTokenRoutes);    // FCM Tokens scoped for v
 app.use('/api/delivery/fcm-tokens', fcmTokenRoutes);  // FCM Tokens scoped for delivery
 app.use('/api/admin/fcm-tokens', fcmTokenRoutes);     // FCM Tokens scoped for admin
 app.use('/api/customer', customerServiceRoutes);      // Customer Services & Bookings: catalog, pincode check, bookings
+app.use('/api/gift-cards', giftCardRoutes);               // Gift Cards & Vouchers (Customer)
+app.use('/api/user/gift-cards', giftCardRoutes);          // Gift Cards & Vouchers (Customer alias)
+app.use('/api/admin/gift-cards', adminGiftCardRouter);     // Gift Cards & Vouchers (Admin)
 app.use('/api/user', userRoutes);                    // Customer: auth, addresses, wishlist, reviews, orders
 app.use('/api/user/payment', paymentRouter);         // Payment: initialize, retry, exchange-upgrade
 app.use('/api/admin', adminRoutes);                  // Admin: auth, vendors, orders, catalog, analytics

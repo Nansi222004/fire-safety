@@ -46,7 +46,7 @@ export const creditWallet = async (userId, amount, transactionType, details = {}
     }
 
     // 1. Check if reference already exists to prevent duplicate credit
-    const { reference, returnRequestId, orderId, description, expiresAt, createdBy, createdByModel, adjustmentReason } = details;
+    const { reference, returnRequestId, orderId, giftCardId, description, expiresAt, createdBy, createdByModel, adjustmentReason } = details;
     if (reference) {
         // Check if Wallet transaction with the same reference already exists
         const existingTxn = await WalletTransaction.findOne({ reference }).session(session);
@@ -112,6 +112,7 @@ export const creditWallet = async (userId, amount, transactionType, details = {}
             balanceAfter,
             orderId,
             returnRequestId,
+            giftCardId,
             description: description || `Credited ₹${amount} for ${transactionType}`,
             reference,
             expiresAt,
@@ -139,6 +140,8 @@ export const creditWallet = async (userId, amount, transactionType, details = {}
         notificationMsg = `Reward bonus of ₹${amount} has been added to your wallet.`;
     } else if (transactionType === 'promo_credit') {
         notificationMsg = `₹${amount} promotional credit has been added to your wallet.`;
+    } else if (transactionType === 'gift_card_redemption') {
+        notificationMsg = `Gift card redeemed successfully! ₹${amount} has been added to your SafeFire Wallet.`;
     } else if (transactionType === 'admin_adjustment') {
         notificationMsg = `₹${amount} manual adjustment has been credited to your wallet: ${description || 'Admin credit'}`;
     }
