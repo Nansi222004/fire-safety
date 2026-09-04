@@ -35,12 +35,13 @@ export const useReturnStore = create((set, get) => ({
                     limit: pageSize,
                 });
 
-                const pageRequests = Array.isArray(response?.data?.returnRequests)
-                    ? response.data.returnRequests
-                    : [];
+                const data = response?.data ?? response;
+                const pageRequests = Array.isArray(data?.returnRequests)
+                    ? data.returnRequests
+                    : (Array.isArray(data) ? data : []);
                 allRequests.push(...pageRequests);
 
-                const pagination = response?.data?.pagination || {};
+                const pagination = data?.pagination || response?.pagination || {};
                 latestPagination = {
                     total: Number.isFinite(Number(pagination.total))
                         ? Number(pagination.total)
@@ -68,7 +69,8 @@ export const useReturnStore = create((set, get) => ({
                         pages: latestPagination.pages,
                     }
                     : latestPagination,
-                isLoading: false
+                isLoading: false,
+                error: null
             });
         } catch (error) {
             set({ error: error.message, isLoading: false });
@@ -77,33 +79,33 @@ export const useReturnStore = create((set, get) => ({
     },
 
     fetchReturnRequestById: async (id) => {
-        set({ isLoading: true });
+        set({ isLoading: true, error: null });
         try {
             const response = await adminService.getReturnRequestById(id);
             set({ isLoading: false });
-            return response.data;
+            return response?.data ?? response;
         } catch (error) {
-            set({ isLoading: false });
+            set({ isLoading: false, error: error.message || 'Failed to fetch return request details' });
             toast.error(error.message || 'Failed to fetch return request details');
             return null;
         }
     },
 
     updateReturnStatus: async (id, statusData) => {
-        set({ isLoading: true });
+        set({ isLoading: true, error: null });
         try {
             const response = await adminService.updateReturnRequestStatus(id, statusData);
-            const updatedReq = response.data;
+            const updatedReq = response?.data ?? response;
             set((state) => ({
                 returnRequests: state.returnRequests.map((req) =>
-                    req.id === id ? { ...req, ...updatedReq } : req
+                    (req.id === id || req._id === id) ? { ...req, ...updatedReq } : req
                 ),
                 isLoading: false
             }));
             toast.success('Return status updated successfully');
             return true;
         } catch (error) {
-            set({ isLoading: false });
+            set({ isLoading: false, error: error.message || 'Failed to update return status' });
             toast.error(error.message || 'Failed to update return status');
             return false;
         }

@@ -17,8 +17,9 @@ const GeneralSettings = () => {
     const fetchSettings = async () => {
       try {
         const response = await getGeneralSettings();
-        if (response?.data?.value) {
-          setFormData(response.data.value);
+        const config = response?.value ?? response?.data?.value ?? (response && typeof response === 'object' && !response.key ? response : {});
+        if (config && typeof config === 'object' && Object.keys(config).length > 0) {
+          setFormData(config);
         }
       } catch (err) {
         console.error("Error loading general settings:", err);

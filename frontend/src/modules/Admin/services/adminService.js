@@ -408,4 +408,11 @@ export const getAdminServiceBookings = (params = {}) =>
 export const getAdminServiceBookingById = (id) =>
     api.get(`/admin/service-bookings/${id}`);
 
+// ─── Settings by Key ──────────────────────────────────────────────────────────
+export const getSettingsByKey = (key) =>
+    api.get(`/admin/settings/${key}`);
+
+export const updateSettingsByKey = (key, value) =>
+    api.put(`/admin/settings/${key}`, { value });
+
 

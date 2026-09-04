@@ -33,10 +33,10 @@ export const useReviewsStore = create(
           const response = await api.get(
             `/products/${productId}/reviews?sort=${encodeURIComponent(sort)}&page=${page}&limit=${limit}`
           );
-          const payload = response?.data || {};
+          const payload = response?.data ?? response ?? {};
           const fetched = Array.isArray(payload?.reviews)
             ? payload.reviews.map(normalizeReview)
-            : [];
+            : (Array.isArray(payload) ? payload.map(normalizeReview) : []);
 
           set((state) => ({
             reviews: {
@@ -46,8 +46,8 @@ export const useReviewsStore = create(
             reviewsMeta: {
               ...state.reviewsMeta,
               [productId]: {
-                averageRating: payload?.averageRating || 0,
-                totalReviews: payload?.totalReviews || 0,
+                averageRating: Number(payload?.averageRating || 0),
+                totalReviews: Number(payload?.totalReviews || payload?.total || fetched.length),
                 distribution: payload?.distribution || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
                 images: payload?.images || [],
               }
@@ -105,7 +105,7 @@ export const useReviewsStore = create(
           }
 
           const response = await api.post(`/user/products/${normalizedProductId}/review`, reqData);
-          const payload = response?.data;
+          const payload = response?.data ?? response;
           if (payload) {
             const added = normalizeReview(payload);
             set((state) => ({

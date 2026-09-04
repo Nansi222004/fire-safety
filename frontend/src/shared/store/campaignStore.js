@@ -55,7 +55,7 @@ export const useCampaignStore = create((set, get) => ({
       } else {
         toast.success('Campaign created successfully');
       }
-      return response.data;
+      return payload;
     } catch (error) {
       set({ isLoading: false });
       toast.error(error.message || 'Failed to create campaign');
@@ -81,7 +81,7 @@ export const useCampaignStore = create((set, get) => ({
       } else {
         toast.success('Campaign updated successfully');
       }
-      return response.data;
+      return payload;
     } catch (error) {
       set({ isLoading: false });
       toast.error(error.message || 'Failed to update campaign');

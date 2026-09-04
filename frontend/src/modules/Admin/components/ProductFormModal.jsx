@@ -101,7 +101,10 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
     const fetchVendors = async () => {
       try {
         const response = await getAllVendors({ status: "approved", limit: 200 });
-        const vendorRows = response.data?.vendors || [];
+        const data = response?.data ?? response;
+        const vendorRows = Array.isArray(data?.vendors)
+          ? data.vendors
+          : (Array.isArray(data) ? data : []);
         setVendors(vendorRows);
       } catch (error) {
         setVendors([]);
@@ -115,7 +118,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
     const fetchProduct = async () => {
       try {
         const response = await getProductById(productId);
-        const product = response.data;
+        const product = response?.data ?? response;
 
         if (product) {
           const productCategoryId = extractId(product.categoryId);

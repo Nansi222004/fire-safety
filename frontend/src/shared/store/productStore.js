@@ -19,11 +19,13 @@ export const useProductStore = create((set, get) => ({
         set({ isLoading: true });
         try {
             const response = await adminService.getAllProducts(params);
-            // Check if response.data is an array or object with products
-            const productsData = Array.isArray(response.data) ? response.data : (response.data.products || []);
+            const payload = response?.data ?? response;
+            const productsData = Array.isArray(payload)
+                ? payload
+                : (Array.isArray(payload?.products) ? payload.products : []);
             const normalizedProducts = productsData.map(p => ({
                 ...p,
-                id: p._id,
+                id: p._id || p.id,
                 stockQuantity: p.stockQuantity || 0,
                 price: p.price || 0,
                 image: p.image || p.images?.[0] || PRODUCT_IMAGE_PLACEHOLDER
@@ -31,7 +33,7 @@ export const useProductStore = create((set, get) => ({
 
             set({
                 products: normalizedProducts,
-                pagination: response.data.pagination || get().pagination,
+                pagination: payload?.pagination || response?.pagination || get().pagination,
                 isLoading: false
             });
         } catch (error) {

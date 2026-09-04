@@ -32,7 +32,7 @@ export const useBannerStore = create((set, get) => ({
         isLoading: false
       }));
       toast.success("Banner created successfully");
-      return response.data;
+      return newBanner;
     } catch (error) {
       set({ isLoading: false });
       toast.error(error.message || "Failed to create banner");
@@ -50,7 +50,7 @@ export const useBannerStore = create((set, get) => ({
         isLoading: false
       }));
       toast.success("Banner updated successfully");
-      return response.data;
+      return updatedBanner;
     } catch (error) {
       set({ isLoading: false });
       toast.error(error.message || "Failed to update banner");

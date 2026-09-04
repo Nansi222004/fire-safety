@@ -14,65 +14,80 @@ export const useCustomerStore = create(
         limit: 10,
         pages: 0
       },
-      isLoading: false,
+      error: null,
 
       // Initialize/Fetch customers
       initialize: async (params = {}) => {
-        set({ isLoading: true });
+        set({ isLoading: true, error: null });
         try {
           const response = await adminService.getAllCustomers(params);
-          const { customers, pagination } = response.data;
+          const data = response?.data ?? response;
+          const rawCustomers = Array.isArray(data?.customers)
+            ? data.customers
+            : (Array.isArray(data) ? data : []);
+          const pagination = data?.pagination || {
+            total: rawCustomers.length,
+            page: 1,
+            limit: 10,
+            pages: 1
+          };
 
           // Map backend data to frontend expectations
-          const normalizedCustomers = customers.map(c => ({
+          const normalizedCustomers = rawCustomers.map(c => ({
             ...c,
-            id: c._id,
+            id: c._id || c.id,
             status: c.isActive ? 'active' : 'blocked'
           }));
 
           set({
             customers: normalizedCustomers,
             pagination,
-            isLoading: false
+            isLoading: false,
+            error: null
           });
         } catch (error) {
-          set({ isLoading: false });
+          set({ isLoading: false, error: error.message || 'Failed to fetch customers' });
           // Error handled by api interceptor
         }
       },
 
       // Get customer by ID from API
       fetchCustomerById: async (id) => {
-        set({ isLoading: true });
+        set({ isLoading: true, error: null });
         try {
           const response = await adminService.getCustomerById(id);
-          const customer = response.data;
+          const customer = response?.data ?? response;
+
+          if (!customer) {
+            set({ selectedCustomer: null, isLoading: false });
+            return null;
+          }
 
           const normalizedCustomer = {
             ...customer,
-            id: customer._id,
+            id: customer._id || customer.id,
             status: customer.isActive ? 'active' : 'blocked'
           };
 
-          set({ selectedCustomer: normalizedCustomer, isLoading: false });
+          set({ selectedCustomer: normalizedCustomer, isLoading: false, error: null });
           return normalizedCustomer;
         } catch (error) {
-          set({ isLoading: false });
+          set({ isLoading: false, error: error.message || 'Failed to fetch customer details' });
           return null;
         }
       },
 
       // Update customer details via API
       updateCustomer: async (id, customerData) => {
-        set({ isLoading: true });
+        set({ isLoading: true, error: null });
         try {
           const response = await adminService.updateCustomer(id, customerData);
-          const updatedCustomer = response.data;
+          const updatedCustomer = response?.data ?? response;
 
           set((state) => ({
             customers: state.customers.map(c =>
               String(c.id) === String(id)
-                ? { ...c, ...updatedCustomer, id: updatedCustomer._id, status: updatedCustomer.isActive ? 'active' : 'blocked' }
+                ? { ...c, ...updatedCustomer, id: updatedCustomer._id || updatedCustomer.id, status: updatedCustomer.isActive ? 'active' : 'blocked' }
                 : c
             ),
             isLoading: false
@@ -81,11 +96,11 @@ export const useCustomerStore = create(
           toast.success('Customer updated successfully');
           return {
             ...updatedCustomer,
-            id: updatedCustomer._id,
+            id: updatedCustomer._id || updatedCustomer.id,
             status: updatedCustomer.isActive ? 'active' : 'blocked'
           };
         } catch (error) {
-          set({ isLoading: false });
+          set({ isLoading: false, error: error.message || 'Failed to update customer' });
           throw error;
         }
       },
@@ -102,10 +117,10 @@ export const useCustomerStore = create(
 
         const newIsActive = !(customer.status === 'active');
 
-        set({ isLoading: true });
+        set({ isLoading: true, error: null });
         try {
           const response = await adminService.updateCustomerStatus(id, newIsActive);
-          const updatedCustomer = response.data;
+          const updatedCustomer = response?.data ?? response;
 
           // Update local state
           set((state) => ({

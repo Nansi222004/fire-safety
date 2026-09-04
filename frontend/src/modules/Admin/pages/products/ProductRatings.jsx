@@ -33,7 +33,10 @@ const ProductRatings = () => {
         limit: 200,
       };
       const response = await getAllReviews(params);
-      const reviewRows = response.data?.reviews || [];
+      const data = response?.data ?? response;
+      const reviewRows = Array.isArray(data?.reviews)
+        ? data.reviews
+        : (Array.isArray(data) ? data : []);
       const normalizedRows = reviewRows.map((row) => ({
         ...row,
         date: row.createdAt || row.date,

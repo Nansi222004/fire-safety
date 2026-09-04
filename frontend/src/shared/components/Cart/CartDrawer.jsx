@@ -2,21 +2,20 @@ import { useEffect, useState, useRef, useMemo } from "react";
 import {
   FiX,
   FiShoppingBag,
+  FiTag,
+  FiCheck,
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCartStore, useUIStore } from "../../store/useStore";
 import { useAuthStore } from "../../store/authStore";
 import { formatPrice } from "../../utils/helpers";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import SwipeableCartItem from "./SwipeableCartItem";
-
-const DUMMY_COUPONS = [
-    { code: "SAVE10", label: "10% OFF on this order" },
-    { code: "FLAT200", label: "Flat 200 OFF above 1999" },
-    { code: "FREESHIP", label: "Free shipping coupon" },
-];
+import api from "../../utils/api";
+import toast from "react-hot-toast";
 
 const CartDrawer = () => {
+  const navigate = useNavigate();
   const checkoutLink = "/checkout";
   const { isCartOpen, toggleCart } = useUIStore();
   const {
@@ -29,6 +28,26 @@ const CartDrawer = () => {
   
   const [showCoupons, setShowCoupons] = useState(false);
   const [showConvenienceInfo, setShowConvenienceInfo] = useState(false);
+  const [availableCoupons, setAvailableCoupons] = useState([]);
+  const [isLoadingCoupons, setIsLoadingCoupons] = useState(false);
+
+  useEffect(() => {
+    if (isCartOpen) {
+      const fetchCoupons = async () => {
+        setIsLoadingCoupons(true);
+        try {
+          const res = await api.get('/coupons/available');
+          const list = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+          setAvailableCoupons(list);
+        } catch {
+          setAvailableCoupons([]);
+        } finally {
+          setIsLoadingCoupons(false);
+        }
+      };
+      fetchCoupons();
+    }
+  }, [isCartOpen]);
 
   // Group items by vendor
   const itemsByVendor = useMemo(
@@ -193,16 +212,44 @@ const CartDrawer = () => {
                     </div>
                     {showCoupons && (
                       <div className="mt-3 space-y-2 px-1">
-                        {DUMMY_COUPONS.map((coupon) => (
-                          <button
-                            key={coupon.code}
-                            type="button"
-                            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-left"
-                          >
-                            <p className="text-[12px] font-semibold text-gray-800">{coupon.code}</p>
-                            <p className="text-[11px] text-gray-500">{coupon.label}</p>
-                          </button>
-                        ))}
+                        {isLoadingCoupons ? (
+                          <div className="p-3 text-center text-xs text-gray-500">Loading coupons...</div>
+                        ) : availableCoupons.length === 0 ? (
+                          <div className="p-3 text-center text-xs text-gray-500 border border-dashed border-gray-200 rounded-xl">
+                            No coupons currently available
+                          </div>
+                        ) : (
+                          availableCoupons.map((coupon) => {
+                            const discountLabel = coupon.discountType === 'percentage'
+                              ? `${coupon.discountValue}% OFF`
+                              : `₹${coupon.discountValue} OFF`;
+                            const desc = coupon.description || (coupon.minOrderValue ? `On orders above ₹${coupon.minOrderValue}` : 'Special promotional discount');
+                            return (
+                              <button
+                                key={coupon._id || coupon.code}
+                                type="button"
+                                onClick={() => {
+                                  toggleCart();
+                                  navigate(`/checkout?coupon=${encodeURIComponent(coupon.code)}`);
+                                  toast.success(`Coupon ${coupon.code} selected for checkout!`);
+                                }}
+                                className="w-full rounded-xl border border-primary-200 bg-primary-50/40 hover:bg-primary-50 px-3 py-2.5 text-left transition-colors flex items-center justify-between"
+                              >
+                                <div>
+                                  <div className="flex items-center gap-1.5">
+                                    <FiTag className="text-primary-600 text-xs" />
+                                    <p className="text-[12px] font-bold text-gray-800">{coupon.code}</p>
+                                    <span className="text-[10px] font-semibold text-primary-700 bg-primary-100 px-1.5 py-0.5 rounded">
+                                      {discountLabel}
+                                    </span>
+                                  </div>
+                                  <p className="text-[11px] text-gray-500 mt-0.5">{desc}</p>
+                                </div>
+                                <span className="text-xs font-semibold text-primary-600">Apply</span>
+                              </button>
+                            );
+                          })
+                        )}
                       </div>
                     )}
 

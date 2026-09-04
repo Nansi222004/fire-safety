@@ -83,7 +83,7 @@ const LinkPicker = ({ value, onChange }) => {
         let items = [];
         if (searchType === 'category') {
           const res = await getAllCategories();
-          const categoriesList = Array.isArray(res.data) ? res.data : [];
+          const categoriesList = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : (Array.isArray(res?.categories) ? res.categories : []));
           // Filter root categories (no parentId)
           items = categoriesList
             .filter(c => !c.parentId)
@@ -93,7 +93,7 @@ const LinkPicker = ({ value, onChange }) => {
           }
         } else if (searchType === 'subcategory') {
           const res = await getAllCategories();
-          const categoriesList = Array.isArray(res.data) ? res.data : [];
+          const categoriesList = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : (Array.isArray(res?.categories) ? res.categories : []));
           // Filter sub-categories (has parentId)
           items = categoriesList
             .filter(c => c.parentId)
@@ -107,7 +107,7 @@ const LinkPicker = ({ value, onChange }) => {
           }
         } else if (searchType === 'brand') {
           const res = await getAllBrands();
-          const brandsList = Array.isArray(res.data) ? res.data : [];
+          const brandsList = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : (Array.isArray(res?.brands) ? res.brands : []));
           items = brandsList.map(b => ({ id: b._id, name: b.name, link: `/brand/${b._id}` }));
           if (searchQuery) {
             items = items.filter(i => i.name.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -115,7 +115,7 @@ const LinkPicker = ({ value, onChange }) => {
         } else if (searchType === 'product') {
           const res = await getAllProducts({ search: searchQuery, limit: 10 });
           const payload = Array.isArray(res) ? res : (res?.data ?? res ?? []);
-          const productsList = Array.isArray(payload?.products) ? payload.products : payload;
+          const productsList = Array.isArray(payload?.products) ? payload.products : (Array.isArray(payload) ? payload : []);
           items = productsList.map(p => ({ id: p._id, name: p.name, link: `/product/${p._id}` }));
         } else if (searchType === 'seller') {
           const res = await getAllVendors({ search: searchQuery, limit: 20 });
@@ -127,7 +127,7 @@ const LinkPicker = ({ value, onChange }) => {
           }
         } else if (searchType === 'campaign') {
           const res = await getAllCampaigns();
-          const campaignsList = Array.isArray(res.data) ? res.data : [];
+          const campaignsList = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : (Array.isArray(res?.campaigns) ? res.campaigns : []));
           items = campaignsList.map(c => ({ id: c._id, name: c.name, link: `/sale/${c.slug}` }));
           if (searchQuery) {
             items = items.filter(i => i.name.toLowerCase().includes(searchQuery.toLowerCase()));

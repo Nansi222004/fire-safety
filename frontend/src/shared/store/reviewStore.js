@@ -14,13 +14,25 @@ export const useReviewStore = create((set, get) => ({
     },
 
     fetchReviews: async (params = {}) => {
-        set({ isLoading: true });
+        set({ isLoading: true, error: null });
         try {
             const response = await adminService.getAllReviews(params);
+            const data = response?.data ?? response;
+            const reviewList = Array.isArray(data?.reviews)
+                ? data.reviews
+                : (Array.isArray(data) ? data : []);
+            const pagination = data?.pagination || response?.pagination || {
+                total: reviewList.length,
+                page: 1,
+                limit: 10,
+                pages: 1
+            };
+
             set({
-                reviews: response.data.reviews,
-                pagination: response.data.pagination,
-                isLoading: false
+                reviews: reviewList,
+                pagination,
+                isLoading: false,
+                error: null
             });
         } catch (error) {
             set({ error: error.message, isLoading: false });
