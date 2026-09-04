@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import api from '../../../shared/utils/api';
+import { registerFCMToken, removeFCMToken } from '../../../services/pushNotificationService';
 
 const normalizeDeliveryBoy = (raw) => {
   if (!raw) return null;
@@ -181,6 +182,9 @@ export const useDeliveryAuthStore = create(
           localStorage.setItem('delivery-token', accessToken);
           localStorage.setItem('delivery-refresh-token', refreshToken);
 
+          // Register FCM push token
+          registerFCMToken(true).catch(() => {});
+
           let enriched = loginDeliveryBoy;
           try {
             const profileResponse = await api.get('/delivery/auth/profile');
@@ -211,6 +215,9 @@ export const useDeliveryAuthStore = create(
         if (refreshToken) {
           api.post('/delivery/auth/logout', { refreshToken }).catch(() => {});
         }
+
+        // Remove FCM push token
+        removeFCMToken().catch(() => {});
 
         set({
           deliveryBoy: null,

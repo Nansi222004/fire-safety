@@ -145,6 +145,28 @@ const ManageVendors = () => {
       render: (value) => <span className="text-sm text-gray-700">{value}</span>,
     },
     {
+      key: "vendorCapabilities",
+      label: "Capabilities",
+      sortable: false,
+      render: (_, row) => {
+        const caps = row.vendorCapabilities || { sellsProducts: true, providesServices: false };
+        return (
+          <div className="flex flex-col gap-1 text-[11px]">
+            {caps.sellsProducts && (
+              <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 font-bold w-fit">
+                🛒 Products
+              </span>
+            )}
+            {caps.providesServices && (
+              <span className="px-2 py-0.5 rounded-md bg-orange-50 text-orange-700 font-bold w-fit">
+                🛠️ Services
+              </span>
+            )}
+          </div>
+        );
+      },
+    },
+    {
       key: "status",
       label: "Status",
       sortable: true,
@@ -264,16 +286,14 @@ const ManageVendors = () => {
 
   const handleApprove = async () => {
     const success = await updateVendorStatus(actionModal.vendorId, "approved");
+    setActionModal({
+      isOpen: false,
+      type: null,
+      vendorId: null,
+      vendorName: null,
+    });
     if (success) {
       toast.success("Vendor approved successfully");
-      setActionModal({
-        isOpen: false,
-        type: null,
-        vendorId: null,
-        vendorName: null,
-      });
-    } else {
-      toast.error("Failed to approve vendor");
     }
   };
 
@@ -283,17 +303,15 @@ const ManageVendors = () => {
       "suspended",
       statusReason.trim()
     );
+    setActionModal({
+      isOpen: false,
+      type: null,
+      vendorId: null,
+      vendorName: null,
+    });
+    setStatusReason("");
     if (success) {
       toast.success("Vendor suspended successfully");
-      setActionModal({
-        isOpen: false,
-        type: null,
-        vendorId: null,
-        vendorName: null,
-      });
-      setStatusReason("");
-    } else {
-      toast.error("Failed to suspend vendor");
     }
   };
 

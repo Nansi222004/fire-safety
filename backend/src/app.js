@@ -15,6 +15,8 @@ import vendorRoutes from './modules/vendor/routes/vendor.routes.js';
 import deliveryRoutes from './modules/delivery/routes/delivery.routes.js';
 import webhookRouter from './modules/user/routes/webhook.routes.js';
 import paymentRouter from './modules/user/routes/payment.routes.js';
+import fcmTokenRoutes from './routes/fcmToken.routes.js';
+import customerServiceRoutes from './modules/customer/routes/customerService.routes.js';
 
 // Middleware imports
 import { apiLimiter } from './middlewares/rateLimiter.js';
@@ -109,9 +111,12 @@ app.use(
     },
     express.static(uploadsRoot)
 );
-import customerServiceRoutes from './modules/customer/routes/customerService.routes.js';
-
 app.use('/api', publicRoutes);                       // Public: products, categories, brands, coupons, banners
+app.use('/api/fcm-tokens', fcmTokenRoutes);           // FCM Push Notification Tokens (SOP)
+app.use('/api/user/fcm-tokens', fcmTokenRoutes);      // FCM Tokens scoped for customer
+app.use('/api/vendor/fcm-tokens', fcmTokenRoutes);    // FCM Tokens scoped for vendor
+app.use('/api/delivery/fcm-tokens', fcmTokenRoutes);  // FCM Tokens scoped for delivery
+app.use('/api/admin/fcm-tokens', fcmTokenRoutes);     // FCM Tokens scoped for admin
 app.use('/api/customer', customerServiceRoutes);      // Customer Services & Bookings: catalog, pincode check, bookings
 app.use('/api/user', userRoutes);                    // Customer: auth, addresses, wishlist, reviews, orders
 app.use('/api/user/payment', paymentRouter);         // Payment: initialize, retry, exchange-upgrade

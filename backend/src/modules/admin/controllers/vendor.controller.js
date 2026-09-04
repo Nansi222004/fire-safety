@@ -19,6 +19,7 @@ const toApiVendor = (vendorDoc) => {
     return {
         ...vendor,
         id: normalizedId,
+        vendorCapabilities: vendor.vendorCapabilities || { sellsProducts: true, providesServices: false },
         commissionRate: Number.isFinite(normalizedCommissionRate)
             ? normalizedCommissionRate / 100
             : 0

@@ -19,7 +19,6 @@ export const imageMap = {
   // Logos
   "/images/logos/logo.png": appLogo,
   "/images/logos/safefire_logo.png": appLogo,
-  "/images/logos/porutkal_logo.png": appLogo,
 
   // Hero & Banners
   "/images/hero/slide1.png": extRedImg,

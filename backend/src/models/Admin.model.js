@@ -11,6 +11,15 @@ const adminSchema = new mongoose.Schema(
         isActive: { type: Boolean, default: true },
         refreshTokenHash: { type: String, select: false },
         refreshTokenExpiresAt: { type: Date, select: false },
+        // FCM Push Notification Tokens
+        fcmTokens: {
+            type: [String],
+            default: [],
+        },
+        fcmTokenMobile: {
+            type: [String],
+            default: [],
+        },
     },
     { timestamps: true }
 );

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { adminLogin as apiLogin } from '../services/adminService';
 import api from '../../../shared/utils/api';
+import { registerFCMToken, removeFCMToken } from '../../../services/pushNotificationService';
 
 const persistedAuthState = (state) => ({
   admin: state.admin,
@@ -31,6 +32,9 @@ export const useAdminAuthStore = create(
           localStorage.setItem('adminToken', accessToken);
           localStorage.setItem('adminRefreshToken', refreshToken);
 
+          // Register FCM push token
+          registerFCMToken(true).catch(() => {});
+
           set({
             admin,
             token: accessToken,
@@ -50,6 +54,9 @@ export const useAdminAuthStore = create(
         if (refreshToken) {
           api.post('/admin/auth/logout', { refreshToken }).catch(() => {});
         }
+
+        // Remove FCM push token
+        removeFCMToken().catch(() => {});
 
         set({
           admin: null,

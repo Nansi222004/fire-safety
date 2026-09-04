@@ -1364,6 +1364,55 @@ router.get('/policies/:policyKey', asyncHandler(async (req, res) => {
     }, 'Public policy fetched.'));
 }));
 
+// GET /api/vendors/:id
+router.get('/vendors/:id', detailCache, asyncHandler(async (req, res) => {
+    const vendor = await Vendor.findById(req.params.id)
+        .select('name storeName storeLogo storeDescription rating reviewCount isVerified vendorCapabilities address status storefrontId')
+        .populate('storefrontId', 'slug')
+        .lean();
+    if (!vendor || vendor.status === 'suspended' || vendor.status === 'rejected') {
+        throw new ApiError(404, 'Vendor storefront not found.');
+    }
+    res.status(200).json(new ApiResponse(200, toPublicVendor(vendor), 'Vendor details fetched.'));
+}));
+
+// GET /api/vendors/:id/products
+router.get('/vendors/:id/products', listCache, asyncHandler(async (req, res) => {
+    const { page = 1, limit = 20 } = req.query;
+    const vendor = await Vendor.findById(req.params.id).select('vendorCapabilities status').lean();
+    if (!vendor || vendor.status !== 'approved' || vendor.vendorCapabilities?.sellsProducts === false) {
+        return res.status(200).json(new ApiResponse(200, { products: [], total: 0, page: 1, pages: 1 }, 'Vendor does not sell products.'));
+    }
+    const numericPage = Math.max(Number(page) || 1, 1);
+    const numericLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
+    const skip = (numericPage - 1) * numericLimit;
+
+    const [products, total] = await Promise.all([
+        Product.find({ vendorId: req.params.id, isActive: true })
+            .select(PRODUCT_LIST_SELECT)
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(numericLimit)
+            .lean(),
+        Product.countDocuments({ vendorId: req.params.id, isActive: true })
+    ]);
+
+    res.status(200).json(new ApiResponse(200, { products, total, page: numericPage, pages: Math.ceil(total / numericLimit) }, 'Vendor products fetched.'));
+}));
+
+// GET /api/vendors/:id/services
+router.get('/vendors/:id/services', listCache, asyncHandler(async (req, res) => {
+    const { default: VendorService } = await import('../models/VendorService.model.js');
+    const vendor = await Vendor.findById(req.params.id).select('vendorCapabilities status').lean();
+    if (!vendor || vendor.status !== 'approved' || vendor.vendorCapabilities?.providesServices === false) {
+        return res.status(200).json(new ApiResponse(200, { services: [] }, 'Vendor does not provide services.'));
+    }
+    const services = await VendorService.find({ vendorId: req.params.id, isActive: true })
+        .populate('serviceId', 'name description shortDescription image icon categoryId')
+        .lean();
+    res.status(200).json(new ApiResponse(200, { services }, 'Vendor services fetched.'));
+}));
+
 router.get('/:id([a-fA-F0-9]{24})', detailCache, getProductDetail);
 
 export default router;

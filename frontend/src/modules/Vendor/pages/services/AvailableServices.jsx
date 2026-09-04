@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
-import { FiSearch, FiCheck, FiPlus, FiLayers, FiClock, FiDollarSign, FiCalendar, FiTool, FiSliders, FiHelpCircle } from 'react-icons/fi';
+import { FiSearch, FiCheck, FiPlus, FiLayers, FiClock, FiDollarSign, FiCalendar, FiTool, FiSliders, FiHelpCircle, FiAlertCircle } from 'react-icons/fi';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useVendorServiceStore } from '../../../../shared/store/vendorServiceStore';
+import { useVendorAuthStore } from '../../store/vendorAuthStore';
 import { getPublicServiceCategories } from '../../services/vendorService';
 import ServiceConfigModal from '../../components/ServiceConfigModal';
 import Pagination from '../../../Admin/components/Pagination';
@@ -11,6 +12,9 @@ import toast from 'react-hot-toast';
 
 const AvailableServices = () => {
   const navigate = useNavigate();
+  const { vendor } = useVendorAuthStore();
+  const canProvideServices = vendor?.vendorCapabilities?.providesServices ?? true;
+
   const {
     availableServices,
     isLoading,
@@ -75,6 +79,10 @@ const AvailableServices = () => {
   }, [searchQuery, selectedCategory]);
 
   const handleOpenEnableConfig = (service) => {
+    if (!canProvideServices) {
+      toast.error('Your seller account is set to Products Only. Please enable "Services" capability in Profile Settings.');
+      return;
+    }
     setActiveConfigService(service);
     setActiveVendorService(null);
   };
@@ -139,6 +147,24 @@ const AvailableServices = () => {
           Select and enable certified fire safety services for your store. Set custom pricing, service pincodes, and capacity.
         </p>
       </div>
+
+      {/* Product-Only Warning Banner */}
+      {!canProvideServices && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3">
+            <FiAlertCircle className="text-amber-600 text-xl flex-shrink-0" />
+            <p className="text-xs text-amber-900 font-medium leading-relaxed">
+              <strong className="font-bold">Product-Only Vendor Account:</strong> Your account is currently configured for Products only. To offer fire safety services, turn on "Services" capability in Profile Settings.
+            </p>
+          </div>
+          <Link
+            to="/vendor/settings"
+            className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl transition-colors whitespace-nowrap shadow-xs"
+          >
+            Update Capabilities
+          </Link>
+        </div>
+      )}
 
       {/* Filter & Search Bar */}
       <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-200 space-y-4">

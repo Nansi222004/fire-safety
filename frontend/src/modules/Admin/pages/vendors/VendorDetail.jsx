@@ -322,10 +322,8 @@ const VendorDetail = () => {
       setVendor({ ...vendor, status: newStatus });
       toast.success(`Vendor status updated to ${newStatus}`);
       return true;
-    } else {
-      toast.error("Failed to update vendor status");
-      return false;
     }
+    return false;
   };
 
   const handleCommissionUpdate = async () => {
@@ -683,6 +681,46 @@ const VendorDetail = () => {
                         {((vendor.commissionRate || 0) * 100).toFixed(1)}%
                       </p>
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Marketplace Capabilities Card */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <h2 className="text-base font-extrabold text-slate-900 mb-3">Marketplace Capabilities</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="p-4 bg-white rounded-xl border border-slate-200 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">🛒</span>
+                      <div>
+                        <p className="font-bold text-slate-900 text-sm">Products Marketplace</p>
+                        <p className="text-xs text-slate-500">Sell equipment & products</p>
+                      </div>
+                    </div>
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                      vendor.vendorCapabilities?.sellsProducts
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-slate-200 text-slate-600'
+                    }`}>
+                      {vendor.vendorCapabilities?.sellsProducts ? 'Active' : 'Disabled'}
+                    </span>
+                  </div>
+
+                  <div className="p-4 bg-white rounded-xl border border-slate-200 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">🛠️</span>
+                      <div>
+                        <p className="font-bold text-slate-900 text-sm">Services Marketplace</p>
+                        <p className="text-xs text-slate-500">Provide maintenance & refill services</p>
+                      </div>
+                    </div>
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                      vendor.vendorCapabilities?.providesServices
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-slate-200 text-slate-600'
+                    }`}>
+                      {vendor.vendorCapabilities?.providesServices ? 'Active' : 'Disabled'}
+                    </span>
                   </div>
                 </div>
               </div>

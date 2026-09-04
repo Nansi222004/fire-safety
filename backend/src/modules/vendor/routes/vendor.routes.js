@@ -30,7 +30,7 @@ import {
 } from '../validators/serviceRequest.validator.js';
 
 import { authenticate } from '../../../middlewares/authenticate.js';
-import { authorize, enforceAccountStatus } from '../../../middlewares/authorize.js';
+import { authorize, enforceAccountStatus, requireVendorCapability } from '../../../middlewares/authorize.js';
 import { authLimiter, otpLimiter, otpVerifyLimiter } from '../../../middlewares/rateLimiter.js';
 import { validate } from '../../../middlewares/validate.js';
 import {
@@ -53,6 +53,8 @@ import { uploadSingle, uploadMultiple, uploadDocumentSingle, uploadVendorRegistr
 
 const router = Router();
 const vendorAuth = [authenticate, authorize('vendor'), enforceAccountStatus];
+const productCapAuth = [...vendorAuth, requireVendorCapability('products')];
+const serviceCapAuth = [...vendorAuth, requireVendorCapability('services')];
 
 // Auth
 router.post(
@@ -67,6 +69,14 @@ router.post(
         if (typeof req.body.address === 'string') {
             try {
                 req.body.address = JSON.parse(req.body.address);
+            } catch (e) {
+                // Ignore parse error, will fail validation cleanly
+            }
+        }
+        // Parse req.body.vendorCapabilities if passed as string in multipart form data
+        if (typeof req.body.vendorCapabilities === 'string') {
+            try {
+                req.body.vendorCapabilities = JSON.parse(req.body.vendorCapabilities);
             } catch (e) {
                 // Ignore parse error, will fail validation cleanly
             }
@@ -89,12 +99,12 @@ router.put('/auth/profile', ...vendorAuth, authController.updateProfile);
 router.put('/auth/bank-details', ...vendorAuth, authController.updateBankDetails);
 
 // Products
-router.get('/products', ...vendorAuth, productController.getVendorProducts);
-router.get('/products/:id', ...vendorAuth, validate(productIdParamSchema, 'params'), productController.getVendorProductById);
-router.post('/products', ...vendorAuth, validate(createProductSchema), productController.createProduct);
-router.put('/products/:id', ...vendorAuth, validate(productIdParamSchema, 'params'), validate(updateProductSchema), productController.updateProduct);
-router.delete('/products/:id', ...vendorAuth, validate(productIdParamSchema, 'params'), productController.deleteProduct);
-router.patch('/stock/:productId', ...vendorAuth, productController.updateStock);
+router.get('/products', ...productCapAuth, productController.getVendorProducts);
+router.get('/products/:id', ...productCapAuth, validate(productIdParamSchema, 'params'), productController.getVendorProductById);
+router.post('/products', ...productCapAuth, validate(createProductSchema), productController.createProduct);
+router.put('/products/:id', ...productCapAuth, validate(productIdParamSchema, 'params'), validate(updateProductSchema), productController.updateProduct);
+router.delete('/products/:id', ...productCapAuth, validate(productIdParamSchema, 'params'), productController.deleteProduct);
+router.patch('/stock/:productId', ...productCapAuth, productController.updateStock);
 
 // Brands
 router.get('/brands', ...vendorAuth, brandController.getVendorBrands);
@@ -129,7 +139,7 @@ router.put('/notifications/read-all', ...vendorAuth, notificationController.mark
 router.delete('/notifications/:id', ...vendorAuth, notificationController.deleteVendorNotification);
 
 // Inventory reports
-router.get('/inventory/reports', ...vendorAuth, inventoryController.getInventoryReport);
+router.get('/inventory/reports', ...productCapAuth, inventoryController.getInventoryReport);
 
 // Performance metrics
 router.get('/performance/metrics', ...vendorAuth, performanceController.getPerformanceMetrics);
@@ -156,9 +166,9 @@ router.patch('/return-requests/:id/status', ...vendorAuth, returnController.upda
 router.post('/return-requests/:id/verify-handoff-otp', ...vendorAuth, returnController.verifyHandoffOtp);
 
 // Product reviews
-router.get('/reviews', ...vendorAuth, reviewController.getVendorReviews);
-router.patch('/reviews/:id/status', ...vendorAuth, reviewController.updateVendorReviewStatus);
-router.patch('/reviews/:id/response', ...vendorAuth, reviewController.addVendorReviewResponse);
+router.get('/reviews', ...productCapAuth, reviewController.getVendorReviews);
+router.patch('/reviews/:id/status', ...productCapAuth, reviewController.updateVendorReviewStatus);
+router.patch('/reviews/:id/response', ...productCapAuth, reviewController.addVendorReviewResponse);
 
 
 // Uploads (Cloudinary via temp local multer upload)
@@ -166,23 +176,23 @@ router.post('/uploads/image', ...vendorAuth, uploadSingle('image'), uploadContro
 router.post('/uploads/images', ...vendorAuth, uploadMultiple('images', 8), uploadController.uploadImages);
 
 // Services
-router.get('/services/available', ...vendorAuth, vendorServiceController.getAvailableServices);
-router.get('/services', ...vendorAuth, vendorServiceController.getMyVendorServices);
-router.get('/services/:id', ...vendorAuth, validate(vendorServiceIdParamSchema, 'params'), vendorServiceController.getVendorServiceById);
-router.post('/services/:serviceId/enable', ...vendorAuth, validate(enableServiceParamSchema, 'params'), vendorServiceController.enableService);
-router.put('/services/:id', ...vendorAuth, validate(vendorServiceIdParamSchema, 'params'), validate(updateVendorServiceSchema), vendorServiceController.updateVendorService);
-router.patch('/services/:id/status', ...vendorAuth, validate(vendorServiceIdParamSchema, 'params'), validate(updateVendorServiceStatusSchema), vendorServiceController.updateVendorServiceStatus);
-router.delete('/services/:id', ...vendorAuth, validate(vendorServiceIdParamSchema, 'params'), vendorServiceController.deleteVendorService);
+router.get('/services/available', ...serviceCapAuth, vendorServiceController.getAvailableServices);
+router.get('/services', ...serviceCapAuth, vendorServiceController.getMyVendorServices);
+router.get('/services/:id', ...serviceCapAuth, validate(vendorServiceIdParamSchema, 'params'), vendorServiceController.getVendorServiceById);
+router.post('/services/:serviceId/enable', ...serviceCapAuth, validate(enableServiceParamSchema, 'params'), vendorServiceController.enableService);
+router.put('/services/:id', ...serviceCapAuth, validate(vendorServiceIdParamSchema, 'params'), validate(updateVendorServiceSchema), vendorServiceController.updateVendorService);
+router.patch('/services/:id/status', ...serviceCapAuth, validate(vendorServiceIdParamSchema, 'params'), validate(updateVendorServiceStatusSchema), vendorServiceController.updateVendorServiceStatus);
+router.delete('/services/:id', ...serviceCapAuth, validate(vendorServiceIdParamSchema, 'params'), vendorServiceController.deleteVendorService);
 
 // Service Requests
-router.post('/service-requests', ...vendorAuth, validate(createServiceRequestSchema), serviceRequestController.createServiceRequest);
-router.get('/service-requests', ...vendorAuth, serviceRequestController.getVendorServiceRequests);
-router.get('/service-requests/:id', ...vendorAuth, validate(serviceRequestIdParamSchema, 'params'), serviceRequestController.getVendorServiceRequestById);
+router.post('/service-requests', ...serviceCapAuth, validate(createServiceRequestSchema), serviceRequestController.createServiceRequest);
+router.get('/service-requests', ...serviceCapAuth, serviceRequestController.getVendorServiceRequests);
+router.get('/service-requests/:id', ...serviceCapAuth, validate(serviceRequestIdParamSchema, 'params'), serviceRequestController.getVendorServiceRequestById);
 
 // Service Bookings
-router.get('/service-bookings', ...vendorAuth, vendorBookingController.getVendorBookings);
-router.get('/service-bookings/:id', ...vendorAuth, vendorBookingController.getVendorBookingById);
-router.patch('/service-bookings/:id/status', ...vendorAuth, vendorBookingController.updateBookingStatus);
-router.patch('/service-bookings/:id/notes', ...vendorAuth, vendorBookingController.updateVendorNotes);
+router.get('/service-bookings', ...serviceCapAuth, vendorBookingController.getVendorBookings);
+router.get('/service-bookings/:id', ...serviceCapAuth, vendorBookingController.getVendorBookingById);
+router.patch('/service-bookings/:id/status', ...serviceCapAuth, vendorBookingController.updateBookingStatus);
+router.patch('/service-bookings/:id/notes', ...serviceCapAuth, vendorBookingController.updateVendorNotes);
 
 export default router;

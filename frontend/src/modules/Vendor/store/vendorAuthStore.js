@@ -8,6 +8,7 @@ import {
   verifyVendorResetOTP,
   resetVendorPassword,
 } from "../services/vendorService";
+import { registerFCMToken, removeFCMToken } from "../../../services/pushNotificationService";
 
 const normalizeVendor = (vendor) => {
   if (!vendor) return null;
@@ -55,6 +56,9 @@ export const useVendorAuthStore = create(
           // Store token for vendor API requests
           localStorage.setItem("vendor-token", accessToken);
           localStorage.setItem("vendor-refresh-token", refreshToken);
+
+          // Register FCM push token
+          registerFCMToken(true).catch(() => {});
 
           return { success: true, vendor: normalized };
         } catch (error) {
@@ -131,6 +135,9 @@ export const useVendorAuthStore = create(
         if (refreshToken) {
           api.post("/vendor/auth/logout", { refreshToken }).catch(() => {});
         }
+
+        // Remove FCM push token
+        removeFCMToken().catch(() => {});
 
         set({
           vendor: null,

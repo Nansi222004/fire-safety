@@ -20,6 +20,15 @@ const userSchema = new mongoose.Schema(
         refreshTokenExpiresAt: { type: Date, select: false },
         passwordResetToken: { type: String, select: false },
         passwordResetExpiry: { type: Date, select: false },
+        // FCM Push Notification Tokens
+        fcmTokens: {
+            type: [String],
+            default: [],
+        },
+        fcmTokenMobile: {
+            type: [String],
+            default: [],
+        },
     },
     { timestamps: true }
 );

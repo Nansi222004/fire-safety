@@ -40,12 +40,13 @@ export const enforceAccountStatus = async (req, res, next) => {
         }
 
         if (role === 'vendor') {
-            const vendor = await Vendor.findById(req.user.id).select('status isVerified').lean();
+            const vendor = await Vendor.findById(req.user.id).select('status isVerified vendorCapabilities').lean();
             if (!vendor) return next(new ApiError(401, 'Account not found.'));
             if (!vendor.isVerified) return next(new ApiError(403, 'Please verify your email first.'));
             if (vendor.status !== 'approved') {
                 return next(new ApiError(403, `Vendor account is ${vendor.status}.`));
             }
+            req.vendorCapabilities = vendor.vendorCapabilities || { sellsProducts: true, providesServices: false };
             return next();
         }
 
@@ -73,3 +74,38 @@ export const enforceAccountStatus = async (req, res, next) => {
         return next(err);
     }
 };
+
+/**
+ * Capability-based authorization middleware for vendors
+ * Usage: requireVendorCapability('products'), requireVendorCapability('services')
+ */
+export const requireVendorCapability = (capability) =>
+    async (req, res, next) => {
+        try {
+            if (!req.user || req.user.role !== 'vendor') {
+                return next(new ApiError(403, 'Vendor authorization required.'));
+            }
+
+            let caps = req.vendorCapabilities;
+            if (!caps) {
+                const vendor = await Vendor.findById(req.user.id).select('vendorCapabilities').lean();
+                if (!vendor) return next(new ApiError(401, 'Vendor account not found.'));
+                caps = vendor.vendorCapabilities || { sellsProducts: true, providesServices: false };
+                req.vendorCapabilities = caps;
+            }
+
+            const targetCap = String(capability || '').toLowerCase();
+            if (targetCap === 'products' || targetCap === 'sellsproducts') {
+                if (caps.sellsProducts !== true) {
+                    return next(new ApiError(403, 'Product seller capability is required to perform this action.'));
+                }
+            } else if (targetCap === 'services' || targetCap === 'providesservices') {
+                if (caps.providesServices !== true) {
+                    return next(new ApiError(403, 'Service provider capability is required to perform this action.'));
+                }
+            }
+            next();
+        } catch (err) {
+            return next(err);
+        }
+    };

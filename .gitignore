@@ -61,5 +61,22 @@ Thumbs.db
 branch_structure.json
 temp_auto_push.bat
 temp_interactive_push.bat
-test_file
+# Scratch and debug files
 scratch/
+backend/scratch/
+frontend/scratch/
+**/scratch/
+scratch/**
+**/scratch/**
+
+# Test suites and test files
+tests/
+test/
+backend/tests/
+backend/test/
+frontend/tests/
+frontend/test/
+**/tests/
+**/test/
+tests/**
+test/**
