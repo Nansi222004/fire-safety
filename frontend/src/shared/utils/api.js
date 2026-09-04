@@ -194,15 +194,6 @@ api.interceptors.response.use(
       }
     }
 
-<<<<<<< HEAD
-    const message =
-      error.response?.data?.message ||
-      error.message ||
-      'Something went wrong';
-
-    if (!error.response?.data?.requiresConfirmation) {
-      toast.error(message);
-=======
     // Helper to format clean, human-friendly error messages (never show raw "Request failed with status code 403")
     const getCleanErrorMessage = (err) => {
       const serverMsg = err.response?.data?.message;
@@ -232,7 +223,6 @@ api.interceptors.response.use(
     if (!error.response?.data?.requiresConfirmation && !error.toastShown) {
       error.toastShown = true;
       toast.error(cleanMessage);
->>>>>>> 39f9426b404e79ab70dba3c0bd640fd8dde1935f
     }
 
     if (error.response?.status === 401) {

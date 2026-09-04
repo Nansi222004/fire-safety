@@ -50,6 +50,7 @@ const OrderDetail = () => {
         }
     };
 
+    const vendorId = vendor?.id;
     const shippingAddress = order?.shippingAddress ?? order?.address ?? null;
     const customerName =
         shippingAddress?.name ??
