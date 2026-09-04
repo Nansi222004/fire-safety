@@ -45,4 +45,12 @@ const connectDB = async () => {
   }
 };
 
+mongoose.connection.on('disconnected', () => {
+  console.warn('⚠️ [MongoDB] Disconnected. Attempting automatic reconnection...');
+});
+
+mongoose.connection.on('reconnected', () => {
+  console.log('✅ [MongoDB] Reconnected successfully.');
+});
+
 export default connectDB;

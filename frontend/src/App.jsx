@@ -35,6 +35,7 @@ import Content from "./modules/Admin/pages/Content";
 import Settings from "./modules/Admin/pages/Settings";
 import More from "./modules/Admin/pages/More";
 import PromoCodes from "./modules/Admin/pages/PromoCodes";
+import GiftCards from "./modules/Admin/pages/marketing/GiftCards";
 // Orders child pages
 import AllOrders from "./modules/Admin/pages/orders/AllOrders";
 import OrderTracking from "./modules/Admin/pages/orders/OrderTracking";
@@ -656,6 +657,7 @@ const AppRoutes = () => {
         <Route path="marketing/banner-library" element={<HomepageBanners />} />
         <Route path="marketing/offers" element={<Offers />} />
         <Route path="marketing/promocodes" element={<PromoCodes />} />
+        <Route path="marketing/gift-cards" element={<GiftCards />} />
         <Route path="notifications" element={<AllNotifications />} />
         <Route
           path="notifications/push-notifications"

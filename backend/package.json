@@ -11,7 +11,8 @@
     "test:unit": "node tests/unit/testRegisterValidation.js && node tests/unit/testEventDispatcher.js && node tests/unit/testJson.js",
     "test:e2e": "node tests/verification/verifyE2E.js",
     "test:push": "node tests/integration/testPushNotificationPipeline.js",
-    "test:reverse": "node tests/integration/testDelhiveryReverse.js && node tests/integration/testShiprocketReverse.js"
+    "test:reverse": "node tests/integration/testDelhiveryReverse.js && node tests/integration/testShiprocketReverse.js",
+    "seed:coupons": "node src/scripts/seedCoupons.js"
   },
   "author": "furqan",
   "license": "ISC",

@@ -1,8 +1,10 @@
-import { useState } from 'react';
-import { FiSend, FiBell, FiUsers, FiTarget } from 'react-icons/fi';
+import { useState, useEffect } from 'react';
+import { FiSend, FiBell, FiTarget, FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import AnimatedSelect from '../../components/AnimatedSelect';
 import toast from 'react-hot-toast';
+import api from '../../../../shared/utils/api';
+import { registerFCMToken } from '../../../../services/pushNotificationService';
 
 const PushNotifications = () => {
   const [formData, setFormData] = useState({
@@ -12,14 +14,63 @@ const PushNotifications = () => {
     schedule: 'now',
     scheduledDate: '',
   });
+  const [isSending, setIsSending] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [permissionStatus, setPermissionStatus] = useState(
+    typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'unsupported'
+  );
+  const [hasRegisteredToken, setHasRegisteredToken] = useState(
+    typeof window !== 'undefined' && Boolean(localStorage.getItem('fcm_token_web'))
+  );
 
-  const handleSend = () => {
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setPermissionStatus(Notification.permission);
+      setHasRegisteredToken(Boolean(localStorage.getItem('fcm_token_web')));
+    }
+  }, []);
+
+  const handleRegisterDevice = async () => {
+    setIsRegistering(true);
+    try {
+      const token = await registerFCMToken(true);
+      if (token) {
+        setHasRegisteredToken(true);
+        setPermissionStatus(Notification.permission);
+        toast.success('Browser registered successfully for Push Notifications!');
+      } else {
+        toast.error('Could not get FCM token. Please ensure notifications are permitted.');
+      }
+    } catch (err) {
+      toast.error('Failed to register device: ' + (err.message || 'Unknown error'));
+    } finally {
+      setIsRegistering(false);
+    }
+  };
+
+  const handleSend = async () => {
     if (!formData.title || !formData.message) {
       toast.error('Please fill in all required fields');
       return;
     }
-    toast.success('Push notification sent successfully');
-    setFormData({ title: '', message: '', target: 'all', schedule: 'now', scheduledDate: '' });
+
+    setIsSending(true);
+    try {
+      const payload = {
+        title: formData.title,
+        message: formData.message,
+        target: formData.target,
+      };
+
+      const res = await api.post('/fcm-tokens/broadcast', payload);
+      const msg = res?.message || 'Push notification broadcast sent successfully!';
+      toast.success(msg);
+      setFormData({ title: '', message: '', target: 'all', schedule: 'now', scheduledDate: '' });
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Failed to send push notification broadcast');
+    } finally {
+      setIsSending(false);
+    }
   };
 
   return (
@@ -28,9 +79,35 @@ const PushNotifications = () => {
       animate={{ opacity: 1, y: 0 }}
       className="space-y-6"
     >
-      <div className="lg:hidden">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">Push Notifications</h1>
-        <p className="text-sm sm:text-base text-gray-600">Send push notifications to users</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-1">Push Notifications</h1>
+          <p className="text-sm sm:text-base text-gray-600">Send live web & mobile push notifications to users</p>
+        </div>
+
+        {/* Live Device Status & Register Pill */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border bg-white shadow-sm border-gray-200">
+            {permissionStatus === 'granted' ? (
+              <span className="flex items-center text-emerald-600 gap-1">
+                <FiCheckCircle /> Browser Push: Active
+              </span>
+            ) : (
+              <span className="flex items-center text-amber-600 gap-1">
+                <FiAlertCircle /> Browser Push: {permissionStatus}
+              </span>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={handleRegisterDevice}
+            disabled={isRegistering}
+            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-colors disabled:opacity-50"
+          >
+            {isRegistering ? 'Registering...' : '🔄 Register Device'}
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
@@ -44,7 +121,7 @@ const PushNotifications = () => {
               type="text"
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              placeholder="Enter notification title"
+              placeholder="e.g., 🔥 SafeFire Mega Sale: 20% Off Fire Extinguishers!"
               required
               className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
@@ -52,12 +129,12 @@ const PushNotifications = () => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Message
+              Message Body
             </label>
             <textarea
               value={formData.message}
               onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-              placeholder="Enter notification message"
+              placeholder="Enter push notification message content..."
               required
               rows={4}
               className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -73,11 +150,11 @@ const PushNotifications = () => {
               value={formData.target}
               onChange={(e) => setFormData({ ...formData, target: e.target.value })}
               options={[
-                { value: 'all', label: 'All Users' },
+                { value: 'all', label: 'All Users (Customers, Vendors, Delivery, Admins)' },
                 { value: 'customers', label: 'Customers Only' },
-                { value: 'vip', label: 'VIP Customers' },
-                { value: 'segment', label: 'Custom Segment' },
-                { value: 'delivery-boy', label: 'Delivery boy' },
+                { value: 'vendors', label: 'Vendors Only' },
+                { value: 'delivery-boy', label: 'Delivery Boys' },
+                { value: 'admins', label: 'Admins Only' },
               ]}
             />
           </div>
@@ -113,10 +190,11 @@ const PushNotifications = () => {
 
           <button
             type="submit"
-            className="w-full flex items-center justify-center gap-2 px-6 py-3 gradient-green text-white rounded-lg hover:shadow-glow-green transition-all font-semibold"
+            disabled={isSending}
+            className="w-full flex items-center justify-center gap-2 px-6 py-3 gradient-green text-white rounded-lg hover:shadow-glow-green transition-all font-semibold disabled:opacity-50"
           >
             <FiSend />
-            <span>Send Notification</span>
+            <span>{isSending ? 'Sending Broadcast...' : 'Send Broadcast Notification'}</span>
           </button>
         </form>
       </div>
@@ -125,4 +203,3 @@ const PushNotifications = () => {
 };
 
 export default PushNotifications;
-

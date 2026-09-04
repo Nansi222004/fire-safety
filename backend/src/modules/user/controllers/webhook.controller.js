@@ -10,6 +10,8 @@ import Coupon from '../../../models/Coupon.model.js';
 import Refund from '../../../models/Refund.model.js';
 import ReturnRequest from '../../../models/ReturnRequest.model.js';
 import Vendor from '../../../models/Vendor.model.js';
+import GiftCard from '../../../models/GiftCard.model.js';
+import { verifyAndActivateGiftCard } from '../../../services/giftCard.service.js';
 import { verifyWebhookSignature, initiateRefund } from '../../../services/payment.service.js';
 import { processCapturedPayment } from '../../../services/paymentProcessor.js';
 import { createNotification } from '../../../services/notification.service.js';
@@ -60,12 +62,27 @@ export const handleRazorpayWebhook = async (req, res) => {
     try {
         if (eventType === 'payment.captured') {
             const entity = payload?.payload?.payment?.entity;
-            await processCapturedPayment({
-                razorpayOrderId: entity?.order_id,
-                razorpayPaymentId: entity?.id,
-                method: entity?.method,
-                payload
-            });
+            const razorpayOrderId = entity?.order_id;
+            const razorpayPaymentId = entity?.id;
+
+            const giftCard = razorpayOrderId ? await GiftCard.findOne({ razorpayOrderId }) : null;
+            if (giftCard) {
+                if (giftCard.status === 'PENDING_PAYMENT') {
+                    await verifyAndActivateGiftCard({
+                        razorpayOrderId,
+                        razorpayPaymentId,
+                        razorpaySignature: 'webhook_verified',
+                        userId: giftCard.purchasedBy,
+                    });
+                }
+            } else {
+                await processCapturedPayment({
+                    razorpayOrderId,
+                    razorpayPaymentId,
+                    method: entity?.method,
+                    payload,
+                });
+            }
         } else if (eventType === 'payment.failed') {
             await handlePaymentFailed(payload);
         } else if (eventType === 'refund.processed') {

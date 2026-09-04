@@ -25,6 +25,8 @@ import {
   FiGift,
   FiCopy,
   FiZap,
+  FiRefreshCw,
+  FiAlertCircle,
   FiX
 } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
@@ -37,10 +39,12 @@ import toast from 'react-hot-toast';
 import PageTransition from '../../../shared/components/PageTransition';
 import PasswordStrengthMeter from '../components/Mobile/PasswordStrengthMeter';
 import { useUserNotificationStore } from '../store/userNotificationStore';
+import GiftCardsModal from '../components/Profile/GiftCardsModal';
+import api from '../../../shared/utils/api';
 
 const MobileProfile = () => {
   const navigate = useNavigate();
-  const { user, updateProfile, uploadProfileAvatar, changePassword, logout, isLoading } = useAuthStore();
+  const { user, updateProfile, uploadProfileAvatar, changePassword, logout, isLoading, fetchUserProfile } = useAuthStore();
   const { items: wishlistItems } = useWishlistStore();
   const avatarInputRef = useRef(null);
   
@@ -48,16 +52,54 @@ const MobileProfile = () => {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [giftCardBalance, setGiftCardBalance] = useState(null);
   
-  // Gift Card State
-  const [giftCardCode, setGiftCardCode] = useState('');
-  const [isRedeemingGiftCard, setIsRedeemingGiftCard] = useState(false);
-  const [giftCardTab, setGiftCardTab] = useState('redeem'); // 'redeem' | 'buy'
-  const [selectedGiftAmount, setSelectedGiftAmount] = useState(1000);
-  const [recipientEmail, setRecipientEmail] = useState('');
-
   // Coupons State
+  const [availableCoupons, setAvailableCoupons] = useState([]);
+  const [isLoadingCoupons, setIsLoadingCoupons] = useState(false);
+  const [couponError, setCouponError] = useState(null);
   const [copiedCoupon, setCopiedCoupon] = useState('');
+
+  const fetchGiftCardSummary = async () => {
+    try {
+      const res = await api.get('/gift-cards/summary');
+      if (res?.totalAvailableBalance !== undefined) {
+        setGiftCardBalance(res.totalAvailableBalance);
+      } else if (res?.summary?.availableBalance !== undefined) {
+        setGiftCardBalance(res.summary.availableBalance);
+      } else if (res?.data?.totalAvailableBalance !== undefined) {
+        setGiftCardBalance(res.data.totalAvailableBalance);
+      }
+    } catch {
+      // silent
+    }
+  };
+
+  const fetchAvailableCoupons = async () => {
+    setIsLoadingCoupons(true);
+    setCouponError(null);
+    try {
+      const res = await api.get('/coupons/available');
+      const list = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+      setAvailableCoupons(list);
+    } catch (err) {
+      setCouponError(err.message || 'Unable to load coupons. Please try again.');
+    } finally {
+      setIsLoadingCoupons(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeModal === 'coupons') {
+      fetchAvailableCoupons();
+    }
+  }, [activeModal]);
+
+  useEffect(() => {
+    if (user) {
+      fetchGiftCardSummary();
+    }
+  }, [user]);
 
   const unreadNotificationCount = useUserNotificationStore((state) => state.unreadCount);
   const ensureNotificationHydrated = useUserNotificationStore((state) => state.ensureHydrated);
@@ -146,73 +188,12 @@ const MobileProfile = () => {
     }
   };
 
-  const handleRedeemGiftCard = (e) => {
-    e.preventDefault();
-    if (!giftCardCode.trim()) {
-      toast.error('Please enter a valid gift card or voucher code');
-      return;
-    }
-    setIsRedeemingGiftCard(true);
-    setTimeout(() => {
-      setIsRedeemingGiftCard(false);
-      toast.success(`Gift voucher "${giftCardCode.toUpperCase()}" redeemed! ₹500 added to your SafeFire Wallet.`);
-      setGiftCardCode('');
-      setActiveModal(null);
-    }, 1000);
-  };
-
-  const handleBuyGiftCard = (e) => {
-    e.preventDefault();
-    if (!recipientEmail.trim()) {
-      toast.error('Please enter recipient email address');
-      return;
-    }
-    toast.success(`SafeFire e-Gift Card of ₹${selectedGiftAmount} sent to ${recipientEmail}!`);
-    setRecipientEmail('');
-    setActiveModal(null);
-  };
-
   const handleCopyCoupon = (code) => {
     navigator.clipboard?.writeText(code);
     setCopiedCoupon(code);
     toast.success(`Coupon code "${code}" copied to clipboard!`);
     setTimeout(() => setCopiedCoupon(''), 3000);
   };
-
-  const availableCouponsList = [
-    {
-      code: 'SAFEFIRE10',
-      discount: '10% OFF',
-      description: 'Get 10% discount on all certified fire safety extinguishers & equipment',
-      minOrder: '₹999',
-      expires: '31 Dec 2026',
-      badge: 'POPULAR'
-    },
-    {
-      code: 'FLAT200',
-      discount: '₹200 OFF',
-      description: 'Flat ₹200 instant discount on orders above ₹1,999',
-      minOrder: '₹1,999',
-      expires: '15 Nov 2026',
-      badge: 'FLAT OFF'
-    },
-    {
-      code: 'FREESHIP',
-      discount: 'FREE SHIPPING',
-      description: 'Zero delivery charges on all industrial and commercial safety orders',
-      minOrder: '₹499',
-      expires: '31 Dec 2026',
-      badge: 'FREE DELIVERY'
-    },
-    {
-      code: 'B2BFIRE5',
-      discount: '5% EXTRA B2B',
-      description: 'Special additional 5% discount for bulk commercial & AMC bookings',
-      minOrder: '₹5,000',
-      expires: '30 Sep 2026',
-      badge: 'BULK SPECIAL'
-    }
-  ];
 
   const quickStats = [
     {
@@ -300,8 +281,9 @@ const MobileProfile = () => {
           label: 'Gift Cards & Vouchers',
           description: 'Redeem e-gift vouchers or send SafeFire cards to friends',
           icon: FiGift,
-          iconColor: 'text-purple-600',
-          iconBg: 'bg-purple-50',
+          iconColor: 'text-[#E31E24]',
+          iconBg: 'bg-red-50',
+          badge: giftCardBalance !== null && giftCardBalance > 0 ? `₹${giftCardBalance.toLocaleString('en-IN')} available` : null,
           action: () => setActiveModal('giftcard'),
         },
         {
@@ -586,24 +568,39 @@ const MobileProfile = () => {
             <AnimatePresence>
               {/* Edit Personal Information Modal */}
               {activeModal === 'personal' && (
-                <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-md overflow-y-auto">
-                  <div className="min-h-full w-full flex items-center justify-center py-6">
-                    <motion.div 
-                      initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                      className="bg-white rounded-3xl p-6 sm:p-7 w-full max-w-md shadow-2xl border border-gray-100 relative my-auto"
-                    >
-                      <div className="flex items-center justify-between pb-4 border-b border-gray-100 mb-5">
-                        <h3 className="text-lg font-bold text-gray-900">Personal Information</h3>
-                        <button 
-                          onClick={() => setActiveModal(null)} 
-                          className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
-                        >
-                          <FiX size={20} />
-                        </button>
+                <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/65 backdrop-blur-sm animate-in fade-in duration-200">
+                  <div className="absolute inset-0" onClick={() => setActiveModal(null)} />
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                    className="bg-white rounded-3xl w-full max-w-md max-h-[90vh] shadow-2xl border border-gray-100 flex flex-col relative z-10 overflow-hidden"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* Fixed Header */}
+                    <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-gray-100 shrink-0 bg-white">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 text-emerald-600 flex items-center justify-center font-bold text-lg shadow-sm border border-emerald-100/60">
+                          <FiUser className="text-emerald-600 text-xl" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-black text-gray-900 tracking-tight">Personal Information</h3>
+                          <p className="text-xs text-gray-500">Update your account profile details</p>
+                        </div>
                       </div>
+                      <button 
+                        type="button"
+                        onClick={() => setActiveModal(null)} 
+                        className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-700 rounded-full hover:bg-gray-100 transition-all active:scale-95"
+                        aria-label="Close"
+                      >
+                        <FiX size={20} />
+                      </button>
+                    </div>
 
+                    {/* Scrollable Body */}
+                    <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-5 space-y-4 scrollbar-thin">
                       <form onSubmit={handleSubmitPersonal(onPersonalSubmit)} className="space-y-4">
                         <div>
                           <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">
@@ -666,44 +663,59 @@ const MobileProfile = () => {
                           <button 
                             type="button" 
                             onClick={() => setActiveModal(null)} 
-                            className="flex-1 py-2.5 border border-gray-200 text-gray-700 font-semibold rounded-xl text-sm hover:bg-gray-50 transition-colors"
+                            className="flex-1 py-3 border border-gray-200 text-gray-700 font-bold rounded-xl text-sm hover:bg-gray-50 transition-colors"
                           >
                             Cancel
                           </button>
                           <button 
                             type="submit" 
                             disabled={isLoading} 
-                            className="flex-1 py-2.5 gradient-green text-white font-bold rounded-xl text-sm hover:shadow-glow-green active:scale-98 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
+                            className="flex-1 py-3 gradient-green text-white font-black rounded-xl text-sm hover:shadow-glow-green active:scale-98 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20"
                           >
                             <FiSave /> {isLoading ? 'Saving...' : 'Save Changes'}
                           </button>
                         </div>
                       </form>
-                    </motion.div>
-                  </div>
+                    </div>
+                  </motion.div>
                 </div>
               )}
 
               {/* Change Password Modal */}
               {activeModal === 'password' && (
-                <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-md overflow-y-auto">
-                  <div className="min-h-full w-full flex items-center justify-center py-6">
-                    <motion.div 
-                      initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                      className="bg-white rounded-3xl p-6 sm:p-7 w-full max-w-md shadow-2xl border border-gray-100 relative my-auto"
-                    >
-                      <div className="flex items-center justify-between pb-4 border-b border-gray-100 mb-5">
-                        <h3 className="text-lg font-bold text-gray-900">Change Password</h3>
-                        <button 
-                          onClick={() => setActiveModal(null)} 
-                          className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
-                        >
-                          <FiX size={20} />
-                        </button>
+                <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/65 backdrop-blur-sm animate-in fade-in duration-200">
+                  <div className="absolute inset-0" onClick={() => setActiveModal(null)} />
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                    className="bg-white rounded-3xl w-full max-w-md max-h-[90vh] shadow-2xl border border-gray-100 flex flex-col relative z-10 overflow-hidden"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* Fixed Header */}
+                    <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-gray-100 shrink-0 bg-white">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-blue-500/10 text-indigo-600 flex items-center justify-center font-bold text-lg shadow-sm border border-indigo-100/60">
+                          <FiLock className="text-indigo-600 text-xl" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-black text-gray-900 tracking-tight">Change Password</h3>
+                          <p className="text-xs text-gray-500">Keep your SafeFire account secure</p>
+                        </div>
                       </div>
+                      <button 
+                        type="button"
+                        onClick={() => setActiveModal(null)} 
+                        className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-700 rounded-full hover:bg-gray-100 transition-all active:scale-95"
+                        aria-label="Close"
+                      >
+                        <FiX size={20} />
+                      </button>
+                    </div>
 
+                    {/* Scrollable Body */}
+                    <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-5 space-y-4 scrollbar-thin">
                       <form onSubmit={handleSubmitPassword(onPasswordSubmit)} className="space-y-4">
                         {[
                           { 
@@ -762,246 +774,196 @@ const MobileProfile = () => {
                           <button 
                             type="button" 
                             onClick={() => setActiveModal(null)} 
-                            className="flex-1 py-2.5 border border-gray-200 text-gray-700 font-semibold rounded-xl text-sm hover:bg-gray-50 transition-colors"
+                            className="flex-1 py-3 border border-gray-200 text-gray-700 font-bold rounded-xl text-sm hover:bg-gray-50 transition-colors"
                           >
                             Cancel
                           </button>
                           <button 
                             type="submit" 
                             disabled={isLoading} 
-                            className="flex-1 py-2.5 gradient-green text-white font-bold rounded-xl text-sm hover:shadow-glow-green active:scale-98 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
+                            className="flex-1 py-3 gradient-green text-white font-black rounded-xl text-sm hover:shadow-glow-green active:scale-98 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20"
                           >
                             <FiSave /> {isLoading ? 'Updating...' : 'Update Password'}
                           </button>
                         </div>
                       </form>
-                    </motion.div>
-                  </div>
+                    </div>
+                  </motion.div>
                 </div>
               )}
 
               {/* Gift Cards & Vouchers Modal */}
-              {activeModal === 'giftcard' && (
-                <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-md overflow-y-auto">
-                  <div className="min-h-full w-full flex items-center justify-center py-6">
-                    <motion.div 
-                      initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                      className="bg-white rounded-3xl p-6 sm:p-7 w-full max-w-md shadow-2xl border border-gray-100 relative my-auto"
-                    >
-                      <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center font-bold">
-                            <FiGift />
-                          </div>
-                          <h3 className="text-lg font-bold text-gray-900">Gift Cards & Vouchers</h3>
-                        </div>
-                        <button 
-                          onClick={() => setActiveModal(null)} 
-                          className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
-                        >
-                          <FiX size={20} />
-                        </button>
-                      </div>
-
-                      {/* Sleek Digital Gift Card Preview */}
-                      <div className="bg-gradient-to-br from-purple-700 via-indigo-700 to-purple-900 rounded-2xl p-4 text-white shadow-lg relative overflow-hidden mb-5">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-xl pointer-events-none" />
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center gap-1.5">
-                            <FiZap className="text-amber-400 text-lg" />
-                            <span className="font-bold text-sm tracking-wider uppercase">SafeFire e-Gift Card</span>
-                          </div>
-                          <span className="text-[10px] font-bold uppercase bg-white/20 px-2 py-0.5 rounded-full border border-white/20">Certified</span>
-                        </div>
-                        <div className="space-y-1 mb-4">
-                          <p className="text-[11px] text-purple-200 uppercase tracking-widest font-semibold">Available Voucher Balance</p>
-                          <p className="text-2xl font-extrabold tracking-tight">₹1,000.00</p>
-                        </div>
-                        <div className="flex items-center justify-between text-xs text-purple-200 border-t border-white/10 pt-2 font-mono">
-                          <span>SF-GIFT-8890-4102</span>
-                          <span>VALID THRU 12/28</span>
-                        </div>
-                      </div>
-
-                      {/* Tabs */}
-                      <div className="flex rounded-xl bg-gray-100 p-1 mb-4 text-xs font-bold">
-                        <button
-                          type="button"
-                          onClick={() => setGiftCardTab('redeem')}
-                          className={`flex-1 py-2 rounded-lg transition-all ${giftCardTab === 'redeem' ? 'bg-white text-purple-700 shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}
-                        >
-                          Redeem Voucher
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setGiftCardTab('buy')}
-                          className={`flex-1 py-2 rounded-lg transition-all ${giftCardTab === 'buy' ? 'bg-white text-purple-700 shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}
-                        >
-                          Send / Buy e-Card
-                        </button>
-                      </div>
-
-                      {/* Tab 1: Redeem Voucher */}
-                      {giftCardTab === 'redeem' ? (
-                        <form onSubmit={handleRedeemGiftCard} className="space-y-4">
-                          <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">
-                              Enter 16-Digit Gift Voucher Code
-                            </label>
-                            <div className="relative">
-                              <FiGift className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                              <input 
-                                type="text" 
-                                value={giftCardCode}
-                                onChange={(e) => setGiftCardCode(e.target.value.toUpperCase())}
-                                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 focus:border-purple-600 focus:ring-2 focus:ring-purple-100 text-sm uppercase font-mono tracking-wider focus:outline-none" 
-                                placeholder="e.g. SF-GIFT-9920-4102" 
-                              />
-                            </div>
-                            <p className="mt-1 text-[11px] text-gray-500">Redeemed amounts are automatically credited to your SafeFire Wallet balance.</p>
-                          </div>
-
-                          <div className="pt-1 flex gap-3">
-                            <button 
-                              type="button" 
-                              onClick={() => setActiveModal(null)} 
-                              className="flex-1 py-2.5 border border-gray-200 text-gray-700 font-semibold rounded-xl text-sm hover:bg-gray-50 transition-colors"
-                            >
-                              Cancel
-                            </button>
-                            <button 
-                              type="submit" 
-                              disabled={isRedeemingGiftCard} 
-                              className="flex-1 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold rounded-xl text-sm hover:shadow-lg active:scale-98 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
-                            >
-                              <FiZap /> {isRedeemingGiftCard ? 'Redeeming...' : 'Redeem to Wallet'}
-                            </button>
-                          </div>
-                        </form>
-                      ) : (
-                        /* Tab 2: Buy / Send Gift Card */
-                        <form onSubmit={handleBuyGiftCard} className="space-y-4">
-                          <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">
-                              Select Card Amount
-                            </label>
-                            <div className="grid grid-cols-4 gap-2">
-                              {[500, 1000, 2500, 5000].map((amt) => (
-                                <button
-                                  key={amt}
-                                  type="button"
-                                  onClick={() => setSelectedGiftAmount(amt)}
-                                  className={`py-2 rounded-xl border text-xs font-bold transition-all ${selectedGiftAmount === amt ? 'bg-purple-50 border-purple-600 text-purple-700 shadow-sm' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-                                >
-                                  ₹{amt}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wider">
-                              Recipient Email Address
-                            </label>
-                            <div className="relative">
-                              <FiMail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                              <input 
-                                type="email" 
-                                required
-                                value={recipientEmail}
-                                onChange={(e) => setRecipientEmail(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 focus:border-purple-600 focus:ring-2 focus:ring-purple-100 text-sm focus:outline-none" 
-                                placeholder="friend@company.com" 
-                              />
-                            </div>
-                          </div>
-
-                          <div className="pt-1 flex gap-3">
-                            <button 
-                              type="button" 
-                              onClick={() => setActiveModal(null)} 
-                              className="flex-1 py-2.5 border border-gray-200 text-gray-700 font-semibold rounded-xl text-sm hover:bg-gray-50 transition-colors"
-                            >
-                              Cancel
-                            </button>
-                            <button 
-                              type="submit" 
-                              className="flex-1 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold rounded-xl text-sm hover:shadow-lg active:scale-98 transition-all flex items-center justify-center gap-1.5"
-                            >
-                              <FiGift /> Purchase e-Card
-                            </button>
-                          </div>
-                        </form>
-                      )}
-                    </motion.div>
-                  </div>
-                </div>
-              )}
+              <GiftCardsModal
+                isOpen={activeModal === 'giftcard'}
+                onClose={() => {
+                  setActiveModal(null);
+                  fetchGiftCardSummary();
+                }}
+                onWalletUpdated={() => {
+                  fetchUserProfile?.();
+                  fetchGiftCardSummary();
+                }}
+              />
 
               {/* Coupons & Exclusive Offers Modal */}
               {activeModal === 'coupons' && (
-                <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-md overflow-y-auto">
-                  <div className="min-h-full w-full flex items-center justify-center py-6">
-                    <motion.div 
-                      initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                      className="bg-white rounded-3xl p-6 sm:p-7 w-full max-w-md shadow-2xl border border-gray-100 relative my-auto"
-                    >
-                      <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center font-bold">
+                <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/65 backdrop-blur-sm animate-in fade-in duration-200">
+                  <div className="absolute inset-0" onClick={() => setActiveModal(null)} />
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                    className="bg-white rounded-3xl w-full max-w-lg max-h-[90vh] shadow-2xl border border-gray-100 flex flex-col relative z-10 overflow-hidden"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* Fixed Header */}
+                    <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-gray-100 shrink-0 bg-white">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500/10 to-orange-500/10 text-amber-600 flex items-center justify-center font-bold text-lg shadow-sm border border-amber-100/60">
+                          <FiTag className="text-amber-600 text-xl" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-black text-gray-900 tracking-tight">Coupons & Promo Codes</h3>
+                          <p className="text-xs text-gray-500">Apply at checkout for instant savings</p>
+                        </div>
+                      </div>
+                      <button 
+                        type="button"
+                        onClick={() => setActiveModal(null)} 
+                        className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-700 rounded-full hover:bg-gray-100 transition-all active:scale-95"
+                        aria-label="Close"
+                      >
+                        <FiX size={20} />
+                      </button>
+                    </div>
+
+                    {/* Scrollable Body */}
+                    <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-5 space-y-3.5 scrollbar-thin">
+                      <p className="text-xs text-gray-500 font-medium">
+                        Tap on any coupon code to copy and apply at checkout for instant discounts.
+                      </p>
+
+                      {/* Loading State */}
+                      {isLoadingCoupons && (
+                        <div className="py-12 flex flex-col items-center justify-center space-y-3">
+                          <FiRefreshCw className="text-amber-500 text-2xl animate-spin" />
+                          <p className="text-xs font-semibold text-gray-500">Loading active coupons...</p>
+                        </div>
+                      )}
+
+                      {/* Error State */}
+                      {!isLoadingCoupons && couponError && (
+                        <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-center space-y-2.5">
+                          <div className="flex items-center justify-center gap-1.5 text-red-600">
+                            <FiAlertCircle className="text-base flex-shrink-0" />
+                            <span className="text-xs font-bold">{couponError}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={fetchAvailableCoupons}
+                            className="px-4 py-1.5 bg-red-600 hover:bg-red-700 active:scale-95 text-white text-xs font-bold rounded-xl transition-all shadow-sm"
+                          >
+                            Retry
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Empty State */}
+                      {!isLoadingCoupons && !couponError && availableCoupons.length === 0 && (
+                        <div className="py-10 text-center space-y-2">
+                          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center mx-auto text-xl font-bold">
                             <FiTag />
                           </div>
-                          <h3 className="text-lg font-bold text-gray-900">Coupons & Promo Codes</h3>
+                          <h4 className="text-sm font-bold text-gray-800">No active coupons available.</h4>
+                          <p className="text-xs text-gray-500 max-w-xs mx-auto">
+                            Check back soon or explore our special offers page for seasonal sales.
+                          </p>
                         </div>
-                        <button 
-                          onClick={() => setActiveModal(null)} 
-                          className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
-                        >
-                          <FiX size={20} />
-                        </button>
-                      </div>
+                      )}
 
-                      <p className="text-xs text-gray-500 mb-4">Tap on any coupon code to copy and apply at checkout for instant discounts.</p>
+                      {/* Live Dynamic Coupons List */}
+                      {!isLoadingCoupons && !couponError && availableCoupons.length > 0 && (
+                        <div className="space-y-3">
+                          {availableCoupons.map((c) => {
+                            const discountText = 
+                              c.type === 'percentage' 
+                                ? `${c.value}% OFF` 
+                                : c.type === 'freeship' 
+                                  ? 'FREE SHIPPING' 
+                                  : `₹${c.value} OFF`;
+                            
+                            const badgeText = 
+                              c.type === 'percentage' 
+                                ? (c.value >= 10 ? 'POPULAR' : 'DISCOUNT') 
+                                : c.type === 'freeship' 
+                                  ? 'FREE DELIVERY' 
+                                  : 'FLAT OFF';
 
-                      <div className="space-y-3">
-                        {availableCouponsList.map((c) => (
-                          <div 
-                            key={c.code}
-                            className="bg-gradient-to-r from-amber-50/60 via-orange-50/40 to-white p-3.5 rounded-2xl border border-amber-200/70 shadow-sm flex items-center justify-between gap-3 relative overflow-hidden"
-                          >
-                            <div className="space-y-1 flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="font-extrabold text-sm text-gray-900 font-mono tracking-wider">{c.code}</span>
-                                <span className="px-1.5 py-0.5 text-[9px] font-extrabold bg-amber-500 text-white rounded-full uppercase">{c.badge}</span>
+                            const description = 
+                              c.name || 
+                              (c.type === 'percentage'
+                                ? `Get ${c.value}% discount on eligible fire safety equipment`
+                                : c.type === 'freeship'
+                                  ? 'Free shipping on all safety orders'
+                                  : `Flat ₹${c.value} instant discount on eligible orders`);
+
+                            const minOrderText = 
+                              c.minOrderValue && c.minOrderValue > 0 
+                                ? `₹${c.minOrderValue.toLocaleString('en-IN')}` 
+                                : 'None';
+
+                            const expiryText = c.expiresAt
+                              ? new Date(c.expiresAt).toLocaleDateString('en-IN', {
+                                  day: 'numeric',
+                                  month: 'short',
+                                  year: 'numeric',
+                                })
+                              : 'No Expiry';
+
+                            return (
+                              <div 
+                                key={c._id || c.code}
+                                className="bg-gradient-to-r from-amber-50/70 via-orange-50/40 to-white p-4 rounded-2xl border border-amber-200/80 shadow-sm flex items-center justify-between gap-3.5 relative overflow-hidden transition-all hover:shadow-md hover:border-amber-300"
+                              >
+                                <div className="space-y-1 flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-black text-sm text-gray-950 font-mono tracking-wider">{c.code}</span>
+                                    <span className="px-2 py-0.5 text-[9px] font-black bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full uppercase tracking-wider shadow-sm">
+                                      {badgeText}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs font-black text-amber-900">{discountText}</p>
+                                  <p className="text-[11px] text-gray-600 leading-snug">{description}</p>
+                                  <div className="flex items-center gap-2 text-[10px] text-gray-400 pt-1 font-semibold">
+                                    <span>Min Order: {minOrderText}</span>
+                                    <span>•</span>
+                                    <span>Expires: {expiryText}</span>
+                                  </div>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyCoupon(c.code)}
+                                  className={`px-3.5 py-2.5 rounded-xl text-xs font-black flex items-center gap-1.5 shrink-0 transition-all shadow-sm ${
+                                    copiedCoupon === c.code 
+                                      ? 'bg-emerald-600 text-white shadow-emerald-500/20' 
+                                      : 'bg-white border border-amber-300 text-amber-800 hover:bg-amber-50 hover:border-amber-400'
+                                  }`}
+                                >
+                                  <FiCopy className="text-xs" />
+                                  <span>{copiedCoupon === c.code ? 'Copied!' : 'Copy'}</span>
+                                </button>
                               </div>
-                              <p className="text-xs font-bold text-amber-800">{c.discount}</p>
-                              <p className="text-[11px] text-gray-500 leading-tight line-clamp-2">{c.description}</p>
-                              <div className="flex items-center gap-3 text-[10px] text-gray-400 pt-1 font-medium">
-                                <span>Min Order: {c.minOrder}</span>
-                                <span>•</span>
-                                <span>Expires: {c.expires}</span>
-                              </div>
-                            </div>
+                            );
+                          })}
+                        </div>
+                      )}
 
-                            <button
-                              type="button"
-                              onClick={() => handleCopyCoupon(c.code)}
-                              className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1 shrink-0 transition-all ${copiedCoupon === c.code ? 'bg-emerald-600 text-white shadow-sm' : 'bg-white border border-amber-300 text-amber-700 hover:bg-amber-100'}`}
-                            >
-                              <FiCopy className="text-xs" />
-                              <span>{copiedCoupon === c.code ? 'Copied!' : 'Copy'}</span>
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="pt-4 border-t border-gray-100 mt-4 flex justify-between items-center text-xs">
-                        <span className="text-gray-500">Want to see all special offers?</span>
+                      <div className="pt-3 border-t border-gray-100 flex justify-between items-center text-xs">
+                        <span className="text-gray-500 font-medium">Want to see all special offers?</span>
                         <button 
+                          type="button"
                           onClick={() => { setActiveModal(null); navigate('/offers'); }}
                           className="font-bold text-primary-600 hover:underline flex items-center gap-1"
                         >
@@ -1009,8 +971,8 @@ const MobileProfile = () => {
                           <FiChevronRight className="text-xs" />
                         </button>
                       </div>
-                    </motion.div>
-                  </div>
+                    </div>
+                  </motion.div>
                 </div>
               )}
             </AnimatePresence>,

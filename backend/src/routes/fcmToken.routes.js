@@ -4,6 +4,7 @@ import {
     saveToken,
     removeToken,
     sendTestNotification,
+    sendBroadcastNotification,
 } from '../controllers/fcmToken.controller.js';
 
 const router = express.Router();
@@ -25,7 +26,11 @@ router.post('/mobile/save', (req, res, next) => {
 router.delete('/remove', removeToken);
 router.post('/remove', removeToken);
 
-// Test notification
+// Test notification for authenticated user
 router.post('/test', sendTestNotification);
 
+// Broadcast push notification to target audience (admin / auth)
+router.post('/broadcast', sendBroadcastNotification);
+
 export default router;
+

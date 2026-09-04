@@ -17,6 +17,7 @@ import webhookRouter from './modules/user/routes/webhook.routes.js';
 import paymentRouter from './modules/user/routes/payment.routes.js';
 import fcmTokenRoutes from './routes/fcmToken.routes.js';
 import customerServiceRoutes from './modules/customer/routes/customerService.routes.js';
+import giftCardRoutes, { adminGiftCardRouter } from './routes/giftCard.routes.js';
 
 // Middleware imports
 import { apiLimiter } from './middlewares/rateLimiter.js';
@@ -121,6 +122,9 @@ app.use('/api/vendor/fcm-tokens', fcmTokenRoutes);    // FCM Tokens scoped for v
 app.use('/api/delivery/fcm-tokens', fcmTokenRoutes);  // FCM Tokens scoped for delivery
 app.use('/api/admin/fcm-tokens', fcmTokenRoutes);     // FCM Tokens scoped for admin
 app.use('/api/customer', customerServiceRoutes);      // Customer Services & Bookings: catalog, pincode check, bookings
+app.use('/api/gift-cards', giftCardRoutes);               // Gift Cards & Vouchers (Customer)
+app.use('/api/user/gift-cards', giftCardRoutes);          // Gift Cards & Vouchers (Customer alias)
+app.use('/api/admin/gift-cards', adminGiftCardRouter);     // Gift Cards & Vouchers (Admin)
 app.use('/api/user', userRoutes);                    // Customer: auth, addresses, wishlist, reviews, orders
 app.use('/api/user/payment', paymentRouter);         // Payment: initialize, retry, exchange-upgrade
 app.use('/api/admin', adminRoutes);                  // Admin: auth, vendors, orders, catalog, analytics

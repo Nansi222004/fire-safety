@@ -89,6 +89,17 @@ const startServer = async () => {
       console.error("📦 Failed to init wallet cron:", err.message);
     }
 
+    // Auto-expire overdue gift cards scanner
+    try {
+      const { expireOverdueGiftCards } = await import("./services/giftCard.service.js");
+      expireOverdueGiftCards().catch(err => console.error("Gift card expiry scan error:", err));
+      setInterval(() => {
+        expireOverdueGiftCards().catch(err => console.error("Gift card expiry scan error:", err));
+      }, 24 * 60 * 60 * 1000);
+    } catch (err) {
+      console.error("📦 Failed to init gift card expiry cron:", err.message);
+    }
+
     if (!httpServer.listening) {
       httpServer.listen(PORT, () => {
         console.log(`Server running on http://localhost:${PORT}`);

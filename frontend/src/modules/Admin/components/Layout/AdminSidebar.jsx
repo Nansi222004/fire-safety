@@ -94,6 +94,7 @@ const getChildRoute = (parentRoute, childName) => {
       "Banner Library": "/admin/marketing/banner-library",
       Offers: "/admin/marketing/offers",
       "Promo Codes": "/admin/marketing/promocodes",
+      "Gift Cards & Vouchers": "/admin/marketing/gift-cards",
     },
     "/admin/notifications": {
       "All Notifications": "/admin/notifications",
