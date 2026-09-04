@@ -50,17 +50,24 @@ const OrderDetail = () => {
         }
     };
 
-    const vendorId = vendor?.id;
     const shippingAddress = order?.shippingAddress ?? order?.address ?? null;
     const customerName =
+        shippingAddress?.name ??
         order?.customer?.name ??
         order?.userId?.name ??
         order?.guestInfo?.name ??
         'Guest';
     const customerEmail =
+        shippingAddress?.email ??
         order?.customer?.email ??
         order?.userId?.email ??
         order?.guestInfo?.email ??
+        'N/A';
+    const customerPhone =
+        shippingAddress?.phone ??
+        order?.customer?.phone ??
+        order?.userId?.phone ??
+        order?.guestInfo?.phone ??
         'N/A';
 
     useEffect(() => {
@@ -524,6 +531,12 @@ const OrderDetail = () => {
                                 <p className="text-sm text-gray-500">Email</p>
                                 <p className="font-medium">{customerEmail}</p>
                             </div>
+                            {customerPhone !== 'N/A' && (
+                                <div>
+                                    <p className="text-sm text-gray-500">Phone</p>
+                                    <p className="font-medium">{customerPhone}</p>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -536,14 +549,22 @@ const OrderDetail = () => {
                             Shipping Address
                         </h2>
                         {shippingAddress ? (
-                            <p className="text-gray-600 text-sm leading-relaxed">
-                                {shippingAddress.address ?? shippingAddress.street ?? 'N/A'}
-                                <br />
-                                {shippingAddress.city}, {shippingAddress.state}{' '}
-                                {shippingAddress.zipCode}
-                                <br />
-                                {shippingAddress.country}
-                            </p>
+                            <div className="text-gray-600 text-sm leading-relaxed space-y-1">
+                                {shippingAddress.name && (
+                                    <p className="font-semibold text-gray-800">{shippingAddress.name}</p>
+                                )}
+                                <p>{shippingAddress.address ?? shippingAddress.street ?? 'N/A'}</p>
+                                <p>
+                                    {shippingAddress.city}, {shippingAddress.state}{' '}
+                                    {shippingAddress.zipCode}
+                                </p>
+                                <p>{shippingAddress.country}</p>
+                                {shippingAddress.phone && (
+                                    <p className="pt-1 text-xs text-gray-500 font-medium">
+                                        Phone: <a href={`tel:${shippingAddress.phone}`} className="text-primary-600 hover:underline">{shippingAddress.phone}</a>
+                                    </p>
+                                )}
+                            </div>
                         ) : (
                             <p className="text-sm text-gray-400">
                                 No address available

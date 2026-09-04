@@ -33,9 +33,9 @@ const Invoice = () => {
           ...o,
           id: o.orderId || o._id,
           customer: {
-            name: o.userId?.name || 'Unknown',
-            email: o.userId?.email || '',
-            phone: o.userId?.phone || ''
+            name: o.shippingAddress?.name || o.guestInfo?.name || o.userId?.name || 'Unknown',
+            email: o.shippingAddress?.email || o.guestInfo?.email || o.userId?.email || '',
+            phone: o.shippingAddress?.phone || o.guestInfo?.phone || o.userId?.phone || ''
           },
           date: o.createdAt,
           finalTotal: o.total

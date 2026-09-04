@@ -32,8 +32,8 @@ const OrderTracking = () => {
           ...order,
           id: order.orderId || order._id,
           customer: {
-            name: order.userId?.name || 'Unknown',
-            email: order.userId?.email || ''
+            name: order.shippingAddress?.name || order.guestInfo?.name || order.userId?.name || 'Unknown',
+            email: order.shippingAddress?.email || order.guestInfo?.email || order.userId?.email || ''
           },
           date: order.createdAt
         }));
