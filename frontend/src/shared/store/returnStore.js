@@ -35,12 +35,13 @@ export const useReturnStore = create((set, get) => ({
                     limit: pageSize,
                 });
 
-                const pageRequests = Array.isArray(response?.data?.returnRequests)
-                    ? response.data.returnRequests
-                    : [];
+                const payload = response?.data !== undefined ? response.data : response;
+                const pageRequests = Array.isArray(payload?.returnRequests)
+                    ? payload.returnRequests
+                    : (Array.isArray(response?.returnRequests) ? response.returnRequests : []);
                 allRequests.push(...pageRequests);
 
-                const pagination = response?.data?.pagination || {};
+                const pagination = payload?.pagination || response?.pagination || {};
                 latestPagination = {
                     total: Number.isFinite(Number(pagination.total))
                         ? Number(pagination.total)
@@ -81,7 +82,7 @@ export const useReturnStore = create((set, get) => ({
         try {
             const response = await adminService.getReturnRequestById(id);
             set({ isLoading: false });
-            return response.data;
+            return response?.data !== undefined ? response.data : response;
         } catch (error) {
             set({ isLoading: false });
             toast.error(error.message || 'Failed to fetch return request details');
@@ -93,7 +94,7 @@ export const useReturnStore = create((set, get) => ({
         set({ isLoading: true });
         try {
             const response = await adminService.updateReturnRequestStatus(id, statusData);
-            const updatedReq = response.data;
+            const updatedReq = response?.data !== undefined ? response.data : response;
             set((state) => ({
                 returnRequests: state.returnRequests.map((req) =>
                     req.id === id ? { ...req, ...updatedReq } : req

@@ -58,6 +58,9 @@ export const createReturnRequestSchema = Joi.object({
         .min(1)
         .optional(),
     itemsJson: Joi.string().optional(),
+    exchangeSize: Joi.string().allow('').optional(),
+    exchangeColor: Joi.string().allow('').optional(),
+    exchangeVariantJson: Joi.string().allow('').optional(),
     images: Joi.any().optional(),
     refundMethod: Joi.string().valid('bank', 'upi').optional(),
     bankDetails: Joi.object({

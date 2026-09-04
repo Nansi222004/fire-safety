@@ -38,7 +38,38 @@ const connectDB = async () => {
         { $set: { 'address.location': { type: 'Point', coordinates: [72.8777, 19.0760] } } }
     );
 
-    console.log(`✅ Self-healing coordinates migration complete.`);
+    // Self-healing migration: Ensure default LogisticsProvider (own_fleet) exists
+    await conn.connection.db.collection('logisticsproviders').updateOne(
+        { providerId: 'own_fleet' },
+        {
+            $setOnInsert: {
+                providerId: 'own_fleet',
+                displayName: 'Own Delivery Fleet',
+                isEnabled: true,
+                priority: 1,
+                reliabilityScore: 100,
+                capabilities: {
+                    supportsCOD: true,
+                    supportsReversePickup: true,
+                    supportsHyperlocal: true,
+                    supportsInterstate: true,
+                    maxWeightGrams: 50000,
+                    maxDistanceKm: 0,
+                },
+                scoringWeights: {
+                    serviceability: 50,
+                    eta: 20,
+                    margin: 20,
+                    reliability: 10,
+                },
+                createdAt: new Date(),
+                updatedAt: new Date()
+            }
+        },
+        { upsert: true }
+    );
+
+    console.log(`✅ Self-healing coordinates & logistics migration complete.`);
   } catch (error) {
     console.error(`MongoDB connection error: ${error.message}`);
     console.warn(`⚠️ Warning: Server running in fallback mode without DB connection. Check network/IP Whitelist.`);
