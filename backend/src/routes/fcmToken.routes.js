@@ -34,3 +34,4 @@ router.post('/broadcast', sendBroadcastNotification);
 
 export default router;
 
+>>>>>>> bf9427d03bd888b03d5a7f55331954a401df05f2

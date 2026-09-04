@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { FiCheck } from "react-icons/fi";
 import { formatPrice } from "../../utils/helpers";
-import { getVariantSignature } from "../../utils/variant";
+import { getVariantSignature, getVariantStockValue, getVariantPriceValue } from "../../utils/variant";
 
 const normalizeAxisName = (value) =>
   String(value || "")
@@ -56,55 +56,7 @@ const VariantSelector = ({ variants, onVariantChange, currentPrice, selectedVari
     return combined;
   }, [variants]);
 
-  const getVariantStockValue = (selection) => {
-    const entries = toEntries(variants?.stockMap);
-    if (!entries.length) return null;
-    const key = getVariantSignature(selection);
-    if (!key) return null;
-
-    const exact = entries.find(([rawKey]) => String(rawKey).trim() === key);
-    if (exact) {
-      const parsed = Number(exact[1]);
-      if (Number.isFinite(parsed)) return parsed;
-    }
-    const normalized = entries.find(
-      ([rawKey]) => String(rawKey).trim().toLowerCase() === key.toLowerCase()
-    );
-    if (normalized) {
-      const parsed = Number(normalized[1]);
-      if (Number.isFinite(parsed)) return parsed;
-    }
-
-    // Candidate keys support (e.g. size|color)
-    const size = String(selection.size || "").trim().toLowerCase();
-    const color = String(selection.color || "").trim().toLowerCase();
-
-    const candidates = [
-      `${size}|${color}`,
-      `${size}-${color}`,
-      `${size}_${color}`,
-      `${size}:${color}`,
-      size && !color ? size : null,
-      color && !size ? color : null,
-    ].filter(Boolean);
-
-    for (const candidate of candidates) {
-      const exactCandidate = entries.find(([rawKey]) => String(rawKey).trim() === candidate);
-      if (exactCandidate) {
-        const parsed = Number(exactCandidate[1]);
-        if (Number.isFinite(parsed)) return parsed;
-      }
-      const normalizedCandidate = entries.find(
-        ([rawKey]) => String(rawKey).trim().toLowerCase() === candidate
-      );
-      if (normalizedCandidate) {
-        const parsed = Number(normalizedCandidate[1]);
-        if (Number.isFinite(parsed)) return parsed;
-      }
-    }
-
-    return null;
-  };
+  const getVariantStock = (selection) => getVariantStockValue(variants?.stockMap, selection, null);
 
   useEffect(() => {
     const nextSelection = {};
@@ -161,59 +113,11 @@ const VariantSelector = ({ variants, onVariantChange, currentPrice, selectedVari
 
   const isOptionAvailable = (axisKey, value) => {
     const previewSelection = { ...(selectedVariant || {}), [axisKey]: value };
-    const stock = getVariantStockValue(previewSelection);
+    const stock = getVariantStock(previewSelection);
     return stock === null ? true : stock > 0;
   };
 
-  const getVariantPrice = () => {
-    const base = Number(currentPrice) || 0;
-    const entries = toEntries(variants?.prices);
-    if (!entries.length) return base;
-    const key = getVariantSignature(selectedVariant || {});
-    if (!key) return base;
-    const exact = entries.find(([rawKey]) => String(rawKey).trim() === key);
-    if (exact) {
-      const parsed = Number(exact[1]);
-      if (Number.isFinite(parsed) && parsed >= 0) return parsed;
-    }
-    const normalized = entries.find(
-      ([rawKey]) => String(rawKey).trim().toLowerCase() === key.toLowerCase()
-    );
-    if (normalized) {
-      const parsed = Number(normalized[1]);
-      if (Number.isFinite(parsed) && parsed >= 0) return parsed;
-    }
-
-    // Candidate keys support (e.g. size|color)
-    const size = String(selectedVariant.size || "").trim().toLowerCase();
-    const color = String(selectedVariant.color || "").trim().toLowerCase();
-
-    const candidates = [
-      `${size}|${color}`,
-      `${size}-${color}`,
-      `${size}_${color}`,
-      `${size}:${color}`,
-      size && !color ? size : null,
-      color && !size ? color : null,
-    ].filter(Boolean);
-
-    for (const candidate of candidates) {
-      const exactCandidate = entries.find(([rawKey]) => String(rawKey).trim() === candidate);
-      if (exactCandidate) {
-        const parsed = Number(exactCandidate[1]);
-        if (Number.isFinite(parsed) && parsed >= 0) return parsed;
-      }
-      const normalizedCandidate = entries.find(
-        ([rawKey]) => String(rawKey).trim().toLowerCase() === candidate
-      );
-      if (normalizedCandidate) {
-        const parsed = Number(normalizedCandidate[1]);
-        if (Number.isFinite(parsed) && parsed >= 0) return parsed;
-      }
-    }
-
-    return base;
-  };
+  const getVariantPrice = () => getVariantPriceValue(variants?.prices, selectedVariant || {}, currentPrice);
 
   return (
     <div className="space-y-6">

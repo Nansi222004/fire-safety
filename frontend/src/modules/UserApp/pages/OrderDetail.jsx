@@ -21,6 +21,8 @@ import { formatPrice } from "../../../shared/utils/helpers";
 import {
   formatVariantLabel,
   getVariantSignature,
+  getVariantStockValue,
+  getVariantPriceValue,
 } from "../../../shared/utils/variant";
 import toast from "react-hot-toast";
 import PageTransition from "../../../shared/components/PageTransition";
@@ -43,6 +45,14 @@ const RETURN_REASONS = [
   "Product Not Matching Description",
   "Changed My Mind",
   "Other",
+];
+
+const EVIDENCE_REQUIRED_REASONS = [
+  "Product Damaged",
+  "Wrong Product Received",
+  "Missing Parts or Accessories",
+  "Product Not Matching Description",
+  "Defective Product",
 ];
 
 const MobileOrderDetail = () => {
@@ -600,6 +610,11 @@ const MobileOrderDetail = () => {
       }
     }
 
+    if (EVIDENCE_REQUIRED_REASONS.includes(returnReason) && evidenceFiles.length === 0) {
+      toast.error("Please upload at least 1 evidence photo for this return reason.");
+      return;
+    }
+
     const checkedItemsList = Object.entries(selectedItems)
       .filter(([_, value]) => value.checked === true)
       .map(([productId, value]) => ({
@@ -627,16 +642,11 @@ const MobileOrderDetail = () => {
         return;
       }
 
-      // Pre-check stock level in frontend
+      // Pre-check stock level in frontend using candidate key resolution
       const productData = productDetailsMap[selectedItem.productId];
       if (productData) {
-        const signature = getVariantSignature(variant);
-        const entries = Object.entries(productData.variants?.stockMap || {});
-        const exact = entries.find(
-          ([k]) => String(k).trim().toLowerCase() === signature.toLowerCase(),
-        );
-        const stockCount = exact ? Number(exact[1]) : 0;
-        if (stockCount <= 0) {
+        const stockCount = getVariantStockValue(productData.variants?.stockMap, variant, null);
+        if (stockCount !== null && stockCount <= 0) {
           toast.error(
             "The selected replacement variant is out of stock. Please choose an in-stock variant.",
           );
@@ -1480,33 +1490,23 @@ const MobileOrderDetail = () => {
                                       const variant = exchangeVariants[prodId];
                                       const productData = productDetailsMap[prodId];
 
-                                      // Get stock level
-                                      const signature = getVariantSignature(variant);
-                                      const entries = Object.entries(
-                                        productData.variants?.stockMap || {},
+                                      // Get stock level & price level using candidate key resolution
+                                      const stockVal = getVariantStockValue(
+                                        productData.variants?.stockMap,
+                                        variant,
+                                        null
                                       );
-                                      const exact = entries.find(
-                                        ([k]) =>
-                                          String(k).trim().toLowerCase() ===
-                                          signature.toLowerCase(),
-                                      );
-                                      const stockCount = exact ? Number(exact[1]) : 0;
+                                      const stockCount = stockVal !== null ? Number(stockVal) : (Number(productData.stockQuantity) || 0);
 
                                       // Get price difference
                                       const basePrice = Number(
                                         productData.price || 0,
                                       );
-                                      const priceEntries = Object.entries(
-                                        productData.variants?.prices || {},
+                                      const variantPrice = getVariantPriceValue(
+                                        productData.variants?.prices,
+                                        variant,
+                                        basePrice
                                       );
-                                      const pExact = priceEntries.find(
-                                        ([k]) =>
-                                          String(k).trim().toLowerCase() ===
-                                          signature.toLowerCase(),
-                                      );
-                                      const variantPrice = pExact
-                                        ? Number(pExact[1])
-                                        : basePrice;
 
                                       const purchasedPrice = Number(
                                         orderItem.price || 0,
@@ -1598,12 +1598,18 @@ const MobileOrderDetail = () => {
 
                     {/* Evidence Images Upload */}
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">
-                        Evidence Photos (Optional, max 5)
+                      <label className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-1.5">
+                        Evidence Photos
+                        {EVIDENCE_REQUIRED_REASONS.includes(returnReason) ? (
+                          <span className="text-red-500 text-xs font-bold">(Required, min 1)</span>
+                        ) : (
+                          <span className="text-gray-400 text-xs font-medium">(Optional, max 5)</span>
+                        )}
                       </label>
                       <p className="text-[10px] text-gray-400 mb-2 font-medium">
-                        Upload images showing product defects or details to speed up
-                        vendor inspection.
+                        {EVIDENCE_REQUIRED_REASONS.includes(returnReason)
+                          ? "At least 1 image is required for this return reason."
+                          : "Upload images showing product defects or details to speed up vendor inspection."}
                       </p>
 
                       {/* File Input */}
@@ -1650,8 +1656,8 @@ const MobileOrderDetail = () => {
                   <div className="pt-3 border-t border-gray-100 flex-shrink-0">
                     <button
                       onClick={handleRequestReturn}
-                      disabled={isSubmittingReturn}
-                      className="w-full py-3.5 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white rounded-2xl font-bold shadow-lg shadow-primary-500/20 active:scale-95 transition-all disabled:opacity-70"
+                      disabled={isSubmittingReturn || (EVIDENCE_REQUIRED_REASONS.includes(returnReason) && evidenceFiles.length === 0)}
+                      className="w-full py-3.5 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white rounded-2xl font-bold shadow-lg shadow-primary-500/20 active:scale-95 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
                     >
                       {isSubmittingReturn
                         ? "Submitting..."
