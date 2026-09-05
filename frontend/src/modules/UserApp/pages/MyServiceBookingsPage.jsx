@@ -12,6 +12,7 @@ import {
   FiX,
   FiEye,
   FiArrowRight,
+  FiStar,
 } from "react-icons/fi";
 import toast from "react-hot-toast";
 import MobileLayout from "../components/Layout/MobileLayout";
@@ -19,6 +20,7 @@ import PageTransition from "../../../shared/components/PageTransition";
 import {
   getCustomerServiceBookings,
   cancelServiceBooking,
+  addServiceReview,
 } from "../services/customerServiceApi";
 
 const MyServiceBookingsPage = () => {
@@ -27,6 +29,12 @@ const MyServiceBookingsPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [cancellingId, setCancellingId] = useState(null);
+
+  // Service Review Modal State
+  const [reviewBooking, setReviewBooking] = useState(null);
+  const [rating, setRating] = useState(5);
+  const [reviewText, setReviewText] = useState("");
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   const fetchBookings = async () => {
     setIsLoading(true);
@@ -57,6 +65,28 @@ const MyServiceBookingsPage = () => {
       toast.error(err?.response?.data?.message || err?.message || "Failed to cancel booking");
     } finally {
       setCancellingId(null);
+    }
+  };
+
+  const handleOpenReview = (booking) => {
+    setReviewBooking(booking);
+    setRating(5);
+    setReviewText("");
+  };
+
+  const handleSubmitReview = async (e) => {
+    e?.preventDefault();
+    if (!reviewBooking) return;
+    setIsSubmittingReview(true);
+    try {
+      await addServiceReview(reviewBooking._id, { rating, reviewText });
+      toast.success("Thank you! Service review submitted successfully. ⭐");
+      setReviewBooking(null);
+      fetchBookings();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to submit review");
+    } finally {
+      setIsSubmittingReview(false);
     }
   };
 
@@ -173,18 +203,35 @@ const MyServiceBookingsPage = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-100">
-                      <div className="text-left sm:text-right">
+                    <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-100">
+                      <div className="text-left sm:text-right mr-1">
                         <span className="text-[10px] text-slate-500 font-semibold block">Total Price:</span>
                         <span className="text-sm font-extrabold text-[#E31E24]">₹{booking.pricing?.total || 0}</span>
                       </div>
+
+                      {booking.status === "completed" && (
+                        booking.isReviewed ? (
+                          <span className="px-2.5 py-1.5 bg-emerald-50 text-emerald-700 text-[11px] font-bold rounded-xl border border-emerald-200 flex items-center gap-1">
+                            <FiStar className="fill-amber-400 text-amber-400" />
+                            <span>Reviewed</span>
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => handleOpenReview(booking)}
+                            className="px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-bold rounded-xl transition-colors border border-amber-200 flex items-center gap-1"
+                          >
+                            <FiStar className="fill-amber-400 text-amber-400" />
+                            <span>Review</span>
+                          </button>
+                        )
+                      )}
 
                       <button
                         onClick={() => setSelectedBooking(booking)}
                         className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl transition-colors flex items-center gap-1"
                       >
                         <FiEye />
-                        <span>View Details</span>
+                        <span>Details</span>
                       </button>
                     </div>
                   </motion.div>
@@ -297,6 +344,91 @@ const MyServiceBookingsPage = () => {
                         Close
                       </button>
                     </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Service Review Modal */}
+            <AnimatePresence>
+              {reviewBooking && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto"
+                >
+                  <motion.div
+                    initial={{ scale: 0.95, y: 10 }}
+                    animate={{ scale: 1, y: 0 }}
+                    exit={{ scale: 0.95, y: 10 }}
+                    className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4"
+                  >
+                    <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                      <div>
+                        <span className="text-[10px] font-bold text-amber-600 uppercase">Rate Experience</span>
+                        <h3 className="text-base font-extrabold text-slate-900">{reviewBooking.serviceName}</h3>
+                      </div>
+                      <button
+                        onClick={() => setReviewBooking(null)}
+                        className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
+                      >
+                        <FiX className="text-xl" />
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleSubmitReview} className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-2">Overall Service Rating</label>
+                        <div className="flex items-center gap-2">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <button
+                              key={star}
+                              type="button"
+                              onClick={() => setRating(star)}
+                              className="p-1 hover:scale-110 transition-transform"
+                            >
+                              <FiStar
+                                className={`text-2xl ${
+                                  star <= rating
+                                    ? "fill-amber-400 text-amber-400"
+                                    : "text-slate-300"
+                                }`}
+                              />
+                            </button>
+                          ))}
+                          <span className="text-xs font-bold text-slate-600 ml-2">{rating} of 5 stars</span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Review Comments (Optional)</label>
+                        <textarea
+                          rows={3}
+                          value={reviewText}
+                          onChange={(e) => setReviewText(e.target.value)}
+                          placeholder="How was the technician's professionalism, timeliness, and service quality?"
+                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#E31E24]"
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                        <button
+                          type="button"
+                          onClick={() => setReviewBooking(null)}
+                          className="px-4 py-2 bg-slate-100 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-200 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={isSubmittingReview}
+                          className="px-4 py-2 bg-[#E31E24] hover:bg-[#c6151b] text-white text-xs font-bold rounded-xl transition-all shadow-sm disabled:opacity-50"
+                        >
+                          {isSubmittingReview ? "Submitting..." : "Submit Review"}
+                        </button>
+                      </div>
+                    </form>
                   </motion.div>
                 </motion.div>
               )}

@@ -33,10 +33,30 @@ const vendorServiceSchema = new mongoose.Schema(
             start: { type: String, default: '09:00' },
             end: { type: String, default: '18:00' },
         },
+        workingSchedule: {
+            monday:    { enabled: { type: Boolean, default: true }, start: { type: String, default: '09:00' }, end: { type: String, default: '18:00' } },
+            tuesday:   { enabled: { type: Boolean, default: true }, start: { type: String, default: '09:00' }, end: { type: String, default: '18:00' } },
+            wednesday: { enabled: { type: Boolean, default: true }, start: { type: String, default: '09:00' }, end: { type: String, default: '18:00' } },
+            thursday:  { enabled: { type: Boolean, default: true }, start: { type: String, default: '09:00' }, end: { type: String, default: '18:00' } },
+            friday:    { enabled: { type: Boolean, default: true }, start: { type: String, default: '09:00' }, end: { type: String, default: '18:00' } },
+            saturday:  { enabled: { type: Boolean, default: true }, start: { type: String, default: '09:00' }, end: { type: String, default: '18:00' } },
+            sunday:    { enabled: { type: Boolean, default: false }, start: { type: String, default: '09:00' }, end: { type: String, default: '18:00' } },
+        },
         dailyCapacity: {
             type: Number,
             min: 0,
             default: 10,
+        },
+        rating: {
+            type: Number,
+            default: 0,
+            min: 0,
+            max: 5,
+        },
+        reviewCount: {
+            type: Number,
+            default: 0,
+            min: 0,
         },
         vendorNotes: {
             type: String,

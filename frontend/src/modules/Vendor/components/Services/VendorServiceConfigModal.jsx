@@ -4,6 +4,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useVendorServiceStore } from '../../../../shared/store/vendorServiceStore';
 import toast from 'react-hot-toast';
 
+const DEFAULT_SCHEDULE = {
+  monday: { enabled: true, start: '09:00', end: '18:00' },
+  tuesday: { enabled: true, start: '09:00', end: '18:00' },
+  wednesday: { enabled: true, start: '09:00', end: '18:00' },
+  thursday: { enabled: true, start: '09:00', end: '18:00' },
+  friday: { enabled: true, start: '09:00', end: '18:00' },
+  saturday: { enabled: true, start: '09:00', end: '18:00' },
+  sunday: { enabled: false, start: '09:00', end: '18:00' },
+};
+
 const VendorServiceConfigModal = ({ vendorService, onClose, onSave }) => {
   const { updateServiceConfig } = useVendorServiceStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -16,6 +26,7 @@ const VendorServiceConfigModal = ({ vendorService, onClose, onSave }) => {
     variantPrices: {},
     serviceAreasStr: '',
     workingHours: { start: '09:00', end: '18:00' },
+    workingSchedule: DEFAULT_SCHEDULE,
     dailyCapacity: 10,
     vendorNotes: '',
     isActive: true,
@@ -31,6 +42,7 @@ const VendorServiceConfigModal = ({ vendorService, onClose, onSave }) => {
           start: vendorService.workingHours?.start || '09:00',
           end: vendorService.workingHours?.end || '18:00',
         },
+        workingSchedule: vendorService.workingSchedule || DEFAULT_SCHEDULE,
         dailyCapacity: vendorService.dailyCapacity ?? 10,
         vendorNotes: vendorService.vendorNotes || '',
         isActive: vendorService.isActive !== undefined ? vendorService.isActive : true,
@@ -65,6 +77,17 @@ const VendorServiceConfigModal = ({ vendorService, onClose, onSave }) => {
         [variantKey]: Number(value) || 0,
       },
     }));
+  const handleDayToggle = (dayKey) => {
+    setFormData((prev) => ({
+      ...prev,
+      workingSchedule: {
+        ...prev.workingSchedule,
+        [dayKey]: {
+          ...(prev.workingSchedule?.[dayKey] || { start: '09:00', end: '18:00' }),
+          enabled: !prev.workingSchedule?.[dayKey]?.enabled,
+        },
+      },
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -83,6 +106,7 @@ const VendorServiceConfigModal = ({ vendorService, onClose, onSave }) => {
         variantPrices: formData.variantPrices,
         serviceAreas: areasList,
         workingHours: formData.workingHours,
+        workingSchedule: formData.workingSchedule,
         dailyCapacity: Number(formData.dailyCapacity) || 0,
         vendorNotes: formData.vendorNotes,
         isActive: formData.isActive,
@@ -288,6 +312,34 @@ const VendorServiceConfigModal = ({ vendorService, onClose, onSave }) => {
                       className="w-full px-2.5 py-2 border border-gray-300 rounded-xl text-xs"
                     />
                   </div>
+                </div>
+              </div>
+
+              {/* Weekly Working Days Configuration */}
+              <div>
+                <label className="block text-xs font-bold text-gray-800 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                  <FiCalendar />
+                  Active Service Days (Click to Open / Close)
+                </label>
+                <div className="grid grid-cols-7 gap-1.5 pt-1">
+                  {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => {
+                    const isDayOpen = formData.workingSchedule?.[day]?.enabled !== false;
+                    return (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => handleDayToggle(day)}
+                        className={`py-2 px-1 text-center rounded-xl border text-[11px] font-bold capitalize transition-all ${
+                          isDayOpen
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-300 shadow-xs'
+                            : 'bg-gray-100 text-gray-400 border-gray-200 line-through'
+                        }`}
+                        title={isDayOpen ? `${day}: Open` : `${day}: Closed`}
+                      >
+                        {day.slice(0, 3)}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 

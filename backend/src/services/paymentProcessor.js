@@ -9,6 +9,8 @@ import Coupon from '../models/Coupon.model.js';
 import Refund from '../models/Refund.model.js';
 import Vendor from '../models/Vendor.model.js';
 import Admin from '../models/Admin.model.js';
+import ReturnRequest from '../models/ReturnRequest.model.js';
+import ServiceBooking from '../models/ServiceBooking.model.js';
 import logger from '../utils/logger.js';
 import { initiateRefund } from './payment.service.js';
 import { creditWallet } from './wallet.service.js';
@@ -37,6 +39,53 @@ export async function processCapturedPayment({ razorpayOrderId, razorpayPaymentI
     if (!attempt) {
         // Already processing or paid — exit safely to avoid double stock deduction
         console.warn(`[PAYMENT_PROCESSOR] Attempt ${razorpayOrderId} already processed or processing.`);
+        return;
+    }
+
+    // ─── Handle SERVICE_BOOKING payment ───────────────────────────────────────
+    if (attempt.purpose === 'SERVICE_BOOKING') {
+        const booking = await ServiceBooking.findById(attempt.serviceBookingId);
+        if (!booking) throw new Error(`Service booking not found for attempt ${attempt._id}`);
+
+        await ServiceBooking.findByIdAndUpdate(booking._id, {
+            $set: {
+                paymentStatus: 'paid',
+                status: 'confirmed',
+            },
+            $push: {
+                statusHistory: {
+                    previousStatus: booking.status,
+                    newStatus: 'confirmed',
+                    changedByRole: 'system',
+                    note: `Online payment captured via Razorpay (${method || 'online'})`,
+                    changedAt: new Date(),
+                },
+            },
+        });
+
+        await PaymentAttempt.findByIdAndUpdate(attempt._id, { $set: { status: 'paid' } });
+
+        // Post-payment notifications (User + Vendor)
+        try {
+            await createNotification({
+                recipientId: booking.userId,
+                recipientType: 'user',
+                title: 'Payment Successful!',
+                message: `Payment of ₹${booking.pricing.total} for booking #${booking.bookingId} (${booking.serviceName}) was successful.`,
+                type: 'payment',
+                data: { bookingId: String(booking._id), bookingNumber: booking.bookingId },
+            });
+            await createNotification({
+                recipientId: booking.vendorId,
+                recipientType: 'vendor',
+                title: 'Paid Booking Confirmed',
+                message: `Booking #${booking.bookingId} for "${booking.serviceName}" is paid and confirmed!`,
+                type: 'service',
+                data: { bookingId: String(booking._id), bookingNumber: booking.bookingId },
+            });
+        } catch (e) {
+            logger.error('[SERVICE_PAYMENT_NOTIF_ERROR]', e.message);
+        }
         return;
     }
 

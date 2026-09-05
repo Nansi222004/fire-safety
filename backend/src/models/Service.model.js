@@ -55,6 +55,17 @@ const serviceSchema = new mongoose.Schema(
             requiresDocuments: { type: Boolean, default: false },
             isRecurring: { type: Boolean, default: false },
         },
+        rating: {
+            type: Number,
+            default: 0,
+            min: 0,
+            max: 5,
+        },
+        reviewCount: {
+            type: Number,
+            default: 0,
+            min: 0,
+        },
         serviceFields: [serviceFieldSchema],
     },
     { timestamps: true }

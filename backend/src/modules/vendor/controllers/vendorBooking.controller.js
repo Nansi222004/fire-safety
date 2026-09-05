@@ -2,8 +2,15 @@ import asyncHandler from '../../../utils/asyncHandler.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
 import ServiceBooking from '../../../models/ServiceBooking.model.js';
+import Vendor from '../../../models/Vendor.model.js';
+import Commission from '../../../models/Commission.model.js';
+import VendorWalletTransaction from '../../../models/VendorWalletTransaction.model.js';
+import Refund from '../../../models/Refund.model.js';
+import ServiceCapacity from '../../../models/ServiceCapacity.model.js';
 import { emitToRoom } from '../../../services/socket.service.js';
 import { createNotification } from '../../../services/notification.service.js';
+import { getDefaultCommissionRate } from '../../../services/settingsService.js';
+import { creditWallet } from '../../../services/wallet.service.js';
 
 // Allowed State Machine Transitions map
 const ALLOWED_TRANSITIONS = {
@@ -108,7 +115,7 @@ export const getVendorBookingById = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Update Vendor Service Booking Status (State Machine + Concurrency Protection + Customer Notification)
+ * @desc    Update Vendor Service Booking Status with financial settlement on completion
  * @route   PATCH /api/vendor/service-bookings/:id/status
  * @access  Private (Vendor Auth)
  */
@@ -169,6 +176,13 @@ export const updateBookingStatus = asyncHandler(async (req, res) => {
         updatePayload.$set.cancelledAt = new Date();
     }
 
+    if (targetStatus === 'completed') {
+        updatePayload.$set.settlementStatus = 'settled';
+        if (booking.paymentMethod === 'cod') {
+            updatePayload.$set.paymentStatus = 'paid';
+        }
+    }
+
     if (note && note.trim()) {
         updatePayload.$set.vendorNotes = note.trim();
     }
@@ -183,7 +197,125 @@ export const updateBookingStatus = asyncHandler(async (req, res) => {
         throw new ApiError(409, 'Booking status was updated concurrently by another session. Please refresh.');
     }
 
-    // 5. Notify Customer (DB Notification)
+    // 5. Handle Financial Settlement on Completion
+    if (targetStatus === 'completed' && booking.settlementStatus !== 'settled') {
+        const vendorDoc = await Vendor.findById(vendorId);
+        const defaultRate = await getDefaultCommissionRate();
+        const commissionRate = Number.isFinite(vendorDoc?.commissionRate) ? vendorDoc.commissionRate : defaultRate;
+
+        const totalAmount = Number(booking.pricing?.total || 0);
+        const commissionAmount = parseFloat(((totalAmount * commissionRate) / 100).toFixed(2));
+        const vendorEarnings = parseFloat((totalAmount - commissionAmount).toFixed(2));
+
+        const isCod = booking.paymentMethod === 'cod';
+
+        // Check idempotency: ensure commission doesn't already exist for this booking
+        const existingCommission = await Commission.findOne({ serviceBookingId: booking._id });
+        if (!existingCommission) {
+            await Commission.create({
+                serviceBookingId: booking._id,
+                sourceType: 'service',
+                vendorId,
+                vendorName: vendorDoc?.storeName || vendorDoc?.name || '',
+                subtotal: booking.pricing?.subtotal || totalAmount,
+                vendorSubtotal: booking.pricing?.subtotal || totalAmount,
+                commissionRate,
+                commission: commissionAmount,
+                commissionAmount,
+                vendorEarnings,
+                vendorNetEarnings: vendorEarnings,
+                escrowAmount: vendorEarnings,
+                status: 'paid',
+                settlementStatus: 'paid',
+                escrowStatus: 'released',
+                paidAt: new Date(),
+                releasedAt: new Date(),
+            });
+
+            if (isCod) {
+                // For COD, vendor collected cash on site; platform commission is deducted from vendor wallet
+                const walletBefore = vendorDoc?.walletBalance || 0;
+                const walletAfter = parseFloat((walletBefore - commissionAmount).toFixed(2));
+                await Vendor.findByIdAndUpdate(vendorId, { $inc: { walletBalance: -commissionAmount } });
+
+                await VendorWalletTransaction.create({
+                    vendorId,
+                    type: 'SERVICE_SETTLEMENT',
+                    amount: -commissionAmount,
+                    relatedServiceBookingId: booking._id,
+                    referenceId: `SERVICE_SETTLEMENT_COD_${booking._id}`,
+                    walletBalanceBefore: walletBefore,
+                    walletBalanceAfter: walletAfter,
+                    performedBy: { role: 'system', id: null },
+                    notes: `Platform commission deduction for COD Service Booking #${booking.bookingId} (Gross: ₹${totalAmount}, Comm: ₹${commissionAmount})`,
+                });
+            } else {
+                // For Prepaid/Online/Wallet, platform collected cash; vendor earnings credited to vendor wallet
+                const walletBefore = vendorDoc?.walletBalance || 0;
+                const walletAfter = parseFloat((walletBefore + vendorEarnings).toFixed(2));
+                await Vendor.findByIdAndUpdate(vendorId, { $inc: { walletBalance: vendorEarnings } });
+
+                await VendorWalletTransaction.create({
+                    vendorId,
+                    type: 'SERVICE_SETTLEMENT',
+                    amount: vendorEarnings,
+                    relatedServiceBookingId: booking._id,
+                    referenceId: `SERVICE_SETTLEMENT_${booking._id}`,
+                    walletBalanceBefore: walletBefore,
+                    walletBalanceAfter: walletAfter,
+                    performedBy: { role: 'system', id: null },
+                    notes: `Payout credited for completed Service Booking #${booking.bookingId} (Gross: ₹${totalAmount}, Net: ₹${vendorEarnings}, Comm: ₹${commissionAmount})`,
+                });
+            }
+        }
+    }
+
+    // 6. Handle Cancellation Refund & Capacity Release
+    if (targetStatus === 'cancelled') {
+        // Release daily capacity slot
+        const dateStr = new Date(booking.bookingDate).toISOString().slice(0, 10);
+        await ServiceCapacity.updateOne(
+            { vendorServiceId: booking.vendorServiceId, dateStr, bookedCount: { $gt: 0 } },
+            { $inc: { bookedCount: -1 } }
+        );
+
+        // If booking was paid, refund to customer wallet
+        if (booking.paymentStatus === 'paid') {
+            const refundAmount = Number(booking.pricing?.total || 0);
+            const refundRef = `SERVICE_CANCEL_REFUND_${booking._id}`;
+            const existingRefund = await Refund.findOne({ referenceId: refundRef });
+
+            if (!existingRefund && refundAmount > 0) {
+                await creditWallet(
+                    booking.userId,
+                    refundAmount,
+                    'cancel_refund',
+                    {
+                        serviceBookingId: booking._id,
+                        description: `Refund ₹${refundAmount} for Service Booking #${booking.bookingId} cancelled by vendor`,
+                        reference: refundRef,
+                    }
+                );
+
+                await Refund.create({
+                    serviceBookingId: booking._id,
+                    userId: booking.userId,
+                    amount: refundAmount,
+                    referenceId: refundRef,
+                    method: 'wallet_credit',
+                    destination: 'wallet',
+                    status: 'completed',
+                    notes: `Refund for Service Booking #${booking.bookingId} cancelled by vendor`,
+                });
+
+                await ServiceBooking.findByIdAndUpdate(booking._id, {
+                    $set: { paymentStatus: 'refunded', refundStatus: 'refunded' }
+                });
+            }
+        }
+    }
+
+    // 7. Notify Customer
     const statusTitles = {
         confirmed: 'Booking Confirmed!',
         in_progress: 'Service In Progress',
@@ -198,15 +330,16 @@ export const updateBookingStatus = asyncHandler(async (req, res) => {
         cancelled: `Booking #${updatedBooking.bookingId} was cancelled. Reason: ${cancellationReason}`,
     };
 
-    await createNotification(
-        updatedBooking.userId._id || updatedBooking.userId,
-        'user',
-        statusTitles[targetStatus] || 'Booking Status Updated',
-        statusMessages[targetStatus] || `Status updated to ${targetStatus}`,
-        { bookingId: String(updatedBooking._id), bookingNumber: updatedBooking.bookingId, status: targetStatus }
-    );
+    await createNotification({
+        recipientId: updatedBooking.userId._id || updatedBooking.userId,
+        recipientType: 'user',
+        title: statusTitles[targetStatus] || 'Booking Status Updated',
+        message: statusMessages[targetStatus] || `Status updated to ${targetStatus}`,
+        type: 'service',
+        data: { bookingId: String(updatedBooking._id), bookingNumber: updatedBooking.bookingId, status: targetStatus }
+    });
 
-    // 6. Emit Socket Event Safely
+    // 8. Emit Socket Event Safely
     try {
         emitToRoom(
             `user_${updatedBooking.userId._id || updatedBooking.userId}`,

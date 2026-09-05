@@ -2,7 +2,9 @@ import mongoose from 'mongoose';
 
 const commissionSchema = new mongoose.Schema(
     {
-        orderId: { type: mongoose.Schema.Types.ObjectId, ref: 'Order', required: true, index: true },
+        orderId: { type: mongoose.Schema.Types.ObjectId, ref: 'Order', required: false, index: true },
+        serviceBookingId: { type: mongoose.Schema.Types.ObjectId, ref: 'ServiceBooking', index: true },
+        sourceType: { type: String, enum: ['order', 'service'], default: 'order', index: true },
         vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor', required: true, index: true },
         vendorName: String,
         subtotal: { type: Number, required: true },

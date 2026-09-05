@@ -450,7 +450,7 @@ const ReturnRequestDetail = () => {
                 <p className="text-xs text-gray-500 mb-0.5">{isExchange ? 'Price Difference' : 'Refund Amount'}</p>
                 {isExchange ? (
                   (() => {
-                    const diff = Number(returnRequest.exchangeDetails?.priceDifference || 0);
+                    const diff = Number(returnRequest.exchangeDetails?.priceDelta || 0);
                     if (diff === 0) return <p className="font-bold text-gray-800 text-lg">Even Exchange</p>;
                     if (diff > 0) return <p className="font-bold text-amber-600 text-lg">+{formatPrice(diff)}</p>;
                     return <p className="font-bold text-green-600 text-lg">-{formatPrice(Math.abs(diff))}</p>;
@@ -500,7 +500,7 @@ const ReturnRequestDetail = () => {
                 <div>
                   <p className="text-xs text-gray-500 mb-0.5">Financial Reconciliation</p>
                   {(() => {
-                    const diff = Number(returnRequest.exchangeDetails.priceDifference || 0);
+                    const diff = Number(returnRequest.exchangeDetails?.priceDelta || 0);
                     if (diff === 0) return <p className="font-semibold text-gray-600 bg-gray-50 p-2.5 rounded-lg border border-gray-150">Even Exchange (No additional charge)</p>;
                     if (diff > 0) return <p className="font-semibold text-amber-800 bg-amber-50 p-2.5 rounded-lg border border-amber-150">Customer owes: {formatPrice(diff)}</p>;
                     return <p className="font-semibold text-green-800 bg-green-50 p-2.5 rounded-lg border border-green-150">Refund customer: {formatPrice(Math.abs(diff))}</p>;

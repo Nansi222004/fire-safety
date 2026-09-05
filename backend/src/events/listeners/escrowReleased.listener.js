@@ -38,10 +38,11 @@ const escrowReleasedListener = async (payload) => {
         if (payload.vendorId) {
             await createNotification({
                 recipientId: payload.vendorId,
-                type: 'ESCROW_RELEASED',
+                recipientType: 'vendor',
+                type: 'payment',
                 title: 'Earnings Credited',
                 message: `₹${payload.amount} has been credited to your wallet for order #${payload.orderId}.`,
-                metadata: { orderId: payload.orderId, commissionId: payload.commissionId }
+                data: { orderId: String(payload.orderId), commissionId: String(payload.commissionId || ''), amount: String(payload.amount) }
             });
         }
 

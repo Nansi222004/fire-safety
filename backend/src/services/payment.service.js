@@ -14,13 +14,24 @@ const razorpay = new Razorpay({
  * @param {string} receiptId - Human-readable reference (order ID)
  * @param {object} notes - Optional metadata
  */
-export const createRazorpayOrder = (amountInRupees, currency = 'INR', receiptId, notes = {}) =>
-    razorpay.orders.create({
+export const createRazorpayOrder = (amountInRupees, currency = 'INR', receiptId, notes = {}) => {
+    if (process.env.NODE_ENV === 'test' || process.env.RAZORPAY_MOCK === 'true') {
+        return Promise.resolve({
+            id: `order_mock_${Date.now()}_${Math.floor(100 + Math.random() * 900)}`,
+            amount: Math.round(amountInRupees * 100),
+            currency,
+            receipt: String(receiptId),
+            notes,
+            status: 'created',
+        });
+    }
+    return razorpay.orders.create({
         amount:   Math.round(amountInRupees * 100),
         currency,
         receipt:  String(receiptId),
         notes,
     });
+};
 
 /**
  * Verify the HMAC-SHA256 signature sent by Razorpay webhooks.
@@ -66,8 +77,17 @@ export const verifyPaymentSignature = (razorpayOrderId, razorpayPaymentId, signa
  * @param {number} amountInRupees - Amount to refund in ₹
  * @param {object} notes - Optional metadata for audit
  */
-export const initiateRefund = (razorpayPaymentId, amountInRupees, notes = {}) =>
-    razorpay.payments.refund(razorpayPaymentId, {
+export const initiateRefund = (razorpayPaymentId, amountInRupees, notes = {}) => {
+    if (process.env.NODE_ENV === 'test' || process.env.RAZORPAY_MOCK === 'true') {
+        return Promise.resolve({
+            id: `rfnd_mock_${Date.now()}`,
+            payment_id: razorpayPaymentId,
+            amount: Math.round(amountInRupees * 100),
+            status: 'processed',
+        });
+    }
+    return razorpay.payments.refund(razorpayPaymentId, {
         amount: Math.round(amountInRupees * 100),
         notes,
     });
+};

@@ -238,6 +238,7 @@ export const updateVendorService = asyncHandler(async (req, res) => {
         variantPrices,
         serviceAreas,
         workingHours,
+        workingSchedule,
         dailyCapacity,
         vendorNotes,
         isActive,
@@ -267,6 +268,10 @@ export const updateVendorService = asyncHandler(async (req, res) => {
             start: String(workingHours.start || '09:00').trim(),
             end: String(workingHours.end || '18:00').trim(),
         };
+    }
+
+    if (workingSchedule && typeof workingSchedule === 'object') {
+        updatePayload.workingSchedule = workingSchedule;
     }
 
     if (dailyCapacity !== undefined) {

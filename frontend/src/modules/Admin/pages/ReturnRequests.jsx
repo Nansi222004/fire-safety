@@ -226,7 +226,7 @@ const ReturnRequests = () => {
       sortable: true,
       render: (value, row) => {
         if (row.requestType === 'exchange') {
-          const diff = Number(row.exchangeDetails?.priceDifference || 0);
+          const diff = Number(row.exchangeDetails?.priceDelta || 0);
           if (diff === 0) {
             return <span className="text-gray-400 text-sm font-medium">Even Exchange</span>;
           } else if (diff > 0) {

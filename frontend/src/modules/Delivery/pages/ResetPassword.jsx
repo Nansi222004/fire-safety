@@ -5,6 +5,7 @@ import { FiArrowLeft, FiEye, FiEyeOff, FiLock, FiTruck } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import PageTransition from '../../../shared/components/PageTransition';
 import { useDeliveryAuthStore } from '../store/deliveryStore';
+import { appLogo } from '../../../shared/utils/imagePaths';
 
 const DeliveryResetPassword = () => {
   const navigate = useNavigate();
@@ -47,58 +48,99 @@ const DeliveryResetPassword = () => {
 
   return (
     <PageTransition>
-      <div className="min-h-screen bg-gradient-to-br from-primary-900 via-primary-800 to-primary-900 flex items-center justify-center px-4 py-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-md"
-        >
-          <div className="glass-card rounded-2xl p-6 shadow-xl">
-            <div className="text-center mb-8">
-              <div className="w-16 h-16 gradient-green rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-glow-green">
-                <FiTruck className="text-white text-2xl" />
+      <div className="min-h-screen bg-[#F8FAFC] text-[#1F2937] flex flex-col justify-between selection:bg-red-500 selection:text-white">
+        {/* Top Header */}
+        <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-[#E5E7EB] px-4 lg:px-8 py-3.5 shadow-sm">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <Link to="/" className="flex items-center gap-3 group">
+              <img src={appLogo} alt="SafeFire Logo" className="h-9 w-auto object-contain" />
+              <div>
+                <span className="text-lg font-bold text-[#0F172A] tracking-tight group-hover:text-[#E31E24] transition-colors block leading-none">
+                  SafeFire
+                </span>
+                <span className="text-xs text-[#64748B] font-medium block mt-0.5">
+                  Delivery Partner Portal
+                </span>
               </div>
-              <h1 className="text-2xl font-bold text-gray-800 mb-2">Reset Password</h1>
-              <p className="text-gray-600 text-sm">
-                Set new password for <span className="font-semibold">{email || 'your account'}</span>
-              </p>
+            </Link>
+
+            <Link
+              to="/delivery/login"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-[#64748B] hover:text-[#0F172A] bg-[#F1F5F9] hover:bg-[#E2E8F0] rounded-xl transition-colors"
+            >
+              <FiArrowLeft className="text-sm" />
+              <span>Back to Login</span>
+            </Link>
+          </div>
+        </header>
+
+        {/* Main Card */}
+        <main className="flex-1 flex items-center justify-center p-4 py-8 sm:py-12">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="bg-white rounded-3xl border border-[#E5E7EB] p-6 sm:p-8 w-full max-w-md shadow-xl space-y-6"
+          >
+            <div className="text-center space-y-3">
+              <div className="w-14 h-14 rounded-2xl bg-[#FEF2F2] text-[#E31E24] border border-red-100 flex items-center justify-center mx-auto shadow-sm">
+                <FiTruck className="text-2xl" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-extrabold text-[#0F172A] tracking-tight">Set New Password</h1>
+                <p className="text-xs text-[#64748B] mt-1">
+                  Create a secure password for <span className="font-semibold text-[#0F172A]">{email || 'your account'}</span>
+                </p>
+              </div>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">New Password</label>
+                <label className="block text-xs font-bold text-[#1F2937] uppercase tracking-wider mb-1.5">
+                  New Password <span className="text-[#E31E24]">*</span>
+                </label>
                 <div className="relative">
-                  <FiLock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <FiLock className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-[#64748B]" />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={formData.password}
                     onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
-                    placeholder="Enter new password"
+                    placeholder="Minimum 6 characters"
                     required
                     minLength={6}
-                    className="w-full pl-12 pr-12 py-3 rounded-xl border-2 border-gray-200 focus:border-primary-500 focus:outline-none transition-colors text-base"
+                    className="w-full pl-10 pr-11 py-3 bg-[#F8FAFC] border border-[#E5E7EB] rounded-xl focus:outline-none focus:border-[#E31E24] focus:bg-white text-sm text-[#0F172A] placeholder:text-[#94A3B8] transition-all"
                   />
-                  <button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                    {showPassword ? <FiEyeOff /> : <FiEye />}
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-3.5 top-1/2 transform -translate-y-1/2 text-[#64748B] hover:text-[#0F172A]"
+                  >
+                    {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
                   </button>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Confirm Password</label>
+                <label className="block text-xs font-bold text-[#1F2937] uppercase tracking-wider mb-1.5">
+                  Confirm New Password <span className="text-[#E31E24]">*</span>
+                </label>
                 <div className="relative">
-                  <FiLock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <FiLock className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-[#64748B]" />
                   <input
                     type={showConfirmPassword ? 'text' : 'password'}
                     value={formData.confirmPassword}
                     onChange={(e) => setFormData((prev) => ({ ...prev, confirmPassword: e.target.value }))}
-                    placeholder="Confirm new password"
+                    placeholder="Re-enter new password"
                     required
                     minLength={6}
-                    className="w-full pl-12 pr-12 py-3 rounded-xl border-2 border-gray-200 focus:border-primary-500 focus:outline-none transition-colors text-base"
+                    className="w-full pl-10 pr-11 py-3 bg-[#F8FAFC] border border-[#E5E7EB] rounded-xl focus:outline-none focus:border-[#E31E24] focus:bg-white text-sm text-[#0F172A] placeholder:text-[#94A3B8] transition-all"
                   />
-                  <button type="button" onClick={() => setShowConfirmPassword((v) => !v)} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                    {showConfirmPassword ? <FiEyeOff /> : <FiEye />}
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((v) => !v)}
+                    className="absolute right-3.5 top-1/2 transform -translate-y-1/2 text-[#64748B] hover:text-[#0F172A]"
+                  >
+                    {showConfirmPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
                   </button>
                 </div>
               </div>
@@ -106,20 +148,25 @@ const DeliveryResetPassword = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full gradient-green text-white py-4 rounded-xl font-semibold text-base hover:shadow-glow-green transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-3.5 px-4 rounded-xl bg-[#E31E24] hover:bg-[#C8191F] text-white font-bold text-sm shadow-md transition-all active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                {isLoading ? 'Resetting...' : 'Reset Password'}
+                {isLoading ? 'Resetting Password...' : 'Save New Password & Login'}
               </button>
             </form>
 
-            <div className="text-center pt-4">
-              <Link to="/delivery/login" className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 font-medium">
+            <div className="text-center pt-2 border-t border-[#E5E7EB]">
+              <Link to="/delivery/login" className="inline-flex items-center gap-1.5 text-xs text-[#64748B] hover:text-[#0F172A] font-semibold">
                 <FiArrowLeft />
-                Back to Login
+                <span>Back to Login</span>
               </Link>
             </div>
-          </div>
-        </motion.div>
+          </motion.div>
+        </main>
+
+        {/* Footer */}
+        <footer className="py-4 text-center text-xs text-[#64748B] border-t border-[#E5E7EB] bg-white">
+          © {new Date().getFullYear()} SafeFire Delivery Operations. Certified Fire Safety & Compliance Platform.
+        </footer>
       </div>
     </PageTransition>
   );

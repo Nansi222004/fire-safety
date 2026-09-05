@@ -26,7 +26,7 @@ import crypto from 'crypto';
 import { notifyOrderUpdate, notifyReturnUpdate, emitToRoom } from '../../../services/socket.service.js';
 import { calculateOrderFinancials } from '../../../services/financial.service.js';
 import { initiateRefund } from '../../../services/payment.service.js';
-import { getDefaultCommissionRate, isPaymentMethodEnabled } from '../../../services/settingsService.js';
+import { getDefaultCommissionRate, isPaymentMethodEnabled, getReturnWindowDays } from '../../../services/settingsService.js';
 import logisticsEventBus from '../../../events/logisticsEventBus.js';
 import LOGISTICS_EVENTS from '../../../events/logisticsEvents.js';
 import AuditLog from '../../../models/AuditLog.model.js';
@@ -929,6 +929,51 @@ export const cancelOrder = asyncHandler(async (req, res) => {
     );
 
     notifyOrderUpdate(result.order || order);
+
+    // ─── Post-cancellation notifications (Customer + Affected Vendors) ──
+    if (order.userId) {
+        createNotification({
+            recipientId: order.userId,
+            recipientType: 'user',
+            title: 'Order Cancelled',
+            message: `Your order #${order.orderId || order._id} has been cancelled successfully.${result.refundAmount > 0 ? ` ₹${result.refundAmount} refunded to your wallet.` : ''}`,
+            type: 'order',
+            data: {
+                orderId: String(order.orderId || order._id),
+                orderMongoId: String(order._id),
+                status: 'cancelled',
+                refundAmount: String(result.refundAmount || 0),
+            },
+        }).catch((err) => console.error('[CancelOrder User Notification Error]:', err.message));
+    }
+
+    const uniqueVendorIds = [
+        ...new Set(
+            (order.vendorItems && order.vendorItems.length > 0)
+                ? order.vendorItems
+                      .map((v) => (v?.vendorId?._id ? String(v.vendorId._id) : String(v?.vendorId || '')))
+                      .filter(Boolean)
+                : (order.items || [])
+                      .map((i) => (i?.vendorId?._id ? String(i.vendorId._id) : String(i?.vendorId || '')))
+                      .filter(Boolean)
+        ),
+    ];
+
+    uniqueVendorIds.forEach((vendorId) => {
+        createNotification({
+            recipientId: vendorId,
+            recipientType: 'vendor',
+            title: 'Order Cancelled by Customer',
+            message: `Order #${order.orderId || order._id} was cancelled by the customer.`,
+            type: 'order',
+            data: {
+                orderId: String(order.orderId || order._id),
+                orderMongoId: String(order._id),
+                status: 'cancelled',
+            },
+        }).catch((err) => console.error('[CancelOrder Vendor Notification Error]:', err.message));
+    });
+
     res.status(200).json(
         new ApiResponse(
             200,
@@ -993,6 +1038,43 @@ export const cancelVendorItem = asyncHandler(async (req, res) => {
     });
 
     notifyOrderUpdate(result.order || order);
+
+    // ─── Post-cancellation notifications for package ─────────────────────
+    if (order.userId) {
+        createNotification({
+            recipientId: order.userId,
+            recipientType: 'user',
+            title: 'Package Cancelled',
+            message: `Your package for Order #${order.orderId || order._id} has been cancelled.${result.refundAmount > 0 ? ` ₹${result.refundAmount} refunded to your wallet.` : ''}`,
+            type: 'order',
+            data: {
+                orderId: String(order.orderId || order._id),
+                orderMongoId: String(order._id),
+                status: 'cancelled',
+                refundAmount: String(result.refundAmount || 0),
+            },
+        }).catch((err) => console.error('[CancelVendorItem User Notification Error]:', err.message));
+    }
+
+    const targetVendorId = targetVendorGroup.vendorId?._id
+        ? String(targetVendorGroup.vendorId._id)
+        : String(targetVendorGroup.vendorId || '');
+
+    if (targetVendorId) {
+        createNotification({
+            recipientId: targetVendorId,
+            recipientType: 'vendor',
+            title: 'Package Cancelled by Customer',
+            message: `A package for Order #${order.orderId || order._id} was cancelled by the customer.`,
+            type: 'order',
+            data: {
+                orderId: String(order.orderId || order._id),
+                orderMongoId: String(order._id),
+                status: 'cancelled',
+            },
+        }).catch((err) => console.error('[CancelVendorItem Vendor Notification Error]:', err.message));
+    }
+
     res.status(200).json(
         new ApiResponse(
             200,
@@ -1057,14 +1139,30 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
         throw new ApiError(400, 'Multiple shipments found for this vendor. Please contact support.');
     }
     
+    let deliveredAt = null;
     if (shipments.length === 1) {
         if (shipments[0].status !== 'delivered') {
             throw new ApiError(400, 'Return can only be requested for delivered orders.');
         }
+        deliveredAt = shipments[0].deliveredAt || shipments[0].updatedAt || order.deliveredAt || order.updatedAt;
     } else {
         // Fallback for legacy orders that do not have shipments
         if (order.status !== 'delivered') {
             throw new ApiError(400, 'Return can only be requested for delivered orders.');
+        }
+        deliveredAt = order.deliveredAt || order.updatedAt;
+    }
+
+    // Server-side Return/Exchange window enforcement (EX-04)
+    const returnWindowDays = await getReturnWindowDays();
+    if (deliveredAt) {
+        const deliveredTime = new Date(deliveredAt).getTime();
+        if (!isNaN(deliveredTime)) {
+            const windowMs = returnWindowDays * 24 * 60 * 60 * 1000;
+            if (Date.now() - deliveredTime > windowMs) {
+                const actionLabel = req.body.requestType === 'exchange' ? 'Exchange' : 'Return';
+                throw new ApiError(400, `${actionLabel} window of ${returnWindowDays} days has expired for this order.`);
+            }
         }
     }
 
@@ -1156,7 +1254,7 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
     const requestType = req.body.requestType === 'exchange' ? 'exchange' : 'return';
     let exchangeDetails = undefined;
 
-    // 3. Exchange validations
+    // 3. Exchange validations & price delta calculation (EX-02)
     if (requestType === 'exchange') {
         let size = '';
         let color = '';
@@ -1180,7 +1278,7 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
             throw new ApiError(400, 'Requested size or color variant selection is required for exchange.');
         }
 
-        // Validate requested variants exist and have stock
+        // Validate requested variants exist, have stock, and compute price delta
         for (const item of normalizedItems) {
             const product = await Product.findById(item.productId);
             if (!product) throw new ApiError(404, `Product not found: ${item.productId}`);
@@ -1214,8 +1312,19 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
                 throw new ApiError(400, `The requested variant (Size: ${size || 'N/A'}, Color: ${color || 'N/A'}) is currently out of stock for product ${product.name}.`);
             }
 
+            // Calculate replacement unit price and delta (EX-02)
+            const { price: replacementUnitPrice } = resolveVariantSelection(product, { ...requestedVariantObj, size, color });
+            const originalUnitPrice = Number(orderItemMatch?.price != null ? orderItemMatch.price : product.price);
+            const exchangedQty = Number(item.quantity || 1);
+            const priceDelta = parseFloat(((replacementUnitPrice - originalUnitPrice) * exchangedQty).toFixed(2));
+            const priceDeltaStatus = priceDelta === 0 ? 'waived' : 'pending';
+
             exchangeDetails = {
-                requestedVariant: { ...requestedVariantObj, size, color, variantKey }
+                requestedVariant: { ...requestedVariantObj, size, color, variantKey },
+                newProductPrice: replacementUnitPrice,
+                oldProductPrice: originalUnitPrice,
+                priceDelta,
+                priceDeltaStatus,
             };
         }
     }

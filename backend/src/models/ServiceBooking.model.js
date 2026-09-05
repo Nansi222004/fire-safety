@@ -140,6 +140,23 @@ const serviceBookingSchema = new mongoose.Schema(
             type: Date,
             default: null,
         },
+        settlementStatus: {
+            type: String,
+            enum: ['unsettled', 'settled'],
+            default: 'unsettled',
+            index: true,
+        },
+        refundStatus: {
+            type: String,
+            enum: ['none', 'refunded'],
+            default: 'none',
+            index: true,
+        },
+        isReviewed: {
+            type: Boolean,
+            default: false,
+            index: true,
+        },
         statusHistory: [statusHistorySchema],
     },
     { timestamps: true }
@@ -148,6 +165,7 @@ const serviceBookingSchema = new mongoose.Schema(
 serviceBookingSchema.index({ userId: 1, createdAt: -1 });
 serviceBookingSchema.index({ vendorId: 1, createdAt: -1 });
 serviceBookingSchema.index({ status: 1, createdAt: -1 });
+serviceBookingSchema.index({ vendorServiceId: 1, bookingDate: 1, status: 1 });
 
 const ServiceBooking = mongoose.model('ServiceBooking', serviceBookingSchema);
 export { ServiceBooking };
