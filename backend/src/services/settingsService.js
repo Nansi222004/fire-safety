@@ -120,3 +120,30 @@ export const getPlatformShippingDefaults = async () => {
     };
 };
 
+/**
+ * Retrieve the configured return/exchange window in days (default: 7 days)
+ * @returns {Promise<number>}
+ */
+export const getReturnWindowDays = async () => {
+    try {
+        const orderSettings = await getCachedSettings('orders', {});
+        if (orderSettings && orderSettings.returnWindow !== undefined) {
+            const days = Number(orderSettings.returnWindow);
+            if (Number.isFinite(days) && days > 0) {
+                return days;
+            }
+        }
+        const general = await getCachedSettings('general', {});
+        if (general && general.returnWindow !== undefined) {
+            const days = Number(general.returnWindow);
+            if (Number.isFinite(days) && days > 0) {
+                return days;
+            }
+        }
+    } catch (err) {
+        logger.error('Error fetching return window setting:', err);
+    }
+    return 7;
+};
+
+

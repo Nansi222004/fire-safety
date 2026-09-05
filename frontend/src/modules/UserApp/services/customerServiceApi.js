@@ -27,6 +27,12 @@ export const createServiceBooking = (data) =>
 export const createBooking = createServiceBooking;
 
 /**
+ * Verify Razorpay payment signature for a service booking
+ */
+export const verifyServicePayment = (data) =>
+  api.post('/customer/bookings/verify-payment', data);
+
+/**
  * Fetch Customer's Service Bookings List
  */
 export const getCustomerServiceBookings = () =>
@@ -43,3 +49,15 @@ export const getServiceBookingById = (id) =>
  */
 export const cancelServiceBooking = (id, reason) =>
   api.patch(`/customer/bookings/${id}/cancel`, { reason });
+
+/**
+ * Submit a Review for a Completed Service Booking
+ */
+export const addServiceReview = (id, reviewData) =>
+  api.post(`/customer/bookings/${id}/review`, reviewData);
+
+/**
+ * Fetch Reviews for a Service Master
+ */
+export const getServiceReviews = (slug, params = {}) =>
+  api.get(`/customer/services/${slug}/reviews`, { params });

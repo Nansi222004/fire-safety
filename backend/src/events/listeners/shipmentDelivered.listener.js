@@ -115,19 +115,21 @@ const shipmentDeliveredListener = async (payload) => {
         if (order?.userId) {
             await createNotification({
                 recipientId: order.userId,
-                type: 'ORDER_DELIVERED',
+                recipientType: 'user',
+                type: 'order',
                 title: 'Order Delivered',
-                message: `Your order #${order._id} has been delivered!`,
-                metadata: { orderId: order._id }
+                message: `Your order #${order.orderId || order._id} has been delivered!`,
+                data: { orderId: String(order._id), orderNumber: String(order.orderId || '') }
             });
         }
         if (payload.vendorId) {
             await createNotification({
                 recipientId: payload.vendorId,
-                type: 'ORDER_DELIVERED',
+                recipientType: 'vendor',
+                type: 'order',
                 title: 'Order Delivered',
                 message: `Order #${payload.orderId} delivered. Earnings releasing in 7 days.`,
-                metadata: { orderId: payload.orderId }
+                data: { orderId: String(payload.orderId) }
             });
         }
 

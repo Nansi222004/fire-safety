@@ -19,6 +19,7 @@ import {
   FiLayers,
   FiCreditCard,
   FiCheck,
+  FiStar,
 } from "react-icons/fi";
 import toast from "react-hot-toast";
 import MobileLayout from "../components/Layout/MobileLayout";
@@ -27,8 +28,24 @@ import {
   getServiceBySlug,
   checkPincodeServiceability,
   createServiceBooking,
+  verifyServicePayment,
+  getServiceReviews,
 } from "../services/customerServiceApi";
 import api from "../../../shared/utils/api";
+
+const loadRazorpay = () => {
+  return new Promise((resolve) => {
+    if (window.Razorpay) {
+      resolve(true);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
 
 const TIME_SLOTS = [
   "09:00 AM - 12:00 PM (Morning)",
@@ -70,8 +87,11 @@ const ServiceDetailPage = () => {
   });
 
   const [paymentMethod, setPaymentMethod] = useState("cod");
+  const [walletBalance, setWalletBalance] = useState(null);
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [serviceReviews, setServiceReviews] = useState([]);
+  const [reviewStats, setReviewStats] = useState({ rating: 0, reviewCount: 0 });
 
   // Fetch Service Details
   useEffect(() => {
@@ -88,7 +108,35 @@ const ServiceDetailPage = () => {
       }
     };
     fetchDetail();
+
+    const fetchReviews = async () => {
+      try {
+        const rRes = await getServiceReviews(slug);
+        const rData = rRes?.data || rRes || {};
+        setServiceReviews(rData.reviews || []);
+        if (rData.stats) setReviewStats(rData.stats);
+      } catch (e) {
+        // Silently catch
+      }
+    };
+    fetchReviews();
   }, [slug]);
+
+  // Fetch Wallet Balance
+  useEffect(() => {
+    const fetchWallet = async () => {
+      try {
+        const res = await api.get("/user/wallet");
+        const data = res?.data?.data || res?.data;
+        if (data && typeof data.balance === "number") {
+          setWalletBalance(data.balance);
+        }
+      } catch (e) {
+        // Silently catch
+      }
+    };
+    fetchWallet();
+  }, []);
 
   // Fetch User Addresses if logged in
   useEffect(() => {
@@ -219,9 +267,61 @@ const ServiceDetailPage = () => {
       };
 
       const res = await createServiceBooking(payload);
-      const bookingData = res?.data?.booking || res?.booking;
+      const data = res?.data || res;
+      const bookingData = data.booking || data;
 
-      toast.success("Service booking confirmed!");
+      if (data.requiresPayment && data.razorpayOrderId) {
+        const sdkLoaded = await loadRazorpay();
+        if (!sdkLoaded || !window.Razorpay) {
+          toast.error("Razorpay SDK failed to load. Please check your internet connection.");
+          setIsSubmitting(false);
+          return;
+        }
+
+        const options = {
+          key: data.key || import.meta.env.VITE_RAZORPAY_KEY_ID,
+          amount: data.amount,
+          currency: data.currency || "INR",
+          name: "SafeFire Services",
+          description: `Service Booking: ${service.name}`,
+          order_id: data.razorpayOrderId,
+          handler: async function (response) {
+            try {
+              toast.loading("Verifying payment...", { id: "sd-rzp" });
+              await verifyServicePayment({
+                serviceBookingId: bookingData._id || bookingData.id,
+                razorpayOrderId: response.razorpay_order_id,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpaySignature: response.razorpay_signature,
+              });
+              toast.success("Payment verified! Service booking confirmed! 🎉", { id: "sd-rzp" });
+              navigate(`/booking-success/${bookingData?._id || bookingData?.bookingId}`);
+            } catch (vErr) {
+              toast.error(vErr?.response?.data?.message || vErr.message || "Payment verification failed", { id: "sd-rzp" });
+              navigate("/customer/my-bookings");
+            }
+          },
+          prefill: {
+            name: finalAddress.fullName || finalAddress.name,
+            contact: finalAddress.phone,
+          },
+          theme: {
+            color: "#E31E24",
+          },
+          modal: {
+            ondismiss: function () {
+              toast("Payment cancelled. Your booking is pending payment in My Bookings.", { icon: "ℹ️" });
+              navigate("/customer/my-bookings");
+            },
+          },
+        };
+
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+        return;
+      }
+
+      toast.success(data.message || "Service booking confirmed!");
       navigate(`/booking-success/${bookingData?._id || bookingData?.bookingId}`);
     } catch (err) {
       toast.error(
@@ -606,7 +706,7 @@ const ServiceDetailPage = () => {
                       {/* Payment Option */}
                       <div className="space-y-2">
                         <label className="block text-xs font-semibold text-slate-600">Payment Mode</label>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                           <button
                             type="button"
                             onClick={() => setPaymentMethod("cod")}
@@ -628,6 +728,17 @@ const ServiceDetailPage = () => {
                             }`}
                           >
                             Online Payment
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPaymentMethod("wallet")}
+                            className={`p-3 rounded-xl border-2 text-xs font-bold transition-all ${
+                              paymentMethod === "wallet"
+                                ? "border-[#E31E24] bg-red-50/50 text-[#E31E24]"
+                                : "border-slate-200 bg-white text-slate-700"
+                            }`}
+                          >
+                            Wallet {walletBalance !== null ? `(₹${walletBalance})` : ""}
                           </button>
                         </div>
                       </div>
@@ -651,6 +762,54 @@ const ServiceDetailPage = () => {
                     </div>
                   </motion.div>
                 )}
+                {/* 4. VERIFIED CUSTOMER SERVICE REVIEWS */}
+                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-sm">
+                        <FiStar className="fill-amber-400 text-amber-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900">Verified Customer Reviews</h3>
+                        <p className="text-[11px] text-slate-500">Reviews from completed service bookings</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="flex items-center gap-1 text-sm font-extrabold text-slate-900">
+                        <FiStar className="fill-amber-400 text-amber-400" />
+                        <span>{reviewStats.rating > 0 ? reviewStats.rating.toFixed(1) : service.rating ? service.rating.toFixed(1) : "New"}</span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 block">({reviewStats.reviewCount || service.reviewCount || 0} reviews)</span>
+                    </div>
+                  </div>
+
+                  {serviceReviews.length === 0 ? (
+                    <div className="text-center py-6 text-slate-400 text-xs">
+                      <p>No customer reviews yet. Be the first to book and review this service!</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {serviceReviews.map((rev) => (
+                        <div key={rev._id} className="p-3.5 bg-slate-50 rounded-xl border border-slate-100 space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-900">{rev.userId?.name || "Verified Customer"}</span>
+                            <div className="flex items-center gap-1 text-amber-500 text-xs">
+                              {Array.from({ length: rev.rating || 5 }).map((_, i) => (
+                                <FiStar key={i} className="fill-amber-400 text-amber-400 text-[11px]" />
+                              ))}
+                            </div>
+                          </div>
+                          {rev.reviewText && (
+                            <p className="text-xs text-slate-600 leading-relaxed">{rev.reviewText}</p>
+                          )}
+                          <span className="text-[10px] text-slate-400 block">
+                            {new Date(rev.createdAt).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </>
             )}
           </div>

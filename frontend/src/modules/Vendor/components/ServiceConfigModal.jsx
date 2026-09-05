@@ -2,12 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { FiX, FiCheck, FiMapPin, FiClock, FiDollarSign, FiCalendar, FiFileText } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
+const DEFAULT_SCHEDULE = {
+  monday: { enabled: true, start: '09:00', end: '18:00' },
+  tuesday: { enabled: true, start: '09:00', end: '18:00' },
+  wednesday: { enabled: true, start: '09:00', end: '18:00' },
+  thursday: { enabled: true, start: '09:00', end: '18:00' },
+  friday: { enabled: true, start: '09:00', end: '18:00' },
+  saturday: { enabled: true, start: '09:00', end: '18:00' },
+  sunday: { enabled: false, start: '09:00', end: '18:00' },
+};
+
 const ServiceConfigModal = ({ isOpen, onClose, vendorService, serviceMaster, onSave }) => {
   const [price, setPrice] = useState(499);
   const [pincodeInput, setPincodeInput] = useState('');
   const [serviceAreas, setServiceAreas] = useState([]);
   const [dailyCapacity, setDailyCapacity] = useState(10);
   const [workingHours, setWorkingHours] = useState({ start: '09:00', end: '18:00' });
+  const [workingSchedule, setWorkingSchedule] = useState(DEFAULT_SCHEDULE);
   const [vendorNotes, setVendorNotes] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -18,6 +29,7 @@ const ServiceConfigModal = ({ isOpen, onClose, vendorService, serviceMaster, onS
       setServiceAreas(Array.isArray(vendorService.serviceAreas) ? vendorService.serviceAreas : []);
       setDailyCapacity(vendorService.dailyCapacity ?? 10);
       setWorkingHours(vendorService.workingHours || { start: '09:00', end: '18:00' });
+      setWorkingSchedule(vendorService.workingSchedule || DEFAULT_SCHEDULE);
       setVendorNotes(vendorService.vendorNotes || '');
       setIsActive(vendorService.isActive !== false);
     } else {
@@ -25,6 +37,7 @@ const ServiceConfigModal = ({ isOpen, onClose, vendorService, serviceMaster, onS
       setServiceAreas(['452001']); // Default initial example pincode
       setDailyCapacity(10);
       setWorkingHours({ start: '09:00', end: '18:00' });
+      setWorkingSchedule(DEFAULT_SCHEDULE);
       setVendorNotes('');
       setIsActive(true);
     }
@@ -75,6 +88,7 @@ const ServiceConfigModal = ({ isOpen, onClose, vendorService, serviceMaster, onS
         serviceAreas,
         dailyCapacity: Number(dailyCapacity),
         workingHours,
+        workingSchedule,
         vendorNotes,
         isActive,
       };
@@ -245,6 +259,41 @@ const ServiceConfigModal = ({ isOpen, onClose, vendorService, serviceMaster, onS
                   className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-[#E31E24]"
                 />
               </div>
+            </div>
+          </div>
+
+          {/* Working Days Schedule */}
+          <div>
+            <label className="block text-xs font-bold text-slate-800 mb-1.5 flex items-center gap-1.5">
+              <FiCalendar className="text-red-500" />
+              <span>Weekly Service Days (Click to Open / Close)</span>
+            </label>
+            <div className="grid grid-cols-7 gap-1">
+              {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => {
+                const isOpenDay = workingSchedule?.[day]?.enabled !== false;
+                return (
+                  <button
+                    key={day}
+                    type="button"
+                    onClick={() =>
+                      setWorkingSchedule({
+                        ...workingSchedule,
+                        [day]: {
+                          ...(workingSchedule?.[day] || { start: '09:00', end: '18:00' }),
+                          enabled: !isOpenDay,
+                        },
+                      })
+                    }
+                    className={`py-1.5 text-center rounded-lg border text-[10px] font-bold capitalize transition-all ${
+                      isOpenDay
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                        : 'bg-slate-100 text-slate-400 border-slate-200 line-through'
+                    }`}
+                  >
+                    {day.slice(0, 3)}
+                  </button>
+                );
+              })}
             </div>
           </div>
 

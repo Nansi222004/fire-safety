@@ -5,7 +5,12 @@ const paymentAttemptSchema = new mongoose.Schema(
         orderId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Order',
-            required: true,
+            required: false,
+            index: true,
+        },
+        serviceBookingId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'ServiceBooking',
             index: true,
         },
         paymentId: {
@@ -29,7 +34,7 @@ const paymentAttemptSchema = new mongoose.Schema(
         },
         purpose: {
             type: String,
-            enum: ['ORDER_PAYMENT', 'EXCHANGE_UPGRADE'],
+            enum: ['ORDER_PAYMENT', 'EXCHANGE_UPGRADE', 'SERVICE_BOOKING'],
             default: 'ORDER_PAYMENT',
             index: true,
         },

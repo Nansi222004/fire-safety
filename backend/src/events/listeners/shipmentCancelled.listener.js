@@ -72,19 +72,21 @@ const shipmentCancelledListener = async (payload) => {
         if (order?.userId) {
             await createNotification({
                 recipientId: order.userId,
-                type: 'ORDER_CANCELLED',
+                recipientType: 'user',
+                type: 'order',
                 title: 'Order Cancelled',
-                message: `Your order #${order._id} has been cancelled.`,
-                metadata: { orderId: order._id }
+                message: `Your order #${order.orderId || order._id} has been cancelled.`,
+                data: { orderId: String(order._id), orderNumber: String(order.orderId || '') }
             });
         }
         if (payload.vendorId) {
             await createNotification({
                 recipientId: payload.vendorId,
-                type: 'ORDER_CANCELLED',
+                recipientType: 'vendor',
+                type: 'order',
                 title: 'Order Cancelled',
                 message: `Order #${payload.orderId} has been cancelled.`,
-                metadata: { orderId: payload.orderId }
+                data: { orderId: String(payload.orderId) }
             });
         }
 

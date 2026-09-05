@@ -277,7 +277,8 @@ export const updateVendorReturnRequestStatus = asyncHandler(async (req, res) => 
                         
                         // Process exchange price difference refund to wallet
                         const priceDelta = updatedRequest.exchangeDetails?.priceDelta;
-                        if (priceDelta && priceDelta < 0) {
+                        const priceDeltaStatus = updatedRequest.exchangeDetails?.priceDeltaStatus;
+                        if (priceDelta && priceDelta < 0 && priceDeltaStatus !== 'refunded') {
                             const refundAmount = Math.abs(priceDelta);
                             await creditWallet(
                                 updatedRequest.userId?._id || updatedRequest.userId,

@@ -19,7 +19,23 @@ import {
   FiAlertCircle,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
-import { checkServiceability, createBooking } from '../services/customerServiceApi';
+import { checkServiceability, createBooking, verifyServicePayment } from '../services/customerServiceApi';
+import api from '../../../shared/utils/api';
+
+// Dynamic Razorpay SDK loader
+const loadRazorpay = () => {
+  return new Promise((resolve) => {
+    if (window.Razorpay) {
+      resolve(true);
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
 
 const ServiceBookingWizard = ({ isOpen, onClose, service }) => {
   const navigate = useNavigate();
@@ -51,8 +67,26 @@ const ServiceBookingWizard = ({ isOpen, onClose, service }) => {
     state: 'Madhya Pradesh',
   });
   const [paymentMethod, setPaymentMethod] = useState('cod');
+  const [walletBalance, setWalletBalance] = useState(null);
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const fetchWallet = async () => {
+      try {
+        const res = await api.get('/user/wallet');
+        const data = res?.data?.data || res?.data;
+        if (data && typeof data.balance === 'number') {
+          setWalletBalance(data.balance);
+        }
+      } catch (e) {
+        // User not logged in or wallet not initialized
+      }
+    };
+    if (isOpen) {
+      fetchWallet();
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (service) {
@@ -178,7 +212,62 @@ const ServiceBookingWizard = ({ isOpen, onClose, service }) => {
       const data = res?.data ?? res ?? {};
       const createdBooking = data.booking || data;
 
-      toast.success('Service Booking Created Successfully! 🎉');
+      // Handle Online Payment (Razorpay Checkout)
+      if (data.requiresPayment && data.razorpayOrderId) {
+        const sdkLoaded = await loadRazorpay();
+        if (!sdkLoaded || !window.Razorpay) {
+          toast.error('Razorpay SDK failed to load. Please check your internet connection.');
+          setIsSubmitting(false);
+          return;
+        }
+
+        const options = {
+          key: data.key || import.meta.env.VITE_RAZORPAY_KEY_ID,
+          amount: data.amount,
+          currency: data.currency || 'INR',
+          name: 'SafeFire Services',
+          description: `Service Booking: ${service.name}`,
+          order_id: data.razorpayOrderId,
+          handler: async function (response) {
+            try {
+              toast.loading('Verifying secure payment...', { id: 'service-rzp-verify' });
+              await verifyServicePayment({
+                serviceBookingId: createdBooking._id || createdBooking.id,
+                razorpayOrderId: response.razorpay_order_id,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpaySignature: response.razorpay_signature,
+              });
+              toast.success('Payment verified! Service booking confirmed! 🎉', { id: 'service-rzp-verify' });
+              onClose();
+              navigate(`/booking-success/${createdBooking._id || createdBooking.bookingId}`);
+            } catch (vErr) {
+              toast.error(vErr?.response?.data?.message || vErr.message || 'Payment verification failed', { id: 'service-rzp-verify' });
+              onClose();
+              navigate('/customer/my-bookings');
+            }
+          },
+          prefill: {
+            name: address.fullName,
+            contact: address.phone,
+          },
+          theme: {
+            color: '#E31E24',
+          },
+          modal: {
+            ondismiss: function () {
+              toast('Payment cancelled. Your booking is pending payment.', { icon: 'ℹ️' });
+              onClose();
+              navigate('/customer/my-bookings');
+            },
+          },
+        };
+
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+        return;
+      }
+
+      toast.success(data.message || 'Service Booking Created Successfully! 🎉');
       onClose();
 
       if (createdBooking?.bookingId || createdBooking?._id) {
@@ -188,7 +277,7 @@ const ServiceBookingWizard = ({ isOpen, onClose, service }) => {
       }
     } catch (err) {
       console.error('Booking submission error:', err);
-      toast.error(err.message || 'Failed to submit service booking.');
+      toast.error(err?.response?.data?.message || err.message || 'Failed to submit service booking.');
     } finally {
       setIsSubmitting(false);
     }
@@ -499,7 +588,7 @@ const ServiceBookingWizard = ({ isOpen, onClose, service }) => {
                 <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider text-[#E31E24]">
                   Payment Method
                 </h4>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('cod')}
@@ -523,7 +612,20 @@ const ServiceBookingWizard = ({ isOpen, onClose, service }) => {
                     }`}
                   >
                     <FiCreditCard />
-                    <span>UPI / Online Payment</span>
+                    <span>UPI / Online</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('wallet')}
+                    className={`p-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+                      paymentMethod === 'wallet'
+                        ? 'bg-red-50 text-[#E31E24] border-[#E31E24]'
+                        : 'bg-white text-slate-700 border-slate-200'
+                    }`}
+                  >
+                    <FiShield />
+                    <span>Wallet {walletBalance !== null ? `(₹${walletBalance})` : ''}</span>
                   </button>
                 </div>
               </div>

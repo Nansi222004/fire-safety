@@ -71,10 +71,11 @@ const codReceivedListener = async (payload) => {
         if (payload.vendorId) {
             await createNotification({
                 recipientId: payload.vendorId,
-                type: 'COD_REMITTED',
+                recipientType: 'vendor',
+                type: 'payment',
                 title: 'COD Received',
                 message: `COD amount of ₹${payload.amountReceived} has been remitted. Earnings releasing soon.`,
-                metadata: { orderId: payload.orderId }
+                data: { orderId: String(payload.orderId), amount: String(payload.amountReceived) }
             });
         }
 

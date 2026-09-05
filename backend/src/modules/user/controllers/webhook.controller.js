@@ -119,6 +119,50 @@ async function handlePaymentFailed(payload) {
     );
     if (!attempt) return;
 
+    // Handle SERVICE_BOOKING failure
+    if (attempt.purpose === 'SERVICE_BOOKING') {
+        const { default: ServiceBooking } = await import('../../../models/ServiceBooking.model.js');
+        const booking = await ServiceBooking.findByIdAndUpdate(
+            attempt.serviceBookingId,
+            {
+                $set: { paymentStatus: 'failed' },
+                $push: {
+                    statusHistory: {
+                        previousStatus: 'pending',
+                        newStatus: 'pending',
+                        changedByRole: 'system',
+                        note: 'Razorpay online payment failed',
+                        changedAt: new Date(),
+                    },
+                },
+            },
+            { new: true }
+        );
+
+        // Release capacity slot
+        if (booking) {
+            const { default: ServiceCapacity } = await import('../../../models/ServiceCapacity.model.js');
+            const startOfDay = new Date(booking.bookingDate);
+            const dateStr = startOfDay.toISOString().slice(0, 10);
+            await ServiceCapacity.updateOne(
+                { vendorServiceId: booking.vendorServiceId, dateStr, bookedCount: { $gt: 0 } },
+                { $inc: { bookedCount: -1 } }
+            );
+
+            if (booking.userId) {
+                await createNotification({
+                    recipientId: booking.userId,
+                    recipientType: 'user',
+                    title: 'Payment Failed',
+                    message: `Payment for service booking #${booking.bookingId} (${booking.serviceName}) was unsuccessful. You can retry payment.`,
+                    type: 'payment',
+                    data: { bookingId: String(booking._id), bookingNumber: booking.bookingId, status: 'payment_failed' },
+                }).catch((err) => console.error('[ServicePaymentFailed Notification Error]:', err.message));
+            }
+        }
+        return;
+    }
+
     // Check if ALL attempts for this order are failed
     const activeAttempts = await PaymentAttempt.countDocuments({
         orderId: attempt.orderId,
@@ -127,7 +171,27 @@ async function handlePaymentFailed(payload) {
 
     if (activeAttempts === 0) {
         await Payment.findByIdAndUpdate(attempt.paymentId, { status: 'failed' });
-        await Order.findByIdAndUpdate(attempt.orderId, { status: 'payment_failed' });
+        const updatedOrder = await Order.findByIdAndUpdate(
+            attempt.orderId,
+            { status: 'payment_failed' },
+            { new: true }
+        );
+
+        if (updatedOrder && updatedOrder.userId) {
+            await createNotification({
+                recipientId: updatedOrder.userId,
+                recipientType: 'user',
+                title: 'Payment Failed',
+                message: `Payment for order #${updatedOrder.orderId || updatedOrder._id} was unsuccessful. You can retry payment from your orders page.`,
+                type: 'payment',
+                data: {
+                    orderId: String(updatedOrder.orderId || updatedOrder._id),
+                    orderMongoId: String(updatedOrder._id),
+                    status: 'payment_failed',
+                    link: `/orders/${updatedOrder.orderId || updatedOrder._id}`,
+                },
+            }).catch((err) => console.error('[PaymentFailed Notification Error]:', err.message));
+        }
     }
     // If user still has active/created attempts, keep order as payment_pending
 }

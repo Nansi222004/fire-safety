@@ -16,6 +16,7 @@ const vendorWalletTransactionSchema = new mongoose.Schema(
                 'WITHDRAWAL_REFUND', // Balance returned on withdrawal rejection
                 'ADJUSTMENT',        // Admin manual bonus or penalty
                 'RETURN_CLAWBACK',   // Deducted when vendor already paid and return approved
+                'SERVICE_SETTLEMENT', // Service completion settlement
             ],
             required: true,
             index: true,
@@ -48,6 +49,10 @@ const vendorWalletTransactionSchema = new mongoose.Schema(
         relatedOrderId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Order',
+        },
+        relatedServiceBookingId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'ServiceBooking',
         },
         relatedWithdrawalId: {
             type: mongoose.Schema.Types.ObjectId,

@@ -57,6 +57,11 @@ const walletTransactionSchema = new mongoose.Schema(
             ref: 'Order',
             index: true,
         },
+        serviceBookingId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'ServiceBooking',
+            index: true,
+        },
         returnRequestId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'ReturnRequest',
