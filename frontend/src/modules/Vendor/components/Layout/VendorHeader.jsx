@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
-import { FiMenu, FiBell, FiLogOut, FiShoppingBag } from "react-icons/fi";
+import { FiMenu, FiBell, FiLogOut, FiShoppingBag, FiTool } from "react-icons/fi";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
 import { useVendorNotificationStore } from "../../store/vendorNotificationStore";
 import toast from "react-hot-toast";
 import Button from "../../../Admin/components/Button";
 import VendorNotificationWindow from "./VendorNotificationWindow";
+
+import { getVendorCapabilities } from "../../utils/vendorCapabilities";
 
 const VendorHeader = ({ onMenuClick, isCollapsed, onToggleSidebar }) => {
   const location = useLocation();
@@ -47,6 +49,7 @@ const VendorHeader = ({ onMenuClick, isCollapsed, onToggleSidebar }) => {
 
   const pageName = getPageName(location.pathname);
   const storeName = vendor?.storeName || vendor?.name || "Vendor Store";
+  const { isServiceOnly, badgeText } = getVendorCapabilities(vendor);
 
   return (
     <header
@@ -54,10 +57,10 @@ const VendorHeader = ({ onMenuClick, isCollapsed, onToggleSidebar }) => {
       style={{
         paddingTop: "env(safe-area-inset-top, 0px)",
       }}>
-      <div className="flex items-center justify-between px-4 lg:px-6 py-4">
+      <div className="flex items-center justify-between px-4 lg:px-6 py-3.5">
         {/* Left: Menu Button */}
-        <div className="flex items-center gap-4">
-          <Button
+        <div className="flex items-center gap-3.5">
+          <button
             onClick={() => {
               if (window.innerWidth >= 1024) {
                 onToggleSidebar();
@@ -65,20 +68,32 @@ const VendorHeader = ({ onMenuClick, isCollapsed, onToggleSidebar }) => {
                 onMenuClick();
               }
             }}
-            variant="icon"
-            className="text-gray-700"
-            icon={FiMenu}
-          />
+            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className="p-2 rounded-xl border border-slate-200 text-slate-700 bg-slate-50 hover:bg-slate-100 active:scale-95 transition-all shadow-xs flex items-center justify-center cursor-pointer"
+            aria-label="Toggle navigation menu"
+          >
+            <FiMenu className="text-xl" />
+          </button>
 
           {/* Page Heading - Desktop Only */}
           <div className="hidden lg:block">
-            <h1 className="text-2xl font-black text-gray-900 tracking-tight mb-1">
+            <h1 className="text-xl font-black text-gray-900 tracking-tight leading-none mb-1">
               {pageName}
             </h1>
-            <p className="text-xs font-bold text-slate-500 flex items-center gap-2">
-              <FiShoppingBag className="text-primary-600" />
-              {storeName}
-            </p>
+            <div className="text-xs font-bold text-slate-500 flex items-center gap-2">
+              {isServiceOnly ? (
+                <span className="inline-flex items-center gap-1 text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-200/80 text-[11px]">
+                  <FiTool className="text-xs" />
+                  Service Partner
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-primary-600 bg-red-50 px-2 py-0.5 rounded-md border border-red-200/80 text-[11px]">
+                  <FiShoppingBag className="text-xs" />
+                  {badgeText === "VERIFIED PARTNER" ? "Verified Partner" : "Approved Seller"}
+                </span>
+              )}
+              <span className="text-slate-700 font-semibold truncate max-w-xs">{storeName}</span>
+            </div>
           </div>
         </div>
 

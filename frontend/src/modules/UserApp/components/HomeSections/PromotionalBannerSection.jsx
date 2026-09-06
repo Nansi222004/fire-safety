@@ -107,7 +107,7 @@ const PromotionalBannerSection = ({
         </div>
       ) : (
         /* Styled text-only promotional card */
-        <div className="py-12 px-6 md:py-16 md:px-12 text-center max-w-3xl mx-auto space-y-6 relative z-10 select-none">
+        <div className="py-12 px-6 md:py-16 md:px-12 text-center max-w-3xl mx-auto space-y-6 relative z-10 select-none overflow-hidden rounded-2xl">
           {/* Decorative glowing blobs for default gradient */}
           {!isCustomBg && (
             <>

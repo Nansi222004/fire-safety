@@ -414,7 +414,10 @@ const Shop = () => {
 
             {/* 4. Quick Scroll Filter Chips */}
             {metaQuickFilters.length > 0 && (
-              <div className="py-3 bg-white flex gap-2 overflow-x-auto px-4 border-b border-gray-100 scrollbar-hide sticky top-[73px] z-30 shadow-sm">
+              <div
+                className="py-3 bg-white flex gap-2 overflow-x-auto px-4 border-b border-gray-100 scrollbar-hide w-full max-w-full min-w-0"
+                style={{ WebkitOverflowScrolling: 'touch' }}
+              >
                 <button
                   onClick={() => handleQuickChipClick({ label: 'All', queryParams: '{}' })}
                   className={`px-4 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all border ${activeQuickChip === 'all' ? 'bg-primary-600 border-primary-600 text-white shadow-sm' : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'}`}

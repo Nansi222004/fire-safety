@@ -50,8 +50,8 @@ const ServicesPage = () => {
   return (
     <PageTransition>
       <MobileLayout showBottomNav={true} showCartBar={false} showHeader={true}>
-        <div className="min-h-[calc(100vh-60px)] bg-[#F8FAFC] text-slate-900 font-sans pb-20">
-          <div className="max-w-5xl mx-auto px-4 py-4 sm:py-6 space-y-6">
+        <div className="min-h-[calc(100vh-60px)] bg-[#F8FAFC] text-slate-900 font-sans pb-20 w-full max-w-full overflow-hidden">
+          <div className="max-w-5xl mx-auto px-4 py-4 sm:py-6 space-y-6 w-full min-w-0">
             
             {/* 1. HERO BANNER */}
             <section className="bg-[#0F172A] text-white rounded-2xl md:rounded-3xl p-5 sm:p-7 md:p-8 relative overflow-hidden shadow-lg border border-slate-800">
@@ -73,8 +73,8 @@ const ServicesPage = () => {
                   Book certified fire extinguisher refilling, annual maintenance (AMC), inspections, and safety installations from verified vendors.
                 </p>
 
-                <div className="pt-2 flex flex-wrap gap-3">
-                  <div className="relative flex-1 min-w-[240px]">
+                <div className="pt-2 flex flex-wrap gap-3 w-full">
+                  <div className="relative flex-1 min-w-0 w-full sm:w-auto">
                     <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm" />
                     <input
                       type="text"
@@ -88,12 +88,15 @@ const ServicesPage = () => {
               </div>
             </section>
 
-            {/* 2. CATEGORIES FILTER TABS */}
+            {/* 2. CATEGORIES FILTER TABS - Internal horizontal scroll, bounded parent */}
             {categories.length > 0 && (
-              <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+              <div
+                className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none w-full max-w-full min-w-0"
+                style={{ WebkitOverflowScrolling: 'touch' }}
+              >
                 <button
                   onClick={() => setSelectedCategory("all")}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                  className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex-shrink-0 ${
                     selectedCategory === "all"
                       ? "bg-slate-900 text-white shadow-sm"
                       : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
@@ -105,7 +108,7 @@ const ServicesPage = () => {
                   <button
                     key={cat._id || cat.id}
                     onClick={() => setSelectedCategory(cat._id || cat.id)}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                    className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 flex-shrink-0 ${
                       selectedCategory === (cat._id || cat.id)
                         ? "bg-[#E31E24] text-white shadow-sm"
                         : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
@@ -119,7 +122,7 @@ const ServicesPage = () => {
             )}
 
             {/* 3. SERVICES CATALOG GRID */}
-            <section className="space-y-4">
+            <section className="space-y-4 w-full max-w-full min-w-0">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg sm:text-xl font-bold text-slate-900">
@@ -145,13 +148,13 @@ const ServicesPage = () => {
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 w-full min-w-0">
                   {services.map((service) => (
                     <motion.div
                       key={service._id || service.id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm hover:shadow-md hover:border-slate-300 transition-all flex flex-col justify-between"
+                      className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm hover:shadow-md hover:border-slate-300 transition-all flex flex-col justify-between min-w-0"
                     >
                       <div>
                         {/* Header */}
@@ -167,12 +170,12 @@ const ServicesPage = () => {
                               <FiTool />
                             </div>
                           )}
-                          <span className="px-2.5 py-0.5 bg-slate-100 text-slate-700 text-[10px] font-bold rounded-full uppercase">
+                          <span className="px-2.5 py-0.5 bg-slate-100 text-slate-700 text-[10px] font-bold rounded-full uppercase truncate max-w-[140px]">
                             {service.categoryId?.name || "Fire Safety"}
                           </span>
                         </div>
 
-                        <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-snug mb-1.5">
+                        <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-snug mb-1.5 break-words">
                           {service.name}
                         </h3>
 

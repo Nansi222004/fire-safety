@@ -18,8 +18,8 @@ const RouteWrapper = ({ children }) => {
   }, []);
   
   // Return children with location key to force remount on route change
-  // Using a div with no styling to avoid layout interference
-  return <div key={`${location.pathname}${location.search}:${catalogTick}`} style={{ width: '100%', height: '100%' }}>{children}</div>;
+  // Ensure strict max-width and min-width constraints to avoid layout expansion
+  return <div key={`${location.pathname}${location.search}:${catalogTick}`} className="w-full max-w-full min-w-0" style={{ width: '100%', height: '100%' }}>{children}</div>;
 };
 
 export default RouteWrapper;

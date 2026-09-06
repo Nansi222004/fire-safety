@@ -44,7 +44,7 @@ const ScrollableRow = ({ products = [] }) => {
   if (!products || products.length === 0) return null;
 
   return (
-    <div className="relative group/row">
+    <div className="relative group/row w-full max-w-full overflow-hidden min-w-0">
       {/* Scrollable Container with drag-to-scroll and custom grabbing cursors */}
       <div
         ref={rowRef}
@@ -53,7 +53,7 @@ const ScrollableRow = ({ products = [] }) => {
         onMouseUp={handleMouseUpOrLeave}
         onMouseLeave={handleMouseUpOrLeave}
         onClickCapture={handleClickCapture}
-        className={`flex gap-4 overflow-x-auto pb-2 scrollbar-hide -mx-2 px-2 md:mx-0 md:px-0 select-none ${
+        className={`flex gap-4 overflow-x-auto pb-2 scrollbar-hide -mx-2 px-2 md:mx-0 md:px-0 select-none w-full max-w-full min-w-0 ${
           isDragging ? 'cursor-grabbing' : 'cursor-grab'
         } ${isDragging ? '' : 'scroll-smooth'}`}
       >

@@ -1031,8 +1031,8 @@ const MobileHome = () => {
           <AnimatedBanner banners={promoBanners} />
 
           {/* Featured Products */}
-          <div className="py-4 bg-white mb-2">
-            <div className="px-4 flex items-center justify-between mb-4">
+          <div className="py-4 bg-white mb-2 px-4 overflow-hidden w-full max-w-full">
+            <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl lg:text-2xl font-black text-gray-900 tracking-tight">
                 Featured Products
               </h2>

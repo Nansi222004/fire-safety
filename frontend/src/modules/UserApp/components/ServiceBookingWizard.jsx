@@ -325,7 +325,7 @@ const ServiceBookingWizard = ({ isOpen, onClose, service }) => {
 
   const modalContent = (
     <div
-      className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-6 bg-slate-950/70 backdrop-blur-sm animate-fadeIn overflow-y-auto"
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 md:p-6 bg-slate-950/70 backdrop-blur-sm animate-fadeIn overflow-y-auto"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -333,24 +333,24 @@ const ServiceBookingWizard = ({ isOpen, onClose, service }) => {
       aria-modal="true"
     >
       <div
-        className="bg-white w-full max-w-xl rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200/80 overflow-hidden flex flex-col max-h-[90vh] my-auto animate-scaleUp"
+        className="bg-white w-full max-w-xl rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200/80 overflow-hidden flex flex-col max-h-[92vh] my-auto animate-scaleUp"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top Accent Strip */}
         <div className="h-1 w-full bg-gradient-to-r from-[#E31E24] via-orange-500 to-[#E31E24] flex-shrink-0" />
 
         {/* Modal Header */}
-        <div className="px-5 sm:px-6 py-4 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-between border-b border-slate-800 flex-shrink-0">
-          <div className="space-y-1 min-w-0 pr-3">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="px-2.5 py-0.5 bg-red-500/20 text-red-400 text-[10px] font-extrabold rounded-full tracking-wider uppercase border border-red-500/30">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-between border-b border-slate-800 flex-shrink-0">
+          <div className="space-y-1 min-w-0 pr-2 sm:pr-3 flex-1">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+              <span className="px-2 py-0.5 bg-red-500/20 text-red-400 text-[10px] font-extrabold rounded-full tracking-wider uppercase border border-red-500/30 flex-shrink-0">
                 Step {step} of 5
               </span>
-              <span className="text-slate-400 text-xs font-medium truncate max-w-[240px] sm:max-w-[320px]">
+              <span className="text-slate-400 text-[11px] sm:text-xs font-medium truncate max-w-[140px] xs:max-w-[200px] sm:max-w-[320px]">
                 • {service.name}
               </span>
             </div>
-            <h3 className="text-base sm:text-lg font-extrabold text-white leading-tight tracking-tight">
+            <h3 className="text-sm sm:text-lg font-extrabold text-white leading-tight tracking-tight break-words">
               {currentStepMeta.title}
             </h3>
           </div>
@@ -365,7 +365,7 @@ const ServiceBookingWizard = ({ isOpen, onClose, service }) => {
         </div>
 
         {/* Visual Multi-Step Progress Stepper */}
-        <div className="px-5 sm:px-6 py-2.5 bg-slate-100/80 border-b border-slate-200/70 flex-shrink-0">
+        <div className="px-4 sm:px-6 py-2.5 bg-slate-100/80 border-b border-slate-200/70 flex-shrink-0">
           <div className="flex items-center justify-between relative">
             {/* Background connecting track */}
             <div className="absolute left-2 right-2 top-3 -translate-y-1/2 h-0.5 bg-slate-200 -z-0" />
@@ -652,7 +652,7 @@ const ServiceBookingWizard = ({ isOpen, onClose, service }) => {
                   </span>
                   <span className="text-[10px] text-slate-400">1-hour technician arrival window</span>
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-2">
                   {generateSlots().map((slot) => {
                     const isSelected = selectedTimeSlot === slot;
                     return (
@@ -660,7 +660,7 @@ const ServiceBookingWizard = ({ isOpen, onClose, service }) => {
                         key={slot}
                         type="button"
                         onClick={() => setSelectedTimeSlot(slot)}
-                        className={`p-3 rounded-xl border text-xs font-bold transition-all text-center ${
+                        className={`px-2.5 py-2.5 rounded-xl border text-[11px] sm:text-xs font-bold transition-all text-center leading-tight ${
                           isSelected
                             ? 'bg-[#E31E24] text-white border-[#E31E24] shadow-md shadow-[#E31E24]/20 scale-102'
                             : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
@@ -866,12 +866,12 @@ const ServiceBookingWizard = ({ isOpen, onClose, service }) => {
         </div>
 
         {/* Wizard Sticky Bottom Controls */}
-        <div className="px-5 sm:px-6 py-3.5 bg-slate-50/90 backdrop-blur-sm border-t border-slate-200 flex items-center justify-between flex-shrink-0">
+        <div className="px-3 sm:px-6 py-3 bg-slate-50/90 backdrop-blur-sm border-t border-slate-200 flex items-center justify-between gap-2 flex-shrink-0">
           {step > 1 ? (
             <button
               type="button"
               onClick={() => setStep(step - 1)}
-              className="px-4 py-2.5 bg-white border border-slate-300 text-slate-700 font-bold rounded-xl text-xs hover:bg-slate-100 transition-all flex items-center gap-1.5 shadow-2xs"
+              className="px-3 sm:px-4 py-2.5 bg-white border border-slate-300 text-slate-700 font-bold rounded-xl text-xs hover:bg-slate-100 transition-all flex items-center gap-1 sm:gap-1.5 shadow-2xs flex-shrink-0"
             >
               <FiArrowLeft />
               <span>Back</span>
@@ -932,7 +932,7 @@ const ServiceBookingWizard = ({ isOpen, onClose, service }) => {
               type="submit"
               form="booking-final-form"
               disabled={isSubmitting}
-              className="px-6 py-2.5 bg-[#E31E24] hover:bg-[#c6151b] active:scale-98 text-white font-bold rounded-xl text-xs transition-all shadow-lg shadow-[#E31E24]/30 flex items-center gap-2 disabled:opacity-50"
+              className="px-4 sm:px-6 py-2.5 bg-[#E31E24] hover:bg-[#c6151b] active:scale-98 text-white font-bold rounded-xl text-xs transition-all shadow-lg shadow-[#E31E24]/30 flex items-center gap-1.5 sm:gap-2 disabled:opacity-50 flex-shrink-0"
             >
               {isSubmitting ? (
                 <>

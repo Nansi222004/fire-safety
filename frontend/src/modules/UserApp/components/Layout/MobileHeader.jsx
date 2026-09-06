@@ -385,14 +385,14 @@ const MobileHeader = ({ onSearch }) => {
                       ) {
                         const fallback = document.createElement("span");
                         fallback.className =
-                          "logo-text-fallback text-primary-600 font-bold text-sm sm:text-lg";
+                          "logo-text-fallback text-primary-600 font-bold text-xs sm:text-base truncate max-w-[130px] sm:max-w-none";
                         fallback.textContent = "Fire Safety Shop";
                         parent.appendChild(fallback);
                       }
                     }}
                   />
                 ) : (
-                  <span className="logo-text-fallback text-primary-600 font-bold text-sm sm:text-lg">
+                  <span className="logo-text-fallback text-primary-600 font-bold text-xs sm:text-base truncate max-w-[130px] sm:max-w-none">
                     Fire Safety Shop
                   </span>
                 )}

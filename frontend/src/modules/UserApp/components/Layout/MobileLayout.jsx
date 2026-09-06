@@ -62,11 +62,11 @@ const MobileLayout = ({ children, showBottomNav = true, showCartBar = true, show
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col w-full max-w-full min-w-0 overflow-x-hidden">
         {isDesktopHeaderVisible && <DesktopHeader onSearch={handleGlobalSearch} />}
         {shouldShowHeader && <MobileHeader onSearch={handleGlobalSearch} />}
         <main
-          className={`flex-grow w-full max-w-[1440px] mx-auto px-0 md:px-4 lg:px-6 xl:px-8 ${
+          className={`flex-grow w-full max-w-full md:max-w-[1440px] mx-auto min-w-0 px-0 md:px-4 lg:px-6 xl:px-8 ${
             showCartBar 
               ? 'pb-24 lg:pb-0' 
               : (shouldShowBottomNav ? 'pb-14 lg:pb-0' : '')

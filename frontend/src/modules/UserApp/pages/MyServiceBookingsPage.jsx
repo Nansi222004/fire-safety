@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -35,6 +36,36 @@ const MyServiceBookingsPage = () => {
   const [rating, setRating] = useState(5);
   const [reviewText, setReviewText] = useState("");
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
+  // Lock background body & html scrolling and isolate scroll events when review modal is open
+  useEffect(() => {
+    if (reviewBooking) {
+      const originalBodyOverflow = document.body.style.overflow;
+      const originalHtmlOverflow = document.documentElement.style.overflow;
+      const originalPaddingRight = document.body.style.paddingRight;
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+
+      document.body.style.overflow = "hidden";
+      document.documentElement.style.overflow = "hidden";
+      if (scrollbarWidth > 0) {
+        document.body.style.paddingRight = `${scrollbarWidth}px`;
+      }
+
+      const handleKeyDown = (e) => {
+        if (e.key === "Escape") {
+          setReviewBooking(null);
+        }
+      };
+      window.addEventListener("keydown", handleKeyDown);
+
+      return () => {
+        document.body.style.overflow = originalBodyOverflow;
+        document.documentElement.style.overflow = originalHtmlOverflow;
+        document.body.style.paddingRight = originalPaddingRight;
+        window.removeEventListener("keydown", handleKeyDown);
+      };
+    }
+  }, [reviewBooking]);
 
   const fetchBookings = useCallback(async () => {
     setIsLoading(true);
@@ -325,84 +356,103 @@ const MyServiceBookingsPage = () => {
             )}
 
             {/* REVIEW MODAL */}
-            <AnimatePresence>
-              {reviewBooking && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4"
-                  >
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                      <div className="flex items-center gap-2 text-amber-600 font-bold text-sm">
-                        <FiStar className="fill-amber-500" />
-                        <span>Review Completed Service</span>
-                      </div>
-                      <button
-                        type="button"
+            {typeof document !== "undefined" &&
+              createPortal(
+                <AnimatePresence>
+                  {reviewBooking && (
+                    <div
+                      className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-hidden select-none"
+                      onWheel={(e) => e.stopPropagation()}
+                      onTouchMove={(e) => {
+                        if (e.target === e.currentTarget) e.preventDefault();
+                      }}
+                    >
+                      <div
+                        className="absolute inset-0"
                         onClick={() => setReviewBooking(null)}
-                        className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
+                      />
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="relative z-10 bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 mx-auto my-auto select-text"
                       >
-                        ✕
-                      </button>
-                    </div>
-
-                    <form onSubmit={handleSubmitReview} className="space-y-4">
-                      <div>
-                        <label className="block text-xs font-bold text-slate-800 mb-1.5">Rating (1 to 5 Stars)</label>
-                        <div className="flex gap-2">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <button
-                              key={star}
-                              type="button"
-                              onClick={() => setRating(star)}
-                              className="p-2 rounded-xl text-xl transition-transform hover:scale-110"
-                            >
-                              <FiStar
-                                className={
-                                  star <= rating
-                                    ? "fill-amber-400 text-amber-400"
-                                    : "text-slate-300"
-                                }
-                              />
-                            </button>
-                          ))}
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                          <div className="flex items-center gap-2 text-amber-600 font-bold text-sm">
+                            <FiStar className="fill-amber-500" />
+                            <span>Review Completed Service</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setReviewBooking(null)}
+                            className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
+                          >
+                            ✕
+                          </button>
                         </div>
-                      </div>
 
-                      <div>
-                        <label className="block text-xs font-bold text-slate-800 mb-1">Feedback Comments</label>
-                        <textarea
-                          rows={3}
-                          value={reviewText}
-                          onChange={(e) => setReviewText(e.target.value)}
-                          placeholder="How was the service technician's work, punctuality, and professionalism?"
-                          className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-amber-500"
-                        />
-                      </div>
+                        <form onSubmit={handleSubmitReview} className="space-y-4">
+                          <div>
+                            <label className="block text-xs font-bold text-slate-800 mb-1.5">
+                              Rating (1 to 5 Stars)
+                            </label>
+                            <div className="flex gap-2">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <button
+                                  key={star}
+                                  type="button"
+                                  onClick={() => setRating(star)}
+                                  className="p-2 rounded-xl text-xl transition-transform hover:scale-110 cursor-pointer"
+                                >
+                                  <FiStar
+                                    className={
+                                      star <= rating
+                                        ? "fill-amber-400 text-amber-400"
+                                        : "text-slate-300"
+                                    }
+                                  />
+                                </button>
+                              ))}
+                            </div>
+                          </div>
 
-                      <div className="flex items-center justify-end gap-2 pt-2">
-                        <button
-                          type="button"
-                          onClick={() => setReviewBooking(null)}
-                          className="px-4 py-2 bg-slate-100 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-200"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={isSubmittingReview}
-                          className="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl transition-colors disabled:opacity-50"
-                        >
-                          {isSubmittingReview ? "Submitting..." : "Submit Review"}
-                        </button>
-                      </div>
-                    </form>
-                  </motion.div>
-                </div>
+                          <div>
+                            <label className="block text-xs font-bold text-slate-800 mb-1">
+                              Feedback Comments
+                            </label>
+                            <textarea
+                              rows={3}
+                              value={reviewText}
+                              onChange={(e) => setReviewText(e.target.value)}
+                              placeholder="How was the service technician's work, punctuality, and professionalism?"
+                              className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-amber-500"
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-end gap-2 pt-2">
+                            <button
+                              type="button"
+                              onClick={() => setReviewBooking(null)}
+                              className="px-4 py-2 bg-slate-100 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-200 cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="submit"
+                              disabled={isSubmittingReview}
+                              className="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
+                            >
+                              {isSubmittingReview ? "Submitting..." : "Submit Review"}
+                            </button>
+                          </div>
+                        </form>
+                      </motion.div>
+                    </div>
+                  )}
+                </AnimatePresence>,
+                document.body
               )}
-            </AnimatePresence>
           </div>
         </div>
       </MobileLayout>

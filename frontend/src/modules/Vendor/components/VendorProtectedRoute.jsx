@@ -3,6 +3,8 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useVendorAuthStore } from '../store/vendorAuthStore';
 import CapabilityAccessRequired from './CapabilityAccessRequired';
 
+import { getVendorCapabilities } from '../utils/vendorCapabilities';
+
 const decodeJwtPayload = (token) => {
   try {
     const parts = String(token || '').split('.');
@@ -36,14 +38,14 @@ const VendorProtectedRoute = ({ children, requiredCapability = null }) => {
     return <Navigate to="/vendor/login" state={{ from: location }} replace />;
   }
 
-  // Capability Route Guard
+  // Authoritative Capability Route Guard
   if (requiredCapability) {
-    const caps = vendor?.vendorCapabilities || { sellsProducts: true, providesServices: false };
+    const { sellsProducts, providesServices } = getVendorCapabilities(vendor);
     const req = String(requiredCapability).toLowerCase();
-    if ((req === 'products' || req === 'sellsproducts') && caps.sellsProducts === false) {
+    if ((req === 'products' || req === 'sellsproducts') && !sellsProducts) {
       return <CapabilityAccessRequired requiredCapability="products" />;
     }
-    if ((req === 'services' || req === 'providesservices') && caps.providesServices === false) {
+    if ((req === 'services' || req === 'providesservices') && !providesServices) {
       return <CapabilityAccessRequired requiredCapability="services" />;
     }
   }

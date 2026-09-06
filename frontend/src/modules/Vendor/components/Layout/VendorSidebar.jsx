@@ -29,9 +29,15 @@ import {
   FiAward,
   FiLayers,
   FiTool,
+  FiShield,
 } from "react-icons/fi";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
 import vendorMenu from "../../config/vendorMenu.json";
+import {
+  getVendorCapabilities,
+  filterVendorMenu,
+  getGroupedVendorMenu,
+} from "../../utils/vendorCapabilities";
 
 // Icon mapping for menu items
 const iconMap = {
@@ -95,8 +101,48 @@ const VendorSidebar = ({ isOpen, onClose, isCollapsed }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { vendor } = useVendorAuthStore();
+  const { sellsProducts, providesServices, isServiceOnly, isHybrid, badgeText } =
+    getVendorCapabilities(vendor);
+  const filteredMenu = filterVendorMenu(vendorMenu, vendor);
+  const groupedMenu = getGroupedVendorMenu(filteredMenu, vendor);
+
   const [expandedItems, setExpandedItems] = useState({});
   const [isMobile, setIsMobile] = useState(false);
+
+  const vendorId = vendor?.id || vendor?._id;
+
+  // Reset expanded state whenever the logged-in vendor identity changes or logs out
+  useEffect(() => {
+    setExpandedItems({});
+  }, [vendorId]);
+
+  // For service-only vendors, auto-expand Services by default so the core service operations are front and center
+  useEffect(() => {
+    if (isServiceOnly) {
+      setExpandedItems((prev) => ({
+        ...prev,
+        Services: true,
+      }));
+    }
+  }, [isServiceOnly, vendorId]);
+
+  // Ensure inactive capabilities cannot hold expanded state
+  useEffect(() => {
+    setExpandedItems((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      if (!sellsProducts && (next.Products || next.Orders)) {
+        delete next.Products;
+        delete next.Orders;
+        changed = true;
+      }
+      if (!providesServices && next.Services) {
+        delete next.Services;
+        changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [sellsProducts, providesServices]);
 
   // Check if mobile on mount and resize
   useEffect(() => {
@@ -116,11 +162,11 @@ const VendorSidebar = ({ isOpen, onClose, isCollapsed }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname]);
 
-  // Auto-expand menu items when their route is active
+  // Auto-expand menu items when their child route is active
   useEffect(() => {
-    const activeItem = vendorMenu.find((item) => {
+    const activeItem = filteredMenu.find((item) => {
       if (item.route === "/vendor/dashboard") {
-        return location.pathname === "/vendor/dashboard";
+        return false;
       }
       const isChildRoute =
         location.pathname.startsWith(item.route) &&
@@ -133,11 +179,12 @@ const VendorSidebar = ({ isOpen, onClose, isCollapsed }) => {
           return prev;
         }
         return {
+          ...prev,
           [activeItem.title]: true,
         };
       });
     }
-  }, [location.pathname]);
+  }, [location.pathname, filteredMenu]);
 
   // Check if a menu item is active
   const isActive = (route) => {
@@ -147,30 +194,21 @@ const VendorSidebar = ({ isOpen, onClose, isCollapsed }) => {
     return location.pathname.startsWith(route);
   };
 
-  // Toggle expanded state for menu items with children
-  const toggleExpand = (title, closeOthers = true) => {
-    setExpandedItems((prev) => {
-      if (closeOthers) {
-        return {
-          [title]: !prev[title],
-        };
-      } else {
-        return {
-          ...prev,
-          [title]: !prev[title],
-        };
-      }
-    });
+  // Toggle expanded state for menu items with children (without aggressive collapse of siblings)
+  const toggleExpand = (title) => {
+    setExpandedItems((prev) => ({
+      ...prev,
+      [title]: !prev[title],
+    }));
   };
 
   // Handle menu item click
   const handleMenuItemClick = (route, parentTitle = null) => {
     if (parentTitle) {
-      setExpandedItems((prev) => {
-        return {
-          [parentTitle]: true,
-        };
-      });
+      setExpandedItems((prev) => ({
+        ...prev,
+        [parentTitle]: true,
+      }));
     }
     navigate(route);
     if (window.innerWidth < 1024) {
@@ -178,57 +216,85 @@ const VendorSidebar = ({ isOpen, onClose, isCollapsed }) => {
     }
   };
 
-  // Render menu item
+  // Render a single menu item
   const renderMenuItem = (item) => {
     const Icon = iconMap[item.title] || FiPackage;
     const hasChildren = item.children && item.children.length > 0;
     const isExpanded = expandedItems[item.title];
     const active = isActive(item.route);
 
+    // Distinguish between a leaf item active state vs accordion parent active state
+    const isLeafActive = active && !hasChildren;
+    const isParentActive = active && hasChildren;
+    const isServiceItem = item.title === "Services";
+
     return (
-      <div key={item.route} className="mb-1">
+      <div key={item.route} className="mb-0.5">
         {/* Main Menu Item */}
         <div
           className={`
-            flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 cursor-pointer
+            group flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all duration-150 cursor-pointer select-none
             ${
-              active
-                ? "bg-gradient-to-r from-primary-600 to-primary-700 text-white font-bold shadow-md shadow-primary-500/20 active:scale-95"
-                : "text-slate-300 hover:bg-slate-700/60 font-medium"
+              isLeafActive
+                ? isServiceOnly
+                  ? "bg-gradient-to-r from-orange-500/25 to-amber-500/10 text-white font-bold border-l-4 border-orange-500 shadow-sm shadow-orange-950/20"
+                  : "bg-gradient-to-r from-primary-500/25 to-red-500/10 text-white font-bold border-l-4 border-primary-500 shadow-sm shadow-red-950/20"
+                : isParentActive
+                ? "bg-slate-700/60 text-white font-semibold"
+                : "text-slate-300 hover:text-white hover:bg-slate-700/40 font-medium"
             }
           `}
           onClick={() => {
             if (hasChildren) {
-              toggleExpand(item.title, true);
+              toggleExpand(item.title);
             } else {
               handleMenuItemClick(item.route);
             }
           }}>
-          <Icon
-            className={`text-xl flex-shrink-0 ${
-              active ? "text-white" : "text-slate-400"
-            }`}
-          />
-          <span className="font-medium flex-1 text-sm">{item.title}</span>
+          <div
+            className={`p-1 rounded-lg transition-colors ${
+              isLeafActive
+                ? isServiceOnly
+                  ? "text-orange-400"
+                  : "text-primary-400"
+                : isServiceItem && isServiceOnly
+                ? "text-orange-400"
+                : "text-slate-400 group-hover:text-slate-200"
+            }`}>
+            <Icon className="text-lg flex-shrink-0" />
+          </div>
+
+          <span className="flex-1 text-sm tracking-tight truncate">
+            {item.title}
+          </span>
+
+          {/* Service badge tag on Services menu item for Service Partner */}
+          {isServiceItem && isServiceOnly && (
+            <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 border border-orange-500/30 uppercase tracking-wide mr-1">
+              Core
+            </span>
+          )}
+
           {hasChildren && (
             <motion.div
               animate={{ rotate: isExpanded ? 180 : 0 }}
-              transition={{ duration: 0.2 }}>
-              <FiChevronDown className="text-slate-400 text-sm" />
+              transition={{ duration: 0.2 }}
+              className="text-slate-400 group-hover:text-slate-200">
+              <FiChevronDown className="text-sm" />
             </motion.div>
           )}
         </div>
 
-        {/* Children Items */}
-        <AnimatePresence>
+        {/* Children Submenu */}
+        <AnimatePresence initial={false}>
           {hasChildren && isExpanded && (
             <motion.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
+              transition={{ duration: 0.2, ease: "easeInOut" }}
               className="overflow-hidden">
-              <div className="ml-4 mt-1 pl-4 border-l-2 border-slate-700 space-y-1">
+              <div className="ml-4 pl-3.5 my-1 border-l-2 border-slate-700/70 space-y-1">
                 {item.children.map((child, index) => {
                   const childRoute = getChildRoute(item.route, child);
                   const isChildActive =
@@ -243,14 +309,25 @@ const VendorSidebar = ({ isOpen, onClose, isCollapsed }) => {
                         handleMenuItemClick(childRoute, item.title)
                       }
                       className={`
-                        px-3 py-2 text-xs rounded-xl transition-all cursor-pointer
+                        flex items-center gap-2.5 px-3 py-1.5 text-xs rounded-xl transition-all duration-150 cursor-pointer select-none
                         ${
                           isChildActive
-                            ? "bg-primary-500/20 text-white font-bold border-l-2 border-primary-500"
-                            : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 font-medium"
+                            ? isServiceOnly
+                              ? "bg-orange-500/20 text-orange-200 font-bold border-l-2 border-orange-400 shadow-xs"
+                              : "bg-primary-500/20 text-red-200 font-bold border-l-2 border-primary-400 shadow-xs"
+                            : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/40 font-medium"
                         }
                       `}>
-                      {child}
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full flex-shrink-0 transition-colors ${
+                          isChildActive
+                            ? isServiceOnly
+                              ? "bg-orange-400 shadow-xs shadow-orange-400/50"
+                              : "bg-primary-400 shadow-xs shadow-primary-400/50"
+                            : "bg-slate-600"
+                        }`}
+                      />
+                      <span className="truncate">{child}</span>
                     </div>
                   );
                 })}
@@ -262,66 +339,82 @@ const VendorSidebar = ({ isOpen, onClose, isCollapsed }) => {
     );
   };
 
-  const caps = vendor?.vendorCapabilities || { sellsProducts: true, providesServices: false };
-
-  const productTitles = new Set([
-    'Products',
-    'Brand Requests',
-    'Category Requests',
-    'Orders',
-    'Returns & Exchanges',
-    'Product Reviews',
-    'Stock Management',
-    'Inventory Reports',
-  ]);
-
-  const serviceTitles = new Set(['Services']);
-
-  const filteredMenu = vendorMenu.filter((item) => {
-    if (productTitles.has(item.title) && caps.sellsProducts === false) {
-      return false;
-    }
-    if (serviceTitles.has(item.title) && caps.providesServices === false) {
-      return false;
-    }
-    return true;
-  });
-
   // Sidebar content
   const sidebarContent = (
-    <div className="h-full flex flex-col bg-slate-800 shadow-xl">
+    <div className="h-full flex flex-col bg-slate-800 shadow-xl select-none overflow-hidden">
       {/* Header Section */}
-      <div className="p-4 border-b border-slate-700 bg-slate-900">
-        {/* Header with Close Button and Vendor Info */}
-        <div className="flex items-center justify-between gap-3">
+      <div className="p-3.5 border-b border-slate-700/80 bg-slate-900/95 flex-shrink-0">
+        <div className="flex items-center justify-between gap-2.5">
           {/* Vendor User Info */}
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
-              <FiShoppingBag className="text-white text-xl" />
+          <div className="flex items-center gap-2.5 flex-1 min-w-0">
+            <div
+              className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg ring-1 ring-white/10 ${
+                isServiceOnly
+                  ? "bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-orange-500/20"
+                  : isHybrid
+                  ? "bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-purple-500/20"
+                  : "bg-gradient-to-br from-red-500 to-primary-700 text-white shadow-red-500/20"
+              }`}>
+              {isServiceOnly ? (
+                <FiTool className="text-lg" />
+              ) : isHybrid ? (
+                <FiLayers className="text-lg" />
+              ) : (
+                <FiShoppingBag className="text-lg" />
+              )}
             </div>
-            <div className="flex-1 min-w-0">
-              <h2 className="font-semibold text-white text-sm truncate">
+            <div className="flex-1 min-w-0 pr-1">
+              <h2
+                className="font-bold text-white text-xs sm:text-sm tracking-tight truncate leading-snug"
+                title={vendor?.storeName || vendor?.name || "Vendor Store"}>
                 {vendor?.storeName || vendor?.name || "Vendor Store"}
               </h2>
-              <p className="text-xs text-gray-400 truncate">
-                {vendor?.email || "vendor@example.com"}
-              </p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span
+                  className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-extrabold tracking-wider uppercase border shadow-xs ${
+                    isServiceOnly
+                      ? "bg-amber-950/60 border-amber-500/30 text-amber-300"
+                      : isHybrid
+                      ? "bg-purple-950/60 border-purple-500/30 text-purple-300"
+                      : "bg-emerald-950/60 border-emerald-500/30 text-emerald-300"
+                  }`}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse flex-shrink-0" />
+                  <span className="truncate">{badgeText}</span>
+                </span>
+              </div>
             </div>
           </div>
 
           {/* Close Button - Mobile Only */}
           <button
             onClick={onClose}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0 lg:hidden"
+            className="p-1.5 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0 lg:hidden text-gray-300 hover:text-white"
             aria-label="Close sidebar">
-            <FiX className="text-xl text-gray-300" />
+            <FiX className="text-lg" />
           </button>
         </div>
       </div>
 
-      {/* Navigation Menu */}
-      <nav className="flex-1 overflow-y-auto p-3 scrollbar-admin lg:pb-3">
-        {filteredMenu.map((item) => renderMenuItem(item))}
+      {/* Navigation Menu with Streamlined Category Sections */}
+      <nav className="flex-1 overflow-y-auto overflow-x-hidden p-2.5 space-y-2 scrollbar-vendor-dark">
+        {groupedMenu.map((group) => (
+          <div key={group.title} className="space-y-0.5">
+            {/* Divider and section header for secondary Management & Tools */}
+            {group.title === "MANAGEMENT & TOOLS" && (
+              <div className="pt-2.5 pb-1 px-2.5 flex items-center gap-2">
+                <span className="text-[10px] font-bold tracking-wider text-slate-400/80 uppercase">
+                  Management & Tools
+                </span>
+                <div className="flex-1 h-px bg-slate-700/60" />
+              </div>
+            )}
+
+            {/* Section Items */}
+            <div className="space-y-0.5">
+              {group.items.map((item) => renderMenuItem(item))}
+            </div>
+          </div>
+        ))}
       </nav>
     </div>
   );
@@ -356,7 +449,10 @@ const VendorSidebar = ({ isOpen, onClose, isCollapsed }) => {
       </AnimatePresence>
 
       {/* Sidebar - Desktop Fixed */}
-      <div className={`hidden lg:flex fixed left-0 top-0 bottom-0 w-64 z-20 transition-transform duration-300 ${isCollapsed ? '-translate-x-full' : 'translate-x-0'}`}>
+      <div
+        className={`hidden lg:flex fixed left-0 top-0 bottom-0 w-64 z-20 transition-transform duration-300 ${
+          isCollapsed ? "-translate-x-full" : "translate-x-0"
+        }`}>
         {sidebarContent}
       </div>
     </>

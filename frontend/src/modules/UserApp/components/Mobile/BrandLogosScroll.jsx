@@ -49,24 +49,8 @@ const BrandLogosScroll = ({ brands = null }) => {
                 </div>
             </div>
 
-            {/* Mobile Layout - Unchanged */}
-            <div className="md:hidden w-full">
-                <style>{`
-          @media (min-width: 1024px) {
-            .brand-card-desktop {
-              width: 5rem !important;
-              min-width: 5rem !important;
-              max-width: 5rem !important;
-            }
-          }
-          @media (min-width: 1280px) {
-            .brand-card-desktop {
-              width: 6rem !important;
-              min-width: 6rem !important;
-              max-width: 6rem !important;
-            }
-          }
-        `}</style>
+            {/* Mobile Layout */}
+            <div className="md:hidden w-full max-w-full overflow-hidden">
                 <div className="w-full overflow-x-auto scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
                     <div className="flex gap-3 sm:gap-4 lg:gap-3 min-w-max px-4 pb-2">
                         {displayBrands.map((brand, index) => (
@@ -76,12 +60,7 @@ const BrandLogosScroll = ({ brands = null }) => {
                                 whileInView={{ opacity: 1, x: 0 }}
                                 viewport={{ once: true, margin: "-50px" }}
                                 transition={{ delay: index * 0.05, duration: 0.3 }}
-                                className="flex-shrink-0 flex flex-col items-center brand-card-desktop"
-                                style={{
-                                    width: 'calc((100vw - 2rem - 0.75rem * 3) / 4)',
-                                    minWidth: 'calc((100vw - 2rem - 0.75rem * 3) / 4)',
-                                    maxWidth: 'calc((100vw - 2rem - 0.75rem * 3) / 4)',
-                                }}
+                                className="flex-shrink-0 flex flex-col items-center w-[72px] sm:w-20"
                             >
                                 <div
                                     onClick={() => navigate(`/brand/${brand.id}`)}

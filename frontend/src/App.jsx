@@ -820,10 +820,10 @@ const AppRoutes = () => {
         <Route path="services/my-requests" element={<VendorProtectedRoute requiredCapability="services"><VendorServiceRequests /></VendorProtectedRoute>} />
         <Route path="services/service-bookings" element={<VendorProtectedRoute requiredCapability="services"><VendorServiceBookings /></VendorProtectedRoute>} />
 
-        <Route path="orders" element={<VendorOrders />} />
-        <Route path="orders/all-orders" element={<VendorAllOrders />} />
-        <Route path="orders/order-tracking" element={<VendorOrderTracking />} />
-        <Route path="orders/:id" element={<VendorOrderDetail />} />
+        <Route path="orders" element={<VendorProtectedRoute requiredCapability="products"><VendorOrders /></VendorProtectedRoute>} />
+        <Route path="orders/all-orders" element={<VendorProtectedRoute requiredCapability="products"><VendorAllOrders /></VendorProtectedRoute>} />
+        <Route path="orders/order-tracking" element={<VendorProtectedRoute requiredCapability="products"><VendorOrderTracking /></VendorProtectedRoute>} />
+        <Route path="orders/:id" element={<VendorProtectedRoute requiredCapability="products"><VendorOrderDetail /></VendorProtectedRoute>} />
         <Route path="analytics" element={<VendorAnalytics />} />
         <Route path="reports" element={<VendorReports />} />
         <Route path="earnings" element={<VendorEarnings />} />
@@ -838,10 +838,10 @@ const AppRoutes = () => {
         />
         <Route path="wallet-history" element={<VendorWalletHistory />} />
         <Route path="notifications" element={<VendorNotifications />} />
-        <Route path="return-requests" element={<VendorReturnRequests />} />
+        <Route path="return-requests" element={<VendorProtectedRoute requiredCapability="products"><VendorReturnRequests /></VendorProtectedRoute>} />
         <Route
           path="return-requests/:id"
-          element={<VendorReturnRequestDetail />}
+          element={<VendorProtectedRoute requiredCapability="products"><VendorReturnRequestDetail /></VendorProtectedRoute>}
         />
 
         <Route path="pickup-locations" element={<VendorPickupLocations />} />

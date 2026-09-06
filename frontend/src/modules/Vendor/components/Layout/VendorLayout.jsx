@@ -34,7 +34,7 @@ const VendorLayout = () => {
       }
     };
     fetchProfile();
-  }, [syncVendor]);
+  }, [syncVendor, token]);
 
   useEffect(() => {
     if (!token || !vendor) return;

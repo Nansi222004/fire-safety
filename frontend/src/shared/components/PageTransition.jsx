@@ -5,8 +5,8 @@ import { useEffect, useState, useMemo } from 'react';
 const pageVariants = {
   initial: (direction) => ({
     opacity: 0,
-    x: direction === 'forward' ? 100 : direction === 'back' ? -100 : 0,
-    y: direction === 'forward' || direction === 'back' ? 0 : 20,
+    x: direction === 'forward' ? 20 : direction === 'back' ? -20 : 0,
+    y: direction === 'forward' || direction === 'back' ? 0 : 10,
   }),
   animate: {
     opacity: 1,
@@ -58,13 +58,13 @@ const PageTransition = ({ children, disabled = false }) => {
   const uniqueKey = useMemo(() => location.pathname + location.search, [location.pathname, location.search]);
 
   if (disabled) {
-    return <div className="w-full">{children}</div>;
+    return <div className="w-full max-w-full min-w-0">{children}</div>;
   }
 
   // Use a regular div with key to ensure proper remounting, then wrap with motion
-  // This prevents motion.div from interfering with React Router's remounting mechanism
+  // strictly bounded by max-w-full and overflow-x-hidden
   return (
-    <div key={uniqueKey} className="w-full">
+    <div key={uniqueKey} className="w-full max-w-full min-w-0 overflow-x-hidden">
       <motion.div
         custom={direction}
         initial="initial"
@@ -72,7 +72,7 @@ const PageTransition = ({ children, disabled = false }) => {
         variants={pageVariants}
         transition={pageTransition}
         style={{ willChange: 'transform, opacity', transform: 'translateZ(0)' }}
-        className="w-full"
+        className="w-full max-w-full min-w-0"
       >
         {children}
       </motion.div>

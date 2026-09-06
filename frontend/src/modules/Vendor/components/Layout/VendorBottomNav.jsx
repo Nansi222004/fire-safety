@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { createPortal } from "react-dom";
 import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -6,17 +7,42 @@ import {
   FiPackage,
   FiShoppingBag,
   FiDollarSign,
+  FiTool,
+  FiCalendar,
 } from "react-icons/fi";
+import { useVendorAuthStore } from "../../store/vendorAuthStore";
+import { getVendorCapabilities } from "../../utils/vendorCapabilities";
 
 const VendorBottomNav = () => {
   const location = useLocation();
+  const { vendor } = useVendorAuthStore();
+  const { sellsProducts, providesServices } = getVendorCapabilities(vendor);
 
-  const navItems = [
-    { path: "/vendor/dashboard", icon: FiHome, label: "Home" },
-    { path: "/vendor/products", icon: FiPackage, label: "Products" },
-    { path: "/vendor/orders", icon: FiShoppingBag, label: "Orders" },
-    { path: "/vendor/earnings", icon: FiDollarSign, label: "Earnings" },
-  ];
+  const navItems = useMemo(() => {
+    const items = [
+      { path: "/vendor/dashboard", icon: FiHome, label: "Home" },
+    ];
+
+    if (sellsProducts && !providesServices) {
+      items.push(
+        { path: "/vendor/products", icon: FiPackage, label: "Products" },
+        { path: "/vendor/orders", icon: FiShoppingBag, label: "Orders" }
+      );
+    } else if (providesServices && !sellsProducts) {
+      items.push(
+        { path: "/vendor/services/service-bookings", icon: FiCalendar, label: "Bookings" },
+        { path: "/vendor/services/my-services", icon: FiTool, label: "Services" }
+      );
+    } else if (sellsProducts && providesServices) {
+      items.push(
+        { path: "/vendor/products", icon: FiPackage, label: "Products" },
+        { path: "/vendor/services/service-bookings", icon: FiCalendar, label: "Services" }
+      );
+    }
+
+    items.push({ path: "/vendor/earnings", icon: FiDollarSign, label: "Earnings" });
+    return items;
+  }, [sellsProducts, providesServices]);
 
   const isActive = (path) => {
     if (path === "/vendor/dashboard") {

@@ -360,7 +360,7 @@ const DeliveryOrders = () => {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="flex gap-2 overflow-x-auto pb-2 scrollbar-none no-scrollbar -mx-4 px-4 max-w-[100vw]"
+            className="flex gap-2 overflow-x-auto pb-2 scrollbar-none no-scrollbar -mx-4 px-4 w-full max-w-full min-w-0"
           >
             {['all', 'pending', 'in-transit', 'completed'].map((tab) => (
               <button
@@ -383,7 +383,7 @@ const DeliveryOrders = () => {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="flex gap-2 overflow-x-auto pb-2 scrollbar-none no-scrollbar -mx-4 px-4 max-w-[100vw]"
+            className="flex gap-2 overflow-x-auto pb-2 scrollbar-none no-scrollbar -mx-4 px-4 w-full max-w-full min-w-0"
           >
             {[
               { id: 'all', label: 'All Returns' },

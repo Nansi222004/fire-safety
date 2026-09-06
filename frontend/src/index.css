@@ -2,16 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
-* {
+*,
+*::before,
+*::after {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
 html {
-  overflow-x: clip;
   width: 100%;
-  max-width: 100vw;
+  max-width: 100%;
+  overflow-x: hidden;
+  position: relative;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -21,9 +25,10 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background: #F8FAFC;
-  overflow-x: clip;
   width: 100%;
-  max-width: 100vw;
+  max-width: 100%;
+  overflow-x: hidden;
+  position: relative;
   /* Hide scrollbar */
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -36,7 +41,18 @@ body::-webkit-scrollbar {
 #root {
   min-height: 100vh;
   width: 100%;
-  max-width: 100vw;
+  max-width: 100%;
+  position: relative;
+}
+
+/* Responsive media defaults */
+img,
+picture,
+video,
+canvas,
+svg {
+  max-width: 100%;
+  height: auto;
 }
 
 /* Custom scrollbar hide */
@@ -159,6 +175,30 @@ body::-webkit-scrollbar {
 
 .scrollbar-admin::-webkit-scrollbar-thumb:active {
   background: linear-gradient(180deg, rgba(160, 20, 25, 0.9) 0%, rgba(126, 16, 20, 0.9) 100%);
+}
+
+/* Vendor dark sidebar scrollbar - subtle, non-intrusive slate thumb */
+.scrollbar-vendor-dark {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 116, 139, 0.35) transparent;
+}
+
+.scrollbar-vendor-dark::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scrollbar-vendor-dark::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-vendor-dark::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.35);
+  border-radius: 9999px;
+  transition: background-color 0.2s ease;
+}
+
+.scrollbar-vendor-dark::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.6);
 }
 
 /* Horizontal admin scrollbar */
