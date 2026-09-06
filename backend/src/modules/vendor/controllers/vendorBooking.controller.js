@@ -15,7 +15,8 @@ import { creditWallet } from '../../../services/wallet.service.js';
 // Allowed State Machine Transitions map
 const ALLOWED_TRANSITIONS = {
     pending: ['confirmed', 'cancelled'],
-    confirmed: ['in_progress', 'cancelled'],
+    confirmed: ['assigned', 'in_progress', 'cancelled'],
+    assigned: ['in_progress', 'cancelled'],
     in_progress: ['completed', 'cancelled'],
     completed: [],
     cancelled: [],
@@ -27,7 +28,7 @@ const ALLOWED_TRANSITIONS = {
  * @access  Private (Vendor Auth)
  */
 export const getVendorBookings = asyncHandler(async (req, res) => {
-    const vendorId = req.user.id || req.user._id;
+    const vendorId = req.vendor?._id || req.vendor?.id || req.user?.id || req.user?._id;
     const { status, search, date, page = 1, limit = 10 } = req.query;
 
     const filter = { vendorId };
@@ -90,7 +91,7 @@ export const getVendorBookings = asyncHandler(async (req, res) => {
  * @access  Private (Vendor Auth)
  */
 export const getVendorBookingById = asyncHandler(async (req, res) => {
-    const vendorId = req.user.id || req.user._id;
+    const vendorId = req.vendor?._id || req.vendor?.id || req.user?.id || req.user?._id;
     const { id } = req.params;
 
     let booking = await ServiceBooking.findOne({ _id: id, vendorId })
@@ -120,7 +121,7 @@ export const getVendorBookingById = asyncHandler(async (req, res) => {
  * @access  Private (Vendor Auth)
  */
 export const updateBookingStatus = asyncHandler(async (req, res) => {
-    const vendorId = req.user.id || req.user._id;
+    const vendorId = req.vendor?._id || req.vendor?.id || req.user?.id || req.user?._id;
     const { id } = req.params;
     const { status, cancellationReason, note } = req.body;
 
@@ -242,6 +243,9 @@ export const updateBookingStatus = asyncHandler(async (req, res) => {
                     vendorId,
                     type: 'SERVICE_SETTLEMENT',
                     amount: -commissionAmount,
+                    grossAmount: totalAmount,
+                    commissionAmount,
+                    netAmount: -commissionAmount,
                     relatedServiceBookingId: booking._id,
                     referenceId: `SERVICE_SETTLEMENT_COD_${booking._id}`,
                     walletBalanceBefore: walletBefore,
@@ -259,6 +263,9 @@ export const updateBookingStatus = asyncHandler(async (req, res) => {
                     vendorId,
                     type: 'SERVICE_SETTLEMENT',
                     amount: vendorEarnings,
+                    grossAmount: totalAmount,
+                    commissionAmount,
+                    netAmount: vendorEarnings,
                     relatedServiceBookingId: booking._id,
                     referenceId: `SERVICE_SETTLEMENT_${booking._id}`,
                     walletBalanceBefore: walletBefore,
@@ -266,6 +273,22 @@ export const updateBookingStatus = asyncHandler(async (req, res) => {
                     performedBy: { role: 'system', id: null },
                     notes: `Payout credited for completed Service Booking #${booking.bookingId} (Gross: ₹${totalAmount}, Net: ₹${vendorEarnings}, Comm: ₹${commissionAmount})`,
                 });
+            }
+
+            // Dispatch notification to Vendor for completion and settlement
+            try {
+                await createNotification({
+                    recipientId: vendorId,
+                    recipientType: 'vendor',
+                    title: 'Service Completed & Settled',
+                    message: isCod
+                        ? `Booking #${booking.bookingId} completed! Platform commission of ₹${commissionAmount} deducted from wallet.`
+                        : `Booking #${booking.bookingId} settled! ₹${vendorEarnings} credited to your wallet (after ₹${commissionAmount} platform commission).`,
+                    type: 'service',
+                    data: { bookingId: String(booking._id), bookingNumber: booking.bookingId, netAmount: isCod ? -commissionAmount : vendorEarnings, commissionAmount }
+                });
+            } catch (err) {
+                console.error('[VENDOR_BOOKING] Failed to dispatch settlement notification:', err.message);
             }
         }
     }
@@ -366,7 +389,7 @@ export const updateBookingStatus = asyncHandler(async (req, res) => {
  * @access  Private (Vendor Auth)
  */
 export const updateVendorNotes = asyncHandler(async (req, res) => {
-    const vendorId = req.user.id || req.user._id;
+    const vendorId = req.vendor?._id || req.vendor?.id || req.user?.id || req.user?._id;
     const { id } = req.params;
     const { notes } = req.body;
 

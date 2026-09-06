@@ -27,6 +27,7 @@ import {
   FiZap,
   FiRefreshCw,
   FiAlertCircle,
+  FiTool,
   FiX
 } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
@@ -263,6 +264,14 @@ const MobileProfile = () => {
           iconColor: 'text-primary-600',
           iconBg: 'bg-primary-50',
           link: '/orders',
+        },
+        {
+          label: 'My Service Bookings',
+          description: 'Track technician visits, refill status & service bookings',
+          icon: FiTool,
+          iconColor: 'text-[#E31E24]',
+          iconBg: 'bg-red-50',
+          link: '/my-service-bookings',
         },
         {
           label: 'Refill & AMC Services',

@@ -86,7 +86,14 @@ const ServiceBookingSuccessPage = () => {
                 <div className="bg-slate-50 rounded-2xl p-4 text-left border border-slate-200 space-y-3 text-xs">
                   <div className="flex justify-between items-center pb-2 border-b border-slate-200">
                     <span className="text-slate-500 font-semibold">Booking Reference:</span>
-                    <span className="font-extrabold text-slate-900">#{booking.bookingId}</span>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/my-service-bookings/${booking._id || booking.bookingId}`)}
+                      className="font-extrabold text-[#E31E24] hover:underline cursor-pointer"
+                      title="View Booking Details"
+                    >
+                      #{booking.bookingId} →
+                    </button>
                   </div>
 
                   <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
@@ -128,13 +135,15 @@ const ServiceBookingSuccessPage = () => {
 
               <div className="pt-2 flex flex-col sm:flex-row gap-3">
                 <button
-                  onClick={() => navigate("/customer/my-bookings")}
-                  className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-colors"
+                  type="button"
+                  onClick={() => navigate("/my-service-bookings")}
+                  className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-colors shadow-2xs"
                 >
                   <FiList />
                   <span>My Service Bookings</span>
                 </button>
                 <button
+                  type="button"
                   onClick={() => navigate("/services")}
                   className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-colors"
                 >

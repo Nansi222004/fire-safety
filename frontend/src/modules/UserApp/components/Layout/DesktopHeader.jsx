@@ -24,6 +24,7 @@ import {
   FiCreditCard,
   FiMic,
   FiBriefcase,
+  FiTool,
 } from "react-icons/fi";
 import { HiOutlineUserCircle } from "react-icons/hi";
 import { useState, useRef, useEffect } from "react";
@@ -340,6 +341,14 @@ const DesktopHeader = ({ onSearch }) => {
                       >
                         <FiShoppingBag className="text-gray-500 text-base" />
                         <span>Orders</span>
+                      </Link>
+                      <Link
+                        to="/my-service-bookings"
+                        onClick={() => setShowUserMenu(false)}
+                        className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 rounded-xl transition-colors text-left text-gray-700 text-sm font-semibold"
+                      >
+                        <FiTool className="text-gray-500 text-base" />
+                        <span>My Service Bookings</span>
                       </Link>
                       <button
                         onClick={handleLogout}

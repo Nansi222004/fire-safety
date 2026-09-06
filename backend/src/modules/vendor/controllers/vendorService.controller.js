@@ -11,7 +11,7 @@ import ServiceCategory from '../../../models/ServiceCategory.model.js';
  * @access  Private (Vendor)
  */
 export const getAvailableServices = asyncHandler(async (req, res) => {
-    const vendorId = req.user.id;
+    const vendorId = req.vendor?._id || req.vendor?.id || req.user?.id || req.user?._id;
     const { search, categoryId, page, limit } = req.query;
 
     // 1. Get IDs of services already enabled by this vendor
@@ -85,7 +85,7 @@ export const getAvailableServices = asyncHandler(async (req, res) => {
  * @access  Private (Vendor)
  */
 export const getMyVendorServices = asyncHandler(async (req, res) => {
-    const vendorId = req.user.id;
+    const vendorId = req.vendor?._id || req.vendor?.id || req.user?.id || req.user?._id;
     const { search, categoryId, status, page, limit } = req.query;
 
     const filter = { vendorId };
@@ -154,7 +154,7 @@ export const getMyVendorServices = asyncHandler(async (req, res) => {
 export const getVendorServiceById = asyncHandler(async (req, res) => {
     const vendorService = await VendorService.findOne({
         _id: req.params.id,
-        vendorId: req.user.id,
+        vendorId: req.vendor?._id || req.vendor?.id || req.user?.id || req.user?._id,
     })
         .populate({
             path: 'serviceId',
@@ -175,7 +175,7 @@ export const getVendorServiceById = asyncHandler(async (req, res) => {
  * @access  Private (Vendor)
  */
 export const enableService = asyncHandler(async (req, res) => {
-    const vendorId = req.user.id;
+    const vendorId = req.vendor?._id || req.vendor?.id || req.user?.id || req.user?._id;
     const { serviceId } = req.params;
 
     // 1. Verify Service Master exists and is active
@@ -226,7 +226,7 @@ export const enableService = asyncHandler(async (req, res) => {
  * @access  Private (Vendor)
  */
 export const updateVendorService = asyncHandler(async (req, res) => {
-    const vendorId = req.user.id;
+    const vendorId = req.vendor?._id || req.vendor?.id || req.user?.id || req.user?._id;
     const vendorService = await VendorService.findOne({ _id: req.params.id, vendorId });
 
     if (!vendorService) {

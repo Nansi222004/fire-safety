@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiFilter, FiPackage } from 'react-icons/fi';
+import { useNavigate, Link } from 'react-router-dom';
+import { FiArrowLeft, FiFilter, FiPackage, FiTool } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import EmptyState from '../../../shared/components/EmptyState';
 import OrderCardSkeleton from '../../../shared/components/Skeletons/OrderCardSkeleton';
@@ -77,6 +77,21 @@ const MobileOrders = () => {
     <PageTransition>
       <MobileLayout showBottomNav={true} showCartBar={true}>
         <div className="w-full max-w-4xl mx-auto px-4 lg:px-0 py-6 pb-24">
+          {/* Order Type Switcher: Product Orders vs Service Bookings */}
+          <div className="flex items-center gap-2 border-b border-slate-200 pb-3 mb-6">
+            <div className="px-4 py-2 text-xs font-extrabold bg-white border border-slate-200 text-slate-900 rounded-xl shadow-2xs inline-flex items-center gap-2">
+              <FiPackage className="text-sm text-primary-600" />
+              <span>Product Orders</span>
+            </div>
+            <Link
+              to="/my-service-bookings"
+              className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-900 rounded-xl hover:bg-slate-100 transition-colors inline-flex items-center gap-2"
+            >
+              <FiTool className="text-sm text-slate-400 hover:text-[#E31E24]" />
+              <span>Service Bookings</span>
+            </Link>
+          </div>
+
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
             <div className="flex items-center gap-4">

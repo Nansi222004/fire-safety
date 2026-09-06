@@ -298,7 +298,7 @@ const ServiceDetailPage = () => {
               navigate(`/booking-success/${bookingData?._id || bookingData?.bookingId}`);
             } catch (vErr) {
               toast.error(vErr?.response?.data?.message || vErr.message || "Payment verification failed", { id: "sd-rzp" });
-              navigate("/customer/my-bookings");
+              navigate("/my-service-bookings");
             }
           },
           prefill: {
@@ -310,8 +310,8 @@ const ServiceDetailPage = () => {
           },
           modal: {
             ondismiss: function () {
-              toast("Payment cancelled. Your booking is pending payment in My Bookings.", { icon: "ℹ️" });
-              navigate("/customer/my-bookings");
+              toast("Payment cancelled. Your booking is pending payment in My Service Bookings.", { icon: "ℹ️" });
+              navigate("/my-service-bookings");
             },
           },
         };

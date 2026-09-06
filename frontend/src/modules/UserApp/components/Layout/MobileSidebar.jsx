@@ -139,14 +139,32 @@ const MobileSidebar = ({ isOpen, onClose }) => {
               </div>
               <nav className="flex flex-col gap-1 px-2">
                 {isAuthenticated && (
-                  <Link
-                    to="/user/wallet"
-                    onClick={onClose}
-                    className="flex items-center gap-4 px-4 py-3 text-gray-700 hover:bg-yellow-50 hover:text-yellow-600 rounded-xl transition-all group"
-                  >
-                    <FiCreditCard className="text-xl group-hover:scale-110 transition-transform" />
-                    <span className="font-medium">My Wallet</span>
-                  </Link>
+                  <>
+                    <Link
+                      to="/orders"
+                      onClick={onClose}
+                      className="flex items-center gap-4 px-4 py-3 text-gray-700 hover:bg-primary-50 hover:text-primary-600 rounded-xl transition-all group"
+                    >
+                      <FiShoppingBag className="text-xl group-hover:scale-110 transition-transform" />
+                      <span className="font-medium">My Orders</span>
+                    </Link>
+                    <Link
+                      to="/my-service-bookings"
+                      onClick={onClose}
+                      className="flex items-center gap-4 px-4 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all group"
+                    >
+                      <FiTool className="text-xl group-hover:scale-110 transition-transform" />
+                      <span className="font-medium">My Service Bookings</span>
+                    </Link>
+                    <Link
+                      to="/user/wallet"
+                      onClick={onClose}
+                      className="flex items-center gap-4 px-4 py-3 text-gray-700 hover:bg-yellow-50 hover:text-yellow-600 rounded-xl transition-all group"
+                    >
+                      <FiCreditCard className="text-xl group-hover:scale-110 transition-transform" />
+                      <span className="font-medium">My Wallet</span>
+                    </Link>
+                  </>
                 )}
                 <Link
                   to="/wishlist"

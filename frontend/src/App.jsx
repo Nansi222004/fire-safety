@@ -147,6 +147,7 @@ import ServicesPage from "./modules/UserApp/pages/ServicesPage";
 import ServiceDetailPage from "./modules/UserApp/pages/ServiceDetailPage";
 import ServiceBookingSuccessPage from "./modules/UserApp/pages/ServiceBookingSuccessPage";
 import MyServiceBookingsPage from "./modules/UserApp/pages/MyServiceBookingsPage";
+import ServiceBookingDetailPage from "./modules/UserApp/pages/ServiceBookingDetailPage";
 
 // Delivery Routes
 import DeliveryLogin from "./modules/Delivery/pages/Login";
@@ -574,8 +575,49 @@ const AppRoutes = () => {
           </RouteWrapper>
         }
       />
+      {/* Customer Service Bookings - Canonical & Aliases */}
+      <Route
+        path="/my-service-bookings"
+        element={
+          <RouteWrapper>
+            <ProtectedRoute>
+              <MyServiceBookingsPage />
+            </ProtectedRoute>
+          </RouteWrapper>
+        }
+      />
+      <Route
+        path="/my-service-bookings/:id"
+        element={
+          <RouteWrapper>
+            <ProtectedRoute>
+              <ServiceBookingDetailPage />
+            </ProtectedRoute>
+          </RouteWrapper>
+        }
+      />
       <Route
         path="/customer/my-bookings"
+        element={
+          <RouteWrapper>
+            <ProtectedRoute>
+              <MyServiceBookingsPage />
+            </ProtectedRoute>
+          </RouteWrapper>
+        }
+      />
+      <Route
+        path="/customer/my-bookings/:id"
+        element={
+          <RouteWrapper>
+            <ProtectedRoute>
+              <ServiceBookingDetailPage />
+            </ProtectedRoute>
+          </RouteWrapper>
+        }
+      />
+      <Route
+        path="/my-bookings"
         element={
           <RouteWrapper>
             <ProtectedRoute>

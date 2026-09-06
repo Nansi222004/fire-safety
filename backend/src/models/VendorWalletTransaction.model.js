@@ -25,6 +25,15 @@ const vendorWalletTransactionSchema = new mongoose.Schema(
             type: Number,
             required: true, // positive = credit, negative = debit
         },
+        grossAmount: {
+            type: Number,
+        },
+        commissionAmount: {
+            type: Number,
+        },
+        netAmount: {
+            type: Number,
+        },
         referenceId: {
             type: String,
             unique: true,

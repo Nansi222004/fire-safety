@@ -221,6 +221,14 @@ export const createBooking = asyncHandler(async (req, res) => {
     }
 
     const cleanPincode = String(pincode).trim();
+    const normalizedAddress = {
+        fullName: serviceAddress?.fullName || 'Customer',
+        phone: serviceAddress?.phone || '9876543210',
+        address: serviceAddress?.address || 'Site Address',
+        city: serviceAddress?.city || 'Indore',
+        state: serviceAddress?.state || 'Madhya Pradesh',
+        zipCode: serviceAddress?.zipCode || cleanPincode,
+    };
 
     // 1. Verify Service Master exists and is active
     const serviceMaster = await Service.findById(serviceId).populate('categoryId', 'name').lean();
@@ -377,7 +385,7 @@ export const createBooking = asyncHandler(async (req, res) => {
             variant: variant || {},
             quantity: qty,
             pincode: cleanPincode,
-            serviceAddress,
+            serviceAddress: normalizedAddress,
             bookingDate: bookingDateObj,
             timeSlot,
             customFields,
@@ -397,8 +405,20 @@ export const createBooking = asyncHandler(async (req, res) => {
             data: { bookingId: String(booking._id), bookingNumber: booking.bookingId },
         });
 
+        await createNotification({
+            recipientId: userId,
+            recipientType: 'user',
+            title: 'Service Booking Placed',
+            message: `Your booking #${booking.bookingId} for "${serviceMaster.name}" has been placed successfully.`,
+            type: 'service',
+            data: { bookingId: String(booking._id), bookingNumber: booking.bookingId },
+        });
+
         return res.status(201).json(
-            new ApiResponse(201, { booking }, 'Service booking created successfully!')
+            new ApiResponse(201, {
+                booking,
+                requiresPayment: false,
+            }, 'Service booking created successfully!')
         );
     }
 
@@ -421,7 +441,7 @@ export const createBooking = asyncHandler(async (req, res) => {
             variant: variant || {},
             quantity: qty,
             pincode: cleanPincode,
-            serviceAddress,
+            serviceAddress: normalizedAddress,
             bookingDate: bookingDateObj,
             timeSlot,
             customFields,
@@ -470,7 +490,10 @@ export const createBooking = asyncHandler(async (req, res) => {
         });
 
         return res.status(201).json(
-            new ApiResponse(201, { booking }, 'Service booking created and paid via wallet!')
+            new ApiResponse(201, {
+                booking,
+                requiresPayment: false,
+            }, 'Service booking created and paid via wallet!')
         );
     }
 
@@ -487,7 +510,7 @@ export const createBooking = asyncHandler(async (req, res) => {
         variant: variant || {},
         quantity: qty,
         pincode: cleanPincode,
-        serviceAddress,
+        serviceAddress: normalizedAddress,
         bookingDate: bookingDateObj,
         timeSlot,
         customFields,
@@ -521,8 +544,10 @@ export const createBooking = asyncHandler(async (req, res) => {
     return res.status(201).json(
         new ApiResponse(201, {
             booking,
+            requiresPayment: true,
             razorpayOrderId: rzpOrder.id,
             amount: total,
+            amountPaise: Math.round(total * 100),
             currency: 'INR',
             key: process.env.RAZORPAY_KEY_ID,
         }, 'Service booking created. Complete online payment to confirm.')
@@ -535,7 +560,8 @@ export const createBooking = asyncHandler(async (req, res) => {
  * @access  Private (Customer Auth)
  */
 export const verifyServicePayment = asyncHandler(async (req, res) => {
-    const { bookingId, razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
+    const bookingId = req.body.bookingId || req.body.serviceBookingId;
+    const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
     const userId = req.user.id || req.user._id;
 
     if (!bookingId || !razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
@@ -554,6 +580,12 @@ export const verifyServicePayment = asyncHandler(async (req, res) => {
 
     if (!booking) {
         throw new ApiError(404, 'Service booking not found or unauthorized.');
+    }
+
+    if (booking.paymentStatus === 'paid') {
+        return res.status(200).json(
+            new ApiResponse(200, { booking, alreadyVerified: true }, 'Payment already verified and booking confirmed.')
+        );
     }
 
     await processCapturedPayment({
@@ -719,6 +751,15 @@ export const cancelBooking = asyncHandler(async (req, res) => {
             type: 'refund',
             data: { bookingId: String(booking._id), bookingNumber: booking.bookingId, refundAmount },
         });
+    } else {
+        await createNotification({
+            recipientId: userId,
+            recipientType: 'user',
+            title: 'Booking Cancelled',
+            message: `Your booking #${booking.bookingId} for "${booking.serviceName}" has been cancelled.`,
+            type: 'service',
+            data: { bookingId: String(booking._id), bookingNumber: booking.bookingId },
+        });
     }
 
     res.status(200).json(
@@ -737,7 +778,7 @@ export const cancelBooking = asyncHandler(async (req, res) => {
  */
 export const addServiceReview = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { rating, title = '', comment = '', images = [] } = req.body;
+    const { rating, title = '', comment = req.body.comment || req.body.reviewText || '', images = [] } = req.body;
     const userId = req.user.id || req.user._id;
 
     const numRating = Number(rating);

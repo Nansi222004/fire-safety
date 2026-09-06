@@ -46,7 +46,7 @@ export const creditWallet = async (userId, amount, transactionType, details = {}
     }
 
     // 1. Check if reference already exists to prevent duplicate credit
-    const { reference, returnRequestId, orderId, giftCardId, description, expiresAt, createdBy, createdByModel, adjustmentReason } = details;
+    const { serviceBookingId, reference, returnRequestId, orderId, giftCardId, description, expiresAt, createdBy, createdByModel, adjustmentReason } = details || {};
     if (reference) {
         // Check if Wallet transaction with the same reference already exists
         const existingTxn = await WalletTransaction.findOne({ reference }).session(session);
@@ -110,6 +110,7 @@ export const creditWallet = async (userId, amount, transactionType, details = {}
             amount,
             balanceBefore,
             balanceAfter,
+            serviceBookingId,
             orderId,
             returnRequestId,
             giftCardId,
@@ -202,7 +203,7 @@ export const debitWallet = async (userId, amount, transactionType, details = {},
 
     await wallet.save({ session });
 
-    const { orderId, returnRequestId, description, reference, createdBy, createdByModel, adjustmentReason } = details;
+    const { serviceBookingId, orderId, returnRequestId, description, reference, createdBy, createdByModel, adjustmentReason } = details || {};
 
     const [transaction] = await WalletTransaction.create(
         [{
@@ -214,6 +215,7 @@ export const debitWallet = async (userId, amount, transactionType, details = {},
             amount,
             balanceBefore,
             balanceAfter,
+            serviceBookingId,
             orderId,
             returnRequestId,
             description: description || `Deducted ₹${amount} for ${transactionType}`,
