@@ -16,6 +16,9 @@ html {
   overflow-x: hidden;
   position: relative;
   -webkit-text-size-adjust: 100%;
+  touch-action: pan-y;
+  overscroll-behavior-y: auto;
+  overscroll-behavior-x: none;
 }
 
 body {
@@ -29,6 +32,8 @@ body {
   max-width: 100%;
   overflow-x: hidden;
   position: relative;
+  touch-action: pan-y;
+  overscroll-behavior-x: none;
   /* Hide scrollbar */
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -43,6 +48,25 @@ body::-webkit-scrollbar {
   width: 100%;
   max-width: 100%;
   position: relative;
+  overflow-x: hidden;
+}
+
+/* Allow single-finger horizontal scroll inside dedicated scroll containers while keeping multi-touch zoom disabled */
+.overflow-x-auto,
+.overflow-x-scroll,
+[class*="overflow-x-auto"],
+[class*="overflow-x-scroll"] {
+  touch-action: pan-x pan-y;
+  overscroll-behavior-x: contain;
+}
+
+/* Prevent iOS Safari from auto-zooming into inputs on focus */
+@media screen and (max-width: 768px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
 }
 
 /* Responsive media defaults */
