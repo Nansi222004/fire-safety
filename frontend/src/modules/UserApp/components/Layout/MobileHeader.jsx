@@ -128,11 +128,11 @@ const MobileHeader = ({ onSearch }) => {
       wishlist:
         "linear-gradient(to bottom, rgb(239, 68, 68) 0%, rgb(248, 113, 113) 30%, rgb(254, 226, 226) 60%, rgb(255, 255, 255) 100%)", // Fire Red
       profile:
-        "linear-gradient(to bottom, rgb(15, 23, 42) 0%, rgb(30, 41, 59) 30%, rgb(248, 250, 252) 70%, rgb(255, 255, 255) 100%)", // Dark Slate
+        "linear-gradient(to bottom, rgb(254, 226, 226) 0%, rgb(254, 242, 242) 30%, rgb(255, 255, 255) 100%)", // Fire Red subtle header tint
       orders:
-        "linear-gradient(to bottom, rgb(15, 23, 42) 0%, rgb(30, 41, 59) 30%, rgb(248, 250, 252) 70%, rgb(255, 255, 255) 100%)", // Dark Slate
+        "linear-gradient(to bottom, rgb(254, 226, 226) 0%, rgb(254, 242, 242) 30%, rgb(255, 255, 255) 100%)", // Fire Red subtle header tint
       orderDetail:
-        "linear-gradient(to bottom, rgb(15, 23, 42) 0%, rgb(30, 41, 59) 30%, rgb(248, 250, 252) 70%, rgb(255, 255, 255) 100%)", // Dark Slate
+        "linear-gradient(to bottom, rgb(254, 226, 226) 0%, rgb(254, 242, 242) 30%, rgb(255, 255, 255) 100%)", // Fire Red subtle header tint
       checkout:
         "linear-gradient(to bottom, rgb(239, 68, 68) 0%, rgb(248, 113, 113) 30%, rgb(254, 226, 226) 60%, rgb(255, 255, 255) 100%)", // Fire Red
       offers:
