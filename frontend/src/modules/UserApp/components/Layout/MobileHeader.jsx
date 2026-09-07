@@ -53,6 +53,7 @@ const MobileHeader = ({ onSearch }) => {
 
   const itemCount = useCartStore((state) => state.getItemCount());
   const wishlistCount = useWishlistStore((state) => state.getItemCount());
+  const ensureWishlist = useWishlistStore((state) => state.ensureHydrated);
   const unreadCount = useUserNotificationStore((state) => state.unreadCount);
   const ensureNotifications = useUserNotificationStore(
     (state) => state.ensureHydrated
@@ -62,6 +63,13 @@ const MobileHeader = ({ onSearch }) => {
     (state) => state.cartAnimationTrigger
   );
   const { user, isAuthenticated, logout } = useAuthStore();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      ensureWishlist();
+      ensureNotifications();
+    }
+  }, [ensureWishlist, ensureNotifications, isAuthenticated]);
 
   // Get current category from URL (supports both /category/:id and legacy /app/category/:id)
   const getCurrentCategoryId = () => {

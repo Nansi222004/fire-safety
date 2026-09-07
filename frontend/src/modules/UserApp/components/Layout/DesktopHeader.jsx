@@ -37,6 +37,7 @@ const DesktopHeader = ({ onSearch }) => {
   const { user, isAuthenticated, logout } = useAuthStore();
   const itemCount = useCartStore((state) => state.getItemCount());
   const wishlistCount = useWishlistStore((state) => state.getItemCount());
+  const ensureWishlist = useWishlistStore((state) => state.ensureHydrated);
   const unreadCount = useUserNotificationStore((state) => state.unreadCount);
   const ensureHydrated = useUserNotificationStore(
     (state) => state.ensureHydrated,
@@ -93,8 +94,11 @@ const DesktopHeader = ({ onSearch }) => {
 
   useEffect(() => {
     ensureHydrated();
+    if (isAuthenticated) {
+      ensureWishlist();
+    }
     initialize();
-  }, [ensureHydrated, initialize, isAuthenticated]);
+  }, [ensureHydrated, ensureWishlist, initialize, isAuthenticated]);
 
   // Click outside menus handlers
   useEffect(() => {

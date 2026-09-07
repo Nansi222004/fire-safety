@@ -147,7 +147,7 @@ export const useOrderStore = create(
 
           return { orders: list, pagination };
         } catch (error) {
-          set({ isLoading: false, lastError: error?.message || 'Failed to fetch orders.' });
+          set({ isLoading: false, hasFetched: true, lastError: error?.message || 'Failed to fetch orders.' });
           throw error;
         }
       },
@@ -195,16 +195,14 @@ export const useOrderStore = create(
         }
       },
 
-      // Get a single order by ID
+      // Get a single order by ID (pure getter)
       getOrder: (orderId) => {
-        get().ensureHydrated();
         const state = get();
         return state.orders.find((order) => String(order.id) === String(orderId));
       },
 
-      // Get all orders for a user (or guest orders if userId is null)
+      // Get all orders for a user (pure getter)
       getAllOrders: (userId = null) => {
-        get().ensureHydrated();
         const state = get();
         if (userId === null) {
           return state.orders.filter((order) => order.userId === null || order.userId === undefined);

@@ -185,6 +185,9 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+let lastApiToastTime = 0;
+let lastApiToastMessage = '';
+
 api.interceptors.response.use(
   (response) => {
     const data = response.data;
@@ -224,6 +227,7 @@ api.interceptors.response.use(
       if (status === 403) return 'Access restricted. Your account may be pending approval or deactivated.';
       if (status === 404) return 'Requested item or resource not found.';
       if (status === 409) return 'Conflict detected. Please refresh and try again.';
+      if (status === 429) return 'Too many requests, please try again later.';
       if (status >= 500) return 'Server is temporarily unavailable. Please try again shortly.';
 
       if (err.message === 'Network Error' || !err.response) {
@@ -237,9 +241,14 @@ api.interceptors.response.use(
     // Standardize error.message so catch blocks never see raw status code strings
     error.message = cleanMessage;
 
-    if (!error.response?.data?.requiresConfirmation && !error.toastShown) {
+    const now = Date.now();
+    const isDuplicateRecentToast = lastApiToastMessage === cleanMessage && now - lastApiToastTime < 3500;
+
+    if (!error.response?.data?.requiresConfirmation && !error.toastShown && !isDuplicateRecentToast) {
       error.toastShown = true;
-      toast.error(cleanMessage);
+      lastApiToastTime = now;
+      lastApiToastMessage = cleanMessage;
+      toast.error(cleanMessage, { id: `api-err-${cleanMessage}` });
     }
 
     if (error.response?.status === 401) {

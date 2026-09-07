@@ -57,6 +57,10 @@ const normalizeWishlistItem = (item) => {
   };
 };
 
+let wishlistInFlightPromise = null;
+let lastWishlistFetchAttempt = 0;
+const WISHLIST_COOLDOWN_MS = 10000;
+
 export const useWishlistStore = create(
   persist(
     (set, get) => ({
@@ -72,38 +76,66 @@ export const useWishlistStore = create(
       fetchWishlist: async (page = 1, limit = 20, append = false) => {
         const authState = useAuthStore.getState();
         if (!authState?.isAuthenticated) {
-          set({ items: [], filters: [], sections: [], summary: { totalItems: 0, selectedItems: 0, inStock: 0, outOfStock: 0 }, hasFetched: false, ownerUserId: null, isLoading: false });
-          return get().items;
+          set({
+            items: [],
+            filters: [],
+            sections: [],
+            summary: { totalItems: 0, selectedItems: 0, inStock: 0, outOfStock: 0 },
+            hasFetched: false,
+            ownerUserId: null,
+            isLoading: false,
+          });
+          return [];
+        }
+
+        // Return ongoing in-flight request for page 1 if already pending
+        if (wishlistInFlightPromise && page === 1 && !append) {
+          return wishlistInFlightPromise;
         }
 
         const currentUserId = getCurrentAuthUserId();
         if (currentUserId && get().ownerUserId && normalizeId(get().ownerUserId) !== currentUserId) {
-          set({ items: [], filters: [], sections: [], summary: { totalItems: 0, selectedItems: 0, inStock: 0, outOfStock: 0 }, hasFetched: false });
+          set({
+            items: [],
+            filters: [],
+            sections: [],
+            summary: { totalItems: 0, selectedItems: 0, inStock: 0, outOfStock: 0 },
+            hasFetched: false,
+          });
         }
 
+        lastWishlistFetchAttempt = Date.now();
         set({ isLoading: true });
-        try {
-          const response = await api.get('/user/wishlist', { params: { page, limit } });
-          const payload = response?.data ?? response ?? {};
-          
-          const itemsRaw = Array.isArray(payload) ? payload : (Array.isArray(payload?.items) ? payload.items : []);
-          const list = itemsRaw.map(normalizeWishlistItem).filter((item) => item.id);
 
-          set((state) => ({
-            items: append ? [...state.items, ...list] : list,
-            filters: payload.filters || [],
-            sections: payload.sections || [],
-            summary: payload.summary || { totalItems: list.length, selectedItems: 0, inStock: list.length, outOfStock: 0 },
-            pagination: payload.pagination || { page, limit, hasNext: false },
-            isLoading: false,
-            hasFetched: true,
-            ownerUserId: currentUserId || null
-          }));
-          return list;
-        } catch {
-          set({ isLoading: false });
-          return get().items;
-        }
+        wishlistInFlightPromise = (async () => {
+          try {
+            const response = await api.get('/user/wishlist', { params: { page, limit } });
+            const payload = response?.data ?? response ?? {};
+
+            const itemsRaw = Array.isArray(payload) ? payload : (Array.isArray(payload?.items) ? payload.items : []);
+            const list = itemsRaw.map(normalizeWishlistItem).filter((item) => item.id);
+
+            set((state) => ({
+              items: append ? [...state.items, ...list] : list,
+              filters: payload.filters || [],
+              sections: payload.sections || [],
+              summary: payload.summary || { totalItems: list.length, selectedItems: 0, inStock: list.length, outOfStock: 0 },
+              pagination: payload.pagination || { page, limit, hasNext: false },
+              isLoading: false,
+              hasFetched: true,
+              ownerUserId: currentUserId || null,
+            }));
+            return list;
+          } catch {
+            // Even on error, set hasFetched to true to prevent an immediate infinite retry loop
+            set({ isLoading: false, hasFetched: true });
+            return get().items;
+          } finally {
+            wishlistInFlightPromise = null;
+          }
+        })();
+
+        return wishlistInFlightPromise;
       },
 
       ensureHydrated: () => {
@@ -113,7 +145,14 @@ export const useWishlistStore = create(
 
         if (!authState?.isAuthenticated) {
           if (state.items.length || state.hasFetched || state.ownerUserId) {
-            set({ items: [], filters: [], sections: [], summary: { totalItems: 0, selectedItems: 0, inStock: 0, outOfStock: 0 }, hasFetched: false, ownerUserId: null });
+            set({
+              items: [],
+              filters: [],
+              sections: [],
+              summary: { totalItems: 0, selectedItems: 0, inStock: 0, outOfStock: 0 },
+              hasFetched: false,
+              ownerUserId: null,
+            });
           }
           return;
         }
@@ -123,12 +162,22 @@ export const useWishlistStore = create(
           state.ownerUserId &&
           normalizeId(state.ownerUserId) !== currentUserId
         ) {
-          set({ items: [], filters: [], sections: [], summary: { totalItems: 0, selectedItems: 0, inStock: 0, outOfStock: 0 }, hasFetched: false, ownerUserId: currentUserId });
+          set({
+            items: [],
+            filters: [],
+            sections: [],
+            summary: { totalItems: 0, selectedItems: 0, inStock: 0, outOfStock: 0 },
+            hasFetched: false,
+            ownerUserId: currentUserId,
+          });
           return;
         }
 
-        if (!state.hasFetched && !state.isLoading) {
-          state.fetchWishlist().catch(() => null);
+        const now = Date.now();
+        if (!state.hasFetched && !state.isLoading && !wishlistInFlightPromise) {
+          if (now - lastWishlistFetchAttempt > WISHLIST_COOLDOWN_MS) {
+            state.fetchWishlist().catch(() => null);
+          }
         }
       },
 
@@ -215,16 +264,15 @@ export const useWishlistStore = create(
         }
       },
 
-      // Check if item is in wishlist
+      // Check if item is in wishlist (pure getter, no side effects during render)
       isInWishlist: (id) => {
-        get().ensureHydrated();
         const state = get();
         const authState = useAuthStore.getState();
-        if (!authState?.isAuthenticated || !state.hasFetched) {
+        if (!authState?.isAuthenticated) {
           return false;
         }
         const normalizedId = normalizeId(id);
-        return state.items.some((item) => normalizeId(item.productId) === normalizedId);
+        return (state.items || []).some((item) => normalizeId(item.productId) === normalizedId);
       },
 
       // Clear wishlist
@@ -243,15 +291,14 @@ export const useWishlistStore = create(
         }
       },
 
-      // Get wishlist count
+      // Get wishlist count (pure getter, no side effects during render)
       getItemCount: () => {
-        get().ensureHydrated();
         const state = get();
         const authState = useAuthStore.getState();
-        if (!authState?.isAuthenticated || !state.hasFetched) {
+        if (!authState?.isAuthenticated) {
           return 0;
         }
-        return state.items.length;
+        return (state.items || []).length;
       },
 
       // Move item from wishlist to cart (returns item for cart)
