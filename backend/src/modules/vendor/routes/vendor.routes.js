@@ -18,6 +18,7 @@ import * as categoryController from '../controllers/category.controller.js';
 import * as vendorServiceController from '../controllers/vendorService.controller.js';
 import * as serviceRequestController from '../controllers/serviceRequest.controller.js';
 import * as vendorBookingController from '../controllers/vendorBooking.controller.js';
+import * as servicePartnerAppController from '../controllers/servicePartnerApplication.controller.js';
 import {
     vendorServiceIdParamSchema,
     enableServiceParamSchema,
@@ -97,6 +98,11 @@ router.post('/auth/logout', validate(logoutSchema), authController.logout);
 router.get('/auth/profile', ...vendorAuth, authController.getProfile);
 router.put('/auth/profile', ...vendorAuth, authController.updateProfile);
 router.put('/auth/bank-details', ...vendorAuth, authController.updateBankDetails);
+
+// Service Partner Applications
+router.post('/service-partner-applications', ...vendorAuth, servicePartnerAppController.submitApplication);
+router.get('/service-partner-applications/current', ...vendorAuth, servicePartnerAppController.getCurrentApplication);
+router.put('/service-partner-applications/resubmit', ...vendorAuth, servicePartnerAppController.resubmitApplication);
 
 // Products
 router.get('/products', ...productCapAuth, productController.getVendorProducts);
@@ -194,5 +200,10 @@ router.get('/service-bookings', ...serviceCapAuth, vendorBookingController.getVe
 router.get('/service-bookings/:id', ...serviceCapAuth, vendorBookingController.getVendorBookingById);
 router.patch('/service-bookings/:id/status', ...serviceCapAuth, vendorBookingController.updateBookingStatus);
 router.patch('/service-bookings/:id/notes', ...serviceCapAuth, vendorBookingController.updateVendorNotes);
+
+// Service Partner Applications
+router.post('/service-partner-applications', ...vendorAuth, servicePartnerAppController.submitApplication);
+router.get('/service-partner-applications/current', ...vendorAuth, servicePartnerAppController.getCurrentApplication);
+router.put('/service-partner-applications/resubmit', ...vendorAuth, servicePartnerAppController.resubmitApplication);
 
 export default router;

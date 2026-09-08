@@ -16,6 +16,7 @@ const vendorWalletTransactionSchema = new mongoose.Schema(
                 'WITHDRAWAL_REFUND', // Balance returned on withdrawal rejection
                 'ADJUSTMENT',        // Admin manual bonus or penalty
                 'RETURN_CLAWBACK',   // Deducted when vendor already paid and return approved
+                'CANCELLATION_CLAWBACK', // Deducted when vendor already paid and order/item cancelled by admin
                 'SERVICE_SETTLEMENT', // Service completion settlement
             ],
             required: true,

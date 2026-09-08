@@ -103,6 +103,20 @@ const clearScopeAuth = (scope) => {
   localStorage.removeItem(config.accessKey);
   localStorage.removeItem(config.refreshKey);
   localStorage.removeItem(config.persistKey);
+  if (scope === 'user') {
+    try {
+      import('../store/authStore').then((m) => {
+        m.useAuthStore.setState({
+          user: null,
+          token: null,
+          refreshToken: null,
+          isAuthenticated: false,
+          pendingEmail: null,
+          isLoading: false,
+        });
+      }).catch(() => {});
+    } catch (_) {}
+  }
 };
 
 const shouldAttemptRefresh = (error, scope) => {
@@ -260,13 +274,23 @@ api.interceptors.response.use(
 
       const routeConfig = AUTH_SCOPES[scope];
       if (scope === 'user') {
-        const isAuthPage =
-          currentPath === '/login' ||
-          currentPath === '/register' ||
-          currentPath === '/verification' ||
-          currentPath === '/forgot-password' ||
-          currentPath === '/reset-password';
-        if (!isAuthPage) {
+        const protectedUserPrefixes = [
+          '/checkout',
+          '/wishlist',
+          '/order-confirmation',
+          '/orders',
+          '/support',
+          '/profile',
+          '/wallet',
+          '/notifications',
+          '/addresses',
+          '/my-service-bookings',
+          '/service-bookings',
+        ];
+        const isProtectedPage = protectedUserPrefixes.some(
+          (prefix) => currentPath === prefix || currentPath.startsWith(`${prefix}/`)
+        );
+        if (isProtectedPage) {
           redirectTo(routeConfig.loginPath);
         }
       } else if (currentPath.startsWith(routeConfig.areaPrefix) && currentPath !== routeConfig.loginPath) {

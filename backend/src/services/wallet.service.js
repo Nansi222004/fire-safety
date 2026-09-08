@@ -133,8 +133,12 @@ export const creditWallet = async (userId, amount, transactionType, details = {}
         if (orderId) {
             const orderObj = await Order.findById(orderId).session(session).lean();
             if (orderObj) orderNumber = orderObj.orderId;
+            notificationMsg = `₹${amount} has been credited to your wallet for cancelled Order #${orderNumber}.`;
+        } else if (serviceBookingId) {
+            notificationMsg = `₹${amount} has been credited to your SafeFire Wallet for cancelled Service Booking #${details?.bookingNumber || serviceBookingId}.`;
+        } else {
+            notificationMsg = `₹${amount} has been credited to your SafeFire Wallet for your cancellation refund.`;
         }
-        notificationMsg = `₹${amount} has been credited to your wallet for cancelled Order #${orderNumber}.`;
     } else if (transactionType === 'exchange_refund') {
         notificationMsg = `₹${amount} has been credited to your wallet for exchange price difference on Return #${returnRequestId || 'N/A'}.`;
     } else if (transactionType === 'reward') {

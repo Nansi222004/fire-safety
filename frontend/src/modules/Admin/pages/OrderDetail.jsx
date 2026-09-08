@@ -448,6 +448,47 @@ const OrderDetail = () => {
             </div>
           </div>
 
+          {/* Refunds & Gateway Reversals */}
+          {Array.isArray(order.refunds) && order.refunds.length > 0 && (
+            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+              <h2 className="text-sm font-bold text-gray-800 mb-3 flex items-center justify-between">
+                <span>Refunds & Reversals</span>
+                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold">
+                  {order.refunds.length}
+                </span>
+              </h2>
+              <div className="space-y-2.5">
+                {order.refunds.map((ref, idx) => (
+                  <div key={idx} className="p-2.5 bg-gray-50 rounded-lg border border-gray-200 text-xs space-y-1">
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-gray-800">₹{ref.amount}</span>
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold uppercase ${
+                        ref.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
+                        ref.status === 'processing' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'
+                      }`}>
+                        {ref.status}
+                      </span>
+                    </div>
+                    <div className="text-gray-500 text-[11px] flex justify-between">
+                      <span>Method: <span className="font-medium text-gray-700 uppercase">{ref.method || 'razorpay'}</span></span>
+                      <span>Dest: <span className="font-medium text-gray-700">{ref.destination === 'original_source' ? 'Original Source' : 'Wallet'}</span></span>
+                    </div>
+                    {ref.razorpayRefundId && (
+                      <p className="text-[10px] text-gray-400 font-mono truncate" title={ref.razorpayRefundId}>
+                        Ref ID: {ref.razorpayRefundId}
+                      </p>
+                    )}
+                    {ref.razorpayPaymentId && (
+                      <p className="text-[10px] text-gray-400 font-mono truncate" title={ref.razorpayPaymentId}>
+                        Pay ID: {ref.razorpayPaymentId}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Vendor Splits */}
           {Array.isArray(order.commissions) && order.commissions.length > 0 && (
             <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">

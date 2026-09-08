@@ -6,7 +6,8 @@ import Commission from '../models/Commission.model.js';
 import Coupon from '../models/Coupon.model.js';
 import Refund from '../models/Refund.model.js';
 import Shipment from '../models/Shipment.model.js';
-import { creditWallet } from './wallet.service.js';
+import PaymentAttempt from '../models/PaymentAttempt.model.js';
+import { processRazorpayRefund } from './payment.service.js';
 import { cancelShipmentDeliveryAssignment } from './assignmentService.js';
 
 const resolveOrderItemVariantKey = (productSnapshot, item) => {
@@ -66,6 +67,7 @@ export const processCancellationRefund = async ({
         let refundAmount = 0;
         let refundReference = '';
         let refundNotes = '';
+        let pendingRzpCall = null;
 
         if (!vendorGroupId) {
             // ─────────────────────────────────────────────────────────────────
@@ -90,47 +92,82 @@ export const processCancellationRefund = async ({
             // Calculate refund amount
             if (order.paymentStatus === 'paid') {
                 refundAmount = Number(order.total || 0);
-            } else if (Number(order.walletAmountUsed || 0) > 0) {
-                refundAmount = Number(order.walletAmountUsed || 0);
             }
 
             refundReference = `ORDER_CANCEL_REFUND_${order._id}`;
             refundNotes = `Refund: Order #${order.orderId} cancelled by ${cancelledBy} (${reason})`;
 
-            // Perform Wallet Credit if user is registered and refund > 0
-            if (refundAmount > 0 && order.userId) {
-                await creditWallet(
-                    order.userId,
-                    refundAmount,
-                    'cancel_refund',
-                    {
-                        orderId: order._id,
-                        orderNumber: order.orderId,
-                        reason,
-                        comment,
-                        description: `Refunded ₹${refundAmount} to wallet for cancelled Order #${order.orderId}`,
+            // Idempotency: verify if refund already completed or processing
+            const existingRefund = await Refund.findOne({ referenceId: refundReference }).session(internalSession);
+            if (existingRefund && (existingRefund.status === 'completed' || existingRefund.status === 'processing')) {
+                return { order, refundAmount: existingRefund.amount, refund: existingRefund, duplicate: true };
+            }
+
+            // Cumulative partial refund protection: verify remaining refundable amount
+            const capturedAmount = Number(order.total || 0);
+            const existingCompletedRefunds = await Refund.find({
+                orderId: order._id,
+                status: { $in: ['completed', 'processing'] }
+            }).session(internalSession);
+            const alreadyRefunded = existingCompletedRefunds.reduce((sum, r) => sum + Number(r.amount || 0), 0);
+            const remainingRefundable = parseFloat(Math.max(0, capturedAmount - alreadyRefunded).toFixed(2));
+            const eligibleRefundAmount = Math.min(refundAmount, remainingRefundable);
+
+            if ((order.paymentStatus === 'paid' || order.paymentStatus === 'partially_refunded') && eligibleRefundAmount > 0) {
+                const paidAttempt = await PaymentAttempt.findOne({ orderId: order._id, status: 'paid' })
+                    .sort({ updatedAt: -1 })
+                    .session(internalSession);
+
+                if (paidAttempt && paidAttempt.razorpayPaymentId) {
+                    const [createdRefund] = await Refund.create(
+                        [
+                            {
+                                orderId: order._id,
+                                userId: order.userId,
+                                paymentAttemptId: paidAttempt._id,
+                                amount: eligibleRefundAmount,
+                                referenceId: refundReference,
+                                method: 'razorpay',
+                                destination: 'original_source',
+                                status: 'processing',
+                                razorpayPaymentId: paidAttempt.razorpayPaymentId,
+                                paymentMethod: order.paymentMethod || 'razorpay',
+                                refundInitiatedAt: new Date(),
+                                notes: refundNotes,
+                            },
+                        ],
+                        { session: internalSession }
+                    );
+
+                    pendingRzpCall = {
+                        refundRecordId: createdRefund._id,
+                        paymentId: paidAttempt.razorpayPaymentId,
+                        amount: eligibleRefundAmount,
                         reference: refundReference,
-                    },
-                    internalSession
-                );
+                        isFull: true,
+                    };
 
-                await Refund.create(
-                    [
-                        {
-                            orderId: order._id,
-                            userId: order.userId,
-                            amount: refundAmount,
-                            referenceId: refundReference,
-                            method: 'wallet_credit',
-                            destination: 'wallet',
-                            status: 'completed',
-                            notes: refundNotes,
-                        },
-                    ],
-                    { session: internalSession }
-                );
-
-                order.paymentStatus = 'refunded';
+                    order.paymentStatus = 'refund_queued';
+                } else {
+                    // Online paid but no payment attempt? Record failure, do not credit wallet!
+                    await Refund.create(
+                        [
+                            {
+                                orderId: order._id,
+                                userId: order.userId,
+                                amount: eligibleRefundAmount,
+                                referenceId: refundReference,
+                                method: 'razorpay',
+                                destination: 'original_source',
+                                status: 'failed',
+                                failureReason: 'Original captured Razorpay payment ID could not be resolved',
+                                notes: refundNotes,
+                            },
+                        ],
+                        { session: internalSession }
+                    );
+                }
+                refundAmount = eligibleRefundAmount;
             }
 
             await order.save({ session: internalSession });
@@ -203,8 +240,16 @@ export const processCancellationRefund = async ({
                 { session: internalSession }
             );
 
-            // Cancel all associated shipments
+            // Cancel all associated shipments (guard against transit)
             const shipments = await Shipment.find({ orderId: order._id }).session(internalSession);
+            const PHYSICAL_TRANSIT_STATUSES = ['picked_up', 'shipped', 'in_transit', 'out_for_delivery'];
+            const inTransitShipment = (shipments || []).find(s => PHYSICAL_TRANSIT_STATUSES.includes(s.status));
+            if (inTransitShipment) {
+                throw new Error(
+                    `Cannot cancel order: Shipment #${inTransitShipment.shipmentNumber || inTransitShipment._id} is already in '${inTransitShipment.status}' status with delivery partner.`
+                );
+            }
+
             for (const shipment of shipments) {
                 await cancelShipmentDeliveryAssignment(shipment._id, reason, internalSession);
             }
@@ -254,45 +299,76 @@ export const processCancellationRefund = async ({
             refundReference = `PARTIAL_CANCEL_${order._id}_${targetVendorGroup.vendorId}`;
             refundNotes = `Partial Refund: ${targetVendorGroup.vendorName} package cancelled by ${cancelledBy} (${reason})`;
 
-            if ((order.paymentStatus === 'paid' || Number(order.walletAmountUsed || 0) > 0) && calculatedRefund > 0 && order.userId) {
-                refundAmount = calculatedRefund;
-                const itemNames = (targetVendorGroup.items || []).map((i) => i.name).join(', ');
+            // Idempotency: verify if partial refund already completed or processing
+            const existingPartialRefund = await Refund.findOne({ referenceId: refundReference }).session(internalSession);
+            if (existingPartialRefund && (existingPartialRefund.status === 'completed' || existingPartialRefund.status === 'processing')) {
+                return { order, refundAmount: existingPartialRefund.amount, refund: existingPartialRefund, duplicate: true };
+            }
 
-                await creditWallet(
-                    order.userId,
-                    refundAmount,
-                    'cancel_refund',
-                    {
-                        orderId: order._id,
-                        orderNumber: order.orderId,
-                        vendorId: targetVendorGroup.vendorId,
-                        vendorName: targetVendorGroup.vendorName,
-                        items: itemNames,
-                        reason,
-                        comment,
-                        description: `Refund ₹${refundAmount} for cancelled ${targetVendorGroup.vendorName} package in Order #${order.orderId}`,
+            // Cumulative partial refund protection: verify remaining refundable amount
+            const capturedAmount = Number(order.total || 0);
+            const existingCompletedRefunds = await Refund.find({
+                orderId: order._id,
+                status: { $in: ['completed', 'processing'] }
+            }).session(internalSession);
+            const alreadyRefunded = existingCompletedRefunds.reduce((sum, r) => sum + Number(r.amount || 0), 0);
+            const remainingRefundable = parseFloat(Math.max(0, capturedAmount - alreadyRefunded).toFixed(2));
+            const eligibleRefundAmount = Math.min(calculatedRefund, remainingRefundable);
+
+            if ((order.paymentStatus === 'paid' || order.paymentStatus === 'partially_refunded') && eligibleRefundAmount > 0) {
+                refundAmount = eligibleRefundAmount;
+                const paidAttempt = await PaymentAttempt.findOne({ orderId: order._id, status: 'paid' })
+                    .sort({ updatedAt: -1 })
+                    .session(internalSession);
+
+                if (paidAttempt && paidAttempt.razorpayPaymentId) {
+                    const [createdRefund] = await Refund.create(
+                        [
+                            {
+                                orderId: order._id,
+                                userId: order.userId,
+                                paymentAttemptId: paidAttempt._id,
+                                amount: refundAmount,
+                                referenceId: refundReference,
+                                method: 'razorpay',
+                                destination: 'original_source',
+                                status: 'processing',
+                                razorpayPaymentId: paidAttempt.razorpayPaymentId,
+                                paymentMethod: order.paymentMethod || 'razorpay',
+                                refundInitiatedAt: new Date(),
+                                notes: refundNotes,
+                            },
+                        ],
+                        { session: internalSession }
+                    );
+
+                    pendingRzpCall = {
+                        refundRecordId: createdRefund._id,
+                        paymentId: paidAttempt.razorpayPaymentId,
+                        amount: refundAmount,
                         reference: refundReference,
-                    },
-                    internalSession
-                );
+                        isFull: false,
+                    };
 
-                await Refund.create(
-                    [
-                        {
-                            orderId: order._id,
-                            userId: order.userId,
-                            amount: refundAmount,
-                            referenceId: refundReference,
-                            method: 'wallet_credit',
-                            destination: 'wallet',
-                            status: 'completed',
-                            notes: refundNotes,
-                        },
-                    ],
-                    { session: internalSession }
-                );
-
-                targetVendorGroup.refundedAmount = refundAmount;
+                    targetVendorGroup.refundedAmount = refundAmount;
+                } else {
+                    await Refund.create(
+                        [
+                            {
+                                orderId: order._id,
+                                userId: order.userId,
+                                amount: refundAmount,
+                                referenceId: refundReference,
+                                method: 'razorpay',
+                                destination: 'original_source',
+                                status: 'failed',
+                                failureReason: 'Original captured Razorpay payment ID could not be resolved',
+                                notes: refundNotes,
+                            },
+                        ],
+                        { session: internalSession }
+                    );
+                }
             }
 
             // Restore Inventory Stock for target vendor items
@@ -332,11 +408,18 @@ export const processCancellationRefund = async ({
                 }
             }
 
-            // Cancel shipment for this vendor
+            // Cancel shipment for this vendor (guard against transit)
             const shipment = await Shipment.findOne({
                 orderId: order._id,
                 vendorId: targetVendorGroup.vendorId,
             }).session(internalSession);
+
+            const PHYSICAL_TRANSIT_STATUSES = ['picked_up', 'shipped', 'in_transit', 'out_for_delivery'];
+            if (shipment && PHYSICAL_TRANSIT_STATUSES.includes(shipment.status)) {
+                throw new Error(
+                    `Cannot cancel package: Shipment #${shipment.shipmentNumber || shipment._id} is already in '${shipment.status}' status with delivery partner.`
+                );
+            }
 
             if (shipment) {
                 await cancelShipmentDeliveryAssignment(shipment._id, reason, internalSession);
@@ -360,12 +443,21 @@ export const processCancellationRefund = async ({
                 { session: internalSession }
             );
 
-            // Re-evaluate overall order status
-            const allVendorStatuses = order.vendorItems.map((v) => String(v.status || '').toLowerCase());
-            if (allVendorStatuses.every((s) => s === 'cancelled')) {
+            // Re-evaluate overall order status & payment status
+            const remainingGroups = (order.vendorItems || []).filter((v) => v.status !== 'cancelled');
+            if (remainingGroups.length === 0) {
                 order.status = 'cancelled';
                 order.cancelledAt = new Date();
                 order.cancellationReason = reason;
+                if (order.paymentStatus === 'paid' || order.paymentStatus === 'partially_refunded') {
+                    order.paymentStatus = 'refunded';
+                }
+            } else {
+                const anyDelivered = remainingGroups.some((v) => v.status === 'delivered');
+                order.status = anyDelivered ? 'partially_delivered' : 'partially_cancelled';
+                if (order.paymentStatus === 'paid') {
+                    order.paymentStatus = 'partially_refunded';
+                }
             }
 
             await order.save({ session: internalSession });
@@ -375,7 +467,61 @@ export const processCancellationRefund = async ({
             await internalSession.commitTransaction();
         }
 
-        return { order, refundAmount };
+        // Post-commit external Razorpay refund invocation (safe from DB rollback)
+        if (pendingRzpCall) {
+            try {
+                const rzpRes = await processRazorpayRefund({
+                    paymentId: pendingRzpCall.paymentId,
+                    amountInRupees: pendingRzpCall.amount,
+                    reference: pendingRzpCall.reference,
+                    notes: { orderId: String(order._id), reason, cancelledBy },
+                });
+
+                const isCompleted = rzpRes.status === 'completed';
+                await Refund.findByIdAndUpdate(pendingRzpCall.refundRecordId, {
+                    $set: {
+                        status: isCompleted ? 'completed' : 'processing',
+                        razorpayRefundId: rzpRes.refundId,
+                        ...(isCompleted ? { refundCompletedAt: new Date() } : {}),
+                    },
+                });
+
+                if (isCompleted) {
+                    const allCompletedRefunds = await Refund.find({
+                        orderId: order._id,
+                        status: 'completed',
+                    });
+                    const totalRefundedSoFar = allCompletedRefunds.reduce((sum, r) => sum + (r.amount || 0), 0);
+                    const isFullyRefunded = pendingRzpCall.isFull || totalRefundedSoFar >= (order.total || 0);
+                    const nextPaymentStatus = isFullyRefunded ? 'refunded' : 'partially_refunded';
+                    await Order.findByIdAndUpdate(order._id, { $set: { paymentStatus: nextPaymentStatus } });
+                    order.paymentStatus = nextPaymentStatus;
+                }
+            } catch (rzpErr) {
+                logger.error(`[Razorpay Refund Error] Order ${order._id}:`, rzpErr.message);
+                if (rzpErr.isTimeout) {
+                    await Refund.findByIdAndUpdate(pendingRzpCall.refundRecordId, {
+                        $set: {
+                            isAmbiguousTimeout: true,
+                            failureReason: 'Gateway request timed out — marked processing for webhook/reconciliation',
+                        },
+                    });
+                } else {
+                    await Refund.findByIdAndUpdate(pendingRzpCall.refundRecordId, {
+                        $set: {
+                            status: 'failed',
+                            failureReason: rzpErr.message || 'Razorpay refund failed',
+                        },
+                    });
+                }
+            }
+        }
+
+        const latestRefund = pendingRzpCall
+            ? await Refund.findById(pendingRzpCall.refundRecordId)
+            : await Refund.findOne({ referenceId: refundReference });
+
+        return { order, refundAmount, refund: latestRefund };
     } catch (err) {
         if (ownsSession) {
             await internalSession.abortTransaction();

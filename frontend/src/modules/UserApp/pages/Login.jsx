@@ -19,13 +19,16 @@ import PageTransition from '../../../shared/components/PageTransition';
 const MobileLogin = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, isLoading } = useAuthStore();
+  const { login, isLoading, isAuthenticated } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
   useEffect(() => {
     useAuthStore.setState({ isLoading: false });
-  }, []);
+    if (isAuthenticated) {
+      navigate('/home', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const {
     register,

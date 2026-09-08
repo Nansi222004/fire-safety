@@ -134,6 +134,7 @@ const getChildRoute = (parentRoute, childName) => {
     "/admin/vendors": {
       "Manage Vendors": "/admin/vendors/manage-vendors",
       "Pending Approvals": "/admin/vendors/pending-approvals",
+      "Service Applications": "/admin/vendors/service-partner-applications",
       "Commission Rates": "/admin/vendors/commission-rates",
       "Vendor Analytics": "/admin/vendors/vendor-analytics",
     },

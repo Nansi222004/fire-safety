@@ -200,7 +200,7 @@ const ServiceBookingDetailPage = () => {
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-purple-50 text-purple-700 border border-purple-200 uppercase">
             <FiShield />
-            <span>Refunded to Wallet</span>
+            <span>Refunded</span>
           </span>
         );
       default:
@@ -666,8 +666,8 @@ const ServiceBookingDetailPage = () => {
                           ?
                           {booking?.paymentStatus === "paid" && (
                             <span className="block text-emerald-700 font-semibold mt-1">
-                              If paid, ₹{booking?.pricing?.total} will be refunded
-                              directly to your SafeFire Wallet.
+                              If paid, refund of ₹{booking?.pricing?.total} will be initiated
+                              to your original payment method.
                             </span>
                           )}
                         </p>

@@ -6,6 +6,7 @@ import DeliveryBoy from '../../../models/DeliveryBoy.model.js';
 import User from '../../../models/User.model.js';
 import Commission from '../../../models/Commission.model.js';
 import Product from '../../../models/Product.model.js';
+import Vendor from '../../../models/Vendor.model.js';
 import { createNotification } from '../../../services/notification.service.js';
 import { notifyOrderUpdate } from '../../../services/socket.service.js';
 import { buildOrderItemsSummary, buildVendorItemsSummary } from '../../../utils/notificationProductFormatter.js';
@@ -16,7 +17,9 @@ import Shipment from '../../../models/Shipment.model.js';
 import Coupon from '../../../models/Coupon.model.js';
 import Refund from '../../../models/Refund.model.js';
 import AuditLog from '../../../models/AuditLog.model.js';
-import { creditWallet } from '../../../services/wallet.service.js';
+import VendorWalletTransaction from '../../../models/VendorWalletTransaction.model.js';
+import PaymentAttempt from '../../../models/PaymentAttempt.model.js';
+import { processRazorpayRefund } from '../../../services/payment.service.js';
 import { cancelShipmentDeliveryAssignment } from '../../../services/assignmentService.js';
 import { processCancellationRefund } from '../../../services/cancellationRefundService.js';
 
@@ -138,6 +141,10 @@ export const getOrderById = asyncHandler(async (req, res) => {
 
     const commissions = await Commission.find({ orderId: order._id }).lean();
     order.commissions = commissions || [];
+    const refunds = await Refund.find({ orderId: order._id }).sort({ createdAt: -1 }).lean();
+    order.refunds = refunds || [];
+    const paymentAttempts = await PaymentAttempt.find({ orderId: order._id }).sort({ createdAt: -1 }).lean();
+    order.paymentAttempts = paymentAttempts || [];
 
     if (order.shipments && order.shipments.length > 0) {
         const allDelivered = order.shipments.every(s => s.status === 'delivered');
@@ -172,6 +179,17 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
 
     const nextStatus = String(status || '').toLowerCase();
     if (nextStatus === 'cancelled') {
+        // Guard against destructive cancellation if goods are physically in transit with delivery partner
+        const shipments = await mongoose.model('Shipment').find({ orderId: order._id }).lean();
+        const PHYSICAL_TRANSIT_STATUSES = ['picked_up', 'shipped', 'in_transit', 'out_for_delivery'];
+        const inTransitShipment = (shipments || []).find(s => PHYSICAL_TRANSIT_STATUSES.includes(s.status));
+        if (inTransitShipment) {
+            throw new ApiError(
+                400,
+                `Cannot cancel order because shipment #${inTransitShipment.shipmentNumber || inTransitShipment._id} is already in '${inTransitShipment.status}' status with delivery partner. Reverse logistics or return workflow must be used.`
+            );
+        }
+
         const result = await processCancellationRefund({
             orderId: order._id,
             cancelledBy: 'admin',
@@ -180,6 +198,38 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
         });
 
         notifyOrderUpdate(result.order || order);
+
+        // Notifications after successful cancellation
+        const customerId = order.userId?._id || order.userId;
+        if (customerId) {
+            const refundMsg = (result.refundAmount || 0) > 0
+                ? (order.paymentMethod === 'cod'
+                    ? ' No refund applicable for Cash on Delivery.'
+                    : ` ₹${result.refundAmount} refund initiated to your original payment method. Your bank/UPI provider may take additional time to credit the amount.`)
+                : '';
+            createNotification({
+                recipientId: customerId,
+                recipientType: 'user',
+                title: 'Order Cancelled by Admin',
+                message: `Your Order #${order.orderId} has been cancelled by Admin.${refundMsg}`,
+                type: 'order',
+                data: { orderId: String(order._id), refundAmount: result.refundAmount || 0 }
+            }).catch(err => console.error('[Admin Order Cancel Notification Customer Error]:', err.message));
+        }
+
+        for (const vg of (order.vendorItems || [])) {
+            if (vg.vendorId) {
+                createNotification({
+                    recipientId: vg.vendorId,
+                    recipientType: 'vendor',
+                    title: 'Order Cancelled by Admin',
+                    message: `Order #${order.orderId} has been cancelled by Admin. Reason: ${req.body.reason || 'Cancelled by admin'}`,
+                    type: 'order',
+                    data: { orderId: String(order._id) }
+                }).catch(err => console.error('[Admin Order Cancel Notification Vendor Error]:', err.message));
+            }
+        }
+
         return res.status(200).json(new ApiResponse(200, result.order || order, `Order cancelled by admin and refund of ₹${result.refundAmount || 0} processed.`));
     }
 
@@ -393,11 +443,11 @@ export const deleteOrder = asyncHandler(async (req, res) => {
 export const adminOverrideCancelVendorItem = asyncHandler(async (req, res) => {
     const { id: orderIdParam, vendorItemId } = req.params;
     const { reason, comment, forceRefund } = req.body;
-
     const session = await mongoose.startSession();
     let updatedOrder = null;
     let cancelledVendorGroup = null;
     let calculatedRefund = 0;
+    let pendingRzpCall = null;
 
     try {
         await session.withTransaction(async () => {
@@ -437,8 +487,13 @@ export const adminOverrideCancelVendorItem = asyncHandler(async (req, res) => {
                 vendorId: targetVendorGroup.vendorId,
             }).session(session);
 
+            const PHYSICAL_TRANSIT_STATUSES = ['picked_up', 'shipped', 'in_transit', 'out_for_delivery'];
+            if (shipment && PHYSICAL_TRANSIT_STATUSES.includes(shipment.status)) {
+                throw new ApiError(400, `Cannot cancel: package shipment is already in '${shipment.status}' status with delivery partner.`);
+            }
+
             if (shipment) {
-                await cancelShipmentDeliveryAssignment(shipment._id, reason || 'Admin cancelled package', session);
+                await cancelShipmentDeliveryAssignment(shipment._id, reason, session);
             }
 
             // Restore Inventory
@@ -466,33 +521,122 @@ export const adminOverrideCancelVendorItem = asyncHandler(async (req, res) => {
                 ((targetVendorGroup.subtotal || 0) - (targetVendorGroup.discount || 0) + (targetVendorGroup.tax || 0) + (targetVendorGroup.shipping || 0)).toFixed(2)
             );
 
-            if (forceRefund || order.paymentStatus === 'paid' || order.walletAmountUsed > 0) {
-                if (calculatedRefund > 0 && order.userId) {
-                    await creditWallet(
-                        order.userId,
-                        calculatedRefund,
-                        'cancel_refund',
-                        {
-                            orderId: order._id,
-                            vendorId: targetVendorGroup.vendorId,
-                            description: `Admin Override Refund: cancelled package (${targetVendorGroup.vendorName}) in Order #${order.orderId}`,
-                            reference: `ADMIN_CANCEL_${order._id}_${targetVendorGroup.vendorId}`,
-                            reason: reason || 'Admin Override Cancellation',
-                        },
-                        session
+            const isOnlinePayment = order.paymentMethod !== 'cod' && (order.paymentStatus === 'paid' || order.paymentStatus === 'partially_refunded' || forceRefund);
+
+            if (isOnlinePayment && calculatedRefund > 0 && order.userId) {
+                const refundRef = `ADMIN_CANCEL_${order._id}_${targetVendorGroup.vendorId}`;
+
+                // Database Idempotency Check
+                const existingRefund = await Refund.findOne({ referenceId: refundRef }).session(session);
+                if (existingRefund && (existingRefund.status === 'completed' || existingRefund.status === 'processing')) {
+                    targetVendorGroup.refundedAmount = existingRefund.amount;
+                    calculatedRefund = existingRefund.amount;
+                } else {
+                    // Cumulative Partial Refund Protection: server-side limit
+                    const capturedAmount = Number(order.total || 0);
+                    const existingRefunds = await Refund.find({
+                        orderId: order._id,
+                        status: { $in: ['completed', 'processing'] }
+                    }).session(session);
+                    const alreadyRefunded = existingRefunds.reduce((sum, r) => sum + Number(r.amount || 0), 0);
+                    const remainingRefundable = parseFloat(Math.max(0, capturedAmount - alreadyRefunded).toFixed(2));
+                    const eligibleRefund = Math.min(calculatedRefund, remainingRefundable);
+
+                    if (eligibleRefund > 0) {
+                        const paidAttempt = await PaymentAttempt.findOne({ orderId: order._id, status: 'paid' })
+                            .sort({ updatedAt: -1 })
+                            .session(session);
+
+                        if (paidAttempt && paidAttempt.razorpayPaymentId) {
+                            const [createdRefund] = await Refund.create([{
+                                orderId: order._id,
+                                userId: order.userId,
+                                paymentAttemptId: paidAttempt._id,
+                                amount: eligibleRefund,
+                                referenceId: refundRef,
+                                method: 'razorpay',
+                                destination: 'original_source',
+                                status: 'processing',
+                                razorpayPaymentId: paidAttempt.razorpayPaymentId,
+                                paymentMethod: order.paymentMethod || 'razorpay',
+                                refundInitiatedAt: new Date(),
+                                notes: `Admin Override Cancellation: ${reason || 'Admin cancelled'}`,
+                            }], { session });
+
+                            targetVendorGroup.refundedAmount = eligibleRefund;
+                            calculatedRefund = eligibleRefund;
+
+                            pendingRzpCall = {
+                                refundRecordId: createdRefund._id,
+                                paymentId: paidAttempt.razorpayPaymentId,
+                                amount: eligibleRefund,
+                                reference: refundRef,
+                            };
+                        } else {
+                            targetVendorGroup.refundedAmount = 0;
+                            calculatedRefund = 0;
+                        }
+                    } else {
+                        targetVendorGroup.refundedAmount = 0;
+                        calculatedRefund = 0;
+                    }
+                }
+            } else {
+                targetVendorGroup.refundedAmount = 0;
+                calculatedRefund = 0;
+            }
+
+            // Check if Commission was already released or paid to vendor -> Escrow Clawback
+            const releasedCommissions = await Commission.find({
+                orderId: order._id,
+                vendorId: targetVendorGroup.vendorId,
+                $or: [{ escrowStatus: 'released' }, { status: 'paid' }],
+            }).session(session);
+
+            let totalClawback = 0;
+            for (const comm of releasedCommissions) {
+                const amountPaidToVendor = Number(comm.walletCredit || comm.vendorNetEarnings || comm.vendorEarnings || 0);
+                if (amountPaidToVendor > 0) {
+                    totalClawback = parseFloat((totalClawback + amountPaidToVendor).toFixed(2));
+                }
+            }
+
+            if (totalClawback > 0) {
+                const clawbackRef = `CANCELLATION_CLAWBACK_${order._id}_${targetVendorGroup.vendorId}`;
+                const existingClawback = await VendorWalletTransaction.findOne({ referenceId: clawbackRef }).session(session);
+
+                if (!existingClawback) {
+                    const vendor = await Vendor.findByIdAndUpdate(
+                        targetVendorGroup.vendorId,
+                        { $inc: { walletBalance: -totalClawback } },
+                        { new: true, session }
                     );
 
-                    await Refund.create([{
-                        orderId:          order._id,
-                        amount:           calculatedRefund,
-                        referenceId:      `ADMIN_CANCEL_${order._id}_${targetVendorGroup.vendorId}`,
-                        method:           'wallet_credit',
-                        destination:      'wallet',
-                        status:           'completed',
-                        notes:            `Admin Override Cancellation: ${reason || 'Admin cancelled'}`,
-                    }], { session });
+                    if (vendor) {
+                        await VendorWalletTransaction.create([{
+                            vendorId:            targetVendorGroup.vendorId,
+                            type:                'CANCELLATION_CLAWBACK',
+                            amount:              -totalClawback,
+                            grossAmount:         targetVendorGroup.subtotal,
+                            commissionAmount:    targetVendorGroup.commissionAmount,
+                            netAmount:           totalClawback,
+                            referenceId:         clawbackRef,
+                            walletBalanceBefore: parseFloat((vendor.walletBalance + totalClawback).toFixed(2)),
+                            walletBalanceAfter:  vendor.walletBalance,
+                            performedBy:         { role: 'admin', id: req.user?.id },
+                            relatedOrderId:      order._id,
+                            notes:               `Cancellation clawback for Order #${order.orderId} package (${targetVendorGroup.vendorName})`,
+                        }], { session });
 
-                    targetVendorGroup.refundedAmount = calculatedRefund;
+                        if (vendor.walletBalance < 0) {
+                            createNotification({
+                                recipientType: 'admin',
+                                title:         'Vendor Negative Balance',
+                                message:       `Vendor ${vendor.storeName || vendor._id} balance is ₹${vendor.walletBalance.toFixed(2)} after cancellation clawback on order ${order.orderId}.`,
+                                type:          'alert',
+                            }).catch(console.error);
+                        }
+                    }
                 }
             }
 
@@ -520,9 +664,15 @@ export const adminOverrideCancelVendorItem = asyncHandler(async (req, res) => {
                 order.status = 'cancelled';
                 order.cancelledAt = new Date();
                 order.cancellationReason = reason || 'Cancelled by Admin';
+                if (order.paymentStatus === 'paid' || order.paymentStatus === 'partially_refunded') {
+                    order.paymentStatus = 'refunded';
+                }
             } else {
                 const anyDelivered = remainingGroups.some((v) => v.status === 'delivered');
                 order.status = anyDelivered ? 'partially_delivered' : 'partially_cancelled';
+                if (order.paymentStatus === 'paid') {
+                    order.paymentStatus = 'partially_refunded';
+                }
             }
 
             // Audit log
@@ -549,6 +699,37 @@ export const adminOverrideCancelVendorItem = asyncHandler(async (req, res) => {
         await session.endSession();
     }
 
+    if (pendingRzpCall) {
+        try {
+            const rzpResult = await processRazorpayRefund({
+                paymentId: pendingRzpCall.paymentId,
+                amountInRupees: pendingRzpCall.amount,
+                reference: pendingRzpCall.reference,
+                notes: {
+                    orderId: String(updatedOrder._id),
+                    adminAction: 'adminOverrideCancelVendorItem',
+                },
+            });
+
+            const isProcessing = rzpResult.status === 'processing';
+            const finalStatus = isProcessing ? 'processing' : 'completed';
+
+            await Refund.findByIdAndUpdate(pendingRzpCall.refundRecordId, {
+                status: finalStatus,
+                razorpayRefundId: rzpResult.refundId,
+                refundCompletedAt: isProcessing ? null : new Date(),
+            });
+        } catch (rzpErr) {
+            console.error('[Admin Override Cancel Razorpay Refund Error]:', rzpErr);
+            const isTimeout = !!rzpErr.isTimeout;
+            await Refund.findByIdAndUpdate(pendingRzpCall.refundRecordId, {
+                status: isTimeout ? 'processing' : 'failed',
+                failureReason: rzpErr.message || 'Razorpay refund initiation failed',
+                isAmbiguousTimeout: isTimeout,
+            });
+        }
+    }
+
     if (updatedOrder) {
         notifyOrderUpdate(updatedOrder);
 
@@ -557,10 +738,21 @@ export const adminOverrideCancelVendorItem = asyncHandler(async (req, res) => {
                 recipientId: updatedOrder.userId,
                 recipientType: 'user',
                 title: 'Package Cancelled by Admin',
-                message: `Admin has cancelled package from ${cancelledVendorGroup?.vendorName} in Order #${updatedOrder.orderId}.${calculatedRefund > 0 ? ` ₹${calculatedRefund} has been refunded to your wallet.` : ''}`,
+                message: `Admin has cancelled package from ${cancelledVendorGroup?.vendorName} in Order #${updatedOrder.orderId}.${calculatedRefund > 0 ? ` Refund of ₹${calculatedRefund} has been initiated to your original payment method. Your bank/UPI provider may take additional time to credit the amount.` : ''}`,
+                type: 'order',
+                data: { orderId: String(updatedOrder._id), refundAmount: calculatedRefund },
+            }).catch(err => console.error('[Notif Error Customer]:', err.message));
+        }
+
+        if (cancelledVendorGroup?.vendorId) {
+            createNotification({
+                recipientId: cancelledVendorGroup.vendorId,
+                recipientType: 'vendor',
+                title: 'Package Cancelled by Admin',
+                message: `Your package in Order #${updatedOrder.orderId} was cancelled by Admin. Reason: ${reason || 'Admin override'}`,
                 type: 'order',
                 data: { orderId: String(updatedOrder._id) },
-            }).catch(err => console.error('[Notif Error]:', err.message));
+            }).catch(err => console.error('[Notif Error Vendor]:', err.message));
         }
     }
 

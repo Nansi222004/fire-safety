@@ -55,7 +55,7 @@ const VendorDashboard = () => {
   const [myServicesCount, setMyServicesCount] = useState(0);
 
   const vendorId = vendor?.id || vendor?._id;
-  const { sellsProducts, providesServices, isServiceOnly, isProductOnly, isHybrid, badgeText } = getVendorCapabilities(vendor);
+  const { sellsProducts, providesServices, serviceStatus, isServiceApproved, isServicePending, isServiceRejected, isServiceOnly, isProductOnly, isHybrid, badgeText } = getVendorCapabilities(vendor);
   const isServicesOnly = isServiceOnly;
   const caps = { sellsProducts, providesServices };
 
@@ -185,24 +185,6 @@ const VendorDashboard = () => {
       }));
     }
   }, [products, totalProductsCount, caps.sellsProducts]);
-
-  const handleEnableCapability = async (capabilityKey) => {
-    try {
-      const updatedCaps = {
-        ...caps,
-        [capabilityKey]: true,
-      };
-      const res = await api.put('/vendor/auth/profile', { vendorCapabilities: updatedCaps });
-      const updatedVendor = res.data?.data || res.data;
-      if (typeof updateProfile === 'function') {
-        updateProfile(updatedVendor);
-      }
-      toast.success("Capability enabled! Refreshing marketplace dashboard.");
-      window.location.reload();
-    } catch (err) {
-      toast.error(err.message || "Failed to enable capability.");
-    }
-  };
 
   const statCards = useMemo(() => {
     const list = [];
@@ -336,32 +318,83 @@ const VendorDashboard = () => {
       className={`rounded-3xl p-6 border transition-all ${
         caps.providesServices
           ? 'bg-white border-slate-200 shadow-sm'
-          : 'bg-slate-50 border-slate-200/60 opacity-80'
+          : isServicePending
+          ? 'bg-amber-50/60 border-amber-200 shadow-sm'
+          : isServiceRejected
+          ? 'bg-rose-50/60 border-rose-200 shadow-sm'
+          : 'bg-slate-50 border-slate-200/60'
       }`}>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl font-bold ${
-            caps.providesServices ? 'bg-orange-50 text-[#FF6A00] border border-orange-100' : 'bg-slate-200 text-slate-500'
+            caps.providesServices
+              ? 'bg-orange-50 text-[#FF6A00] border border-orange-100'
+              : isServicePending
+              ? 'bg-amber-100 text-amber-700 border border-amber-200'
+              : isServiceRejected
+              ? 'bg-rose-100 text-rose-700 border border-rose-200'
+              : 'bg-slate-200 text-slate-500'
           }`}>
             🛠️
           </div>
           <div>
-            <h3 className="font-bold text-slate-900 text-base">FIRE SAFETY SERVICES</h3>
-            <p className="text-xs text-slate-500">Provide professional safety & maintenance services</p>
+            <h3 className="font-bold text-slate-900 text-base">
+              {caps.providesServices
+                ? 'FIRE SAFETY SERVICES'
+                : isServicePending
+                ? 'FIRE SAFETY SERVICES'
+                : isServiceRejected
+                ? 'FIRE SAFETY SERVICES'
+                : 'Become a SafeFire Service Partner'}
+            </h3>
+            <p className="text-xs text-slate-600 mt-0.5">
+              {caps.providesServices
+                ? 'You are an approved SafeFire Service Partner.'
+                : isServicePending
+                ? 'Your Service Partner application is being reviewed by the SafeFire team.'
+                : isServiceRejected
+                ? (
+                    <span>
+                      Your application needs some changes.{' '}
+                      <strong className="text-rose-700 font-semibold">
+                        Reason: {vendor?.serviceCapability?.rejectionReason || 'Please update certification details.'}
+                      </strong>
+                    </span>
+                  )
+                : 'Get verified to offer professional fire-safety services on SafeFire.'}
+            </p>
           </div>
         </div>
         <span className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${
           caps.providesServices
             ? 'bg-emerald-100 text-emerald-800'
+            : isServicePending
+            ? 'bg-amber-100 text-amber-800'
+            : isServiceRejected
+            ? 'bg-rose-100 text-rose-800'
             : 'bg-slate-200 text-slate-600'
         }`}>
-          {caps.providesServices ? <><FiCheckCircle /> ACTIVE</> : <><FiSlash /> NOT ENABLED</>}
+          {caps.providesServices ? (
+            <><FiCheckCircle /> ACTIVE</>
+          ) : isServicePending ? (
+            <><FiClock /> UNDER REVIEW</>
+          ) : isServiceRejected ? (
+            <><FiAlertCircle /> ACTION REQUIRED</>
+          ) : (
+            <><FiSlash /> NOT ENABLED</>
+          )}
         </span>
       </div>
 
       <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
         <span className="text-xs text-slate-500">
-          {caps.providesServices ? `${myServicesCount} active services configured` : 'Service marketplace disabled'}
+          {caps.providesServices
+            ? `${myServicesCount} active services configured`
+            : isServicePending
+            ? 'Application submitted & pending Admin decision'
+            : isServiceRejected
+            ? 'Application reviewed — corrections needed'
+            : 'Service marketplace qualification required'}
         </span>
         {caps.providesServices ? (
           myServicesCount > 0 ? (
@@ -379,12 +412,26 @@ const VendorDashboard = () => {
               Set Up Services <FiArrowRight />
             </button>
           )
+        ) : isServicePending ? (
+          <button
+            onClick={() => navigate("/vendor/services/apply")}
+            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
+          >
+            View Application <FiArrowRight />
+          </button>
+        ) : isServiceRejected ? (
+          <button
+            onClick={() => navigate("/vendor/services/apply")}
+            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
+          >
+            Update &amp; Resubmit <FiArrowRight />
+          </button>
         ) : (
           <button
-            onClick={() => handleEnableCapability('providesServices')}
-            className="px-4 py-2 bg-[#FF6A00] hover:bg-[#e05e00] text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
+            onClick={() => navigate("/vendor/services/apply")}
+            className="px-4 py-2 bg-[#FF6A00] hover:bg-[#e05e00] text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
           >
-            Enable Services <FiArrowRight />
+            Apply Now <FiArrowRight />
           </button>
         )}
       </div>

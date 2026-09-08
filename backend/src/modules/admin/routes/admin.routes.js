@@ -26,6 +26,7 @@ import {
 } from '../validators/serviceCategory.validator.js';
 import * as serviceController from '../controllers/service.controller.js';
 import * as adminServiceRequestController from '../controllers/adminServiceRequest.controller.js';
+import * as adminServicePartnerAppController from '../controllers/adminServicePartnerApplication.controller.js';
 import {
     serviceIdParamSchema,
     createServiceSchema,
@@ -183,6 +184,12 @@ router.patch('/vendors/:id/commission', ...adminAuth, audit('UPDATE_VENDOR_COMMI
 router.get('/vendors/:id/documents', ...adminAuth, validate(vendorIdParamSchema, 'params'), vendorController.getVendorDocuments);
 router.patch('/vendors/:id/documents/:docId/status', ...adminAuth, validate(vendorDocParamsSchema, 'params'), vendorController.updateVendorDocumentStatus);
 router.post('/vendors/:id/documents/bulk-status', ...adminAuth, validate(vendorIdParamSchema, 'params'), vendorController.bulkUpdateVendorDocumentStatus);
+
+// ─── Service Partner Applications ─────────────────────────────────────────────
+router.get('/service-partner-applications', ...adminAuth, adminServicePartnerAppController.listApplications);
+router.get('/service-partner-applications/:id', ...adminAuth, adminServicePartnerAppController.getApplicationById);
+router.post('/service-partner-applications/:id/approve', ...adminAuth, audit('APPROVE_SERVICE_PARTNER_APPLICATION', 'ServicePartnerApplication'), adminServicePartnerAppController.approveApplication);
+router.post('/service-partner-applications/:id/reject', ...adminAuth, audit('REJECT_SERVICE_PARTNER_APPLICATION', 'ServicePartnerApplication'), adminServicePartnerAppController.rejectApplication);
 
 // ─── Customers ────────────────────────────────────────────────────────────────
 router.get('/customers', ...adminAuth, validate(customerListQuerySchema, 'query'), customerController.getAllCustomers);
@@ -355,5 +362,11 @@ router.use('/logistics', ...adminAuth, logisticsRoutes);
 // ─── Service Bookings ────────────────────────────────────────────────────────
 router.get('/service-bookings', ...adminAuth, adminBookingController.getAllBookings);
 router.get('/service-bookings/:id', ...adminAuth, adminBookingController.getAdminBookingById);
+
+// ─── Service Partner Applications ────────────────────────────────────────────
+router.get('/service-partner-applications', ...adminAuth, adminServicePartnerAppController.listApplications);
+router.get('/service-partner-applications/:id', ...adminAuth, adminServicePartnerAppController.getApplicationById);
+router.post('/service-partner-applications/:id/approve', ...adminAuth, audit('APPROVE_SERVICE_PARTNER_APP', 'ServicePartnerApplication'), adminServicePartnerAppController.approveApplication);
+router.post('/service-partner-applications/:id/reject', ...adminAuth, audit('REJECT_SERVICE_PARTNER_APP', 'ServicePartnerApplication'), adminServicePartnerAppController.rejectApplication);
 
 export default router;

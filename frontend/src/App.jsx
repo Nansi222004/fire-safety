@@ -66,6 +66,7 @@ import AdminPayouts from "./modules/Admin/pages/delivery/Payouts";
 import Vendors from "./modules/Admin/pages/Vendors";
 import ManageVendors from "./modules/Admin/pages/vendors/ManageVendors";
 import PendingApprovals from "./modules/Admin/pages/vendors/PendingApprovals";
+import AdminServicePartnerApplications from "./modules/Admin/pages/vendors/AdminServicePartnerApplications";
 import VendorDetail from "./modules/Admin/pages/vendors/VendorDetail";
 import CommissionRates from "./modules/Admin/pages/vendors/CommissionRates";
 import AdminVendorAnalytics from "./modules/Admin/pages/vendors/VendorAnalytics";
@@ -184,6 +185,7 @@ import MyVendorServices from "./modules/Vendor/pages/services/MyVendorServices";
 import RequestService from "./modules/Vendor/pages/services/RequestService";
 import VendorServiceRequests from "./modules/Vendor/pages/services/VendorServiceRequests";
 import VendorServiceBookings from "./modules/Vendor/pages/services/VendorServiceBookings";
+import ServicePartnerApplication from "./modules/Vendor/pages/services/ServicePartnerApplication";
 import VendorOrders from "./modules/Vendor/pages/Orders";
 import VendorAllOrders from "./modules/Vendor/pages/orders/AllOrders";
 import VendorOrderTracking from "./modules/Vendor/pages/orders/OrderTracking";
@@ -685,6 +687,10 @@ const AppRoutes = () => {
           path="vendors/pending-approvals"
           element={<PendingApprovals />}
         />
+        <Route
+          path="vendors/service-partner-applications"
+          element={<AdminServicePartnerApplications />}
+        />
         <Route path="vendors/commission-rates" element={<CommissionRates />} />
         <Route
           path="vendors/vendor-analytics"
@@ -813,6 +819,7 @@ const AppRoutes = () => {
         <Route path="product-reviews" element={<VendorProtectedRoute requiredCapability="products"><VendorProductReviews /></VendorProtectedRoute>} />
 
         {/* Services Capability Routes */}
+        <Route path="services/apply" element={<ServicePartnerApplication />} />
         <Route path="services" element={<Navigate to="/vendor/services/available" replace />} />
         <Route path="services/available" element={<VendorProtectedRoute requiredCapability="services"><AvailableServices /></VendorProtectedRoute>} />
         <Route path="services/my-services" element={<VendorProtectedRoute requiredCapability="services"><MyVendorServices /></VendorProtectedRoute>} />

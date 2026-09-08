@@ -130,7 +130,7 @@ const PackageCard = ({ shipment, index, totalPackages, items, getItemReturnStatu
           </div>
           {vendorGroup?.refundedAmount > 0 && (
             <span className="font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200 text-[11px]">
-              ₹{vendorGroup.refundedAmount} Credited to Wallet
+              Refund Initiated: ₹{vendorGroup.refundedAmount}
             </span>
           )}
         </div>

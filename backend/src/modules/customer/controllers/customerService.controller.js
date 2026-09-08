@@ -1,6 +1,7 @@
 import asyncHandler from '../../../utils/asyncHandler.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
+import logger from '../../../utils/logger.js';
 import ServiceCategory from '../../../models/ServiceCategory.model.js';
 import Service from '../../../models/Service.model.js';
 import VendorService from '../../../models/VendorService.model.js';
@@ -12,7 +13,7 @@ import Refund from '../../../models/Refund.model.js';
 import Settings from '../../../models/Settings.model.js';
 import Vendor from '../../../models/Vendor.model.js';
 import { createNotification } from '../../../services/notification.service.js';
-import { createRazorpayOrder, verifyPaymentSignature } from '../../../services/payment.service.js';
+import { createRazorpayOrder, verifyPaymentSignature, processRazorpayRefund } from '../../../services/payment.service.js';
 import { getWallet, debitWallet, creditWallet } from '../../../services/wallet.service.js';
 import { processCapturedPayment } from '../../../services/paymentProcessor.js';
 import { isPaymentMethodEnabled } from '../../../services/settingsService.js';
@@ -128,7 +129,7 @@ export const checkServiceability = asyncHandler(async (req, res) => {
     })
         .populate({
             path: 'vendorId',
-            select: 'storeName name email phone address rating logo isActive isApproved status vendorCapabilities',
+            select: 'storeName name email phone address rating logo isActive isApproved status vendorCapabilities serviceCapability',
         })
         .lean();
 
@@ -136,7 +137,7 @@ export const checkServiceability = asyncHandler(async (req, res) => {
         if (!vs.vendorId || vs.vendorId.status !== 'approved' || vs.vendorId.isActive === false) {
             return false;
         }
-        if (vs.vendorId.vendorCapabilities?.providesServices === false) {
+        if (vs.vendorId.vendorCapabilities?.providesServices === false || vs.vendorId.serviceCapability?.status !== 'approved') {
             return false;
         }
         if (!vs.serviceAreas || !Array.isArray(vs.serviceAreas) || vs.serviceAreas.length === 0) {
@@ -242,7 +243,7 @@ export const createBooking = asyncHandler(async (req, res) => {
         status: 'approved',
     }).lean();
 
-    if (!resolvedVendor || resolvedVendor.vendorCapabilities?.providesServices === false) {
+    if (!resolvedVendor || resolvedVendor.vendorCapabilities?.providesServices === false || resolvedVendor.serviceCapability?.status !== 'approved') {
         throw new ApiError(400, 'Selected Service Provider is currently inactive, not approved, or does not provide services.');
     }
 
@@ -660,113 +661,274 @@ export const cancelBooking = asyncHandler(async (req, res) => {
         ? { _id: id, userId }
         : { bookingId: id, userId };
 
-    const booking = await ServiceBooking.findOne(query);
-    if (!booking) {
-        throw new ApiError(404, 'Booking not found.');
-    }
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-    if (booking.status === 'completed' || booking.status === 'cancelled') {
-        throw new ApiError(400, `Cannot cancel a booking that is already ${booking.status}.`);
-    }
-
+    let updatedBooking = null;
     let refundAmount = 0;
-    const refundRef = `SERVICE_CANCEL_REFUND_${booking._id}`;
+    let pendingRzpCall = null;
 
-    if (booking.paymentStatus === 'paid') {
-        refundAmount = Number(booking.pricing.total || 0);
-
-        // Check idempotency against duplicate refund
-        const existingRefund = await Refund.findOne({ referenceId: refundRef });
-        if (!existingRefund && refundAmount > 0) {
-            await creditWallet(
-                userId,
-                refundAmount,
-                'cancel_refund',
-                {
-                    serviceBookingId: booking._id,
-                    description: `Refund ₹${refundAmount} to wallet for cancelled Service Booking #${booking.bookingId}`,
-                    reference: refundRef,
+    try {
+        // Atomic claim: only allow cancellation if booking is in pending, confirmed, or assigned
+        const booking = await ServiceBooking.findOneAndUpdate(
+            {
+                ...query,
+                status: { $in: ['pending', 'confirmed', 'assigned'] }
+            },
+            {
+                $set: {
+                    status: 'cancelled',
+                    cancellationReason: reason,
+                    cancelledAt: new Date(),
+                    cancelledBy: userId,
+                    cancelledByRole: 'customer'
                 }
-            );
+            },
+            { new: false, session }
+        );
 
-            await Refund.create({
-                serviceBookingId: booking._id,
-                userId,
-                amount: refundAmount,
-                referenceId: refundRef,
-                method: 'wallet_credit',
-                destination: 'wallet',
-                status: 'completed',
-                notes: `Refund for cancelled Service Booking #${booking.bookingId}`,
+        if (!booking) {
+            // Check why it was not found/updated to return exact descriptive error
+            const existingBooking = await ServiceBooking.findOne(query).session(session);
+            if (!existingBooking) {
+                throw new ApiError(404, 'Booking not found.');
+            }
+            if (existingBooking.status === 'cancelled') {
+                throw new ApiError(400, 'Cannot cancel a booking that is already cancelled.');
+            }
+            if (existingBooking.status === 'completed') {
+                throw new ApiError(400, 'Cannot cancel a booking that is already completed.');
+            }
+            if (existingBooking.status === 'in_progress') {
+                throw new ApiError(400, 'Cannot cancel a service booking that is already in progress.');
+            }
+            throw new ApiError(400, `Cannot cancel booking in '${existingBooking.status}' status.`);
+        }
+
+        const previousStatus = booking.status;
+        const refundRef = `SERVICE_CANCEL_REFUND_${booking._id}`;
+
+        if (booking.paymentStatus === 'paid') {
+            const rawAmount = Number(booking.pricing?.total || 0);
+
+            if (booking.paymentMethod === 'wallet') {
+                // Wallet-paid booking: refund back to wallet
+                const existingRefund = await Refund.findOne({ referenceId: refundRef }).session(session);
+                if (!existingRefund && rawAmount > 0) {
+                    await creditWallet(
+                        userId,
+                        rawAmount,
+                        'cancel_refund',
+                        {
+                            serviceBookingId: booking._id,
+                            bookingNumber: booking.bookingId,
+                            description: `Refund ₹${rawAmount} to wallet for cancelled Service Booking #${booking.bookingId}`,
+                            reference: refundRef,
+                        },
+                        session
+                    );
+
+                    await Refund.create(
+                        [{
+                            serviceBookingId: booking._id,
+                            userId,
+                            amount: rawAmount,
+                            referenceId: refundRef,
+                            method: 'wallet_credit',
+                            destination: 'wallet',
+                            status: 'completed',
+                            notes: `Refund for cancelled Service Booking #${booking.bookingId}`,
+                        }],
+                        { session }
+                    );
+
+                    refundAmount = rawAmount;
+                }
+            } else if (booking.paymentMethod !== 'cod' && rawAmount > 0) {
+                // Online Razorpay-paid booking: refund to original payment method
+                // Check idempotency against duplicate refund
+                const existingRefund = await Refund.findOne({ referenceId: refundRef }).session(session);
+                if (existingRefund && (existingRefund.status === 'completed' || existingRefund.status === 'processing')) {
+                    refundAmount = existingRefund.amount;
+                } else {
+                    // Cumulative refund check
+                    const capturedAmount = rawAmount;
+                    const existingRefunds = await Refund.find({
+                        serviceBookingId: booking._id,
+                        status: { $in: ['completed', 'processing'] }
+                    }).session(session);
+                    const alreadyRefunded = existingRefunds.reduce((sum, r) => sum + Number(r.amount || 0), 0);
+                    const remainingRefundable = parseFloat(Math.max(0, capturedAmount - alreadyRefunded).toFixed(2));
+                    const eligibleRefund = Math.min(rawAmount, remainingRefundable);
+
+                    if (eligibleRefund > 0) {
+                        const paidAttempt = await PaymentAttempt.findOne({
+                            serviceBookingId: booking._id,
+                            status: 'paid'
+                        }).sort({ updatedAt: -1 }).session(session);
+
+                        if (paidAttempt && paidAttempt.razorpayPaymentId) {
+                            const [createdRefund] = await Refund.create(
+                                [{
+                                    serviceBookingId: booking._id,
+                                    userId,
+                                    paymentAttemptId: paidAttempt._id,
+                                    amount: eligibleRefund,
+                                    referenceId: refundRef,
+                                    method: 'razorpay',
+                                    destination: 'original_source',
+                                    status: 'processing',
+                                    razorpayPaymentId: paidAttempt.razorpayPaymentId,
+                                    paymentMethod: booking.paymentMethod || 'razorpay',
+                                    refundInitiatedAt: new Date(),
+                                    notes: `Online Refund: Service Booking #${booking.bookingId} cancelled by customer`,
+                                }],
+                                { session }
+                            );
+
+                            refundAmount = eligibleRefund;
+
+                            pendingRzpCall = {
+                                refundRecordId: createdRefund._id,
+                                paymentId: paidAttempt.razorpayPaymentId,
+                                amount: eligibleRefund,
+                                reference: refundRef,
+                            };
+                        }
+                    }
+                }
+            }
+        }
+
+        // Release capacity reservation
+        const dateStr = getIstDateAndMinutes(new Date(booking.bookingDate)).dateStr;
+        await ServiceCapacity.updateOne(
+            { vendorServiceId: booking.vendorServiceId, dateStr, bookedCount: { $gt: 0 } },
+            { $inc: { bookedCount: -1 } },
+            { session }
+        );
+
+        // Update booking record with refund state and audit history
+        const statusUpdate = {
+            $push: {
+                statusHistory: {
+                    previousStatus,
+                    newStatus: 'cancelled',
+                    changedByRole: 'customer',
+                    note: reason,
+                    changedAt: new Date(),
+                }
+            }
+        };
+
+        if (booking.paymentStatus === 'paid') {
+            statusUpdate.$set = {
+                paymentStatus: 'refunded',
+                refundStatus: 'refunded'
+            };
+        }
+
+        updatedBooking = await ServiceBooking.findByIdAndUpdate(
+            booking._id,
+            statusUpdate,
+            { new: true, session }
+        );
+
+        // Expire any pending payment attempts
+        await PaymentAttempt.updateMany(
+            { serviceBookingId: booking._id, status: 'created' },
+            { $set: { status: 'failed' } },
+            { session }
+        );
+
+        await session.commitTransaction();
+    } catch (err) {
+        await session.abortTransaction();
+        throw err;
+    } finally {
+        session.endSession();
+    }
+
+    // Post-commit external Razorpay refund call
+    if (pendingRzpCall) {
+        try {
+            const rzpResult = await processRazorpayRefund({
+                paymentId: pendingRzpCall.paymentId,
+                amountInRupees: pendingRzpCall.amount,
+                reference: pendingRzpCall.reference,
+                notes: {
+                    serviceBookingId: String(updatedBooking._id),
+                    bookingNumber: updatedBooking.bookingId,
+                    cancelledBy: 'customer',
+                },
+            });
+
+            const isProcessing = rzpResult.status === 'processing';
+            const finalStatus = isProcessing ? 'processing' : 'completed';
+
+            await Refund.findByIdAndUpdate(pendingRzpCall.refundRecordId, {
+                status: finalStatus,
+                razorpayRefundId: rzpResult.refundId,
+                refundCompletedAt: isProcessing ? null : new Date(),
+            });
+        } catch (rzpErr) {
+            logger.error('[Service Cancel Razorpay Refund Error]', rzpErr);
+            const isTimeout = !!rzpErr.isTimeout;
+            await Refund.findByIdAndUpdate(pendingRzpCall.refundRecordId, {
+                status: isTimeout ? 'processing' : 'failed',
+                failureReason: rzpErr.message || 'Razorpay refund initiation failed',
+                isAmbiguousTimeout: isTimeout,
             });
         }
-        booking.paymentStatus = 'refunded';
-        booking.refundStatus = 'refunded';
     }
 
-    // Release capacity reservation
-    const dateStr = getIstDateAndMinutes(new Date(booking.bookingDate)).dateStr;
-    await ServiceCapacity.updateOne(
-        { vendorServiceId: booking.vendorServiceId, dateStr, bookedCount: { $gt: 0 } },
-        { $inc: { bookedCount: -1 } }
-    );
-
-    booking.status = 'cancelled';
-    booking.cancellationReason = reason;
-    booking.cancelledAt = new Date();
-    booking.cancelledBy = userId;
-    booking.cancelledByRole = 'customer';
-    booking.statusHistory.push({
-        previousStatus: booking.status,
-        newStatus: 'cancelled',
-        changedByRole: 'customer',
-        note: reason,
-        changedAt: new Date(),
-    });
-
-    await booking.save();
-
-    // Expire any pending payment attempts
-    await PaymentAttempt.updateMany(
-        { serviceBookingId: booking._id, status: 'created' },
-        { $set: { status: 'failed' } }
-    );
-
-    // Notifications
-    await createNotification({
-        recipientId: booking.vendorId,
+    // Post-commit notifications (guaranteed safe from transaction aborts)
+    createNotification({
+        recipientId: updatedBooking.vendorId,
         recipientType: 'vendor',
         title: 'Service Booking Cancelled',
-        message: `Booking #${booking.bookingId} for "${booking.serviceName}" has been cancelled by customer.`,
+        message: `Booking #${updatedBooking.bookingId} for "${updatedBooking.serviceName}" has been cancelled by customer.`,
         type: 'service',
-        data: { bookingId: String(booking._id), bookingNumber: booking.bookingId },
-    });
+        data: { bookingId: String(updatedBooking._id), bookingNumber: updatedBooking.bookingId },
+    }).catch(err => logger.error('[Service Cancel Notification Error Vendor]', err.message));
 
     if (refundAmount > 0) {
-        await createNotification({
+        const isWalletRefund = updatedBooking.paymentMethod === 'wallet';
+        const refundMsg = isWalletRefund
+            ? ` ₹${refundAmount} has been refunded to your SafeFire Wallet.`
+            : ` Refund of ₹${refundAmount} has been initiated to your original payment method. Your bank/UPI provider may take additional time to credit the amount.`;
+
+        createNotification({
             recipientId: userId,
             recipientType: 'user',
             title: 'Booking Cancelled & Refunded',
-            message: `Booking #${booking.bookingId} cancelled. ₹${refundAmount} has been refunded to your SafeFire Wallet.`,
+            message: `Booking #${updatedBooking.bookingId} cancelled.${refundMsg}`,
             type: 'refund',
-            data: { bookingId: String(booking._id), bookingNumber: booking.bookingId, refundAmount },
-        });
+            data: { bookingId: String(updatedBooking._id), bookingNumber: updatedBooking.bookingId, refundAmount },
+        }).catch(err => logger.error('[Service Cancel Notification Error Customer]', err.message));
     } else {
-        await createNotification({
+        createNotification({
             recipientId: userId,
             recipientType: 'user',
             title: 'Booking Cancelled',
-            message: `Your booking #${booking.bookingId} for "${booking.serviceName}" has been cancelled.`,
+            message: `Your booking #${updatedBooking.bookingId} for "${updatedBooking.serviceName}" has been cancelled.`,
             type: 'service',
-            data: { bookingId: String(booking._id), bookingNumber: booking.bookingId },
-        });
+            data: { bookingId: String(updatedBooking._id), bookingNumber: updatedBooking.bookingId },
+        }).catch(err => logger.error('[Service Cancel Notification Error Customer]', err.message));
     }
+
+    const isWalletRefund = updatedBooking.paymentMethod === 'wallet';
+    const responseMsg = refundAmount > 0
+        ? (isWalletRefund
+            ? ` ₹${refundAmount} refunded to your wallet.`
+            : ` Refund of ₹${refundAmount} initiated to your original payment method.`)
+        : '';
 
     res.status(200).json(
         new ApiResponse(
             200,
-            { booking, refundAmount },
-            `Booking cancelled successfully.${refundAmount > 0 ? ` ₹${refundAmount} refunded to your wallet.` : ''}`
+            { booking: updatedBooking, refundAmount },
+            `Booking cancelled successfully.${responseMsg}`
         )
     );
 });

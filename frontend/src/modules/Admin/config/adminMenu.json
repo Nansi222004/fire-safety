@@ -78,6 +78,7 @@
     "children": [
       "Manage Vendors",
       "Pending Approvals",
+      "Service Applications",
       "Commission Rates",
       "Vendor Analytics"
     ]

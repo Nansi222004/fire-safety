@@ -27,10 +27,14 @@ export const SERVICE_MENU_TITLES = new Set([
 export const getVendorCapabilities = (vendor) => {
   // If vendorCapabilities object exists, evaluate explicitly
   const caps = vendor?.vendorCapabilities || {};
-  
-  // Strict boolean evaluation
+  const serviceStatus = vendor?.serviceCapability?.status || (caps.providesServices === true ? 'approved' : 'none');
+  const isServiceApproved = serviceStatus === 'approved';
+  const isServicePending = serviceStatus === 'pending' || serviceStatus === 'under_review';
+  const isServiceRejected = serviceStatus === 'rejected';
+
+  // Strict boolean evaluation: services capability requires both approved status AND providesServices flag
   const sellsProducts = caps.sellsProducts === true;
-  const providesServices = caps.providesServices === true;
+  const providesServices = caps.providesServices === true && isServiceApproved;
 
   const isServiceOnly = providesServices && !sellsProducts;
   const isProductOnly = sellsProducts && !providesServices;
@@ -54,6 +58,10 @@ export const getVendorCapabilities = (vendor) => {
   return {
     sellsProducts,
     providesServices,
+    serviceStatus,
+    isServiceApproved,
+    isServicePending,
+    isServiceRejected,
     isServiceOnly,
     isProductOnly,
     isHybrid,

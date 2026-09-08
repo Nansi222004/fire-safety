@@ -43,6 +43,23 @@ const vendorSchema = new mongoose.Schema(
             sellsProducts: { type: Boolean, default: true },
             providesServices: { type: Boolean, default: false }
         },
+        serviceCapability: {
+            status: {
+                type: String,
+                enum: ['none', 'pending', 'under_review', 'approved', 'rejected'],
+                default: 'none',
+                index: true,
+            },
+            applicationId: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'ServicePartnerApplication',
+                default: null,
+            },
+            appliedAt: { type: Date, default: null },
+            reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin', default: null },
+            reviewedAt: { type: Date, default: null },
+            rejectionReason: { type: String, default: null },
+        },
 
         // Warehouse / Pickup Address — required for courier provider pickup scheduling.
         // This is distinct from the business registration address above.

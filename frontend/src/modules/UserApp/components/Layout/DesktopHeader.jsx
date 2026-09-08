@@ -150,7 +150,7 @@ const DesktopHeader = ({ onSearch }) => {
 
       {/* 2. MAIN HEADER BAR */}
       <div className="w-full bg-white py-4 border-b border-gray-50">
-        <div className="max-w-[1440px] mx-auto px-8 lg:px-16 xl:px-20 flex items-center justify-between gap-8 h-16">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 flex items-center justify-between gap-3 lg:gap-6 h-16">
           {/* Logo */}
           <Link to="/home" className="flex-shrink-0 flex items-center gap-2">
             {appLogo.src ? (
@@ -172,17 +172,17 @@ const DesktopHeader = ({ onSearch }) => {
           </Link>
 
           {/* Premium Search Bar */}
-          <div className="flex-1 max-w-xl">
+          <div className="flex-1 min-w-[220px] md:min-w-[280px] lg:min-w-[340px] max-w-2xl mx-1 sm:mx-2 lg:mx-4">
             <form
               onSubmit={handleSearchSubmit}
-              className="relative flex items-center bg-gray-50 rounded-full pl-5 pr-1 py-1 border border-gray-200 focus-within:border-primary-500 focus-within:bg-white focus-within:shadow-md transition-all duration-300"
+              className="relative flex items-center w-full bg-gray-50 rounded-full pl-4 pr-1 py-1 border border-gray-200 focus-within:border-primary-500 focus-within:bg-white focus-within:shadow-md transition-all duration-300"
             >
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={isListening ? "🎤 Listening... (Tap mic to stop)" : "Search fire extinguishers, safety equipment, alarms..."}
-                className="w-full bg-transparent focus:outline-none text-xs lg:text-sm text-gray-700 placeholder:text-gray-400 py-1.5"
+                className="w-full min-w-0 flex-1 bg-transparent focus:outline-none text-xs lg:text-sm text-gray-700 placeholder:text-gray-400 py-1.5 px-1"
               />
 
               {/* Voice Search Button */}
@@ -204,7 +204,8 @@ const DesktopHeader = ({ onSearch }) => {
               {/* Search Button */}
               <button
                 type="submit"
-                className="bg-primary-600 hover:bg-primary-700 text-white p-2 rounded-full transition-all shrink-0 ml-2 cursor-pointer"
+                className="bg-primary-600 hover:bg-primary-700 text-white p-2 rounded-full transition-all shrink-0 ml-1.5 cursor-pointer"
+                title="Search"
               >
                 <FiSearch className="text-base lg:text-lg" />
               </button>
@@ -212,11 +213,12 @@ const DesktopHeader = ({ onSearch }) => {
           </div>
 
           {/* Action Links (Icons + Labels Beside) */}
-          <div className="flex items-center gap-6 lg:gap-8">
+          <div className="flex items-center gap-2.5 sm:gap-3 lg:gap-4 xl:gap-6 shrink-0">
             {/* Wishlist */}
             <Link
               to="/wishlist"
-              className="flex items-center gap-2 text-gray-600 hover:text-primary-600 transition-colors"
+              className="flex items-center gap-1.5 text-gray-600 hover:text-primary-600 transition-colors shrink-0"
+              title="Wishlist"
             >
               <div className="relative p-1">
                 <FiHeart className="text-xl lg:text-2xl" />
@@ -226,7 +228,7 @@ const DesktopHeader = ({ onSearch }) => {
                   </span>
                 )}
               </div>
-              <span className="text-xs lg:text-sm font-semibold tracking-wide hidden xl:inline">
+              <span className="text-xs lg:text-sm font-semibold tracking-wide hidden 2xl:inline">
                 Wishlist
               </span>
             </Link>
@@ -234,7 +236,8 @@ const DesktopHeader = ({ onSearch }) => {
             {/* Cart */}
             <button
               onClick={toggleCart}
-              className="flex items-center gap-2 text-gray-600 hover:text-primary-600 transition-colors focus:outline-none"
+              className="flex items-center gap-1.5 text-gray-600 hover:text-primary-600 transition-colors focus:outline-none shrink-0"
+              title="Cart"
             >
               <div className="relative p-1">
                 <FiShoppingBag className="text-xl lg:text-2xl" />
@@ -244,7 +247,7 @@ const DesktopHeader = ({ onSearch }) => {
                   </span>
                 )}
               </div>
-              <span className="text-xs lg:text-sm font-semibold tracking-wide hidden xl:inline">
+              <span className="text-xs lg:text-sm font-semibold tracking-wide hidden 2xl:inline">
                 Cart
               </span>
             </button>
@@ -252,7 +255,8 @@ const DesktopHeader = ({ onSearch }) => {
             {/* Notifications */}
             <Link
               to={isAuthenticated ? "/notifications" : "/login"}
-              className="flex items-center gap-2 text-gray-600 hover:text-primary-600 transition-colors"
+              className="flex items-center gap-1.5 text-gray-600 hover:text-primary-600 transition-colors shrink-0"
+              title="Notifications"
             >
               <div className="relative p-1">
                 <FiBell className="text-xl lg:text-2xl" />
@@ -262,7 +266,7 @@ const DesktopHeader = ({ onSearch }) => {
                   </span>
                 )}
               </div>
-              <span className="text-xs lg:text-sm font-semibold tracking-wide hidden xl:inline">
+              <span className="text-xs lg:text-sm font-semibold tracking-wide hidden 2xl:inline">
                 Notifications
               </span>
             </Link>
@@ -270,7 +274,7 @@ const DesktopHeader = ({ onSearch }) => {
             {/* Become a Vendor Button */}
             <Link
               to="/vendor/register"
-              className="hidden lg:flex items-center gap-1.5 px-3.5 py-1.5 border border-primary-600 text-primary-600 hover:bg-primary-600 hover:text-white rounded-full text-xs font-bold transition-all shadow-sm shrink-0"
+              className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 border border-primary-600 text-primary-600 hover:bg-primary-600 hover:text-white rounded-full text-xs font-bold transition-all shadow-sm shrink-0"
               title="Register as a Seller / Vendor"
             >
               <FiBriefcase className="text-sm" />
@@ -379,7 +383,7 @@ const DesktopHeader = ({ onSearch }) => {
 
       {/* 3. SUB-HEADER NAVIGATION BAR */}
       <div className="w-full bg-white border-b border-gray-200">
-        <div className="max-w-[1440px] mx-auto px-8 lg:px-16 xl:px-20 flex items-center justify-between h-12">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 flex items-center justify-between h-12">
           {/* Categories Button with dropdown */}
           <div ref={navCategoriesRef} className="relative">
             <button

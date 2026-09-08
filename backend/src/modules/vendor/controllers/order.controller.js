@@ -26,10 +26,17 @@ const deriveTopLevelOrderStatus = (vendorItems = [], fallback = 'pending') => {
 
     if (statuses.every((s) => s === 'cancelled')) return 'cancelled';
     if (statuses.every((s) => s === 'delivered')) return 'delivered';
+
+    const nonCancelled = statuses.filter((s) => s !== 'cancelled');
+    if (nonCancelled.length > 0 && nonCancelled.every((s) => s === 'delivered')) {
+        return 'partially_delivered';
+    }
+
     if (statuses.includes('shipped')) return 'shipped';
     if (statuses.includes('ready_for_pickup')) return 'ready_for_pickup';
     if (statuses.includes('processing')) return 'processing';
     if (statuses.includes('pending')) return 'pending';
+    if (statuses.includes('cancelled')) return 'partially_cancelled';
 
     return String(fallback || 'pending').toLowerCase();
 };
@@ -265,6 +272,25 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
         });
 
         notifyOrderUpdate(result.order || order);
+
+        // Send customer notification after cancellation succeeds
+        if (order.userId) {
+            const vendorName = vendorItem?.vendorName || 'Seller';
+            const refundMsg = (result.refundAmount || 0) > 0
+                ? (order.paymentMethod === 'cod'
+                    ? ' No refund applicable for Cash on Delivery.'
+                    : ` ₹${result.refundAmount} refund initiated to your original payment method. Your bank/UPI provider may take additional time to credit the amount.`)
+                : '';
+            createNotification({
+                recipientId: order.userId,
+                recipientType: 'user',
+                title: 'Item Cancelled by Seller',
+                message: `Your item(s) from "${vendorName}" in Order #${order.orderId} was cancelled by the seller. Reason: ${req.body.reason || 'Cancelled by vendor'}.${refundMsg}`,
+                type: 'order',
+                data: { orderId: String(order._id), refundAmount: result.refundAmount || 0 },
+            }).catch(err => console.error('[Vendor Order Cancel Notification Error]:', err.message));
+        }
+
         return res.status(200).json(new ApiResponse(200, result.order || order, `Order item marked as cancelled and refund of ₹${result.refundAmount || 0} processed.`));
     }
 

@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiSave, FiUser, FiLock, FiShield, FiFile, FiGrid, FiAlertTriangle, FiCheckCircle } from 'react-icons/fi';
+import { FiSave, FiUser, FiLock, FiShield, FiFile, FiGrid, FiAlertTriangle, FiCheckCircle, FiArrowRight, FiClock, FiXCircle } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
 import toast from 'react-hot-toast';
 import api from '../../../../shared/utils/api';
+import { getVendorCapabilities } from '../../utils/vendorCapabilities';
 
 const ProfileSettings = () => {
   const navigate = useNavigate();
@@ -53,8 +54,13 @@ const ProfileSettings = () => {
   };
 
   const caps = vendor?.vendorCapabilities || { sellsProducts: true, providesServices: false };
+  const vendorCaps = getVendorCapabilities(vendor);
 
   const handleCapabilityToggleClick = (capKey) => {
+    if (capKey === 'providesServices' && !vendorCaps.isServiceApproved) {
+      navigate('/vendor/services/apply');
+      return;
+    }
     const currentVal = caps[capKey];
     if (currentVal === true) {
       // Trying to disable -> show confirmation modal
@@ -313,13 +319,17 @@ const ProfileSettings = () => {
                   </div>
                 </div>
 
-                {/* Service Provider Capability Toggle Card */}
+                {/* Service Provider Capability Card */}
                 <div className={`p-6 rounded-2xl border transition-all ${
-                  caps.providesServices
+                  vendorCaps.isServiceApproved
                     ? 'bg-white border-slate-200 shadow-sm'
-                    : 'bg-slate-50 border-slate-200 opacity-75'
+                    : vendorCaps.isServicePending
+                    ? 'bg-amber-50/50 border-amber-200 shadow-sm'
+                    : vendorCaps.isServiceRejected
+                    ? 'bg-red-50/50 border-red-200 shadow-sm'
+                    : 'bg-slate-50 border-slate-200'
                 }`}>
-                  <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-orange-50 text-[#FF6A00] flex items-center justify-center text-xl font-bold">
                         🛠️
@@ -330,27 +340,101 @@ const ProfileSettings = () => {
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => handleCapabilityToggleClick('providesServices')}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        caps.providesServices ? 'bg-[#E31E24]' : 'bg-gray-300'
-                      }`}
-                    >
-                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        caps.providesServices ? 'translate-x-6' : 'translate-x-1'
-                      }`} />
-                    </button>
+                    {vendorCaps.isServiceApproved && (
+                      <button
+                        type="button"
+                        onClick={() => handleCapabilityToggleClick('providesServices')}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                          caps.providesServices ? 'bg-[#E31E24]' : 'bg-gray-300'
+                        }`}
+                      >
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          caps.providesServices ? 'translate-x-6' : 'translate-x-1'
+                        }`} />
+                      </button>
+                    )}
                   </div>
 
-                  <p className="text-xs text-slate-600 leading-relaxed mb-3">
-                    Enables configuring VendorServices, setting pincode coverage, daily capacity, and accepting service bookings.
-                  </p>
-
-                  <div className="text-[11px] font-bold flex items-center gap-1.5 text-slate-500">
-                    <FiCheckCircle className={caps.providesServices ? "text-emerald-600" : "text-gray-400"} />
-                    <span>Status: {caps.providesServices ? 'ACTIVE' : 'DISABLED'}</span>
-                  </div>
+                  {/* Dynamic Status Presentation */}
+                  {vendorCaps.isServiceApproved ? (
+                    <div className="space-y-3">
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        You are an approved SafeFire Service Partner. Configure pricing, pincode coverage, and accept customer bookings.
+                      </p>
+                      <div className="flex items-center justify-between pt-1">
+                        <div className="text-[11px] font-bold flex items-center gap-1.5 text-slate-500">
+                          <FiCheckCircle className={caps.providesServices ? "text-emerald-600" : "text-amber-500"} />
+                          <span>Status: {caps.providesServices ? 'ACTIVE' : 'PAUSED'}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => navigate('/vendor/services')}
+                          className="text-xs font-bold text-[#E31E24] hover:underline flex items-center gap-1"
+                        >
+                          Manage Services <FiArrowRight />
+                        </button>
+                      </div>
+                    </div>
+                  ) : vendorCaps.isServicePending ? (
+                    <div className="space-y-3">
+                      <div className="p-3 bg-white/80 rounded-xl border border-amber-200">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full inline-block mb-1.5">
+                          Under Review
+                        </span>
+                        <p className="text-xs text-slate-700">
+                          Your Service Partner application is being reviewed by the SafeFire team.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => navigate('/vendor/services/apply')}
+                        className="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+                      >
+                        View Application <FiArrowRight />
+                      </button>
+                    </div>
+                  ) : vendorCaps.isServiceRejected ? (
+                    <div className="space-y-3">
+                      <div className="p-3 bg-white/80 rounded-xl border border-red-200">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-red-700 bg-red-100 px-2 py-0.5 rounded-full inline-block mb-1.5">
+                          Action Required
+                        </span>
+                        <p className="text-xs text-slate-700 font-medium mb-1">
+                          Your application needs some changes.
+                        </p>
+                        {vendor?.serviceCapability?.rejectionReason && (
+                          <p className="text-[11px] text-red-700 bg-red-50 p-2 rounded-lg border border-red-100 mt-1">
+                            <strong>Reason:</strong> {vendor.serviceCapability.rejectionReason}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => navigate('/vendor/services/apply')}
+                        className="w-full py-2.5 bg-[#E31E24] hover:bg-[#c6151b] text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+                      >
+                        Update & Resubmit <FiArrowRight />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-xs font-bold text-slate-800 mb-0.5">
+                          Become a SafeFire Service Partner
+                        </p>
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                          Get verified to offer professional fire-safety services on SafeFire.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => navigate('/vendor/services/apply')}
+                        className="w-full py-2.5 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+                      >
+                        Apply Now <FiArrowRight />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

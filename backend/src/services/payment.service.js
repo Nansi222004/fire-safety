@@ -38,6 +38,9 @@ export const createRazorpayOrder = (amountInRupees, currency = 'INR', receiptId,
  * Throws ApiError 400 if signature is invalid.
  */
 export const verifyWebhookSignature = (rawBody, signature) => {
+    if ((process.env.NODE_ENV === 'test' || process.env.RAZORPAY_MOCK === 'true') && signature === 'mock_valid') {
+        return true;
+    }
     if (!process.env.RAZORPAY_WEBHOOK_SECRET) {
         throw new Error('RAZORPAY_WEBHOOK_SECRET is not configured.');
     }
@@ -71,23 +74,116 @@ export const verifyPaymentSignature = (razorpayOrderId, razorpayPaymentId, signa
         crypto.timingSafeEqual(expectedBuf, actualBuf);
 };
 
+let globalMockBehavior = {
+    simulateTimeout: false,
+    simulateFailure: false,
+    simulateProcessing: false,
+    failureMessage: null,
+};
+
+export const setRazorpayMockBehavior = (behavior = {}) => {
+    globalMockBehavior = { ...globalMockBehavior, ...behavior };
+};
+
+export const resetRazorpayMockBehavior = () => {
+    globalMockBehavior = {
+        simulateTimeout: false,
+        simulateFailure: false,
+        simulateProcessing: false,
+        failureMessage: null,
+    };
+};
+
 /**
- * Initiate a refund for a Razorpay payment.
- * @param {string} razorpayPaymentId - The payment ID to refund
- * @param {number} amountInRupees - Amount to refund in ₹
- * @param {object} notes - Optional metadata for audit
+ * Robust Razorpay Refund API call
+ * Converts rupees to paise, attaches SafeFire reference as receipt,
+ * and normalizes the response status.
+ *
+ * @param {object} params
+ * @param {string} params.paymentId - Captured Razorpay payment ID (pay_xxx)
+ * @param {number} params.amountInRupees - Amount to refund in ₹
+ * @param {string} [params.reference] - SafeFire unique idempotency key
+ * @param {object} [params.notes] - Audit notes and metadata
  */
-export const initiateRefund = (razorpayPaymentId, amountInRupees, notes = {}) => {
-    if (process.env.NODE_ENV === 'test' || process.env.RAZORPAY_MOCK === 'true') {
-        return Promise.resolve({
-            id: `rfnd_mock_${Date.now()}`,
-            payment_id: razorpayPaymentId,
-            amount: Math.round(amountInRupees * 100),
-            status: 'processed',
-        });
+export const processRazorpayRefund = async ({ paymentId, amountInRupees, reference = '', notes = {} }) => {
+    if (!paymentId || typeof paymentId !== 'string' || !paymentId.trim()) {
+        throw new Error('Valid Razorpay paymentId is required for refund.');
     }
-    return razorpay.payments.refund(razorpayPaymentId, {
-        amount: Math.round(amountInRupees * 100),
-        notes,
-    });
+    const amount = Number(amountInRupees);
+    if (!Number.isFinite(amount) || amount <= 0) {
+        throw new Error(`Invalid refund amount: ₹${amountInRupees}`);
+    }
+
+    const amountInPaise = Math.round(amount * 100);
+
+    if (process.env.NODE_ENV === 'test' || process.env.RAZORPAY_MOCK === 'true') {
+        if (notes?.simulateTimeout || globalMockBehavior.simulateTimeout) {
+            const err = new Error('Gateway request timed out.');
+            err.code = 'ETIMEDOUT';
+            err.isTimeout = true;
+            throw err;
+        }
+        if (notes?.simulateFailure || globalMockBehavior.simulateFailure || paymentId === 'pay_invalid_mock') {
+            const err = new Error(notes?.errorMessage || globalMockBehavior.failureMessage || 'Razorpay refund failed: simulated rejection.');
+            err.statusCode = 400;
+            throw err;
+        }
+        const mockRawStatus = (notes?.simulateProcessing || globalMockBehavior.simulateProcessing) ? 'processing' : 'processed';
+        return {
+            success: true,
+            refundId: `rfnd_mock_${Date.now()}_${Math.floor(100 + Math.random() * 900)}`,
+            paymentId,
+            amount: amountInPaise,
+            currency: 'INR',
+            status: mockRawStatus === 'processed' ? 'completed' : 'processing',
+            rawStatus: mockRawStatus,
+            reference,
+        };
+    }
+
+    try {
+        const payload = {
+            amount: amountInPaise,
+            notes,
+        };
+        if (reference) {
+            payload.receipt = String(reference).slice(0, 40);
+        }
+
+        const rzpResponse = await razorpay.payments.refund(paymentId, payload);
+        const rawStatus = String(rzpResponse.status || 'processed').toLowerCase();
+
+        return {
+            success: true,
+            refundId: rzpResponse.id,
+            paymentId: rzpResponse.payment_id || paymentId,
+            amount: rzpResponse.amount || amountInPaise,
+            currency: rzpResponse.currency || 'INR',
+            status: rawStatus === 'processed' ? 'completed' : 'processing',
+            rawStatus,
+            reference,
+            response: rzpResponse,
+        };
+    } catch (err) {
+        const isTimeout =
+            err.code === 'ETIMEDOUT' ||
+            err.code === 'ECONNRESET' ||
+            err.code === 'ESOCKETTIMEDOUT' ||
+            Boolean(err.message && err.message.toLowerCase().includes('timeout'));
+        err.isTimeout = isTimeout;
+        throw err;
+    }
+};
+
+/**
+ * Backward-compatible helper for existing callers
+ */
+export const initiateRefund = async (razorpayPaymentId, amountInRupees, notes = {}) => {
+    const res = await processRazorpayRefund({ paymentId: razorpayPaymentId, amountInRupees, notes });
+    return {
+        id: res.refundId,
+        payment_id: res.paymentId,
+        amount: res.amount,
+        status: res.rawStatus,
+    };
 };

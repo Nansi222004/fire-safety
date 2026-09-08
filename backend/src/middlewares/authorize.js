@@ -40,13 +40,14 @@ export const enforceAccountStatus = async (req, res, next) => {
         }
 
         if (role === 'vendor') {
-            const vendor = await Vendor.findById(req.user.id).select('status isVerified vendorCapabilities').lean();
+            const vendor = await Vendor.findById(req.user.id).select('status isVerified vendorCapabilities serviceCapability').lean();
             if (!vendor) return next(new ApiError(401, 'Account not found.'));
             if (!vendor.isVerified) return next(new ApiError(403, 'Please verify your email first.'));
             if (vendor.status !== 'approved') {
                 return next(new ApiError(403, `Vendor account is ${vendor.status}.`));
             }
             req.vendorCapabilities = vendor.vendorCapabilities || { sellsProducts: true, providesServices: false };
+            req.serviceCapability = vendor.serviceCapability || { status: 'none' };
             return next();
         }
 
@@ -102,6 +103,15 @@ export const requireVendorCapability = (capability) =>
             } else if (targetCap === 'services' || targetCap === 'providesservices') {
                 if (caps.providesServices !== true) {
                     return next(new ApiError(403, 'Service provider capability is required to perform this action.'));
+                }
+                let serviceStatus = req.serviceCapability?.status;
+                if (!serviceStatus) {
+                    const vendor = await Vendor.findById(req.user.id).select('serviceCapability').lean();
+                    serviceStatus = vendor?.serviceCapability?.status || 'none';
+                    req.serviceCapability = vendor?.serviceCapability || { status: 'none' };
+                }
+                if (serviceStatus !== 'approved') {
+                    return next(new ApiError(403, 'Approved Service Partner status is required to perform this action.'));
                 }
             }
             next();

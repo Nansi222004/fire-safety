@@ -12,7 +12,7 @@ import ReturnRequest from '../../../models/ReturnRequest.model.js';
 import Vendor from '../../../models/Vendor.model.js';
 import GiftCard from '../../../models/GiftCard.model.js';
 import { verifyAndActivateGiftCard } from '../../../services/giftCard.service.js';
-import { verifyWebhookSignature, initiateRefund } from '../../../services/payment.service.js';
+import { verifyWebhookSignature } from '../../../services/payment.service.js';
 import { processCapturedPayment } from '../../../services/paymentProcessor.js';
 import { createNotification } from '../../../services/notification.service.js';
 import { sendOrderConfirmationEmail } from '../../../services/email.service.js';
@@ -202,31 +202,50 @@ async function handleRefundProcessed(payload) {
     const razorpayRefundId = entity?.id;
     if (!razorpayRefundId) return;
 
+    const existingRefund = await Refund.findOne({ razorpayRefundId });
+    if (!existingRefund) return;
+    const wasAlreadyCompleted = existingRefund.status === 'completed';
+
     const refund = await Refund.findOneAndUpdate(
         { razorpayRefundId },
-        { $set: { status: 'completed' } },
+        {
+            $set: {
+                status: 'completed',
+                refundCompletedAt: existingRefund.refundCompletedAt || new Date(),
+            },
+        },
         { new: true }
     );
     if (!refund) return;
 
-    // Update order paymentStatus
-    const order = await Order.findById(refund.orderId);
-    if (order) {
-        // Check if fully refunded or partial
-        const isFullRefund = refund.amount >= order.total;
-        await Order.findByIdAndUpdate(order._id, {
-            paymentStatus: isFullRefund ? 'refunded' : 'partially_refunded',
+    // Update order paymentStatus if applicable
+    let order = null;
+    if (refund.orderId) {
+        order = await Order.findById(refund.orderId);
+        if (order) {
+            const isFullRefund = refund.amount >= order.total;
+            await Order.findByIdAndUpdate(order._id, {
+                paymentStatus: isFullRefund ? 'refunded' : 'partially_refunded',
+            });
+        }
+    }
+
+    // Update service booking paymentStatus if applicable
+    if (refund.serviceBookingId) {
+        const { default: ServiceBooking } = await import('../../../models/ServiceBooking.model.js');
+        await ServiceBooking.findByIdAndUpdate(refund.serviceBookingId, {
+            $set: { paymentStatus: 'refunded', refundStatus: 'refunded' },
         });
     }
 
-    // Notify customer
-    if (refund.userId) {
+    // Notify customer idempotently (skip if already completed before)
+    if (!wasAlreadyCompleted && refund.userId) {
         const itemsText = order ? buildOrderItemsSummary(order.items) : '';
         await createNotification({
             recipientId:   refund.userId,
-            recipientType: 'user',          // fix: was 'customer' — schema enum is 'user'
+            recipientType: 'user',
             title:         'Refund Processed',
-            message:       `Your refund of ₹${refund.amount} has been successfully processed.${itemsText}`,
+            message:       `Your refund of ₹${refund.amount} has been successfully processed to your original payment method.${itemsText}`,
             type:          'refund',
             data:          { refundId: String(refund._id), amount: refund.amount },
         }).catch(console.error);
@@ -239,6 +258,10 @@ async function handleRefundFailed(payload) {
     const razorpayRefundId = entity?.id;
     if (!razorpayRefundId) return;
 
+    const existingRefund = await Refund.findOne({ razorpayRefundId });
+    if (!existingRefund) return;
+    const wasAlreadyFailed = existingRefund.status === 'failed';
+
     const refund = await Refund.findOneAndUpdate(
         { razorpayRefundId },
         { $set: { status: 'failed', failureReason: entity?.description || 'Refund failed' } },
@@ -246,19 +269,29 @@ async function handleRefundFailed(payload) {
     );
     if (!refund) return;
 
-    // Notify admins
-    const { default: Admin } = await import('../../../models/Admin.model.js');
-    const admins = await Admin.find({ isActive: true }).select('_id').lean();
-    const order = await Order.findById(refund.orderId).lean();
-    const itemsText = order ? buildOrderItemsSummary(order.items) : '';
-    for (const admin of admins) {
-        await createNotification({
-            recipientId:   admin._id,
-            recipientType: 'admin',
-            title:         'Refund Failed — Action Required',
-            message:       `Refund of ₹${refund.amount} for order ${order?.orderId || ''} failed. Manual intervention needed.${itemsText}`,
-            type:          'refund',
-            data:          { refundId: String(refund._id), orderId: String(refund.orderId) },
-        }).catch(console.error);
+    // Update service booking if applicable
+    if (refund.serviceBookingId) {
+        const { default: ServiceBooking } = await import('../../../models/ServiceBooking.model.js');
+        await ServiceBooking.findByIdAndUpdate(refund.serviceBookingId, {
+            $set: { refundStatus: 'failed' },
+        });
+    }
+
+    // Notify admins idempotently (skip if already failed before)
+    if (!wasAlreadyFailed) {
+        const { default: Admin } = await import('../../../models/Admin.model.js');
+        const admins = await Admin.find({ isActive: true }).select('_id').lean();
+        const order = refund.orderId ? await Order.findById(refund.orderId).lean() : null;
+        const itemsText = order ? buildOrderItemsSummary(order.items) : '';
+        for (const admin of admins) {
+            await createNotification({
+                recipientId:   admin._id,
+                recipientType: 'admin',
+                title:         'Refund Failed — Action Required',
+                message:       `Refund of ₹${refund.amount} for ${order ? `order ${order.orderId}` : `service booking ${refund.serviceBookingId}`} failed. Manual intervention needed.${itemsText}`,
+                type:          'refund',
+                data:          { refundId: String(refund._id), orderId: String(refund.orderId || refund.serviceBookingId) },
+            }).catch(console.error);
+        }
     }
 }

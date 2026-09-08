@@ -113,7 +113,8 @@ export const register = asyncHandler(async (req, res) => {
             businessLicense: licenseUrl,
             identity: identityUrl,
         },
-        vendorCapabilities: { sellsProducts, providesServices },
+        vendorCapabilities: { sellsProducts: true, providesServices: false },
+        serviceCapability: { status: 'none' },
         status: 'pending'
     });
 
@@ -316,6 +317,7 @@ export const login = asyncHandler(async (req, res) => {
             email: vendor.email,
             storeLogo: vendor.storeLogo,
             vendorCapabilities: vendor.vendorCapabilities || { sellsProducts: true, providesServices: false },
+            serviceCapability: vendor.serviceCapability || { status: 'none' },
         }
     }, 'Login successful.'));
 });
@@ -380,11 +382,26 @@ export const updateProfile = asyncHandler(async (req, res) => {
     const updates = Object.fromEntries(Object.entries(req.body).filter(([k]) => allowed.includes(k)));
 
     if (updates.vendorCapabilities) {
-        const currentVendor = await Vendor.findById(req.user.id).select('vendorCapabilities');
+        const currentVendor = await Vendor.findById(req.user.id).select('vendorCapabilities serviceCapability');
         const existingCaps = currentVendor?.vendorCapabilities || { sellsProducts: true, providesServices: false };
+        const serviceStatus = currentVendor?.serviceCapability?.status || 'none';
+
+        // P0 SECURITY GUARD: A vendor can NEVER directly self-activate service capability
+        // unless they have been formally reviewed and approved by Admin.
+        const requestedProvidesServices = updates.vendorCapabilities.providesServices !== undefined
+            ? Boolean(updates.vendorCapabilities.providesServices)
+            : existingCaps.providesServices;
+
+        if (requestedProvidesServices === true && serviceStatus !== 'approved') {
+            throw new ApiError(
+                403,
+                'Direct service capability self-activation is prohibited. You must submit a Service Partner Application and receive Admin approval.'
+            );
+        }
+
         const newCaps = {
             sellsProducts: updates.vendorCapabilities.sellsProducts !== undefined ? Boolean(updates.vendorCapabilities.sellsProducts) : existingCaps.sellsProducts,
-            providesServices: updates.vendorCapabilities.providesServices !== undefined ? Boolean(updates.vendorCapabilities.providesServices) : existingCaps.providesServices,
+            providesServices: requestedProvidesServices,
         };
         if (!newCaps.sellsProducts && !newCaps.providesServices) {
             throw new ApiError(400, 'At least one capability must remain enabled.');

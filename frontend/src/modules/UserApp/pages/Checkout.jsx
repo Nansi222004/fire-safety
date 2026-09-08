@@ -53,16 +53,23 @@ const MobileCheckout = () => {
   const [isEstimatingShipping, setIsEstimatingShipping] = useState(false);
   const [shippingQuotes, setShippingQuotes] = useState(null);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    address: "",
-    city: "",
-    zipCode: "",
-    state: "",
-    country: "",
-    paymentMethod: "card",
+  const [formData, setFormData] = useState(() => {
+    let savedAddr = null;
+    try {
+      const raw = localStorage.getItem("safefire_checkout_address");
+      if (raw) savedAddr = JSON.parse(raw);
+    } catch {}
+    return {
+      name: savedAddr?.name || "",
+      email: savedAddr?.email || "",
+      phone: savedAddr?.phone || "",
+      address: savedAddr?.address || "",
+      city: savedAddr?.city || "",
+      zipCode: savedAddr?.zipCode || "",
+      state: savedAddr?.state || "",
+      country: savedAddr?.country || "India",
+      paymentMethod: "card",
+    };
   });
 
   const [paymentSettings, setPaymentSettings] = useState(null);
@@ -175,26 +182,37 @@ const MobileCheckout = () => {
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      setFormData((prev) => ({
-        ...prev,
-        name: user.name || "",
-        email: user.email || "",
-        phone: user.phone || "",
-      }));
-
       const defaultAddress = getDefaultAddress();
       if (defaultAddress) {
-        setSelectedAddressId(defaultAddress.id);
+        setSelectedAddressId(defaultAddress.id || defaultAddress._id);
         setFormData((prev) => ({
           ...prev,
-          name: defaultAddress.fullName || user.name || "",
-          email: user.email || "",
-          phone: defaultAddress.phone || user.phone || "",
-          address: defaultAddress.address || "",
-          city: defaultAddress.city || "",
-          zipCode: defaultAddress.zipCode || "",
-          state: defaultAddress.state || "",
-          country: defaultAddress.country || "",
+          name: defaultAddress.fullName || user.name || prev.name || "",
+          email: user.email || prev.email || "",
+          phone: defaultAddress.phone || user.phone || prev.phone || "",
+          address: defaultAddress.address || prev.address || "",
+          city: defaultAddress.city || prev.city || "",
+          zipCode: defaultAddress.zipCode || prev.zipCode || "",
+          state: defaultAddress.state || prev.state || "",
+          country: defaultAddress.country || prev.country || "India",
+        }));
+      } else {
+        let savedAddr = null;
+        try {
+          const raw = localStorage.getItem("safefire_checkout_address");
+          if (raw) savedAddr = JSON.parse(raw);
+        } catch {}
+
+        setFormData((prev) => ({
+          ...prev,
+          name: prev.name || savedAddr?.name || user.name || "",
+          email: prev.email || savedAddr?.email || user.email || "",
+          phone: prev.phone || savedAddr?.phone || user.phone || "",
+          address: prev.address || savedAddr?.address || "",
+          city: prev.city || savedAddr?.city || "",
+          zipCode: prev.zipCode || savedAddr?.zipCode || "",
+          state: prev.state || savedAddr?.state || "",
+          country: prev.country || savedAddr?.country || "India",
         }));
       }
     }
@@ -340,17 +358,18 @@ const MobileCheckout = () => {
   };
 
   const handleSelectAddress = (address) => {
-    setSelectedAddressId(address.id);
-    setFormData({
-      ...formData,
-      name: address.fullName,
-      phone: address.phone,
-      address: address.address,
-      city: address.city,
-      zipCode: address.zipCode,
-      state: address.state,
-      country: address.country,
-    });
+    const addrId = address?.id || address?._id;
+    setSelectedAddressId(addrId);
+    setFormData((prev) => ({
+      ...prev,
+      name: address.fullName || prev.name,
+      phone: address.phone || prev.phone,
+      address: address.address || "",
+      city: address.city || "",
+      zipCode: address.zipCode || "",
+      state: address.state || "",
+      country: address.country || "India",
+    }));
   };
 
   const handleNewAddress = async (addressData) => {
@@ -460,6 +479,31 @@ const MobileCheckout = () => {
     }
 
     if (step === 1) {
+      try {
+        localStorage.setItem("safefire_checkout_address", JSON.stringify(normalizedShipping));
+      } catch {}
+
+      if (isAuthenticated) {
+        const hasExisting = addresses.some(
+          (a) =>
+            (a.address || "").trim().toLowerCase() === normalizedShipping.address.toLowerCase() &&
+            (a.zipCode || "").trim() === normalizedShipping.zipCode
+        );
+        if (!hasExisting) {
+          addAddress({
+            name: "Home",
+            fullName: normalizedShipping.name,
+            phone: normalizedShipping.phone,
+            address: normalizedShipping.address,
+            city: normalizedShipping.city,
+            state: normalizedShipping.state,
+            zipCode: normalizedShipping.zipCode,
+            country: normalizedShipping.country,
+            isDefault: addresses.length === 0,
+          }).catch((err) => console.warn("Auto-save address error:", err));
+        }
+      }
+
       setStep(2);
     } else if (step === 2) {
       setIsPlacingOrder(true);
@@ -619,41 +663,44 @@ const MobileCheckout = () => {
                           Saved Addresses
                         </h3>
                         <div className="space-y-2 mb-3">
-                          {addresses.map((address) => (
-                            <div
-                              key={address.id}
-                              onClick={() => handleSelectAddress(address)}
-                              className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${
-                                selectedAddressId === address.id
-                                  ? "border-primary-500 bg-primary-50"
-                                  : "border-gray-200"
-                              }`}
-                            >
-                              <div className="flex items-start justify-between">
-                                <div className="flex items-start gap-2 flex-1">
-                                  <FiMapPin className="text-primary-600 mt-0.5 flex-shrink-0" />
-                                  <div className="flex-1">
-                                    <h4 className="font-bold text-gray-800 text-sm">
-                                      {address.name}
-                                    </h4>
-                                    <p className="text-xs text-gray-600">
-                                      {address.fullName}
-                                    </p>
-                                    <p className="text-xs text-gray-600">
-                                      {address.address}
-                                    </p>
-                                    <p className="text-xs text-gray-600">
-                                      {address.city}, {address.state}{" "}
-                                      {address.zipCode}
-                                    </p>
+                          {addresses.map((address) => {
+                            const isSelected = String(selectedAddressId) === String(address.id || address._id);
+                            return (
+                              <div
+                                key={address.id || address._id}
+                                onClick={() => handleSelectAddress(address)}
+                                className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                                  isSelected
+                                    ? "border-primary-500 bg-primary-50"
+                                    : "border-gray-200"
+                                }`}
+                              >
+                                <div className="flex items-start justify-between">
+                                  <div className="flex items-start gap-2 flex-1">
+                                    <FiMapPin className="text-primary-600 mt-0.5 flex-shrink-0" />
+                                    <div className="flex-1">
+                                      <h4 className="font-bold text-gray-800 text-sm">
+                                        {address.name}
+                                      </h4>
+                                      <p className="text-xs text-gray-600">
+                                        {address.fullName}
+                                      </p>
+                                      <p className="text-xs text-gray-600">
+                                        {address.address}
+                                      </p>
+                                      <p className="text-xs text-gray-600">
+                                        {address.city}, {address.state}{" "}
+                                        {address.zipCode}
+                                      </p>
+                                    </div>
                                   </div>
+                                  {isSelected && (
+                                    <FiCheck className="text-primary-600 text-xl flex-shrink-0" />
+                                  )}
                                 </div>
-                                {selectedAddressId === address.id && (
-                                  <FiCheck className="text-primary-600 text-xl flex-shrink-0" />
-                                )}
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                         <button
                           type="button"

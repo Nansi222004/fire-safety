@@ -12,7 +12,6 @@ import Payment from '../../../models/Payment.model.js';
 import PaymentAttempt from '../../../models/PaymentAttempt.model.js';
 import Refund from '../../../models/Refund.model.js';
 import ShippingQuote from '../../../models/ShippingQuote.model.js';
-import { creditWallet } from '../../../services/wallet.service.js';
 import { processCancellationRefund } from '../../../services/cancellationRefundService.js';
 import { generateOrderId } from '../../../utils/generateOrderId.js';
 import { generateTrackingNumber } from '../../../utils/generateTrackingNumber.js';
@@ -25,7 +24,6 @@ import { uploadLocalFileToCloudinaryAndCleanup } from '../../../services/upload.
 import crypto from 'crypto';
 import { notifyOrderUpdate, notifyReturnUpdate, emitToRoom } from '../../../services/socket.service.js';
 import { calculateOrderFinancials } from '../../../services/financial.service.js';
-import { initiateRefund } from '../../../services/payment.service.js';
 import { getDefaultCommissionRate, isPaymentMethodEnabled, getReturnWindowDays } from '../../../services/settingsService.js';
 import logisticsEventBus from '../../../events/logisticsEventBus.js';
 import LOGISTICS_EVENTS from '../../../events/logisticsEvents.js';
@@ -936,7 +934,7 @@ export const cancelOrder = asyncHandler(async (req, res) => {
             recipientId: order.userId,
             recipientType: 'user',
             title: 'Order Cancelled',
-            message: `Your order #${order.orderId || order._id} has been cancelled successfully.${result.refundAmount > 0 ? ` ₹${result.refundAmount} refunded to your wallet.` : ''}`,
+            message: `Your order #${order.orderId || order._id} has been cancelled successfully.${result.refundAmount > 0 ? ` Refund of ₹${result.refundAmount} has been initiated to your original payment method. Your bank/UPI provider may take additional time to credit the amount.` : ''}`,
             type: 'order',
             data: {
                 orderId: String(order.orderId || order._id),
@@ -978,7 +976,7 @@ export const cancelOrder = asyncHandler(async (req, res) => {
         new ApiResponse(
             200,
             result.order || order,
-            `Order cancelled successfully.${result.refundAmount > 0 ? ` ₹${result.refundAmount} refunded to your wallet.` : ''}`
+            `Order cancelled successfully.${result.refundAmount > 0 ? ` Refund of ₹${result.refundAmount} has been initiated to your original payment method.` : ''}`
         )
     );
 });
@@ -1045,7 +1043,7 @@ export const cancelVendorItem = asyncHandler(async (req, res) => {
             recipientId: order.userId,
             recipientType: 'user',
             title: 'Package Cancelled',
-            message: `Your package for Order #${order.orderId || order._id} has been cancelled.${result.refundAmount > 0 ? ` ₹${result.refundAmount} refunded to your wallet.` : ''}`,
+            message: `Your package for Order #${order.orderId || order._id} has been cancelled.${result.refundAmount > 0 ? ` Refund of ₹${result.refundAmount} has been initiated to your original payment method. Your bank/UPI provider may take additional time to credit the amount.` : ''}`,
             type: 'order',
             data: {
                 orderId: String(order.orderId || order._id),
@@ -1084,7 +1082,7 @@ export const cancelVendorItem = asyncHandler(async (req, res) => {
                 vendorItems: (result.order || order).vendorItems,
                 refundAmount: result.refundAmount || 0,
             },
-            `Package cancelled successfully.${result.refundAmount > 0 ? ` ₹${result.refundAmount} refunded to your wallet.` : ''}`
+            `Package cancelled successfully.${result.refundAmount > 0 ? ` Refund of ₹${result.refundAmount} has been initiated to your original payment method.` : ''}`
         )
     );
 });

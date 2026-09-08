@@ -12,6 +12,9 @@ const Badge = ({ children, variant = 'flash', className = '' }) => {
     shipped: 'bg-purple-500 text-white',
     delivered: 'bg-success-500 text-white',
     cancelled: 'bg-discount-500 text-white',
+    partially_cancelled: 'bg-amber-500 text-white',
+    partially_delivered: 'bg-indigo-500 text-white',
+    partially_refunded: 'bg-teal-500 text-white',
     returned: 'bg-orange-500 text-white',
     approved: 'bg-green-500 text-white',
     rejected: 'bg-red-500 text-white',
@@ -25,7 +28,7 @@ const Badge = ({ children, variant = 'flash', className = '' }) => {
 
   return (
     <div
-      className={`px-3 py-1 rounded-md text-xs font-bold ${variants[variant]} ${className}`}
+      className={`px-3 py-1 rounded-md text-xs font-bold ${variants[variant] || 'bg-slate-600 text-white'} ${className}`}
     >
       {children}
     </div>

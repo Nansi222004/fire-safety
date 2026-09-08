@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import mongoose from 'mongoose';
 import User from '../models/User.model.js';
+import Address from '../models/Address.model.js';
 import Admin from '../models/Admin.model.js';
 import Vendor from '../models/Vendor.model.js';
 import DeliveryBoy from '../models/DeliveryBoy.model.js';
@@ -17,7 +18,7 @@ const upsertCustomer = async (email, name, phone, password) => {
     customer.isActive = true;
     await customer.save();
   } else {
-    await User.create({
+    customer = await User.create({
       name,
       email,
       password,
@@ -25,6 +26,23 @@ const upsertCustomer = async (email, name, phone, password) => {
       role: 'customer',
       isVerified: true,
       isActive: true,
+    });
+  }
+
+  // Ensure customer has default address
+  const existingAddr = await Address.findOne({ userId: customer._id });
+  if (!existingAddr) {
+    await Address.create({
+      userId: customer._id,
+      name: 'Home',
+      fullName: name,
+      phone,
+      address: 'Flat 402, Fire Safety Residency, 12th Main, Indiranagar',
+      city: 'Bengaluru',
+      state: 'Karnataka',
+      zipCode: '560038',
+      country: 'India',
+      isDefault: true,
     });
   }
 };

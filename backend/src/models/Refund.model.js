@@ -44,12 +44,13 @@ const refundSchema = new mongoose.Schema(
         },
         method: {
             type: String,
-            enum: ['razorpay_auto', 'bank_transfer', 'upi', 'wallet_credit'],
+            enum: ['razorpay', 'razorpay_auto', 'bank_transfer', 'upi', 'wallet_credit'],
+            default: 'razorpay',
         },
         destination: {
             type: String,
             enum: ['bank', 'upi', 'wallet', 'original_source'],
-            default: 'wallet',
+            default: 'original_source',
         },
         status: {
             type: String,
@@ -57,16 +58,35 @@ const refundSchema = new mongoose.Schema(
                 'requested',   // queued, no action taken yet
                 'approved',    // admin confirmed amount is correct
                 'processing',  // Razorpay/bank transfer initiated
-                'completed',   // confirmed received by customer
+                'completed',   // confirmed received by customer / gateway processed
                 'failed',      // failed, needs manual retry
             ],
             default: 'requested',
+            index: true,
+        },
+        razorpayPaymentId: {
+            type: String,
+            sparse: true,
             index: true,
         },
         razorpayRefundId: {
             type: String,
             unique: true,
             sparse: true,
+            index: true,
+        },
+        paymentMethod: {
+            type: String, // 'razorpay', 'upi', 'card', etc.
+        },
+        refundInitiatedAt: {
+            type: Date,
+        },
+        refundCompletedAt: {
+            type: Date,
+        },
+        isAmbiguousTimeout: {
+            type: Boolean,
+            default: false,
         },
         bankDetails: {
             accountHolder: String,
@@ -93,6 +113,7 @@ const refundSchema = new mongoose.Schema(
 );
 
 refundSchema.index({ orderId: 1, status: 1 });
+refundSchema.index({ serviceBookingId: 1, status: 1 });
 
 const Refund = mongoose.model('Refund', refundSchema);
 export default Refund;
