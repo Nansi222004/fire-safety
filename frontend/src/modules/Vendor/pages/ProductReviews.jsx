@@ -370,7 +370,7 @@ const ProductReviews = () => {
             setResponseText("");
           }}>
           <div
-            className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+            className="bg-white rounded-xl p-4 sm:p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-gray-800">
@@ -447,25 +447,25 @@ const ProductReviews = () => {
                   <button
                     onClick={() => handleResponse(selectedReview.id)}
                     disabled={!responseText.trim()}
-                    className="mt-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+                    className="mt-2 w-full sm:w-auto px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
                     <FiMessageSquare className="inline mr-2" />
                     Submit Response
                   </button>
                 </div>
               )}
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {selectedReview.status !== "approved" && (
                   <button
                     onClick={() => handleModerate(selectedReview.id, "approve")}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold text-sm">
+                    className="flex-1 sm:flex-none px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold text-sm text-center">
                     Approve Review
                   </button>
                 )}
                 {selectedReview.status !== "hidden" && (
                   <button
                     onClick={() => handleModerate(selectedReview.id, "hide")}
-                    className="px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 transition-colors font-semibold text-sm">
+                    className="flex-1 sm:flex-none px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 transition-colors font-semibold text-sm text-center">
                     Hide Review
                   </button>
                 )}
@@ -477,7 +477,7 @@ const ProductReviews = () => {
                     setSelectedReview(null);
                     setResponseText("");
                   }}
-                  className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-semibold">
+                  className="w-full sm:w-auto px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-semibold text-center">
                   Close
                 </button>
               </div>

@@ -84,7 +84,7 @@ const VendorServiceRequests = () => {
     <motion.div
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-6 p-4 sm:p-6"
+      className="space-y-6"
     >
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -155,7 +155,8 @@ const VendorServiceRequests = () => {
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-600 uppercase tracking-wider">
@@ -228,6 +229,50 @@ const VendorServiceRequests = () => {
             </table>
           </div>
 
+          {/* Mobile Cards View */}
+          <div className="md:hidden divide-y divide-gray-100">
+            {paginatedRequests.map((req) => (
+              <div key={req._id || req.id} className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    {req.image ? (
+                      <img
+                        src={req.image}
+                        alt={req.serviceName}
+                        className="w-10 h-10 object-cover rounded-xl border border-gray-200 flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 bg-primary-50 text-primary-600 rounded-xl flex items-center justify-center font-bold text-sm border border-primary-100 flex-shrink-0">
+                        {(req.serviceName || "S").charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div>
+                      <p className="font-bold text-gray-900 text-sm line-clamp-1">{req.serviceName}</p>
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-600">
+                        <FiLayers className="text-gray-400" />
+                        {req.categoryId?.name || "Service Category"}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex-shrink-0">{getStatusBadge(req.status)}</div>
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-gray-500 pt-1">
+                  <span>Model: <strong className="text-gray-700">{req.pricingType || "FIXED"}</strong></span>
+                  <span>{new Date(req.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>
+                </div>
+
+                <button
+                  onClick={() => setSelectedRequest(req)}
+                  className="w-full py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <FiEye />
+                  <span>View Details</span>
+                </button>
+              </div>
+            ))}
+          </div>
+
           {requests.length > itemsPerPage && (
             <div className="p-4 border-t border-gray-200">
               <Pagination
@@ -255,7 +300,7 @@ const VendorServiceRequests = () => {
               initial={{ scale: 0.95, y: 10 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 10 }}
-              className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl p-6 space-y-5"
+              className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl p-4 sm:p-6 space-y-4 sm:space-y-5"
             >
               <div className="flex items-center justify-between border-b border-gray-200 pb-3">
                 <div className="flex items-center gap-3">
@@ -281,7 +326,7 @@ const VendorServiceRequests = () => {
               )}
 
               {/* Request Parameters Grid */}
-              <div className="grid grid-cols-2 gap-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-xs">
                 <div>
                   <span className="text-gray-500">Service Category:</span>
                   <p className="font-bold text-gray-800">{selectedRequest.categoryId?.name || "N/A"}</p>

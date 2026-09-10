@@ -181,7 +181,7 @@ const SalesReport = () => {
         <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm text-gray-600">Average Order Value</p>
-            <FiTrendingUp className="text-purple-600" />
+            <FiTrendingUp className="text-primary-600" />
           </div>
           <p className="text-xl sm:text-2xl font-bold text-gray-800">{formatPrice(averageOrderValue)}</p>
         </div>
@@ -203,7 +203,7 @@ const SalesReport = () => {
             className="w-full sm:w-auto min-w-[140px]"
           />
 
-          <div className="flex items-center gap-2 flex-1">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1 w-full sm:w-auto">
             <input
               type="date"
               value={dateRange.start}
@@ -211,7 +211,7 @@ const SalesReport = () => {
               className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
               placeholder="Start Date"
             />
-            <span className="text-gray-500">to</span>
+            <span className="text-gray-500 text-center text-xs">to</span>
             <input
               type="date"
               value={dateRange.end}

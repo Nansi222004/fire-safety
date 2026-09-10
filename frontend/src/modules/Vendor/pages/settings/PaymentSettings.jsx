@@ -132,7 +132,7 @@ const PaymentSettings = () => {
                   key={section.id}
                   onClick={() => setActiveSection(section.id)}
                   className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 md:px-6 py-3 sm:py-4 border-b-2 transition-colors whitespace-nowrap text-xs sm:text-sm ${activeSection === section.id
-                    ? 'border-purple-600 text-purple-600 font-semibold'
+                    ? 'border-primary-600 text-primary-600 font-bold'
                     : 'border-transparent text-gray-600 hover:text-gray-800'
                     } `}
                 >
@@ -159,7 +159,7 @@ const PaymentSettings = () => {
                     value={formData.bankDetails.accountName || ''}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
 
@@ -173,7 +173,7 @@ const PaymentSettings = () => {
                     value={formData.bankDetails.accountNumber || ''}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
 
@@ -187,7 +187,7 @@ const PaymentSettings = () => {
                     value={formData.bankDetails.ifscCode || ''}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder="BANK0001234"
                   />
                 </div>
@@ -202,7 +202,7 @@ const PaymentSettings = () => {
                     value={formData.bankDetails.bankName || ''}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
               </div>
@@ -226,7 +226,7 @@ const PaymentSettings = () => {
                       type="checkbox"
                       checked={formData.paymentMethods.bankTransfer || false}
                       onChange={() => handlePaymentMethodToggle('bankTransfer')}
-                      className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+                      className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
                     />
                     <div className="flex-1">
                       <span className="text-sm font-semibold text-gray-700">Bank Transfer</span>
@@ -239,7 +239,7 @@ const PaymentSettings = () => {
                       type="checkbox"
                       checked={formData.paymentMethods.upi || false}
                       onChange={() => handlePaymentMethodToggle('upi')}
-                      className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+                      className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
                     />
                     <div className="flex-1">
                       <span className="text-sm font-semibold text-gray-700">UPI</span>
@@ -258,7 +258,7 @@ const PaymentSettings = () => {
                         value={formData.upiId || ''}
                         onChange={handleChange}
                         placeholder="yourname@upi"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       />
                     </div>
                   )}
@@ -268,7 +268,7 @@ const PaymentSettings = () => {
                       type="checkbox"
                       checked={formData.paymentMethods.paypal || false}
                       onChange={() => handlePaymentMethodToggle('paypal')}
-                      className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+                      className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
                     />
                     <div className="flex-1">
                       <span className="text-sm font-semibold text-gray-700">PayPal</span>
@@ -287,7 +287,7 @@ const PaymentSettings = () => {
                         value={formData.paypalEmail || ''}
                         onChange={handleChange}
                         placeholder="your@paypal.com"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       />
                     </div>
                   )}
@@ -299,7 +299,7 @@ const PaymentSettings = () => {
           <div className="flex justify-end pt-4 sm:pt-6 border-t border-gray-200 mt-4 sm:mt-6">
             <button
               type="submit"
-              className="flex items-center gap-2 px-4 sm:px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all font-semibold text-sm sm:text-base w-full sm:w-auto"
+              className="flex items-center justify-center gap-2 px-6 py-3.5 bg-primary-600 text-white rounded-2xl hover:bg-primary-700 transition-all font-bold text-sm sm:text-base w-full sm:w-auto shadow-md shadow-primary-500/20"
             >
               <FiSave />
               Save Settings

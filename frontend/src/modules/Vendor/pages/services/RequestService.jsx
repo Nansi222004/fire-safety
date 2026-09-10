@@ -196,7 +196,7 @@ const RequestService = () => {
     <motion.div
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-6 p-4 sm:p-6 max-w-5xl mx-auto"
+      className="space-y-6 max-w-5xl mx-auto"
     >
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 pb-4">

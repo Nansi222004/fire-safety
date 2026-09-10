@@ -127,7 +127,7 @@ const ServiceConfigModal = ({ isOpen, onClose, vendorService, serviceMaster, onS
         </div>
 
         {/* Body Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto flex-1">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto flex-1">
           {/* Active Toggle */}
           <div className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
             <div>
@@ -313,18 +313,18 @@ const ServiceConfigModal = ({ isOpen, onClose, vendorService, serviceMaster, onS
           </div>
 
           {/* Footer Actions */}
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+          <div className="pt-3 border-t border-slate-100 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-all"
+              className="w-full sm:w-auto px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-all text-center"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2.5 bg-[#E31E24] hover:bg-[#c6151b] text-white font-bold rounded-xl text-xs transition-all shadow-sm shadow-[#E31E24]/20 flex items-center gap-1.5 disabled:opacity-50"
+              className="w-full sm:w-auto px-5 py-2.5 bg-[#E31E24] hover:bg-[#c6151b] text-white font-bold rounded-xl text-xs transition-all shadow-sm shadow-[#E31E24]/20 flex items-center justify-center gap-1.5 disabled:opacity-50"
             >
               <FiCheck />
               <span>{isSubmitting ? 'Saving...' : 'Save Configuration'}</span>

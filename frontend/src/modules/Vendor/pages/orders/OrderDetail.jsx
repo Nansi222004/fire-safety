@@ -230,7 +230,7 @@ const OrderDetail = () => {
                         <FiArrowLeft className="text-gray-600" />
                     </Link>
                     <div className="lg:hidden">
-                        <h1 className="text-2xl font-bold text-gray-800">
+                        <h1 className="text-2xl font-bold text-gray-800 break-all">
                             Order #{order.orderId ?? order._id}
                         </h1>
                         <p className="text-sm text-gray-500">
@@ -309,7 +309,7 @@ const OrderDetail = () => {
                         </div>
                         {vendorSubtotal > 0 && (
                             <div className="p-4 border-t border-gray-200 flex justify-end">
-                                <div className="text-right space-y-1.5 min-w-[220px]">
+                                <div className="text-right space-y-1.5 w-full sm:w-auto sm:min-w-[220px]">
                                     <div className="flex justify-between gap-4 text-sm text-gray-500">
                                         <span>Original Subtotal:</span>
                                         <span className="font-medium text-gray-700">{formatPrice(vendorSubtotal)}</span>

@@ -135,7 +135,7 @@ const AvailableServices = () => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-6 p-4 sm:p-6"
+      className="space-y-6"
     >
       {/* Header */}
       <div>

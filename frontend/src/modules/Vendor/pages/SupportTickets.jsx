@@ -690,7 +690,7 @@ const TicketForm = ({ onSave, onClose, ticketTypes = [] }) => {
       <motion.div 
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="bg-white rounded-2xl p-6 max-w-xl w-full max-h-[90vh] overflow-y-auto border border-gray-100 shadow-2xl flex flex-col"
+        className="bg-white rounded-2xl p-4 sm:p-6 max-w-xl w-full max-h-[90vh] overflow-y-auto border border-gray-100 shadow-2xl flex flex-col"
       >
         <h3 className="text-lg font-bold mb-4 border-b border-gray-100 pb-2 text-gray-800">Create Support Ticket</h3>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -767,16 +767,16 @@ const TicketForm = ({ onSave, onClose, ticketTypes = [] }) => {
             />
           </div>
 
-          <div className="flex justify-end gap-2.5 pt-2 border-t border-gray-100 mt-4">
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2.5 pt-2 border-t border-gray-100 mt-4">
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 bg-gray-100 text-gray-750 rounded-xl font-bold hover:bg-gray-200 transition-colors text-sm">
+              className="w-full sm:w-auto px-5 py-2.5 bg-gray-100 text-gray-750 rounded-xl font-bold hover:bg-gray-200 transition-colors text-sm text-center">
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition-colors text-sm shadow-md shadow-primary-200">
+              className="w-full sm:w-auto px-5 py-2.5 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition-colors text-sm shadow-md shadow-primary-200 text-center">
               Create Ticket
             </button>
           </div>

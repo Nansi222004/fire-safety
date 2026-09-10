@@ -270,7 +270,7 @@ const ServicePartnerApplication = () => {
   // 1. APPROVED STATE
   if (vendorCaps.isServiceApproved) {
     return (
-      <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
+      <div className="max-w-4xl mx-auto space-y-6">
         <div className="bg-white rounded-3xl p-8 border border-emerald-200 shadow-sm text-center space-y-4">
           <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-3xl mx-auto border border-emerald-100">
             <FiShield />
@@ -309,7 +309,7 @@ const ServicePartnerApplication = () => {
   // 2. PENDING / UNDER REVIEW STATE
   if (currentApp && (currentApp.status === 'pending' || currentApp.status === 'under_review')) {
     return (
-      <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
+      <div className="max-w-4xl mx-auto space-y-6">
         <div className="bg-amber-50/70 border border-amber-200 rounded-3xl p-8 text-center space-y-4 shadow-sm">
           <div className="w-16 h-16 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center text-3xl mx-auto">
             <FiClock />
@@ -371,7 +371,7 @@ const ServicePartnerApplication = () => {
 
   // 3. APPLICATION WIZARD (for none or rejected)
   return (
-    <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
       <div className="space-y-1">
         <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
@@ -404,17 +404,17 @@ const ServicePartnerApplication = () => {
       )}
 
       {/* Step Indicator */}
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
         {[
-          { num: 1, label: 'Business Overview' },
-          { num: 2, label: 'Categories & Coverage' },
-          { num: 3, label: 'Certifications' },
-          { num: 4, label: 'Review & Submit' },
+          { num: 1, label: 'Business Overview', shortLabel: 'Overview' },
+          { num: 2, label: 'Categories & Coverage', shortLabel: 'Coverage' },
+          { num: 3, label: 'Certifications', shortLabel: 'Certs' },
+          { num: 4, label: 'Review & Submit', shortLabel: 'Submit' },
         ].map((s) => (
           <div
             key={s.num}
             onClick={() => s.num < step && setStep(s.num)}
-            className={`p-3 rounded-2xl border text-center transition-all cursor-pointer ${
+            className={`p-2 sm:p-3 rounded-xl sm:rounded-2xl border text-center transition-all cursor-pointer ${
               step === s.num
                 ? 'bg-red-50/50 border-[#E31E24] shadow-sm'
                 : step > s.num
@@ -433,13 +433,16 @@ const ServicePartnerApplication = () => {
             >
               {step > s.num ? '✓' : s.num}
             </div>
-            <span className="text-[11px] font-bold block truncate">{s.label}</span>
+            <span className="text-[10px] sm:text-[11px] font-bold block truncate">
+              <span className="sm:hidden">{s.shortLabel}</span>
+              <span className="hidden sm:inline">{s.label}</span>
+            </span>
           </div>
         ))}
       </div>
 
       {/* Form Card */}
-      <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+      <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-4 sm:p-6 lg:p-8 shadow-sm">
         <AnimatePresence mode="wait">
           {/* Step 1: Business Overview */}
           {step === 1 && (
@@ -816,24 +819,24 @@ const ServicePartnerApplication = () => {
         </AnimatePresence>
 
         {/* Navigation Buttons */}
-        <div className="flex items-center justify-between border-t border-slate-200 pt-6 mt-8">
+        <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-slate-200 pt-6 mt-8">
           {step > 1 ? (
             <button
               type="button"
               onClick={prevStep}
-              className="px-5 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition-all flex items-center gap-2"
+              className="w-full sm:w-auto px-5 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2"
             >
               <FiArrowLeft /> Back
             </button>
           ) : (
-            <div></div>
+            <div className="hidden sm:block"></div>
           )}
 
           {step < 4 ? (
             <button
               type="button"
               onClick={nextStep}
-              className="px-6 py-2.5 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-sm"
+              className="w-full sm:w-auto px-6 py-2.5 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm"
             >
               Next Step <FiArrowRight />
             </button>
@@ -842,7 +845,7 @@ const ServicePartnerApplication = () => {
               type="button"
               onClick={handleSubmit}
               disabled={submitting}
-              className="px-8 py-3 bg-[#E31E24] hover:bg-[#c6151b] text-white rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-md shadow-red-500/20 disabled:opacity-50"
+              className="w-full sm:w-auto px-8 py-3 bg-[#E31E24] hover:bg-[#c6151b] text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-md shadow-red-500/20 disabled:opacity-50"
             >
               {submitting ? (
                 'Submitting Application...'

@@ -93,7 +93,7 @@ const WalletHistory = () => {
     <motion.div
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-6 max-w-5xl mx-auto pb-24 px-4"
+      className="space-y-6 max-w-5xl mx-auto"
     >
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="lg:hidden">
@@ -122,7 +122,7 @@ const WalletHistory = () => {
       </div>
 
       {/* Main Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm space-y-2 relative overflow-hidden">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Available Balance</span>
@@ -276,7 +276,7 @@ const WalletHistory = () => {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white w-full max-w-md rounded-2xl p-6 space-y-4 shadow-xl"
+              className="bg-white rounded-3xl p-4 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-xl space-y-4"
             >
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <h3 className="font-black text-slate-800 uppercase text-sm tracking-wider">Request Payout</h3>

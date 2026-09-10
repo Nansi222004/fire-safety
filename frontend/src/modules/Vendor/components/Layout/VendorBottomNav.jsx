@@ -59,7 +59,7 @@ const VendorBottomNav = () => {
     },
     active: {
       scale: 1.1,
-      color: "#2874F0", // Primary color
+      color: "#E31E24", // SafeFire Primary red
       transition: {
         duration: 0.3,
         ease: "easeOut",
@@ -74,7 +74,7 @@ const VendorBottomNav = () => {
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
       }}
     >
-      <div className="flex items-center justify-around h-16 px-1" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+      <div className="flex items-center justify-around h-16 px-1">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.path);
@@ -86,7 +86,7 @@ const VendorBottomNav = () => {
               className="flex flex-col items-center justify-center flex-1 h-full gap-1">
               <motion.div
                 className={`relative flex items-center justify-center ${
-                  active ? "text-[#2874F0]" : "text-[#878787]"
+                  active ? "text-primary-600" : "text-[#878787]"
                 }`}
                 variants={iconVariants}
                 initial="inactive"
@@ -102,7 +102,7 @@ const VendorBottomNav = () => {
               </motion.div>
               <span
                 className={`text-xs font-medium ${
-                  active ? "text-primary-600" : "text-gray-500"
+                  active ? "text-primary-600 font-bold" : "text-gray-500"
                 }`}>
                 {item.label}
               </span>

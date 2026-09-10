@@ -155,7 +155,7 @@ const VendorServiceBookings = () => {
   ];
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="space-y-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -249,7 +249,8 @@ const VendorServiceBookings = () => {
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-gray-200/80 shadow-2xs overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="bg-gray-50 text-gray-500 font-bold uppercase tracking-wider border-b border-gray-200/80 text-[10px]">
@@ -305,6 +306,62 @@ const VendorServiceBookings = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Cards View */}
+          <div className="md:hidden divide-y divide-gray-100">
+            {bookings.map((booking) => (
+              <div key={booking._id} className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <span className="font-mono font-bold text-xs text-gray-900">
+                      #{booking.bookingId}
+                    </span>
+                    <p className="font-bold text-sm text-gray-900 mt-0.5">
+                      {booking.serviceName}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {booking.variant?.label || 'Standard'} • Qty: {booking.quantity || 1}
+                    </p>
+                  </div>
+                  <div className="flex-shrink-0">
+                    {getStatusBadge(booking.status)}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 bg-gray-50/80 p-2.5 rounded-xl text-xs">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-gray-400 block">Customer</span>
+                    <span className="font-semibold text-gray-800 line-clamp-1">
+                      {booking.serviceAddress?.fullName || booking.userId?.name || 'Customer'}
+                    </span>
+                    <span className="text-gray-500 text-[11px] block">
+                      {booking.serviceAddress?.phone || booking.userId?.phone || 'N/A'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-gray-400 block">Schedule</span>
+                    <span className="font-semibold text-gray-800 block">
+                      {booking.bookingDate ? new Date(booking.bookingDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : 'N/A'}
+                    </span>
+                    <span className="text-gray-500 text-[11px] block">{booking.timeSlot}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-xs pt-0.5">
+                  <span className="text-gray-500">Pincode: <strong className="text-gray-800">{booking.pincode}</strong></span>
+                  <span className="text-sm font-extrabold text-gray-900">₹{booking.pricing?.total || 0}</span>
+                </div>
+
+                <button
+                  onClick={() => handleOpenBooking(booking._id)}
+                  className="w-full py-2.5 bg-gray-900 hover:bg-black text-white text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-1.5 shadow-2xs"
+                >
+                  <FiEye />
+                  <span>Manage Booking</span>
+                </button>
+              </div>
+            ))}
           </div>
 
           {/* Pagination */}

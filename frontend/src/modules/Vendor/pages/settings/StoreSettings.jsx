@@ -135,7 +135,7 @@ const StoreSettings = () => {
                   key={section.id}
                   onClick={() => setActiveSection(section.id)}
                   className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 md:px-6 py-3 sm:py-4 border-b-2 transition-colors whitespace-nowrap text-xs sm:text-sm ${activeSection === section.id
-                      ? "border-purple-600 text-purple-600 font-semibold"
+                      ? "border-primary-600 text-primary-600 font-bold"
                       : "border-transparent text-gray-600 hover:text-gray-800"
                     }`}>
                   <Icon className="text-base sm:text-lg" />
@@ -161,7 +161,7 @@ const StoreSettings = () => {
                     value={formData.storeName || ""}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
 
@@ -184,10 +184,10 @@ const StoreSettings = () => {
                         className={`flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed rounded-lg cursor-pointer transition-colors bg-white ${
                           isUploadingLogo
                             ? "border-gray-300 bg-gray-50 cursor-not-allowed"
-                            : "border-purple-300 hover:border-purple-500 hover:bg-purple-50"
+                            : "border-primary-300 hover:border-primary-500 hover:bg-primary-50"
                         }`}
                       >
-                        <FiUpload className={`text-base ${isUploadingLogo ? "text-purple-400 animate-spin" : "text-purple-600"}`} />
+                        <FiUpload className={`text-base ${isUploadingLogo ? "text-primary-400 animate-spin" : "text-primary-600"}`} />
                         <span className="text-xs font-semibold text-gray-700">
                           {isUploadingLogo ? "Uploading..." : formData.storeLogo ? "Change Logo" : "Choose Logo"}
                         </span>
@@ -199,7 +199,7 @@ const StoreSettings = () => {
                       name="storeLogo"
                       value={formData.storeLogo || ""}
                       onChange={handleChange}
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
                       placeholder="Or enter logo URL directly"
                     />
                   </div>
@@ -209,7 +209,7 @@ const StoreSettings = () => {
                       <img
                         src={formData.storeLogo}
                         alt="Logo Preview"
-                        className="w-16 h-16 object-cover rounded-lg border border-purple-200 shadow-sm"
+                        className="w-16 h-16 object-cover rounded-lg border border-primary-200 shadow-sm"
                         onError={(e) => {
                           e.target.style.display = "none";
                         }}
@@ -239,7 +239,7 @@ const StoreSettings = () => {
                     value={formData.storeDescription || ""}
                     onChange={handleChange}
                     rows={4}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder="Brief description of your store"
                   />
                 </div>
@@ -261,7 +261,7 @@ const StoreSettings = () => {
                     value={formData.email || ""}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
 
@@ -275,7 +275,7 @@ const StoreSettings = () => {
                     value={formData.phone || ""}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
 
@@ -288,7 +288,7 @@ const StoreSettings = () => {
                     value={formData.address || ""}
                     onChange={handleChange}
                     rows={2}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder="Street, City, State ZIP"
                   />
                 </div>
@@ -303,7 +303,7 @@ const StoreSettings = () => {
                     value={formData.businessHours || ""}
                     onChange={handleChange}
                     placeholder="Mon-Fri 9AM-6PM"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
               </div>

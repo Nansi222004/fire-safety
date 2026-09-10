@@ -376,7 +376,7 @@ const VendorServiceBookingModal = ({ booking, onClose, onStatusUpdated, onNotesU
         </div>
 
         {/* Modal Action Footer */}
-        <div className="p-4 sm:p-5 bg-white border-t border-slate-200 flex items-center justify-between flex-wrap gap-3">
+        <div className="p-4 sm:p-5 bg-white border-t border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           {showCancelPrompt ? (
             <div className="w-full flex flex-col sm:flex-row items-center gap-2">
               <input
@@ -409,7 +409,7 @@ const VendorServiceBookingModal = ({ booking, onClose, onStatusUpdated, onNotesU
                 {getStatusBadge(currentStatus)}
               </div>
 
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
                 {currentStatus === 'pending' && (
                   <>
                     <button

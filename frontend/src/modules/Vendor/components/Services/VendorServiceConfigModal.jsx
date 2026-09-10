@@ -234,7 +234,7 @@ const VendorServiceConfigModal = ({ vendorService, onClose, onSave }) => {
                       Variant-wise Rates (Capacity / Size)
                     </label>
                     <p className="text-[11px] text-gray-500">Set rates for specific size variants:</p>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {['2 KG', '4 KG', '6 KG', '9 KG'].map((variantKey) => (
                         <div key={variantKey} className="flex items-center gap-2 bg-white p-2 border border-gray-200 rounded-lg">
                           <span className="text-xs font-bold text-gray-700 w-16">{variantKey}:</span>
@@ -379,17 +379,17 @@ const VendorServiceConfigModal = ({ vendorService, onClose, onSave }) => {
               </div>
 
               {/* Modal Footer Actions */}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
+              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 pt-4 border-t border-gray-200">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors text-xs font-semibold">
+                  className="w-full sm:w-auto px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors text-xs font-semibold text-center">
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex items-center gap-2 px-5 py-2 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors text-xs font-semibold shadow-md">
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors text-xs font-semibold shadow-md">
                   <FiSave />
                   <span>{isSubmitting ? 'Saving...' : 'Save Configuration'}</span>
                 </button>

@@ -162,6 +162,26 @@ const VendorSidebar = ({ isOpen, onClose, isCollapsed }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname]);
 
+  // Handle Escape key and body scroll locking on mobile
+  useEffect(() => {
+    if (!isOpen || window.innerWidth >= 1024) return;
+    
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   // Auto-expand menu items when their child route is active
   useEffect(() => {
     const activeItem = filteredMenu.find((item) => {
