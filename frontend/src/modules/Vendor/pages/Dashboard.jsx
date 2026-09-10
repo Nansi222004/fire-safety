@@ -263,24 +263,24 @@ const VendorDashboard = () => {
   const productsCard = (
     <div
       key="products-cap"
-      className={`rounded-3xl p-6 border transition-all ${
+      className={`rounded-2xl sm:rounded-3xl p-4 sm:p-6 border transition-all ${
         caps.sellsProducts
           ? 'bg-white border-slate-200 shadow-sm'
           : 'bg-slate-50 border-slate-200/60 opacity-80'
       }`}>
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl font-bold ${
+      <div className="flex items-start sm:items-center justify-between gap-2 mb-3 sm:mb-4">
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center text-lg sm:text-xl font-bold flex-shrink-0 ${
             caps.sellsProducts ? 'bg-red-50 text-[#E31E24] border border-red-100' : 'bg-slate-200 text-slate-500'
           }`}>
             🛒
           </div>
           <div>
-            <h3 className="font-bold text-slate-900 text-base">FIRE SAFETY PRODUCTS</h3>
-            <p className="text-xs text-slate-500">Sell fire safety equipment through SafeFire marketplace</p>
+            <h3 className="font-bold text-slate-900 text-sm sm:text-base">FIRE SAFETY PRODUCTS</h3>
+            <p className="text-[11px] sm:text-xs text-slate-500">Sell fire safety equipment through SafeFire marketplace</p>
           </div>
         </div>
-        <span className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${
+        <span className={`px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold flex items-center gap-1 flex-shrink-0 ${
           caps.sellsProducts
             ? 'bg-emerald-100 text-emerald-800'
             : 'bg-slate-200 text-slate-600'
@@ -289,21 +289,21 @@ const VendorDashboard = () => {
         </span>
       </div>
 
-      <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-        <span className="text-xs text-slate-500">
+      <div className="pt-2.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+        <span className="text-[11px] sm:text-xs text-slate-500 truncate">
           {caps.sellsProducts ? `${stats.totalProducts} catalog products listed` : 'Product marketplace disabled'}
         </span>
         {caps.sellsProducts ? (
           <button
             onClick={() => navigate("/vendor/products")}
-            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
+            className="px-3.5 py-1.5 sm:px-4 sm:py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer flex-shrink-0"
           >
             Manage Products <FiArrowRight />
           </button>
         ) : (
           <button
             onClick={() => handleEnableCapability('sellsProducts')}
-            className="px-4 py-2 bg-[#E31E24] hover:bg-[#c6151b] text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
+            className="px-3.5 py-1.5 sm:px-4 sm:py-2 bg-[#E31E24] hover:bg-[#c6151b] text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer flex-shrink-0"
           >
             Enable Products <FiArrowRight />
           </button>
@@ -315,7 +315,7 @@ const VendorDashboard = () => {
   const servicesCard = (
     <div
       key="services-cap"
-      className={`rounded-3xl p-6 border transition-all ${
+      className={`rounded-2xl sm:rounded-3xl p-4 sm:p-6 border transition-all ${
         caps.providesServices
           ? 'bg-white border-slate-200 shadow-sm'
           : isServicePending
@@ -324,9 +324,9 @@ const VendorDashboard = () => {
           ? 'bg-rose-50/60 border-rose-200 shadow-sm'
           : 'bg-slate-50 border-slate-200/60'
       }`}>
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl font-bold ${
+      <div className="flex items-start sm:items-center justify-between gap-2 mb-3 sm:mb-4">
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center text-lg sm:text-xl font-bold flex-shrink-0 ${
             caps.providesServices
               ? 'bg-orange-50 text-[#FF6A00] border border-orange-100'
               : isServicePending
@@ -338,7 +338,7 @@ const VendorDashboard = () => {
             🛠️
           </div>
           <div>
-            <h3 className="font-bold text-slate-900 text-base">
+            <h3 className="font-bold text-slate-900 text-sm sm:text-base">
               {caps.providesServices
                 ? 'FIRE SAFETY SERVICES'
                 : isServicePending
@@ -347,7 +347,7 @@ const VendorDashboard = () => {
                 ? 'FIRE SAFETY SERVICES'
                 : 'Become a SafeFire Service Partner'}
             </h3>
-            <p className="text-xs text-slate-600 mt-0.5">
+            <p className="text-[11px] sm:text-xs text-slate-600 mt-0.5">
               {caps.providesServices
                 ? 'You are an approved SafeFire Service Partner.'
                 : isServicePending
@@ -365,7 +365,7 @@ const VendorDashboard = () => {
             </p>
           </div>
         </div>
-        <span className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${
+        <span className={`px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold flex items-center gap-1 flex-shrink-0 ${
           caps.providesServices
             ? 'bg-emerald-100 text-emerald-800'
             : isServicePending
@@ -386,8 +386,8 @@ const VendorDashboard = () => {
         </span>
       </div>
 
-      <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-        <span className="text-xs text-slate-500">
+      <div className="pt-2.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+        <span className="text-[11px] sm:text-xs text-slate-500 truncate">
           {caps.providesServices
             ? `${myServicesCount} active services configured`
             : isServicePending
@@ -400,14 +400,14 @@ const VendorDashboard = () => {
           myServicesCount > 0 ? (
             <button
               onClick={() => navigate("/vendor/services/my-services")}
-              className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
+              className="px-3.5 py-1.5 sm:px-4 sm:py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer flex-shrink-0"
             >
               Manage Services <FiArrowRight />
             </button>
           ) : (
             <button
               onClick={() => navigate("/vendor/services/available")}
-              className="px-4 py-2 bg-[#FF6A00] hover:bg-[#e05e00] text-white rounded-xl text-xs font-bold shadow-md transition-colors flex items-center gap-1.5 cursor-pointer"
+              className="px-3.5 py-1.5 sm:px-4 sm:py-2 bg-[#FF6A00] hover:bg-[#e05e00] text-white rounded-xl text-xs font-bold shadow-md transition-colors flex items-center gap-1.5 cursor-pointer flex-shrink-0"
             >
               Set Up Services <FiArrowRight />
             </button>
@@ -415,21 +415,21 @@ const VendorDashboard = () => {
         ) : isServicePending ? (
           <button
             onClick={() => navigate("/vendor/services/apply")}
-            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
+            className="px-3.5 py-1.5 sm:px-4 sm:py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm flex-shrink-0"
           >
             View Application <FiArrowRight />
           </button>
         ) : isServiceRejected ? (
           <button
             onClick={() => navigate("/vendor/services/apply")}
-            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
+            className="px-3.5 py-1.5 sm:px-4 sm:py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm flex-shrink-0"
           >
             Update &amp; Resubmit <FiArrowRight />
           </button>
         ) : (
           <button
             onClick={() => navigate("/vendor/services/apply")}
-            className="px-4 py-2 bg-[#FF6A00] hover:bg-[#e05e00] text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
+            className="px-3.5 py-1.5 sm:px-4 sm:py-2 bg-[#FF6A00] hover:bg-[#e05e00] text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm flex-shrink-0"
           >
             Apply Now <FiArrowRight />
           </button>
@@ -442,7 +442,7 @@ const VendorDashboard = () => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-6">
+      className="space-y-4 sm:space-y-6">
 
       {/* Verification Warning (Only shown if vendor is truly unverified/not approved) */}
       {!hasUploadedDocs && vendor?.status !== 'approved' && !vendor?.isVerified && (
@@ -463,14 +463,14 @@ const VendorDashboard = () => {
       )}
 
       {/* Welcome Banner */}
-      <div className="bg-slate-900 text-white rounded-3xl p-6 md:p-8 shadow-xl border border-slate-800 relative overflow-hidden">
+      <div className="bg-slate-900 text-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 shadow-xl border border-slate-800 relative overflow-hidden">
         <div className="absolute -right-10 -bottom-10 w-48 h-48 bg-[#FF6A00]/20 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#FF6A00] bg-orange-950/60 border border-orange-500/20 px-3 py-1 rounded-full inline-block">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-2.5 sm:mb-3">
+            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-[#FF6A00] bg-orange-950/60 border border-orange-500/20 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full inline-block">
               SafeFire Vendor Dashboard
             </span>
-            <span className={`text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full inline-block ${
+            <span className={`text-[10px] sm:text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full inline-block ${
               isServiceOnly
                 ? 'text-emerald-400 bg-emerald-950/60 border border-emerald-500/20'
                 : isHybrid
@@ -480,30 +480,30 @@ const VendorDashboard = () => {
               {badgeText}
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight mb-2">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight mb-1.5 sm:mb-2 leading-tight">
             Welcome back, {vendor?.storeName || vendor?.name}!
           </h1>
-          <p className="text-sm text-slate-300 max-w-2xl">
+          <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
             Manage your fire safety marketplace offerings, track orders, service bookings, and store earnings all in one unified control center.
           </p>
         </div>
       </div>
 
       {/* YOUR MARKETPLACE CAPABILITY CARDS */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-black text-slate-900 tracking-tight">YOUR MARKETPLACE</h2>
-          <span className="text-xs text-slate-500 font-medium">SafeFire Dual Marketplace System</span>
+      <div className="space-y-3 sm:space-y-4">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">YOUR MARKETPLACE</h2>
+          <span className="text-[11px] sm:text-xs text-slate-500 font-medium">SafeFire Dual Marketplace System</span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4">
           {isServicesOnly ? [servicesCard, productsCard] : [productsCard, servicesCard]}
         </div>
       </div>
 
       {/* Stats Cards */}
       {statCards.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {statCards.map((stat, index) => (
             <motion.div
               key={index}
@@ -511,17 +511,17 @@ const VendorDashboard = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.08 }}
               onClick={() => stat.link && navigate(stat.link)}
-              className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-sm hover:shadow-md cursor-pointer transition-all">
+              className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-sm hover:shadow-md cursor-pointer transition-all">
               <div className="flex items-center justify-between mb-2">
-                <div className={`${stat.color} p-3 rounded-2xl`}>
-                  <stat.icon className="text-white text-xl" />
+                <div className={`${stat.color} p-2.5 sm:p-3 rounded-xl sm:rounded-2xl`}>
+                  <stat.icon className="text-white text-lg sm:text-xl" />
                 </div>
-                <FiArrowRight className="text-slate-400 text-lg" />
+                <FiArrowRight className="text-slate-400 text-base sm:text-lg" />
               </div>
-              <h3 className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">
+              <h3 className="text-slate-500 text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-1">
                 {stat.label}
               </h3>
-              <p className="text-slate-900 text-2xl font-black tracking-tight">
+              <p className="text-slate-900 text-xl sm:text-2xl font-black tracking-tight">
                 {isLoading ? "—" : stat.value}
               </p>
             </motion.div>
@@ -530,9 +530,9 @@ const VendorDashboard = () => {
       )}
 
       {/* Quick Actions */}
-      <div className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-200/80">
-        <h2 className="text-lg font-black text-slate-900 tracking-tight mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 sm:p-6 shadow-sm border border-slate-200/80">
+        <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight mb-3 sm:mb-4">Quick Actions</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {caps.providesServices && (
             <>
               <button
@@ -605,13 +605,13 @@ const VendorDashboard = () => {
 
       {/* Service Vendor Section: Recent Bookings & Configured Services */}
       {caps.providesServices && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Recent Service Bookings */}
-          <div className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-200">
-            <div className="flex items-center justify-between mb-4">
+          <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 sm:p-6 shadow-sm border border-slate-200">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
               <div>
-                <h2 className="text-lg font-black text-slate-900 tracking-tight">Recent Service Bookings</h2>
-                <p className="text-xs text-slate-500">Appointments and scheduled customer visits</p>
+                <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">Recent Service Bookings</h2>
+                <p className="text-[11px] sm:text-xs text-slate-500">Appointments and scheduled customer visits</p>
               </div>
               <button
                 onClick={() => navigate("/vendor/services/service-bookings")}
@@ -623,7 +623,7 @@ const VendorDashboard = () => {
             {isLoading ? (
               <p className="text-slate-400 text-center py-8 text-xs">Loading service bookings...</p>
             ) : recentBookings.length > 0 ? (
-              <div className="space-y-3">
+              <div className="space-y-2.5 sm:space-y-3">
                 {recentBookings.map((booking) => {
                   const status = String(booking.status || '').toLowerCase();
                   const serviceTitle =
@@ -645,7 +645,7 @@ const VendorDashboard = () => {
                     <div
                       key={booking._id}
                       onClick={() => navigate("/vendor/services/service-bookings")}
-                      className="p-3.5 bg-slate-50 hover:bg-slate-100 rounded-2xl cursor-pointer transition-colors border border-slate-100">
+                      className="p-3 sm:p-3.5 bg-slate-50 hover:bg-slate-100 rounded-xl sm:rounded-2xl cursor-pointer transition-colors border border-slate-100">
                       <div className="flex items-start justify-between gap-2 mb-1.5">
                         <div className="min-w-0">
                           <span className="font-mono font-bold text-slate-900 text-sm">
@@ -701,11 +701,11 @@ const VendorDashboard = () => {
           </div>
 
           {/* Configured Services List */}
-          <div className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-200">
-            <div className="flex items-center justify-between mb-4">
+          <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 sm:p-6 shadow-sm border border-slate-200">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
               <div>
-                <h2 className="text-lg font-black text-slate-900 tracking-tight">Your Configured Services</h2>
-                <p className="text-xs text-slate-500">Active services offered in your service area</p>
+                <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">Your Configured Services</h2>
+                <p className="text-[11px] sm:text-xs text-slate-500">Active services offered in your service area</p>
               </div>
               <button
                 onClick={() => navigate("/vendor/services/my-services")}
@@ -715,7 +715,7 @@ const VendorDashboard = () => {
             </div>
 
             {myServicesList.length > 0 ? (
-              <div className="space-y-3">
+              <div className="space-y-2.5 sm:space-y-3">
                 {myServicesList.slice(0, 5).map((srv) => {
                   const srvId = srv._id || srv.id;
                   const serviceObj = srv.service || srv;
@@ -725,10 +725,10 @@ const VendorDashboard = () => {
                     <div
                       key={srvId}
                       onClick={() => navigate("/vendor/services/my-services")}
-                      className="flex items-center justify-between p-3.5 bg-slate-50 hover:bg-slate-100 rounded-2xl cursor-pointer transition-colors border border-slate-100">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-100 text-[#FF6A00] flex items-center justify-center font-bold flex-shrink-0">
-                          <FiTool className="text-lg" />
+                      className="flex items-center justify-between p-3 sm:p-3.5 bg-slate-50 hover:bg-slate-100 rounded-xl sm:rounded-2xl cursor-pointer transition-colors border border-slate-100">
+                      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-orange-50 border border-orange-100 text-[#FF6A00] flex items-center justify-center font-bold flex-shrink-0">
+                          <FiTool className="text-base sm:text-lg" />
                         </div>
                         <div className="min-w-0">
                           <p className="font-bold text-slate-900 text-sm truncate">
@@ -763,11 +763,11 @@ const VendorDashboard = () => {
 
       {/* Product Vendor Section (Orders & Products) */}
       {caps.sellsProducts && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Recent Orders */}
-          <div className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-200">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-black text-slate-900 tracking-tight">Recent Product Orders</h2>
+          <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 sm:p-6 shadow-sm border border-slate-200">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">Recent Product Orders</h2>
               <button
                 onClick={() => navigate("/vendor/orders")}
                 className="text-xs text-[#E31E24] hover:underline font-bold cursor-pointer">
@@ -777,7 +777,7 @@ const VendorDashboard = () => {
             {isLoading ? (
               <p className="text-slate-400 text-center py-8">Loading orders...</p>
             ) : recentOrders.length > 0 ? (
-              <div className="space-y-3">
+              <div className="space-y-2.5 sm:space-y-3">
                 {recentOrders.map((order) => {
                   const vendorItem = order.vendorItems?.find(
                     (vi) => vi.vendorId?.toString() === vendorId?.toString()
@@ -801,7 +801,7 @@ const VendorDashboard = () => {
                       onClick={() =>
                         navigate(`/vendor/orders/${order.orderId ?? order._id}`)
                       }
-                      className="flex items-center justify-between p-3.5 bg-slate-50 hover:bg-slate-100 rounded-2xl cursor-pointer transition-colors border border-slate-100">
+                      className="flex items-center justify-between p-3 sm:p-3.5 bg-slate-50 hover:bg-slate-100 rounded-xl sm:rounded-2xl cursor-pointer transition-colors border border-slate-100">
                       <div>
                         <p className="font-bold text-slate-900 text-sm">
                           #{order.orderId ?? order._id}
@@ -834,9 +834,9 @@ const VendorDashboard = () => {
           </div>
 
           {/* Top Products */}
-          <div className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-200">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-black text-slate-900 tracking-tight">Your Store Products</h2>
+          <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 sm:p-6 shadow-sm border border-slate-200">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">Your Store Products</h2>
               <button
                 onClick={() => navigate("/vendor/products")}
                 className="text-xs text-[#E31E24] hover:underline font-bold cursor-pointer">
@@ -844,18 +844,18 @@ const VendorDashboard = () => {
               </button>
             </div>
             {topProducts.length > 0 ? (
-              <div className="space-y-3">
+              <div className="space-y-2.5 sm:space-y-3">
                 {topProducts.map((product) => (
                   <div
                     key={product._id ?? product.id}
                     onClick={() =>
                       navigate(`/vendor/products/${product._id ?? product.id}`)
                     }
-                    className="flex items-center gap-3 p-3 bg-slate-50 hover:bg-slate-100 rounded-2xl cursor-pointer transition-colors border border-slate-100">
+                    className="flex items-center gap-2.5 sm:gap-3 p-2.5 sm:p-3 bg-slate-50 hover:bg-slate-100 rounded-xl sm:rounded-2xl cursor-pointer transition-colors border border-slate-100">
                     <img
                       src={product.image || product.images?.[0]}
                       alt={product.name}
-                      className="w-12 h-12 object-cover rounded-xl border border-slate-200"
+                      className="w-10 h-10 sm:w-12 sm:h-12 object-cover rounded-xl border border-slate-200"
                       onError={(e) => {
                         e.target.src = "https://via.placeholder.com/48x48?text=P";
                       }}

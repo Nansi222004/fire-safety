@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   FiDollarSign,
   FiClock,
@@ -6,7 +7,8 @@ import {
   FiAlertCircle,
   FiBriefcase,
   FiArrowUpRight,
-  FiGrid
+  FiGrid,
+  FiX
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import Badge from "../../../shared/components/Badge";
@@ -89,18 +91,111 @@ const WalletHistory = () => {
     }
   };
 
+  const modalJSX = (
+    <AnimatePresence>
+      {showWithdrawModal && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowWithdrawModal(false)}
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[100000]"
+          />
+          <div className="fixed inset-0 z-[100001] flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 max-w-md w-full max-h-[85vh] sm:max-h-[90vh] overflow-y-auto shadow-2xl space-y-4 my-auto border border-gray-100"
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 className="font-extrabold text-slate-900 text-sm sm:text-base tracking-tight">Request Payout</h3>
+                <button
+                  onClick={() => setShowWithdrawModal(false)}
+                  className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center hover:bg-slate-200 text-slate-500 transition-colors"
+                >
+                  <FiX size={16} />
+                </button>
+              </div>
+
+              <form onSubmit={handleWithdrawSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1.5">
+                    Withdrawal Amount (Available: <span className="text-emerald-600 font-mono font-black">{formatPrice(stats?.walletBalance || 0)}</span>)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="Enter amount (₹)"
+                    value={withdrawAmount}
+                    onChange={(e) => setWithdrawAmount(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#024d3e] focus:outline-none text-sm font-semibold font-mono"
+                  />
+                </div>
+
+                <div className="border-t border-slate-100 pt-3 space-y-3">
+                  <span className="block text-[11px] font-bold text-slate-600">
+                    Bank Account Details
+                  </span>
+                  
+                  <input
+                    type="text"
+                    placeholder="Account Holder Name"
+                    value={bankDetails.accountHolder}
+                    onChange={(e) => setBankDetails({ ...bankDetails, accountHolder: e.target.value })}
+                    className="w-full px-3.5 py-2 bg-gray-50 border border-slate-200 rounded-xl focus:outline-none text-xs font-semibold"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Bank Name"
+                    value={bankDetails.bankName}
+                    onChange={(e) => setBankDetails({ ...bankDetails, bankName: e.target.value })}
+                    className="w-full px-3.5 py-2 bg-gray-50 border border-slate-200 rounded-xl focus:outline-none text-xs font-semibold"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Account Number"
+                    value={bankDetails.accountNumber}
+                    onChange={(e) => setBankDetails({ ...bankDetails, accountNumber: e.target.value })}
+                    className="w-full px-3.5 py-2 bg-gray-50 border border-slate-200 rounded-xl focus:outline-none text-xs font-semibold font-mono"
+                  />
+                  <input
+                    type="text"
+                    placeholder="IFSC Code"
+                    value={bankDetails.ifsc}
+                    onChange={(e) => setBankDetails({ ...bankDetails, ifsc: e.target.value.toUpperCase() })}
+                    className="w-full px-3.5 py-2 bg-gray-50 border border-slate-200 rounded-xl focus:outline-none text-xs font-semibold font-mono"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSubmittingWithdraw}
+                  className="w-full py-3 bg-gradient-to-r from-[#024d3e] to-[#01352a] hover:from-[#01352a] hover:to-[#01251d] text-white rounded-xl font-bold uppercase text-xs tracking-wider shadow-md shadow-emerald-900/20 transition-all active:scale-98"
+                >
+                  {isSubmittingWithdraw ? "Requesting Payout..." : "Submit Payout Request"}
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-6 max-w-5xl mx-auto"
+      className="space-y-4 sm:space-y-6 max-w-5xl mx-auto pb-6 px-1 sm:px-0"
     >
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
         <div className="lg:hidden">
-          <h1 className="text-2xl font-black text-slate-800 uppercase tracking-wider">
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 uppercase tracking-tight">
             Vendor Wallet & Payouts
           </h1>
-          <p className="text-xs text-slate-400 font-bold mt-0.5 uppercase tracking-wide">
+          <p className="text-[11px] sm:text-xs text-slate-400 font-bold mt-0.5 uppercase tracking-wide">
             Manage your escrow release timeline and request payout withdrawals
           </p>
         </div>
@@ -115,60 +210,69 @@ const WalletHistory = () => {
             setShowWithdrawModal(true);
           }}
           disabled={!stats?.walletBalance || stats.walletBalance <= 0}
-          className="px-5 py-2.5 bg-[#024d3e] hover:bg-[#01352a] text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed lg:ml-auto"
+          className="w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-[#024d3e] to-[#01352a] hover:from-[#01352a] hover:to-[#01251d] text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed lg:ml-auto text-center active:scale-98"
         >
           Withdraw Funds
         </button>
       </div>
 
-      {/* Main Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm space-y-2 relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Available Balance</span>
-            <FiCheckCircle className="text-emerald-500 text-sm" />
+      {/* Main Stats Cards (2x2 on Mobile, 2 on sm, 4 on lg) */}
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+        <div className="bg-white border border-slate-100 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs sm:shadow-sm flex flex-col justify-between relative overflow-hidden">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Available</span>
+            <div className="p-1 bg-emerald-50 text-emerald-600 rounded-lg">
+              <FiCheckCircle className="text-xs sm:text-sm" />
+            </div>
           </div>
-          <p className="text-2xl font-black text-emerald-600 font-mono">{formatPrice(stats?.walletBalance || 0)}</p>
-          <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Ready for withdrawal</span>
+          <p className="text-base sm:text-2xl font-black text-emerald-600 font-mono truncate">{formatPrice(stats?.walletBalance || 0)}</p>
+          <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block mt-1">Ready for payout</span>
         </div>
 
-        <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm space-y-2 relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">On Hold Escrow</span>
-            <FiClock className="text-amber-500 text-sm" />
+        <div className="bg-white border border-slate-100 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs sm:shadow-sm flex flex-col justify-between relative overflow-hidden">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Escrow Hold</span>
+            <div className="p-1 bg-amber-50 text-amber-600 rounded-lg">
+              <FiClock className="text-xs sm:text-sm" />
+            </div>
           </div>
-          <p className="text-2xl font-black text-amber-600 font-mono">{formatPrice(stats?.onHoldBalance || 0)}</p>
-          <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Delivered (7-day hold)</span>
+          <p className="text-base sm:text-2xl font-black text-amber-600 font-mono truncate">{formatPrice(stats?.onHoldBalance || 0)}</p>
+          <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block mt-1">7-day hold period</span>
         </div>
 
-        <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm space-y-2 relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">In Progress Payouts</span>
-            <FiBriefcase className="text-purple-500 text-sm" />
+        <div className="bg-white border border-slate-100 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs sm:shadow-sm flex flex-col justify-between relative overflow-hidden">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">In Progress</span>
+            <div className="p-1 bg-purple-50 text-purple-600 rounded-lg">
+              <FiBriefcase className="text-xs sm:text-sm" />
+            </div>
           </div>
-          <p className="text-2xl font-black text-purple-600 font-mono">{formatPrice(stats?.pendingWithdrawal || 0)}</p>
-          <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Withdrawals processing</span>
+          <p className="text-base sm:text-2xl font-black text-purple-600 font-mono truncate">{formatPrice(stats?.pendingWithdrawal || 0)}</p>
+          <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block mt-1">Processing</span>
         </div>
 
-        <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm space-y-2 relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Withdrawn</span>
-            <FiDollarSign className="text-blue-500 text-sm" />
+        <div className="bg-white border border-slate-100 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs sm:shadow-sm flex flex-col justify-between relative overflow-hidden">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Withdrawn</span>
+            <div className="p-1 bg-blue-50 text-blue-600 rounded-lg">
+              <FiDollarSign className="text-xs sm:text-sm" />
+            </div>
           </div>
-          <p className="text-2xl font-black text-blue-600 font-mono">{formatPrice(stats?.totalWithdrawn || 0)}</p>
-          <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">All-time completions</span>
+          <p className="text-base sm:text-2xl font-black text-blue-600 font-mono truncate">{formatPrice(stats?.totalWithdrawn || 0)}</p>
+          <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block mt-1">All-time total</span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Left column: expected releases timeline & recent releases */}
-        <div className="lg:col-span-1 space-y-6">
+        <div className="lg:col-span-1 space-y-4 sm:space-y-6">
           {/* Expected releases */}
-          <div className="bg-white border border-slate-150 rounded-3xl p-5 shadow-sm space-y-4">
-            <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1">
-              ⌛ Escrow Payout Schedule
+          <div className="bg-white border border-slate-150 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs sm:shadow-sm space-y-3 sm:space-y-4">
+            <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+              <span>⌛</span>
+              <span>Escrow Payout Schedule</span>
             </h3>
-            <div className="space-y-3 max-h-[220px] overflow-y-auto pr-1">
+            <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
               {stats?.expectedReleases && stats.expectedReleases.length > 0 ? (
                 stats.expectedReleases.map((rel, idx) => (
                   <div key={idx} className="p-3 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-between text-xs">
@@ -192,11 +296,12 @@ const WalletHistory = () => {
           </div>
 
           {/* Recent releases */}
-          <div className="bg-white border border-slate-150 rounded-3xl p-5 shadow-sm space-y-4">
-            <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1">
-              🎉 Recent Escrow Releases (30d)
+          <div className="bg-white border border-slate-150 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs sm:shadow-sm space-y-3 sm:space-y-4">
+            <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+              <span>🎉</span>
+              <span>Recent Escrow Releases (30d)</span>
             </h3>
-            <div className="space-y-3 max-h-[220px] overflow-y-auto pr-1">
+            <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
               {stats?.recentReleases && stats.recentReleases.length > 0 ? (
                 stats.recentReleases.map((rel, idx) => (
                   <div key={idx} className="p-3 bg-emerald-50/40 border border-emerald-100 rounded-2xl flex items-center justify-between text-xs">
@@ -221,12 +326,13 @@ const WalletHistory = () => {
         </div>
 
         {/* Right column: Withdrawal transaction logs */}
-        <div className="lg:col-span-2 bg-white border border-slate-150 rounded-3xl p-6 shadow-sm space-y-5">
-          <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1">
-            📜 Withdrawal & Payout History
+        <div className="lg:col-span-2 bg-white border border-slate-150 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xs sm:shadow-sm space-y-4 sm:space-y-5">
+          <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+            <span>📜</span>
+            <span>Withdrawal & Payout History</span>
           </h3>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             {transactions.length > 0 ? (
               transactions.map((tx) => {
                 const statusColors = {
@@ -240,7 +346,7 @@ const WalletHistory = () => {
                 return (
                   <div
                     key={tx.id}
-                    className="p-4 border border-slate-100 rounded-2xl flex items-center justify-between text-xs hover:border-slate-200 transition-colors"
+                    className="p-3.5 sm:p-4 border border-slate-100 rounded-2xl flex items-center justify-between text-xs hover:border-slate-200 transition-colors"
                   >
                     <div className="space-y-1">
                       <span className="font-bold text-slate-850 block">{tx.description}</span>
@@ -268,88 +374,7 @@ const WalletHistory = () => {
         </div>
       </div>
 
-      {/* Withdrawal Form Modal */}
-      <AnimatePresence>
-        {showWithdrawModal && (
-          <div className="fixed inset-0 bg-black/40 z-[9999] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-3xl p-4 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-xl space-y-4"
-            >
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <h3 className="font-black text-slate-800 uppercase text-sm tracking-wider">Request Payout</h3>
-                <button
-                  onClick={() => setShowWithdrawModal(false)}
-                  className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center hover:bg-slate-100 text-slate-400"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <form onSubmit={handleWithdrawSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">
-                    Withdrawal Amount (Available: {formatPrice(stats?.walletBalance || 0)})
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="Enter amount (Rs.)"
-                    value={withdrawAmount}
-                    onChange={(e) => setWithdrawAmount(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#024d3e] focus:outline-none text-sm font-semibold font-mono"
-                  />
-                </div>
-
-                <div className="border-t border-slate-100 pt-3 space-y-3">
-                  <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                    Bank Account Details
-                  </span>
-                  
-                  <input
-                    type="text"
-                    placeholder="Account Holder Name"
-                    value={bankDetails.accountHolder}
-                    onChange={(e) => setBankDetails({ ...bankDetails, accountHolder: e.target.value })}
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded-xl focus:outline-none text-xs font-semibold"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Bank Name"
-                    value={bankDetails.bankName}
-                    onChange={(e) => setBankDetails({ ...bankDetails, bankName: e.target.value })}
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded-xl focus:outline-none text-xs font-semibold"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Account Number"
-                    value={bankDetails.accountNumber}
-                    onChange={(e) => setBankDetails({ ...bankDetails, accountNumber: e.target.value })}
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded-xl focus:outline-none text-xs font-semibold font-mono"
-                  />
-                  <input
-                    type="text"
-                    placeholder="IFSC Code"
-                    value={bankDetails.ifsc}
-                    onChange={(e) => setBankDetails({ ...bankDetails, ifsc: e.target.value.toUpperCase() })}
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded-xl focus:outline-none text-xs font-semibold font-mono"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isSubmittingWithdraw}
-                  className="w-full py-3 bg-[#024d3e] hover:bg-[#01352a] text-white rounded-xl font-bold uppercase text-xs tracking-wider shadow-sm transition-all"
-                >
-                  {isSubmittingWithdraw ? "Requesting Payout..." : "Submit Payout Request"}
-                </button>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {typeof document !== "undefined" ? createPortal(modalJSX, document.body) : null}
     </motion.div>
   );
 };

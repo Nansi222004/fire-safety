@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
-import { FiStar, FiSearch, FiEye, FiMessageSquare, FiX } from "react-icons/fi";
-import { motion } from "framer-motion";
+import { createPortal } from "react-dom";
+import { FiStar, FiSearch, FiEye, FiMessageSquare, FiX, FiCheck } from "react-icons/fi";
+import { motion, AnimatePresence } from "framer-motion";
 import DataTable from "../../Admin/components/DataTable";
 import ExportButton from "../../Admin/components/ExportButton";
 import Badge from "../../../shared/components/Badge";
@@ -122,12 +123,13 @@ const ProductReviews = () => {
 
   const renderStars = (rating) => {
     return (
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-0.5 sm:gap-1">
         {[1, 2, 3, 4, 5].map((star) => (
           <FiStar
             key={star}
-            className={`text-sm ${star <= rating ? "text-yellow-400 fill-current" : "text-gray-300"
-              }`}
+            className={`text-xs sm:text-sm ${
+              star <= rating ? "text-amber-400 fill-amber-400" : "text-gray-300"
+            }`}
           />
         ))}
       </div>
@@ -249,32 +251,160 @@ const ProductReviews = () => {
     );
   }
 
+  const modalContent = selectedReview && (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={() => {
+          setSelectedReview(null);
+          setResponseText("");
+        }}
+        className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[100000]"
+      />
+      <div className="fixed inset-0 z-[100001] flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 10 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 10 }}
+          className="bg-white rounded-2xl shadow-2xl max-w-xl w-full max-h-[85vh] sm:max-h-[90vh] flex flex-col overflow-hidden my-auto border border-gray-100"
+          onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between p-4 sm:p-5 border-b border-gray-100 flex-shrink-0 bg-white">
+            <h3 className="text-lg font-bold text-gray-900">
+              Review Details
+            </h3>
+            <button
+              onClick={() => {
+                setSelectedReview(null);
+                setResponseText("");
+              }}
+              className="p-2 hover:bg-gray-100 rounded-xl text-gray-500 hover:text-gray-800 transition-colors">
+              <FiX size={20} />
+            </button>
+          </div>
+
+          <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4">
+            <div className="bg-gray-50/70 p-3 rounded-xl space-y-1">
+              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Product</p>
+              <p className="text-sm font-bold text-gray-900">
+                {selectedReview.productName}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="bg-gray-50/70 p-3 rounded-xl space-y-1">
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Customer</p>
+                <p className="text-xs sm:text-sm font-bold text-gray-800 truncate">
+                  {selectedReview.customerName}
+                </p>
+              </div>
+              <div className="bg-gray-50/70 p-3 rounded-xl space-y-1">
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Rating</p>
+                <div className="pt-0.5">{renderStars(selectedReview.rating)}</div>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-bold text-gray-700 mb-1">
+                Customer Comment
+              </p>
+              <p className="text-xs sm:text-sm text-gray-700 bg-gray-50/60 p-3 rounded-xl border border-gray-100 whitespace-pre-wrap leading-relaxed">
+                {selectedReview.comment || "No comment provided"}
+              </p>
+            </div>
+
+            {selectedReview.vendorResponse && (
+              <div>
+                <p className="text-xs font-bold text-primary-700 mb-1">
+                  Your Store Response
+                </p>
+                <p className="text-xs sm:text-sm text-gray-800 bg-primary-50/40 p-3 rounded-xl border border-primary-100 leading-relaxed">
+                  {selectedReview.vendorResponse}
+                </p>
+              </div>
+            )}
+
+            {!selectedReview.vendorResponse && (
+              <div>
+                <label className="text-xs font-bold text-gray-700 mb-1.5 block">
+                  Write a Response
+                </label>
+                <textarea
+                  value={responseText}
+                  onChange={(e) => setResponseText(e.target.value)}
+                  placeholder="Write a polite response to the customer..."
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:bg-white text-xs sm:text-sm"
+                  rows="3"
+                />
+                <button
+                  onClick={() => handleResponse(selectedReview.id)}
+                  disabled={!responseText.trim()}
+                  className="mt-2 w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-primary-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5">
+                  <FiMessageSquare className="text-sm" />
+                  <span>Submit Response</span>
+                </button>
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center gap-2 pt-2">
+              {selectedReview.status !== "approved" && (
+                <button
+                  onClick={() => handleModerate(selectedReview.id, "approve")}
+                  className="flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs transition-all shadow-xs text-center">
+                  Approve Review
+                </button>
+              )}
+              {selectedReview.status !== "hidden" && (
+                <button
+                  onClick={() => handleModerate(selectedReview.id, "hide")}
+                  className="flex-1 px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl font-bold text-xs transition-all text-center">
+                  Hide Review
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex justify-end p-4 sm:p-5 border-t border-gray-100 bg-gray-50/70 sm:bg-white flex-shrink-0">
+            <button
+              onClick={() => {
+                setSelectedReview(null);
+                setResponseText("");
+              }}
+              className="w-full sm:w-auto px-6 py-2.5 bg-white sm:bg-gray-100 border border-gray-200 sm:border-0 text-gray-700 rounded-xl hover:bg-gray-200 text-xs sm:text-sm font-bold transition-all text-center">
+              Close
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    </AnimatePresence>
+  );
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-6">
+      className="space-y-4 sm:space-y-6 pb-6 px-1 sm:px-0">
       <div className="lg:hidden">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
+        <h1 className="text-xl sm:text-3xl font-extrabold text-gray-900 tracking-tight mb-0.5 sm:mb-2">
           Product Reviews
         </h1>
-        <p className="text-sm sm:text-base text-gray-600">
+        <p className="text-xs sm:text-base text-gray-500">
           Manage customer reviews and ratings
         </p>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-4">
+      {/* Stats - Compact 5-column grid */}
+      <div className="grid grid-cols-5 gap-1.5 sm:gap-4">
         {[5, 4, 3, 2, 1].map((rating) => (
           <div
             key={rating}
-            className="bg-white rounded-xl p-3 sm:p-4 shadow-sm border border-gray-200">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs sm:text-sm text-gray-600">
-                {rating} Star
-              </span>
+            className="bg-white rounded-2xl sm:rounded-xl p-2 sm:p-4 shadow-xs sm:shadow-sm border border-gray-100 sm:border-gray-200 text-center flex flex-col justify-between">
+            <div className="flex items-center justify-center gap-0.5 mb-1 text-amber-500 font-bold text-[11px] sm:text-sm">
+              <span>{rating}</span>
+              <FiStar className="fill-amber-400 text-amber-400 text-[10px] sm:text-xs" />
             </div>
-            <p className="text-lg sm:text-2xl font-bold text-gray-800">
+            <p className="text-sm sm:text-2xl font-black text-gray-900 font-mono">
               {ratingStats[rating] || 0}
             </p>
           </div>
@@ -282,47 +412,49 @@ const ProductReviews = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
-        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 sm:gap-4">
+      <div className="bg-white rounded-2xl sm:rounded-xl p-3.5 sm:p-4 shadow-xs sm:shadow-sm border border-gray-100 sm:border-gray-200">
+        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2.5 sm:gap-4">
           <div className="relative flex-1 w-full sm:min-w-[200px]">
-            <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <FiSearch className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search reviews..."
-              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm sm:text-base"
+              className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-xs sm:text-sm"
             />
           </div>
 
-          <AnimatedSelect
-            value={selectedRating}
-            onChange={(e) => setSelectedRating(e.target.value)}
-            options={[
-              { value: "all", label: "All Ratings" },
-              { value: "5", label: "5 Stars" },
-              { value: "4", label: "4 Stars" },
-              { value: "3", label: "3 Stars" },
-              { value: "2", label: "2 Stars" },
-              { value: "1", label: "1 Star" },
-            ]}
-            className="w-full sm:w-auto min-w-[140px]"
-          />
+          <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
+            <AnimatedSelect
+              value={selectedRating}
+              onChange={(e) => setSelectedRating(e.target.value)}
+              options={[
+                { value: "all", label: "All Ratings" },
+                { value: "5", label: "5 Stars" },
+                { value: "4", label: "4 Stars" },
+                { value: "3", label: "3 Stars" },
+                { value: "2", label: "2 Stars" },
+                { value: "1", label: "1 Star" },
+              ]}
+              className="w-full sm:w-auto min-w-[130px] sm:min-w-[140px]"
+            />
 
-          <AnimatedSelect
-            value={selectedProduct}
-            onChange={(e) => setSelectedProduct(e.target.value)}
-            options={[
-              { value: "all", label: "All Products" },
-              ...vendorProducts.map((p) => ({
-                value: String(p._id ?? p.id),
-                label: p.name,
-              })),
-            ]}
-            className="w-full sm:w-auto min-w-[140px]"
-          />
+            <AnimatedSelect
+              value={selectedProduct}
+              onChange={(e) => setSelectedProduct(e.target.value)}
+              options={[
+                { value: "all", label: "All Products" },
+                ...vendorProducts.map((p) => ({
+                  value: String(p._id ?? p.id),
+                  label: p.name,
+                })),
+              ]}
+              className="w-full sm:w-auto min-w-[130px] sm:min-w-[140px]"
+            />
+          </div>
 
-          <div className="w-full sm:w-auto">
+          <div className="w-full sm:w-auto pt-1 sm:pt-0">
             <ExportButton
               data={filteredReviews}
               headers={[
@@ -343,148 +475,123 @@ const ProductReviews = () => {
         </div>
       </div>
 
-      {/* Reviews Table */}
-      {isLoading ? (
-        <div className="bg-white rounded-xl p-12 shadow-sm border border-gray-200 text-center">
-          <p className="text-gray-500">Loading reviews...</p>
-        </div>
-      ) : filteredReviews.length > 0 ? (
-        <DataTable
-          data={filteredReviews}
-          columns={columns}
-          pagination={true}
-          itemsPerPage={10}
-        />
-      ) : (
-        <div className="bg-white rounded-xl p-12 shadow-sm border border-gray-200 text-center">
-          <p className="text-gray-500">No reviews found</p>
-        </div>
-      )}
-
-      {/* Review Detail Modal */}
-      {selectedReview && (
-        <div
-          className="fixed inset-0 bg-black/50 z-[10000] flex items-center justify-center p-4"
-          onClick={() => {
-            setSelectedReview(null);
-            setResponseText("");
-          }}>
-          <div
-            className="bg-white rounded-xl p-4 sm:p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-800">
-                Review Details
-              </h3>
-              <button
-                onClick={() => {
-                  setSelectedReview(null);
-                  setResponseText("");
-                }}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                <FiX className="text-xl text-gray-600" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-semibold text-gray-600">
-                  Product
-                </label>
-                <p className="text-base text-gray-800 mt-1">
-                  {selectedReview.productName}
-                </p>
-              </div>
-
-              <div>
-                <label className="text-sm font-semibold text-gray-600">
-                  Customer
-                </label>
-                <p className="text-base text-gray-800 mt-1">
-                  {selectedReview.customerName}
-                </p>
-              </div>
-
-              <div>
-                <label className="text-sm font-semibold text-gray-600">
-                  Rating
-                </label>
-                <div className="mt-1">{renderStars(selectedReview.rating)}</div>
-              </div>
-
-              <div>
-                <label className="text-sm font-semibold text-gray-600">
-                  Review
-                </label>
-                <p className="text-base text-gray-800 mt-1 whitespace-pre-wrap">
-                  {selectedReview.comment || "No comment provided"}
-                </p>
-              </div>
-
-              {selectedReview.vendorResponse && (
-                <div>
-                  <label className="text-sm font-semibold text-gray-600">
-                    Your Response
-                  </label>
-                  <p className="text-base text-gray-800 mt-1 bg-gray-50 p-3 rounded-lg">
-                    {selectedReview.vendorResponse}
-                  </p>
-                </div>
-              )}
-
-              {!selectedReview.vendorResponse && (
-                <div>
-                  <label className="text-sm font-semibold text-gray-600 mb-2 block">
-                    Respond to Review
-                  </label>
-                  <textarea
-                    value={responseText}
-                    onChange={(e) => setResponseText(e.target.value)}
-                    placeholder="Write your response..."
-                    className="w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    rows="4"
-                  />
-                  <button
-                    onClick={() => handleResponse(selectedReview.id)}
-                    disabled={!responseText.trim()}
-                    className="mt-2 w-full sm:w-auto px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
-                    <FiMessageSquare className="inline mr-2" />
-                    Submit Response
-                  </button>
-                </div>
-              )}
-
-              <div className="flex flex-wrap items-center gap-2">
-                {selectedReview.status !== "approved" && (
-                  <button
-                    onClick={() => handleModerate(selectedReview.id, "approve")}
-                    className="flex-1 sm:flex-none px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold text-sm text-center">
-                    Approve Review
-                  </button>
-                )}
-                {selectedReview.status !== "hidden" && (
-                  <button
-                    onClick={() => handleModerate(selectedReview.id, "hide")}
-                    className="flex-1 sm:flex-none px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 transition-colors font-semibold text-sm text-center">
-                    Hide Review
-                  </button>
-                )}
-              </div>
-
-              <div className="flex justify-end pt-4 border-t border-gray-200 gap-2">
-                <button
-                  onClick={() => {
-                    setSelectedReview(null);
-                    setResponseText("");
-                  }}
-                  className="w-full sm:w-auto px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-semibold text-center">
-                  Close
-                </button>
-              </div>
-            </div>
+      {/* Mobile Reviews Cards */}
+      <div className="sm:hidden space-y-3">
+        {isLoading ? (
+          <div className="bg-white rounded-2xl p-8 text-center border border-gray-100">
+            <p className="text-gray-500 text-sm">Loading reviews...</p>
           </div>
-        </div>
-      )}
+        ) : filteredReviews.length > 0 ? (
+          filteredReviews.map((review) => {
+            const status = review.status || "pending";
+            const statusStyles = {
+              approved: "bg-emerald-50 text-emerald-700 border-emerald-200",
+              hidden: "bg-amber-50 text-amber-700 border-amber-200",
+              pending: "bg-blue-50 text-blue-700 border-blue-200",
+            };
+
+            return (
+              <div
+                key={review.id}
+                className="bg-white rounded-2xl p-3.5 shadow-xs border border-gray-100 space-y-3">
+                {/* Product & Status */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-bold text-gray-900 text-sm truncate">
+                      {review.productName || "Unknown Product"}
+                    </h3>
+                    <p className="text-[11px] text-gray-500 mt-0.5">
+                      By <span className="font-semibold text-gray-700">{review.customerName}</span> • {new Date(review.createdAt || new Date()).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border flex-shrink-0 ${
+                      statusStyles[status] || statusStyles.pending
+                    }`}>
+                    {status}
+                  </span>
+                </div>
+
+                {/* Stars Rating */}
+                <div className="flex items-center gap-2">
+                  {renderStars(review.rating)}
+                  <span className="text-xs font-bold text-gray-700 font-mono">
+                    {review.rating}/5
+                  </span>
+                </div>
+
+                {/* Comment */}
+                {review.comment && (
+                  <p className="text-xs text-gray-700 bg-gray-50/70 p-2.5 rounded-xl leading-relaxed">
+                    &ldquo;{review.comment}&rdquo;
+                  </p>
+                )}
+
+                {/* Response if present */}
+                {review.vendorResponse && (
+                  <div className="bg-primary-50/40 border-l-2 border-primary-500 p-2.5 rounded-r-xl text-xs space-y-0.5">
+                    <span className="text-[10px] font-bold text-primary-700 uppercase tracking-wider block">Your Response</span>
+                    <p className="text-gray-800 text-[11px]">{review.vendorResponse}</p>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex items-center gap-2 pt-1 border-t border-gray-100">
+                  <button
+                    onClick={() => setSelectedReview(review)}
+                    className="flex-1 py-1.5 bg-slate-50 hover:bg-primary-50 hover:text-primary-600 text-gray-700 border border-gray-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1">
+                    <FiEye className="text-xs" />
+                    <span>View & Respond</span>
+                  </button>
+                  {review.status !== "approved" && (
+                    <button
+                      onClick={() => handleModerate(review.id, "approve")}
+                      className="p-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-xs transition-colors"
+                      title="Approve">
+                      <FiCheck className="text-xs" />
+                    </button>
+                  )}
+                  {review.status !== "hidden" && (
+                    <button
+                      onClick={() => handleModerate(review.id, "hide")}
+                      className="p-2 bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 rounded-xl text-xs transition-colors"
+                      title="Hide">
+                      <FiX className="text-xs" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        ) : (
+          <div className="bg-white rounded-2xl p-8 text-center border border-gray-100">
+            <p className="text-gray-500 text-sm">No reviews found</p>
+          </div>
+        )}
+      </div>
+
+      {/* Desktop Reviews Table - 100% Unchanged */}
+      <div className="hidden sm:block">
+        {isLoading ? (
+          <div className="bg-white rounded-xl p-12 shadow-sm border border-gray-200 text-center">
+            <p className="text-gray-500">Loading reviews...</p>
+          </div>
+        ) : filteredReviews.length > 0 ? (
+          <DataTable
+            data={filteredReviews}
+            columns={columns}
+            pagination={true}
+            itemsPerPage={10}
+          />
+        ) : (
+          <div className="bg-white rounded-xl p-12 shadow-sm border border-gray-200 text-center">
+            <p className="text-gray-500">No reviews found</p>
+          </div>
+        )}
+      </div>
+
+      {/* Portal Modal */}
+      {typeof document !== "undefined" && createPortal(modalContent, document.body)}
     </motion.div>
   );
 };
