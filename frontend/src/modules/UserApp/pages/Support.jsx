@@ -8,8 +8,11 @@ import {
   FiArrowLeft,
   FiPhone,
   FiMail,
-  FiTag,
   FiCopy,
+  FiLogIn,
+  FiLock,
+  FiChevronDown,
+  FiHelpCircle,
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import PageTransition from "../../../shared/components/PageTransition";
@@ -39,6 +42,24 @@ const Support = () => {
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
+
+  // FAQs State
+  const [openFaqIndex, setOpenFaqIndex] = useState(null);
+
+  const faqs = [
+    {
+      q: "How do I raise or track a support ticket for an order?",
+      a: "Please sign in to your SafeFire account to access private ticket creation, reply directly to support representatives, and track resolution status in real-time."
+    },
+    {
+      q: "Are SafeFire products and fire safety equipment certified?",
+      a: "Yes, all fire safety equipment, extinguishers, and detection gear undergo stringent safety verifications and comply with relevant ISI/BIS standards."
+    },
+    {
+      q: "What is the emergency protocol for active fire hazards?",
+      a: "For immediate, life-threatening fire emergencies, immediately evacuate the premises, alert building occupants, and dial national emergency services at 101 or 112."
+    }
+  ];
 
   const scrollToBottom = (force = false) => {
     const container = chatContainerRef.current;
@@ -730,7 +751,7 @@ const Support = () => {
               </div>
             ) : (
               <div className="space-y-4 pt-4">
-                {user && (
+                {user ? (
                   <>
                     <div className="flex justify-between items-center mb-4 px-2">
                       <h2 className="text-lg font-bold text-gray-800">
@@ -748,7 +769,7 @@ const Support = () => {
                           }
                           setIsCreating(true);
                         }}
-                        className="flex items-center gap-1.5 bg-blue-600 text-white px-3.5 py-2 rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors shadow-md shadow-blue-100"
+                        className="flex items-center gap-1.5 bg-blue-600 text-white px-3.5 py-2 rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors shadow-md shadow-blue-100 min-h-[44px]"
                       >
                         <FiPlus /> New Ticket
                       </button>
@@ -812,82 +833,133 @@ const Support = () => {
                       )}
                     </div>
                   </>
+                ) : (
+                  /* Guest Support Prompt - Keeps /support Public while protecting private tickets */
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-150 rounded-2xl p-5 sm:p-6 mb-6">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-blue-700 font-bold text-sm">
+                          <FiLock className="text-base shrink-0" />
+                          <span>Order & Account Support</span>
+                        </div>
+                        <p className="text-xs text-gray-600 font-medium leading-relaxed">
+                          Need help with an order, refilling service, or warranty? Sign in to your SafeFire account to create and manage private tickets.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => navigate("/login", { state: { from: "/support" } })}
+                        className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-200 transition-all shrink-0 min-h-[44px] w-full sm:w-auto"
+                      >
+                        <FiLogIn className="text-sm" /> Sign In to Open Ticket
+                      </button>
+                    </div>
+                  </div>
                 )}
 
                 <h2 className="text-lg font-bold text-gray-800 mt-4 mb-4 px-2">
                   Get in Touch
                 </h2>
 
-                {/* Mobile Phone */}
-                <a href={`tel:${supportPhone.replace(/\s+/g, '')}`} className="block">
+                {/* Helpline Phone */}
+                <a href={`tel:${supportPhone.replace(/[^\d+]/g, '')}`} className="block">
                   <motion.div
                     whileTap={{ scale: 0.98 }}
-                    className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 cursor-pointer hover:border-blue-200 transition-colors"
+                    className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 cursor-pointer hover:border-blue-200 transition-colors min-h-[44px]"
                   >
-                    <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
                       <FiPhone className="text-xl" />
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <h3 className="font-bold text-gray-800 text-sm">
                         Helpline Phone
                       </h3>
-                      <p className="text-gray-500 text-sm font-semibold">{supportPhone}</p>
+                      <p className="text-gray-500 text-sm font-semibold truncate">{supportPhone}</p>
                     </div>
-                    <FiChevronRight className="text-gray-400" />
+                    <FiChevronRight className="text-gray-400 shrink-0" />
                   </motion.div>
                 </a>
 
-                {/* Gmail */}
+                {/* Support Email (Direct contact via mailto preserved per Rule 3) */}
                 <a href={`mailto:${supportEmail}`} className="block">
                   <motion.div
                     whileTap={{ scale: 0.98 }}
-                    className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 cursor-pointer hover:border-blue-200 transition-colors"
+                    className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 cursor-pointer hover:border-blue-200 transition-colors min-h-[44px]"
                   >
-                    <div className="w-12 h-12 rounded-xl bg-red-50 text-red-600 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-xl bg-red-50 text-red-600 flex items-center justify-center shrink-0">
                       <FiMail className="text-xl" />
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <h3 className="font-bold text-gray-800 text-sm">Support Email</h3>
-                      <p className="text-gray-500 text-sm font-semibold">
+                      <p className="text-gray-500 text-sm font-semibold truncate">
                         {supportEmail}
                       </p>
                     </div>
-                    <FiChevronRight className="text-gray-400" />
+                    <FiChevronRight className="text-gray-400 shrink-0" />
                   </motion.div>
                 </a>
 
-                {/* Collaboration Request */}
-                <a
-                  href={`mailto:${supportEmail}?subject=Collaboration Request`}
-                  className="block"
-                >
-                  <motion.div
-                    whileTap={{ scale: 0.98 }}
-                    className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 cursor-pointer hover:border-blue-200 transition-colors"
-                  >
-                    <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
-                      <FiTag className="text-xl" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-bold text-gray-800 text-sm">
-                        Collaboration Request
-                      </h3>
-                      <p className="text-gray-500 text-sm">Partner with us</p>
-                    </div>
-                    <FiChevronRight className="text-gray-400" />
-                  </motion.div>
-                </a>
+                {/* FAQs Section */}
+                <div className="mt-8">
+                  <div className="flex items-center gap-2 mb-4 px-2">
+                    <FiHelpCircle className="text-blue-600 text-lg shrink-0" />
+                    <h2 className="text-lg font-bold text-gray-800">
+                      Frequently Asked Questions
+                    </h2>
+                  </div>
+                  <div className="space-y-3">
+                    {faqs.map((faq, idx) => {
+                      const isOpen = openFaqIndex === idx;
+                      return (
+                        <div
+                          key={idx}
+                          className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm transition-colors"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => setOpenFaqIndex(isOpen ? null : idx)}
+                            className="w-full p-4 text-left flex items-center justify-between gap-3 min-h-[44px] hover:bg-gray-50/50 transition-colors"
+                          >
+                            <span className="font-bold text-sm text-gray-800 leading-snug">
+                              {faq.q}
+                            </span>
+                            <FiChevronDown
+                              className={`text-gray-400 shrink-0 transition-transform duration-200 ${
+                                isOpen ? "rotate-180 text-blue-600" : ""
+                              }`}
+                            />
+                          </button>
+                          <AnimatePresence>
+                            {isOpen && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.2 }}
+                                className="overflow-hidden"
+                              >
+                                <div className="px-4 pb-4 pt-1 text-xs text-gray-600 leading-relaxed border-t border-gray-50">
+                                  {faq.a}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
 
-                <div className="mt-12 text-center px-6">
+                <div className="mt-10 text-center px-6">
                   <p className="text-sm text-gray-400">
-                    Our team typically responds within 24 hours during business
-                    days.
+                    Our team typically responds within 24 hours during business days.
                   </p>
                 </div>
               </div>
             )}
           </div>
         </div>
+
       </MobileLayout>
     </PageTransition>
   );

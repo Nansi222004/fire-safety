@@ -81,8 +81,34 @@ const ServiceBookingWizard = ({ isOpen, onClose, service }) => {
   });
   const [paymentMethod, setPaymentMethod] = useState('cod');
   const [walletBalance, setWalletBalance] = useState(null);
+  const [isCodOnly, setIsCodOnly] = useState(true);
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Fetch checkout payment mode settings
+  useEffect(() => {
+    let active = true;
+    api.get('/settings/checkout')
+      .then((res) => {
+        const data = res?.data ?? res;
+        if (active && data) {
+          const codOnly = data.paymentMode === 'COD_ONLY' || !data.payment?.razorpay;
+          setIsCodOnly(codOnly);
+          if (codOnly) {
+            setPaymentMethod('cod');
+          }
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setIsCodOnly(true);
+          setPaymentMethod('cod');
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Lock background body scroll & support Escape key
   useEffect(() => {
@@ -793,51 +819,65 @@ const ServiceBookingWizard = ({ isOpen, onClose, service }) => {
                 <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider text-[#E31E24]">
                   Payment Method
                 </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('cod')}
-                    className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center justify-center gap-1.5 transition-all ${
-                      paymentMethod === 'cod'
-                        ? 'bg-red-50 text-[#E31E24] border-[#E31E24] shadow-xs ring-1 ring-[#E31E24]'
-                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                    }`}
-                  >
-                    <FiDollarSign className="text-base" />
-                    <span>Pay On Service</span>
-                    <span className="text-[10px] text-slate-400 font-normal">Cash / On-site UPI</span>
-                  </button>
+                {isCodOnly ? (
+                  <div className="space-y-2">
+                    <div className="p-3 rounded-xl border border-red-200 bg-red-50 text-[#E31E24] flex items-center gap-3">
+                      <FiDollarSign className="text-xl shrink-0" />
+                      <div>
+                        <p className="font-bold text-xs">Pay On Service (Cash / On-site UPI)</p>
+                        <p className="text-[11px] text-slate-600 mt-0.5">
+                          SafeFire is operating in Pay-On-Service mode. You will pay the provider directly after service completion.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('cod')}
+                      className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center justify-center gap-1.5 transition-all ${
+                        paymentMethod === 'cod'
+                          ? 'bg-red-50 text-[#E31E24] border-[#E31E24] shadow-xs ring-1 ring-[#E31E24]'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <FiDollarSign className="text-base" />
+                      <span>Pay On Service</span>
+                      <span className="text-[10px] text-slate-400 font-normal">Cash / On-site UPI</span>
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('upi')}
-                    className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center justify-center gap-1.5 transition-all ${
-                      paymentMethod === 'upi'
-                        ? 'bg-red-50 text-[#E31E24] border-[#E31E24] shadow-xs ring-1 ring-[#E31E24]'
-                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                    }`}
-                  >
-                    <FiCreditCard className="text-base" />
-                    <span>UPI / Online</span>
-                    <span className="text-[10px] text-slate-400 font-normal">Instant & Secure</span>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('upi')}
+                      className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center justify-center gap-1.5 transition-all ${
+                        paymentMethod === 'upi'
+                          ? 'bg-red-50 text-[#E31E24] border-[#E31E24] shadow-xs ring-1 ring-[#E31E24]'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <FiCreditCard className="text-base" />
+                      <span>UPI / Online</span>
+                      <span className="text-[10px] text-slate-400 font-normal">Instant & Secure</span>
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('wallet')}
-                    className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center justify-center gap-1.5 transition-all ${
-                      paymentMethod === 'wallet'
-                        ? 'bg-red-50 text-[#E31E24] border-[#E31E24] shadow-xs ring-1 ring-[#E31E24]'
-                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                    }`}
-                  >
-                    <FiShield className="text-base" />
-                    <span>SafeFire Wallet</span>
-                    <span className="text-[10px] font-bold text-emerald-600">
-                      {walletBalance !== null ? `₹${walletBalance}` : 'Checking...'}
-                    </span>
-                  </button>
-                </div>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('wallet')}
+                      className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center justify-center gap-1.5 transition-all ${
+                        paymentMethod === 'wallet'
+                          ? 'bg-red-50 text-[#E31E24] border-[#E31E24] shadow-xs ring-1 ring-[#E31E24]'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <FiShield className="text-base" />
+                      <span>SafeFire Wallet</span>
+                      <span className="text-[10px] font-bold text-emerald-600">
+                        {walletBalance !== null ? `₹${walletBalance}` : 'Checking...'}
+                      </span>
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Summary Card */}

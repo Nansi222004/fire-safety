@@ -105,6 +105,7 @@ const getChildRoute = (parentRoute, childName) => {
       "Live Chat": "/admin/support/live-chat",
       "Support Categories": "/admin/support/ticket-types",
       Tickets: "/admin/support/tickets",
+      "Collaboration Requests": "/admin/support/collaboration-inquiries",
     },
     "/admin/reports": {
       "Sales Report": "/admin/reports/sales-report",

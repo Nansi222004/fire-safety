@@ -1,5 +1,6 @@
 import logger from '../utils/logger.js';
 import Settings from '../models/Settings.model.js';
+import { isCodOnlyMode } from '../config/paymentConfig.js';
 
 let settingsCache = {};
 let cacheExpiry = {};
@@ -69,12 +70,29 @@ export const isVendorApprovalRequired = async () => {
  * Get payment gateway settings with fallbacks
  */
 export const getPaymentSettings = async () => {
-    return getCachedSettings('payment', {
+    const settings = await getCachedSettings('payment', {
         codEnabled: true,
         cardEnabled: true,
         walletEnabled: true,
         upiEnabled: true
     });
+
+    if (isCodOnlyMode()) {
+        return {
+            ...settings,
+            codEnabled: true,
+            cardEnabled: false,
+            walletEnabled: false,
+            upiEnabled: false,
+            cod: true,
+            razorpay: false,
+            wallet: false,
+            upi: false,
+            paymentMode: 'COD_ONLY',
+        };
+    }
+
+    return settings;
 };
 
 /**
@@ -91,8 +109,14 @@ export const getShippingSettings = async () => {
  * Verify if a specific payment method is active in settings
  */
 export const isPaymentMethodEnabled = async (method) => {
-    const payment = await getPaymentSettings();
     const cleanMethod = String(method || '').trim().toLowerCase();
+    
+    // Central Payment Gate: In COD_ONLY mode, only COD and cash are accepted
+    if (isCodOnlyMode()) {
+        return cleanMethod === 'cod' || cleanMethod === 'cash';
+    }
+
+    const payment = await getPaymentSettings();
     
     if (cleanMethod === 'cod' || cleanMethod === 'cash') {
         return payment.codEnabled !== false;

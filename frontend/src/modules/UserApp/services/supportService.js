@@ -24,3 +24,8 @@ export const getTicketTypes = async () => {
     const res = await api.get('/user/support/ticket-types');
     return res.data || res;
 };
+
+export const submitCollaborationRequest = async (data) => {
+    const res = await api.post('/support/collaboration', data);
+    return res.data || res;
+};

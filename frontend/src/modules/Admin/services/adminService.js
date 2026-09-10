@@ -415,4 +415,14 @@ export const getSettingsByKey = (key) =>
 export const updateSettingsByKey = (key, value) =>
     api.put(`/admin/settings/${key}`, { value });
 
+// ─── Collaboration Inquiries ────────────────────────────────────────────────
+export const getCollaborationInquiries = (params = {}) =>
+    api.get('/admin/support/collaboration-inquiries', { params });
+
+export const getCollaborationInquiryById = (id) =>
+    api.get(`/admin/support/collaboration-inquiries/${id}`);
+
+export const updateCollaborationInquiryStatus = (id, data) =>
+    api.patch(`/admin/support/collaboration-inquiries/${id}/status`, data);
+
 
