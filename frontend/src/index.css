@@ -51,6 +51,28 @@ body::-webkit-scrollbar {
   overflow-x: hidden;
 }
 
+/* Vendor Portal Layout Spacing Tokens */
+:root {
+  --vendor-header-height: calc(57px + env(safe-area-inset-top, 0px));
+  --vendor-header-offset: calc(var(--vendor-header-height) + 12px);
+  --vendor-bottom-pad: calc(80px + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 640px) {
+  :root {
+    --vendor-header-height: calc(65px + env(safe-area-inset-top, 0px));
+    --vendor-header-offset: calc(var(--vendor-header-height) + 16px);
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --vendor-header-height: 65px;
+    --vendor-header-offset: 85px;
+    --vendor-bottom-pad: 24px;
+  }
+}
+
 /* Allow single-finger horizontal scroll inside dedicated scroll containers while keeping multi-touch zoom disabled */
 .overflow-x-auto,
 .overflow-x-scroll,

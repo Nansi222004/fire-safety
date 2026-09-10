@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, forwardRef } from "react";
 import { FiMenu, FiBell, FiLogOut, FiShoppingBag, FiTool } from "react-icons/fi";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
@@ -9,7 +9,7 @@ import VendorNotificationWindow from "./VendorNotificationWindow";
 
 import { getVendorCapabilities } from "../../utils/vendorCapabilities";
 
-const VendorHeader = ({ onMenuClick, isCollapsed, onToggleSidebar }) => {
+const VendorHeader = forwardRef(({ onMenuClick, isCollapsed, onToggleSidebar }, ref) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { vendor, logout } = useVendorAuthStore();
@@ -53,11 +53,13 @@ const VendorHeader = ({ onMenuClick, isCollapsed, onToggleSidebar }) => {
 
   return (
     <header
+      ref={ref}
+      id="vendor-header"
       className={`bg-white/90 backdrop-blur-md border-b border-slate-200/80 fixed top-0 left-0 right-0 z-30 transition-all duration-300 shadow-sm ${isCollapsed ? 'lg:left-0' : 'lg:left-64'}`}
       style={{
         paddingTop: "env(safe-area-inset-top, 0px)",
       }}>
-      <div className="flex items-center justify-between px-3.5 sm:px-4 lg:px-6 py-2.5 sm:py-3.5">
+      <div className="flex items-center justify-between px-3.5 sm:px-4 lg:px-6 min-h-[56px] sm:min-h-[64px] py-2 sm:py-2.5">
         {/* Left: Menu Button */}
         <div className="flex items-center gap-3.5">
           <button
@@ -133,6 +135,8 @@ const VendorHeader = ({ onMenuClick, isCollapsed, onToggleSidebar }) => {
       </div>
     </header>
   );
-};
+});
+
+VendorHeader.displayName = "VendorHeader";
 
 export default VendorHeader;
