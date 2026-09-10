@@ -442,7 +442,7 @@ const VendorDashboard = () => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-4 sm:space-y-6">
+      className="space-y-4 sm:space-y-6 pb-12 sm:pb-6">
 
       {/* Verification Warning (Only shown if vendor is truly unverified/not approved) */}
       {!hasUploadedDocs && vendor?.status !== 'approved' && !vendor?.isVerified && (
@@ -503,7 +503,7 @@ const VendorDashboard = () => {
 
       {/* Stats Cards */}
       {statCards.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
           {statCards.map((stat, index) => (
             <motion.div
               key={index}
@@ -511,19 +511,21 @@ const VendorDashboard = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.08 }}
               onClick={() => stat.link && navigate(stat.link)}
-              className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-sm hover:shadow-md cursor-pointer transition-all">
-              <div className="flex items-center justify-between mb-2">
-                <div className={`${stat.color} p-2.5 sm:p-3 rounded-xl sm:rounded-2xl`}>
-                  <stat.icon className="text-white text-lg sm:text-xl" />
+              className="bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-5 border border-slate-200/80 shadow-xs sm:shadow-sm hover:shadow-md cursor-pointer transition-all flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+                <div className={`${stat.color} p-2 sm:p-2.5 rounded-xl sm:rounded-2xl`}>
+                  <stat.icon className="text-white text-base sm:text-xl" />
                 </div>
-                <FiArrowRight className="text-slate-400 text-base sm:text-lg" />
+                <FiArrowRight className="text-slate-400 text-xs sm:text-lg" />
               </div>
-              <h3 className="text-slate-500 text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-1">
-                {stat.label}
-              </h3>
-              <p className="text-slate-900 text-xl sm:text-2xl font-black tracking-tight">
-                {isLoading ? "—" : stat.value}
-              </p>
+              <div>
+                <h3 className="text-slate-500 text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-0.5 sm:mb-1 truncate">
+                  {stat.label}
+                </h3>
+                <p className="text-slate-900 text-lg sm:text-2xl font-black tracking-tight font-mono truncate">
+                  {isLoading ? "—" : stat.value}
+                </p>
+              </div>
             </motion.div>
           ))}
         </div>
