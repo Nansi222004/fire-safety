@@ -3,6 +3,11 @@ import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
 import Vendor from '../../../models/Vendor.model.js';
 import Admin from '../../../models/Admin.model.js';
+import Order from '../../../models/Order.model.js';
+import ServiceBooking from '../../../models/ServiceBooking.model.js';
+import Product from '../../../models/Product.model.js';
+import VendorService from '../../../models/VendorService.model.js';
+import Notification from '../../../models/Notification.model.js';
 import { generateTokens } from '../../../utils/generateToken.js';
 import { sendOTP } from '../../../services/otp.service.js';
 import { createNotification } from '../../../services/notification.service.js';
@@ -442,3 +447,64 @@ export const updateBankDetails = asyncHandler(async (req, res) => {
 
     res.status(200).json(new ApiResponse(200, vendor, 'Payment & bank details updated.'));
 });
+
+// DELETE /api/vendor/auth/account
+export const deleteAccount = asyncHandler(async (req, res) => {
+    const vendorId = req.user?.id;
+    if (!vendorId) {
+        throw new ApiError(401, 'Authentication required.');
+    }
+
+    const vendor = await Vendor.findById(vendorId);
+    if (!vendor) {
+        throw new ApiError(404, 'Vendor account not found.');
+    }
+
+    // Guard: Check for active/unfulfilled product order items
+    const activeOrders = await Order.find({
+        'vendorItems': {
+            $elemMatch: {
+                vendorId,
+                status: { $in: ['pending', 'processing', 'ready_for_pickup', 'shipped'] },
+            },
+        },
+    }).select('orderId').lean();
+
+    if (activeOrders.length > 0) {
+        const orderIds = activeOrders.map((o) => o.orderId).join(', ');
+        throw new ApiError(
+            400,
+            `Cannot delete account with active/unfulfilled customer orders (${orderIds}). Please fulfill or cancel all pending orders first.`
+        );
+    }
+
+    // Guard: Check for active service bookings
+    const activeBookings = await ServiceBooking.find({
+        vendorId,
+        status: { $in: ['pending', 'confirmed', 'assigned', 'in_progress'] },
+    }).select('bookingId').lean();
+
+    if (activeBookings.length > 0) {
+        const bookingIds = activeBookings.map((b) => b.bookingId).join(', ');
+        throw new ApiError(
+            400,
+            `Cannot delete account with active service bookings (${bookingIds}). Please fulfill or resolve all ongoing service requests first.`
+        );
+    }
+
+    // Clean up catalog and vendor documents
+    await Promise.allSettled([
+        Product.deleteMany({ vendorId }),
+        VendorService.deleteMany({ vendorId }),
+        VendorDocument.deleteMany({ vendorId }),
+        Notification.deleteMany({ recipientId: vendorId }),
+    ]);
+
+    // Permanently remove Vendor account
+    await Vendor.findByIdAndDelete(vendorId);
+
+    return res.status(200).json(
+        new ApiResponse(200, null, 'Your vendor store and associated catalog data have been permanently deleted.')
+    );
+});
+

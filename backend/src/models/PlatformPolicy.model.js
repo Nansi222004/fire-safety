@@ -21,7 +21,9 @@ const faqSchema = new mongoose.Schema({
 
 const platformPolicySchema = new mongoose.Schema(
   {
-    privacy: { type: policyDetailSchema, default: () => ({ title: 'Privacy Policy' }) },
+    privacy: { type: policyDetailSchema, default: () => ({ title: 'Customer Privacy Policy' }) },
+    deliveryPrivacy: { type: policyDetailSchema, default: () => ({ title: 'Delivery Partner Privacy Policy' }) },
+    sellerPrivacy: { type: policyDetailSchema, default: () => ({ title: 'Seller Partner Privacy Policy' }) },
     refund: { type: policyDetailSchema, default: () => ({ title: 'Refund Policy' }) },
     terms: { type: policyDetailSchema, default: () => ({ title: 'Terms & Conditions' }) },
     sellerTerms: { type: policyDetailSchema, default: () => ({ title: 'Seller Terms & Conditions' }) },

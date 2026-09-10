@@ -102,6 +102,8 @@ import NotificationsSEOSettings from "./modules/Admin/pages/settings/Notificatio
 import LogisticsSettings from "./modules/AdminApp/pages/LogisticsSettings";
 // Policies child pages
 import PrivacyPolicy from "./modules/Admin/pages/policies/PrivacyPolicy";
+import AdminDeliveryPrivacyPolicy from "./modules/Admin/pages/policies/DeliveryPrivacyPolicy";
+import AdminSellerPrivacyPolicy from "./modules/Admin/pages/policies/SellerPrivacyPolicy";
 import RefundPolicy from "./modules/Admin/pages/policies/RefundPolicy";
 import TermsConditions from "./modules/Admin/pages/policies/TermsConditions";
 import SellerTermsPolicy from "./modules/Admin/pages/policies/SellerTermsPolicy";
@@ -151,6 +153,7 @@ import MyServiceBookingsPage from "./modules/UserApp/pages/MyServiceBookingsPage
 import ServiceBookingDetailPage from "./modules/UserApp/pages/ServiceBookingDetailPage";
 
 // Delivery Routes
+import DeliveryPrivacyPolicy from "./modules/Delivery/pages/PrivacyPolicy";
 import DeliveryLogin from "./modules/Delivery/pages/Login";
 import DeliveryRegister from "./modules/Delivery/pages/Register";
 import DeliveryForgotPassword from "./modules/Delivery/pages/ForgotPassword";
@@ -166,6 +169,7 @@ import DeliveryNotifications from "./modules/Delivery/pages/Notifications";
 import DeliverySupport from "./modules/Delivery/pages/Support";
 import DeliveryWallet from "./modules/Delivery/pages/Wallet";
 // Vendor Routes
+import VendorPrivacyPolicy from "./modules/Vendor/pages/PrivacyPolicy";
 import VendorLogin from "./modules/Vendor/pages/Login";
 import VendorRegister from "./modules/Vendor/pages/Register";
 import VendorVerification from "./modules/Vendor/pages/Verification";
@@ -439,9 +443,7 @@ const AppRoutes = () => {
         path="/support"
         element={
           <RouteWrapper>
-            <ProtectedRoute>
-              <UserSupport />
-            </ProtectedRoute>
+            <UserSupport />
           </RouteWrapper>
         }
       />
@@ -520,7 +522,7 @@ const AppRoutes = () => {
         }
       />
       <Route
-        path="/support"
+        path="/faq"
         element={
           <RouteWrapper>
             <PolicyPage defaultType="faq" />
@@ -747,6 +749,8 @@ const AppRoutes = () => {
         <Route path="settings/logistics" element={<LogisticsSettings />} />
         <Route path="policies" element={<PrivacyPolicy />} />
         <Route path="policies/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="policies/delivery-privacy" element={<AdminDeliveryPrivacyPolicy />} />
+        <Route path="policies/seller-privacy" element={<AdminSellerPrivacyPolicy />} />
         <Route path="policies/refund-policy" element={<RefundPolicy />} />
         <Route path="policies/terms-conditions" element={<TermsConditions />} />
         <Route path="policies/seller-terms" element={<SellerTermsPolicy />} />
@@ -756,6 +760,8 @@ const AppRoutes = () => {
         <Route path="content" element={<Content />} />
       </Route>
       {/* Delivery Routes */}
+      <Route path="/delivery/privacy-policy" element={<DeliveryPrivacyPolicy />} />
+      <Route path="/delivery/privacy" element={<Navigate to="/delivery/privacy-policy" replace />} />
       <Route path="/delivery/login" element={<DeliveryLogin />} />
       <Route path="/delivery/register" element={<DeliveryRegister />} />
       <Route
@@ -786,6 +792,9 @@ const AppRoutes = () => {
         <Route path="wallet" element={<DeliveryWallet />} />
       </Route>
       {/* Vendor Routes */}
+      <Route path="/vendor/privacy-policy" element={<VendorPrivacyPolicy />} />
+      <Route path="/vendor/privacy" element={<Navigate to="/vendor/privacy-policy" replace />} />
+      <Route path="/seller/privacy-policy" element={<Navigate to="/vendor/privacy-policy" replace />} />
       <Route path="/vendor/login" element={<VendorLogin />} />
       <Route path="/vendor/register" element={<VendorRegister />} />
       <Route path="/vendor/verification" element={<VendorVerification />} />

@@ -98,6 +98,7 @@ router.post('/auth/logout', validate(logoutSchema), authController.logout);
 router.get('/auth/profile', ...vendorAuth, authController.getProfile);
 router.put('/auth/profile', ...vendorAuth, authController.updateProfile);
 router.put('/auth/bank-details', ...vendorAuth, authController.updateBankDetails);
+router.delete('/auth/account', ...vendorAuth, authController.deleteAccount);
 
 // Service Partner Applications
 router.post('/service-partner-applications', ...vendorAuth, servicePartnerAppController.submitApplication);

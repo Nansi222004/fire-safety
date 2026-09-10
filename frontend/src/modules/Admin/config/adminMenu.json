@@ -147,7 +147,9 @@
     "title": "Policies",
     "route": "/admin/policies",
     "children": [
-      "Privacy Policy",
+      "Customer Privacy Policy",
+      "Delivery Privacy Policy",
+      "Seller Privacy Policy",
       "Refund Policy",
       "Terms & Conditions",
       "Seller Terms & Conditions",

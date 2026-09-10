@@ -223,6 +223,42 @@ export const useAuthStore = create(
         localStorage.removeItem('address-storage');
       },
 
+      // Delete user account action
+      deleteAccount: async () => {
+        set({ isLoading: true });
+        try {
+          const response = await api.delete('/user/auth/account');
+          const payload = response?.data ?? response;
+
+          // Remove FCM push token
+          removeFCMToken().catch(() => {});
+
+          set({
+            user: null,
+            token: null,
+            refreshToken: null,
+            isAuthenticated: false,
+            pendingEmail: null,
+            isLoading: false,
+          });
+
+          localStorage.removeItem('token');
+          localStorage.removeItem('refresh-token');
+
+          // Properly clear stores
+          import('./useStore').then((m) => {
+            m.useCartStore.getState().resetCart();
+          });
+          localStorage.removeItem('wishlist-storage');
+          localStorage.removeItem('address-storage');
+
+          return { success: true, message: payload?.message || 'Account deleted successfully.' };
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
       // Update user profile
       updateProfile: async (profileData) => {
         set({ isLoading: true });

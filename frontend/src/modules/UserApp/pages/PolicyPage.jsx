@@ -6,12 +6,15 @@ import {
   FiRotateCcw,
   FiHeadphones,
   FiHome,
-  FiChevronRight
+  FiChevronRight,
+  FiMail,
+  FiPhone
 } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import PageTransition from "../../../shared/components/PageTransition";
 import api from "../../../shared/utils/api";
+import { useSettingsStore } from "../../../shared/store/settingsStore";
 import HelpCenter from "./HelpCenter";
 
 const FALLBACK_POLICIES = {
@@ -59,8 +62,15 @@ const PolicyPage = ({ defaultType = "privacy-policy" }) => {
   const { type: paramType } = useParams();
   const type = paramType || defaultType;
   const navigate = useNavigate();
+  const { settings } = useSettingsStore();
   const [dynamicPolicy, setDynamicPolicy] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [supportEmail, setSupportEmail] = useState(
+    settings?.general?.supportEmail || settings?.general?.contactEmail || "support@safefire.demo"
+  );
+  const [supportPhone, setSupportPhone] = useState(
+    settings?.general?.contactPhone || settings?.general?.supportPhone || "+91 98765 43210"
+  );
 
   // Map legacy URLs to valid backend types
   const apiType = useMemo(() => {
@@ -75,13 +85,39 @@ const PolicyPage = ({ defaultType = "privacy-policy" }) => {
   useEffect(() => {
     let cancelled = false;
 
-    const fetchPolicy = async () => {
+    const fetchPolicyAndSettings = async () => {
       setIsLoading(true);
       try {
-        const response = await api.get(`/policies/${apiType}`);
-        const data = response?.data ?? response;
-        if (!cancelled && data && data.content) {
-          setDynamicPolicy(data);
+        const [policyRes, settingsRes] = await Promise.allSettled([
+          api.get(`/policies/${apiType}`),
+          api.get('/settings/general')
+        ]);
+
+        if (settingsRes.status === 'fulfilled') {
+          const sData = settingsRes.value?.data?.data || settingsRes.value?.data || settingsRes.value;
+          const email = sData?.supportEmail || sData?.contactEmail;
+          const phone = sData?.contactPhone || sData?.supportPhone;
+          if (!cancelled && email) {
+            setSupportEmail(email);
+          }
+          if (!cancelled && phone) {
+            setSupportPhone(phone);
+          }
+        }
+
+        if (policyRes.status === 'fulfilled') {
+          const data = policyRes.value?.data?.data || policyRes.value?.data || policyRes.value;
+          if (!cancelled && data && data.content) {
+            setDynamicPolicy(data);
+            if (data.supportEmail && !cancelled) {
+              setSupportEmail(data.supportEmail);
+            }
+            if ((data.supportPhone || data.contactPhone) && !cancelled) {
+              setSupportPhone(data.supportPhone || data.contactPhone);
+            }
+          } else if (!cancelled) {
+            setDynamicPolicy(FALLBACK_POLICIES[apiType] || FALLBACK_POLICIES["privacy-policy"]);
+          }
         } else if (!cancelled) {
           setDynamicPolicy(FALLBACK_POLICIES[apiType] || FALLBACK_POLICIES["privacy-policy"]);
         }
@@ -96,7 +132,7 @@ const PolicyPage = ({ defaultType = "privacy-policy" }) => {
       }
     };
 
-    fetchPolicy();
+    fetchPolicyAndSettings();
     return () => {
       cancelled = true;
     };
@@ -200,17 +236,63 @@ const PolicyPage = ({ defaultType = "privacy-policy" }) => {
                                  [&>p]:text-slate-600 [&>p]:leading-relaxed
                                  [&>ul]:list-disc [&>ul]:pl-5 [&>ul]:space-y-1 [&>ul>li]:text-slate-600
                                  [&>ol]:list-decimal [&>ol]:pl-5 [&>ol]:space-y-1"
-                      dangerouslySetInnerHTML={{ __html: dynamicPolicy.content }}
+                      dangerouslySetInnerHTML={{ __html: (dynamicPolicy.content || "").replace(/support@safefire\.demo/gi, supportEmail) }}
                     />
                   )}
+
+                  {/* Support Contact Section at Bottom of Policy */}
+                  <div className="mt-8 pt-6 border-t border-slate-100">
+                    <div className="bg-gradient-to-r from-red-50/70 via-slate-50 to-white p-5 rounded-2xl border border-red-100 space-y-3">
+                      <div className="flex items-center gap-3.5">
+                        <div className="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center text-lg shadow-sm flex-shrink-0">
+                          <FiMail />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-bold text-slate-900">Privacy & Support Inquiries</h4>
+                          <p className="text-xs text-slate-500">For questions regarding your data, privacy, or safety records:</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                        <a
+                          href={`mailto:${supportEmail}`}
+                          className="flex items-center justify-between gap-2 px-4 py-2.5 bg-white hover:bg-red-50 text-red-600 border border-red-200 rounded-xl text-xs font-bold transition-all shadow-xs"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <FiMail className="text-sm flex-shrink-0" />
+                            <span className="truncate">{supportEmail}</span>
+                          </div>
+                          <span className="text-[10px] uppercase font-bold text-slate-400">Email</span>
+                        </a>
+
+                        <a
+                          href={`tel:${supportPhone.replace(/\s+/g, '')}`}
+                          className="flex items-center justify-between gap-2 px-4 py-2.5 bg-white hover:bg-red-50 text-red-600 border border-red-200 rounded-xl text-xs font-bold transition-all shadow-xs"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <FiPhone className="text-sm flex-shrink-0" />
+                            <span className="truncate">{supportPhone}</span>
+                          </div>
+                          <span className="text-[10px] uppercase font-bold text-slate-400">Call</span>
+                        </a>
+                      </div>
+                    </div>
+                  </div>
                 </motion.div>
               ) : null}
             </div>
 
             {/* Footer Note */}
-            <div className="text-center py-6">
+            <div className="text-center py-6 space-y-1">
               <p className="text-xs text-slate-400">
-                SafeFire Fire Safety Platform &bull; Customer Support: support@safefire.demo
+                SafeFire Fire Safety Platform &bull; Customer Support:{" "}
+                <a href={`mailto:${supportEmail}`} className="text-primary-600 hover:underline font-semibold">
+                  {supportEmail}
+                </a>
+                {" "}&bull; Helpline:{" "}
+                <a href={`tel:${supportPhone.replace(/\s+/g, '')}`} className="text-primary-600 hover:underline font-semibold">
+                  {supportPhone}
+                </a>
               </p>
             </div>
           </div>

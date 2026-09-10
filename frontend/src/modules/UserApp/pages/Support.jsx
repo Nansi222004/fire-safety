@@ -18,9 +18,18 @@ import * as supportService from "../services/supportService";
 import toast from "react-hot-toast";
 import { getSocket, joinRoom, leaveRoom } from "../../../shared/utils/socket";
 import { useAuthStore } from "../../../shared/store/authStore";
+import { useSettingsStore } from "../../../shared/store/settingsStore";
+import api from "../../../shared/utils/api";
 
 const Support = () => {
   const navigate = useNavigate();
+  const { settings } = useSettingsStore();
+  const [supportPhone, setSupportPhone] = useState(
+    settings?.general?.contactPhone || settings?.general?.supportPhone || "+91 98765 43210"
+  );
+  const [supportEmail, setSupportEmail] = useState(
+    settings?.general?.supportEmail || settings?.general?.contactEmail || "support@safefire.demo"
+  );
   const [tickets, setTickets] = useState([]);
   const [ticketTypes, setTicketTypes] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -197,14 +206,35 @@ const Support = () => {
   const fetchInitialData = async () => {
     setIsLoading(true);
     try {
-      const [ticketsRes, typesRes] = await Promise.all([
-        supportService.getUserTickets(),
+      const token =
+        localStorage.getItem("token") || localStorage.getItem("user-token");
+      const [ticketsRes, typesRes, settingsRes] = await Promise.allSettled([
+        user?.id && token ? supportService.getUserTickets().catch(() => ({ tickets: [] })) : Promise.resolve({ tickets: [] }),
         supportService.getTicketTypes(),
+        api.get('/settings/general')
       ]);
-      setTickets(ticketsRes?.tickets || ticketsRes?.data?.tickets || []);
-      setTicketTypes(typesRes?.data || typesRes || []);
+
+      if (ticketsRes.status === 'fulfilled') {
+        const t = ticketsRes.value;
+        setTickets(t?.tickets || t?.data?.tickets || []);
+      }
+
+      if (typesRes.status === 'fulfilled') {
+        const typ = typesRes.value;
+        setTicketTypes(typ?.data || typ || []);
+      }
+
+      if (settingsRes.status === 'fulfilled' && settingsRes.value?.data?.data) {
+        const s = settingsRes.value.data.data;
+        if (s.contactPhone || s.supportPhone) {
+          setSupportPhone(s.contactPhone || s.supportPhone);
+        }
+        if (s.supportEmail || s.contactEmail) {
+          setSupportEmail(s.supportEmail || s.contactEmail);
+        }
+      }
     } catch (error) {
-      toast.error("Failed to load support data");
+      console.error("Failed to load support data:", error);
     } finally {
       setIsLoading(false);
     }
@@ -700,82 +730,96 @@ const Support = () => {
               </div>
             ) : (
               <div className="space-y-4 pt-4">
-                <div className="flex justify-between items-center mb-4 px-2">
-                  <h2 className="text-lg font-bold text-gray-800">
-                    Your Tickets
-                  </h2>
-                  <button
-                    onClick={() => setIsCreating(true)}
-                    className="flex items-center gap-1.5 bg-blue-600 text-white px-3.5 py-2 rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors shadow-md shadow-blue-100"
-                  >
-                    <FiPlus /> New Ticket
-                  </button>
-                </div>
-
-                {/* Tickets List */}
-                <div className="space-y-3">
-                  {isLoading ? (
-                    <div className="text-center py-12 text-gray-500 text-sm">
-                      Loading tickets...
-                    </div>
-                  ) : tickets.length > 0 ? (
-                    tickets.map((ticket) => (
-                      <div
-                        key={ticket._id}
+                {user && (
+                  <>
+                    <div className="flex justify-between items-center mb-4 px-2">
+                      <h2 className="text-lg font-bold text-gray-800">
+                        Your Tickets
+                      </h2>
+                      <button
                         onClick={() => {
-                          setSelectedTicket(ticket);
-                          sessionStorage.setItem(
-                            "active_ticket_id",
-                            ticket._id,
-                          );
+                          const token =
+                            localStorage.getItem("token") ||
+                            localStorage.getItem("user-token");
+                          if (!token) {
+                            toast.error("Please sign in to raise a support ticket.");
+                            navigate("/login", { state: { from: "/support" } });
+                            return;
+                          }
+                          setIsCreating(true);
                         }}
-                        className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between cursor-pointer hover:border-blue-200 hover:shadow-md transition-all duration-200"
+                        className="flex items-center gap-1.5 bg-blue-600 text-white px-3.5 py-2 rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors shadow-md shadow-blue-100"
                       >
-                        <div className="flex-1 min-w-0 pr-4">
-                          <h3 className="font-bold text-gray-800 text-sm truncate">
-                            {ticket.subject}
-                          </h3>
-                          <p className="text-[10px] text-gray-400 font-mono mt-0.5">
-                            #{ticket._id}
-                          </p>
-                          <div className="flex flex-wrap items-center gap-2 mt-2">
-                            <span
-                              className={`text-[9px] px-2 py-0.5 rounded-full font-bold border uppercase tracking-wider ${getStatusColor(ticket.status)}`}
-                            >
-                              {ticket.status.replace("_", " ")}
-                            </span>
-                            <span
-                              className={`text-[9px] px-2 py-0.5 rounded-full font-bold border uppercase tracking-wider bg-gray-50 border-gray-250 ${getPriorityColor(ticket.priority)}`}
-                            >
-                              {ticket.priority}
-                            </span>
-                            <span className="text-[10px] text-gray-400 font-semibold">
-                              Last Reply: {getRelativeTime(ticket.updatedAt)}
-                            </span>
-                          </div>
-                        </div>
-                        <FiChevronRight className="text-gray-400 flex-shrink-0" />
-                      </div>
-                    ))
-                  ) : (
-                    <div className="bg-white rounded-2xl p-10 text-center border border-gray-100">
-                      <FiAlertCircle className="mx-auto mb-3 text-4xl text-gray-300" />
-                      <p className="text-gray-700 font-bold">
-                        No support tickets found.
-                      </p>
-                      <p className="text-sm text-gray-500 mt-1">
-                        Create your first ticket if you need any assistance.
-                      </p>
+                        <FiPlus /> New Ticket
+                      </button>
                     </div>
-                  )}
-                </div>
 
-                <h2 className="text-lg font-bold text-gray-800 mt-8 mb-4 px-2">
+                    {/* Tickets List */}
+                    <div className="space-y-3 mb-6">
+                      {isLoading ? (
+                        <div className="text-center py-12 text-gray-500 text-sm">
+                          Loading tickets...
+                        </div>
+                      ) : tickets.length > 0 ? (
+                        tickets.map((ticket) => (
+                          <div
+                            key={ticket._id}
+                            onClick={() => {
+                              setSelectedTicket(ticket);
+                              sessionStorage.setItem(
+                                "active_ticket_id",
+                                ticket._id,
+                              );
+                            }}
+                            className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between cursor-pointer hover:border-blue-200 hover:shadow-md transition-all duration-200"
+                          >
+                            <div className="flex-1 min-w-0 pr-4">
+                              <h3 className="font-bold text-gray-800 text-sm truncate">
+                                {ticket.subject}
+                              </h3>
+                              <p className="text-[10px] text-gray-400 font-mono mt-0.5">
+                                #{ticket._id}
+                              </p>
+                              <div className="flex flex-wrap items-center gap-2 mt-2">
+                                <span
+                                  className={`text-[9px] px-2 py-0.5 rounded-full font-bold border uppercase tracking-wider ${getStatusColor(ticket.status)}`}
+                                >
+                                  {ticket.status.replace("_", " ")}
+                                </span>
+                                <span
+                                  className={`text-[9px] px-2 py-0.5 rounded-full font-bold border uppercase tracking-wider bg-gray-50 border-gray-250 ${getPriorityColor(ticket.priority)}`}
+                                >
+                                  {ticket.priority}
+                                </span>
+                                <span className="text-[10px] text-gray-400 font-semibold">
+                                  Last Reply: {getRelativeTime(ticket.updatedAt)}
+                                </span>
+                              </div>
+                            </div>
+                            <FiChevronRight className="text-gray-400 flex-shrink-0" />
+                          </div>
+                        ))
+                      ) : (
+                        <div className="bg-white rounded-2xl p-10 text-center border border-gray-100">
+                          <FiAlertCircle className="mx-auto mb-3 text-4xl text-gray-300" />
+                          <p className="text-gray-700 font-bold">
+                            No support tickets found.
+                          </p>
+                          <p className="text-sm text-gray-500 mt-1">
+                            Create your first ticket if you need any assistance.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                <h2 className="text-lg font-bold text-gray-800 mt-4 mb-4 px-2">
                   Get in Touch
                 </h2>
 
                 {/* Mobile Phone */}
-                <a href="tel:+919876543210" className="block">
+                <a href={`tel:${supportPhone.replace(/\s+/g, '')}`} className="block">
                   <motion.div
                     whileTap={{ scale: 0.98 }}
                     className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 cursor-pointer hover:border-blue-200 transition-colors"
@@ -785,27 +829,27 @@ const Support = () => {
                     </div>
                     <div className="flex-1">
                       <h3 className="font-bold text-gray-800 text-sm">
-                        Mobile Phone
+                        Helpline Phone
                       </h3>
-                      <p className="text-gray-500 text-sm">+91 98765 43210</p>
+                      <p className="text-gray-500 text-sm font-semibold">{supportPhone}</p>
                     </div>
                     <FiChevronRight className="text-gray-400" />
                   </motion.div>
                 </a>
 
                 {/* Gmail */}
-                <a href="mailto:support@firesafetyshop.com" className="block">
+                <a href={`mailto:${supportEmail}`} className="block">
                   <motion.div
                     whileTap={{ scale: 0.98 }}
                     className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 cursor-pointer hover:border-blue-200 transition-colors"
                   >
-                    <div className="w-12 h-12 rounded-xl bg-red-50 text-red-650 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-xl bg-red-50 text-red-600 flex items-center justify-center">
                       <FiMail className="text-xl" />
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-bold text-gray-800 text-sm">Gmail</h3>
-                      <p className="text-gray-500 text-sm">
-                        support@firesafetyshop.com
+                      <h3 className="font-bold text-gray-800 text-sm">Support Email</h3>
+                      <p className="text-gray-500 text-sm font-semibold">
+                        {supportEmail}
                       </p>
                     </div>
                     <FiChevronRight className="text-gray-400" />
@@ -814,14 +858,14 @@ const Support = () => {
 
                 {/* Collaboration Request */}
                 <a
-                  href="mailto:collab@firesafetyshop.com?subject=Collaboration Request"
+                  href={`mailto:${supportEmail}?subject=Collaboration Request`}
                   className="block"
                 >
                   <motion.div
                     whileTap={{ scale: 0.98 }}
                     className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 cursor-pointer hover:border-blue-200 transition-colors"
                   >
-                    <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-650 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
                       <FiTag className="text-xl" />
                     </div>
                     <div className="flex-1">

@@ -28,7 +28,8 @@ import {
   FiRefreshCw,
   FiAlertCircle,
   FiTool,
-  FiX
+  FiX,
+  FiTrash2
 } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -45,15 +46,17 @@ import api from '../../../shared/utils/api';
 
 const MobileProfile = () => {
   const navigate = useNavigate();
-  const { user, updateProfile, uploadProfileAvatar, changePassword, logout, isLoading, fetchUserProfile } = useAuthStore();
+  const { user, updateProfile, uploadProfileAvatar, changePassword, logout, deleteAccount, isLoading, fetchUserProfile } = useAuthStore();
   const { items: wishlistItems } = useWishlistStore();
   const avatarInputRef = useRef(null);
   
-  const [activeModal, setActiveModal] = useState(null); // 'personal', 'password', 'giftcard', 'coupons', null
+  const [activeModal, setActiveModal] = useState(null); // 'personal', 'password', 'giftcard', 'coupons', 'deleteAccount', null
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [giftCardBalance, setGiftCardBalance] = useState(null);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
   
   // Coupons State
   const [availableCoupons, setAvailableCoupons] = useState([]);
@@ -164,6 +167,21 @@ const MobileProfile = () => {
     logout(); 
     navigate('/home'); 
     toast.success('Logged out successfully'); 
+  };
+
+  const handleDeleteAccount = async () => {
+    setIsDeletingAccount(true);
+    try {
+      await deleteAccount();
+      toast.success('Your account has been deleted successfully.');
+      setActiveModal(null);
+      setDeleteConfirmText('');
+      navigate('/home');
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error.message || 'Failed to delete account.');
+    } finally {
+      setIsDeletingAccount(false);
+    }
   };
 
   const handleAvatarChange = async (event) => {
@@ -340,6 +358,14 @@ const MobileProfile = () => {
           iconBg: 'bg-sky-50',
           badge: unreadNotificationCount > 0 ? unreadNotificationCount : null,
           link: '/notifications',
+        },
+        {
+          label: 'Delete Account',
+          description: 'Permanently remove your account and personal data',
+          icon: FiTrash2,
+          iconColor: 'text-rose-600',
+          iconBg: 'bg-rose-50',
+          action: () => setActiveModal('deleteAccount'),
         },
       ],
     },
@@ -557,7 +583,7 @@ const MobileProfile = () => {
             </div>
 
             {/* Logout Card */}
-            <div className="pt-2">
+            <div className="pt-2 space-y-2">
               <button 
                 type="button" 
                 onClick={handleLogout}
@@ -566,7 +592,15 @@ const MobileProfile = () => {
                 <FiLogOut className="text-base" />
                 <span>Sign Out of SafeFire</span>
               </button>
-              <p className="text-center text-[11px] text-gray-400 mt-3 font-medium">
+              <button
+                type="button"
+                onClick={() => setActiveModal('deleteAccount')}
+                className="w-full py-2.5 px-4 rounded-2xl text-gray-400 hover:text-rose-600 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors"
+              >
+                <FiTrash2 className="text-sm" />
+                <span>Delete Account</span>
+              </button>
+              <p className="text-center text-[11px] text-gray-400 mt-2 font-medium">
                 SafeFire E-Commerce Platform • Version 1.0.0
               </p>
             </div>
@@ -978,6 +1012,95 @@ const MobileProfile = () => {
                         >
                           <span>Explore Offers Page</span>
                           <FiChevronRight className="text-xs" />
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                </div>
+              )}
+
+              {/* Delete Account Confirmation Modal */}
+              {activeModal === 'deleteAccount' && (
+                <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/65 backdrop-blur-sm animate-in fade-in duration-200">
+                  <div className="absolute inset-0" onClick={() => !isDeletingAccount && setActiveModal(null)} />
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                    className="bg-white rounded-3xl w-full max-w-md shadow-2xl border border-rose-100 flex flex-col relative z-10 overflow-hidden"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-gray-100 shrink-0 bg-white">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold text-lg border border-rose-100">
+                          <FiTrash2 className="text-rose-600 text-xl" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-black text-gray-900 tracking-tight">Delete Account</h3>
+                          <p className="text-xs text-rose-500 font-medium">Permanent Action</p>
+                        </div>
+                      </div>
+                      <button 
+                        type="button" 
+                        onClick={() => !isDeletingAccount && setActiveModal(null)}
+                        className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors"
+                      >
+                        <FiX className="text-base" />
+                      </button>
+                    </div>
+
+                    <div className="p-5 sm:p-6 space-y-4">
+                      <div className="p-4 rounded-2xl bg-rose-50/70 border border-rose-100 space-y-2">
+                        <p className="text-xs sm:text-sm text-gray-900 font-bold leading-relaxed">
+                          Are you sure you want to permanently delete your SafeFire account?
+                        </p>
+                        <ul className="text-xs text-gray-600 space-y-1.5 list-disc list-inside">
+                          <li>Your saved addresses and profile information will be deleted.</li>
+                          <li>Your active cart and wishlist will be wiped.</li>
+                          <li>Account deletion will be blocked if you have any active, in-progress orders or technician bookings.</li>
+                        </ul>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                          Type <span className="text-rose-600 font-black">DELETE</span> to confirm
+                        </label>
+                        <input
+                          type="text"
+                          value={deleteConfirmText}
+                          onChange={(e) => setDeleteConfirmText(e.target.value)}
+                          placeholder="Type DELETE"
+                          className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:border-rose-500 text-sm font-semibold"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-3 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDeleteConfirmText('');
+                            setActiveModal(null);
+                          }}
+                          disabled={isDeletingAccount}
+                          className="flex-1 py-3 px-4 rounded-xl border border-gray-200 text-gray-700 font-bold text-sm hover:bg-gray-50 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleDeleteAccount}
+                          disabled={deleteConfirmText !== 'DELETE' || isDeletingAccount}
+                          className="flex-1 py-3 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition-all"
+                        >
+                          {isDeletingAccount ? (
+                            <span>Deleting...</span>
+                          ) : (
+                            <>
+                              <FiTrash2 />
+                              <span>Delete My Account</span>
+                            </>
+                          )}
                         </button>
                       </div>
                     </div>

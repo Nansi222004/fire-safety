@@ -237,6 +237,41 @@ export const useDeliveryAuthStore = create(
         localStorage.removeItem('delivery-refresh-token');
       },
 
+      // Delivery partner delete account action
+      deleteAccount: async () => {
+        set({ isLoading: true });
+        try {
+          const response = await api.delete('/delivery/auth/account');
+          const payload = response?.data ?? response;
+
+          // Remove FCM push token
+          removeFCMToken().catch(() => {});
+
+          set({
+            deliveryBoy: null,
+            token: null,
+            refreshToken: null,
+            isAuthenticated: false,
+            isLoading: false,
+            orders: [],
+            ordersPagination: {
+              total: 0,
+              page: 1,
+              limit: 20,
+              pages: 1,
+            },
+            selectedOrder: null,
+          });
+          localStorage.removeItem('delivery-token');
+          localStorage.removeItem('delivery-refresh-token');
+
+          return { success: true, message: payload?.message || 'Account deleted successfully.' };
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
       // Update delivery boy status
       updateStatus: async (status) => {
         const current = get().deliveryBoy;

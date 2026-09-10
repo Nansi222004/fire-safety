@@ -213,8 +213,13 @@ const DeliveryLogin = () => {
         </main>
 
         {/* Footer */}
-        <footer className="py-4 text-center text-xs text-[#64748B] border-t border-[#E5E7EB] bg-white">
-          © {new Date().getFullYear()} SafeFire Delivery Operations. Certified Fire Safety & Compliance Platform.
+        <footer className="py-4 text-center text-xs text-[#64748B] border-t border-[#E5E7EB] bg-white px-4">
+          <div className="max-w-md mx-auto flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
+            <span>© {new Date().getFullYear()} SafeFire Delivery Operations.</span>
+            <Link to="/delivery/privacy-policy" className="text-[#E31E24] hover:underline font-semibold">
+              Privacy Policy
+            </Link>
+          </div>
         </footer>
       </div>
     </PageTransition>

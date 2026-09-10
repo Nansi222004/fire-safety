@@ -708,7 +708,14 @@ const VendorRegister = () => {
                   </button>
 
                   <p className="text-center text-[11px] text-[#64748B]">
-                    By registering, you agree to the Seller Terms & Conditions and Privacy Policy.
+                    By registering, you agree to the{' '}
+                    <Link to="/policy/seller-terms" className="text-[#E31E24] hover:underline font-semibold" target="_blank" rel="noopener noreferrer">
+                      Seller Terms & Conditions
+                    </Link>{' '}
+                    and{' '}
+                    <Link to="/vendor/privacy-policy" className="text-[#E31E24] hover:underline font-semibold" target="_blank" rel="noopener noreferrer">
+                      Privacy Policy
+                    </Link>.
                   </p>
                 </div>
 

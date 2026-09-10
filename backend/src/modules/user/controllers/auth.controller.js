@@ -2,6 +2,12 @@ import asyncHandler from '../../../utils/asyncHandler.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
 import User from '../../../models/User.model.js';
+import Order from '../../../models/Order.model.js';
+import ServiceBooking from '../../../models/ServiceBooking.model.js';
+import Cart from '../../../models/Cart.model.js';
+import Wishlist from '../../../models/Wishlist.model.js';
+import Address from '../../../models/Address.model.js';
+import Notification from '../../../models/Notification.model.js';
 import { createWalletIfMissing } from '../../../services/wallet.service.js';
 import { generateTokens } from '../../../utils/generateToken.js';
 import { sendOTP } from '../../../services/otp.service.js';
@@ -324,3 +330,68 @@ export const uploadProfileAvatar = asyncHandler(async (req, res) => {
         throw error;
     }
 });
+
+// DELETE /api/user/auth/account
+export const deleteAccount = asyncHandler(async (req, res) => {
+    const userId = req.user?.id;
+    if (!userId) {
+        throw new ApiError(401, 'Authentication required.');
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+        throw new ApiError(404, 'User account not found.');
+    }
+
+    // Guard: Check for active ongoing orders
+    const activeOrders = await Order.find({
+        userId,
+        status: { $in: ['payment_pending', 'pending', 'processing', 'ready_for_pickup', 'shipped'] },
+    }).select('orderId status').lean();
+
+    if (activeOrders.length > 0) {
+        const orderIds = activeOrders.map((o) => o.orderId).join(', ');
+        throw new ApiError(
+            400,
+            `Cannot delete account with active in-progress orders (${orderIds}). Please wait until orders are delivered or cancelled.`
+        );
+    }
+
+    // Guard: Check for active ongoing service bookings
+    const activeBookings = await ServiceBooking.find({
+        userId,
+        status: { $in: ['pending', 'confirmed', 'assigned', 'in_progress'] },
+    }).select('bookingId status').lean();
+
+    if (activeBookings.length > 0) {
+        const bookingIds = activeBookings.map((b) => b.bookingId).join(', ');
+        throw new ApiError(
+            400,
+            `Cannot delete account with active service bookings (${bookingIds}). Please wait until services are completed or cancelled.`
+        );
+    }
+
+    // Clean up avatar from Cloudinary
+    if (user.avatar) {
+        const publicId = extractCloudinaryPublicId(user.avatar);
+        if (publicId) {
+            await deleteFromCloudinary(publicId).catch(() => null);
+        }
+    }
+
+    // Clean up related customer data
+    await Promise.allSettled([
+        Cart.deleteMany({ userId }),
+        Wishlist.deleteMany({ userId }),
+        Address.deleteMany({ userId }),
+        Notification.deleteMany({ recipientId: userId }),
+    ]);
+
+    // Permanently remove the user document
+    await User.findByIdAndDelete(userId);
+
+    return res.status(200).json(
+        new ApiResponse(200, null, 'Your account and associated data have been permanently deleted.')
+    );
+});
+

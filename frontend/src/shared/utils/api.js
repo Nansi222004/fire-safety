@@ -279,7 +279,6 @@ api.interceptors.response.use(
           '/wishlist',
           '/order-confirmation',
           '/orders',
-          '/support',
           '/profile',
           '/wallet',
           '/notifications',

@@ -1284,8 +1284,10 @@ router.get('/settings/general', listCache, asyncHandler(async (req, res) => {
     const publicSettings = {
         storeName: value.storeName || "Fire Safety Shop",
         storeDescription: value.storeDescription || "",
-        contactEmail: value.contactEmail || "contact@example.com",
-        contactPhone: value.contactPhone || "",
+        contactEmail: value.contactEmail || value.supportEmail || "contact@example.com",
+        supportEmail: value.supportEmail || value.contactEmail || "support@safefire.demo",
+        contactPhone: value.contactPhone || value.supportPhone || value.phone || "+91 98765 43210",
+        supportPhone: value.supportPhone || value.contactPhone || value.phone || "+91 98765 43210",
         address: value.address || "",
         socialMedia: value.socialMedia || {
             facebook: "",
@@ -1327,11 +1329,32 @@ router.get('/settings/checkout', asyncHandler(async (req, res) => {
 // GET /api/policies/:policyKey
 router.get('/policies/:policyKey', asyncHandler(async (req, res) => {
     const { policyKey } = req.params;
-    const doc = await PlatformPolicy.findOne().lean();
+    const [doc, generalSettings] = await Promise.all([
+        PlatformPolicy.findOne().lean(),
+        Settings.findOne({ key: 'general' }).lean(),
+    ]);
+
+    const supportEmail =
+        generalSettings?.value?.supportEmail ||
+        generalSettings?.value?.contactEmail ||
+        'support@safefire.demo';
+
+    const supportPhone =
+        generalSettings?.value?.supportPhone ||
+        generalSettings?.value?.contactPhone ||
+        generalSettings?.value?.phone ||
+        '+91 98765 43210';
 
     const policyKeyMap = {
         'privacy': 'privacy',
         'privacy-policy': 'privacy',
+        'customer-privacy': 'privacy',
+        'delivery-privacy': 'deliveryPrivacy',
+        'delivery-privacy-policy': 'deliveryPrivacy',
+        'delivery': 'deliveryPrivacy',
+        'seller-privacy': 'sellerPrivacy',
+        'seller-privacy-policy': 'sellerPrivacy',
+        'vendor-privacy': 'sellerPrivacy',
         'refund': 'refund',
         'refund-policy': 'refund',
         'terms': 'terms',
@@ -1348,9 +1371,18 @@ router.get('/policies/:policyKey', asyncHandler(async (req, res) => {
     }
 
     if (!policy) {
+        const defaultTitles = {
+            privacy: 'Customer Privacy Policy',
+            deliveryPrivacy: 'Delivery Partner Privacy Policy',
+            sellerPrivacy: 'Seller Partner Privacy Policy',
+            refund: 'Refund Policy',
+            terms: 'Terms & Conditions',
+            sellerTerms: 'Seller Terms & Conditions',
+            faq: 'Frequently Asked Questions'
+        };
         policy = {
-            title: 'SafeFire Fire Safety Policies & Compliance',
-            content: '<h2>SafeFire Compliance</h2><p>All fire safety equipment, refilling services, and maintenance operations comply with statutory fire safety standards.</p>',
+            title: defaultTitles[docKey] || 'SafeFire Fire Safety Policies & Compliance',
+            content: '',
             items: [],
             lastUpdated: new Date()
         };
@@ -1360,7 +1392,10 @@ router.get('/policies/:policyKey', asyncHandler(async (req, res) => {
         title: policy.title,
         content: policy.content,
         items: policy.items || [],
-        lastUpdated: policy.lastUpdated
+        lastUpdated: policy.lastUpdated,
+        supportEmail,
+        supportPhone,
+        contactPhone: supportPhone
     }, 'Public policy fetched.'));
 }));
 

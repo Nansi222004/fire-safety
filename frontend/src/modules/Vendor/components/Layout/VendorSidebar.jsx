@@ -63,6 +63,7 @@ const iconMap = {
   Earnings: FiDollarSign,
   Settings: FiSettings,
   Profile: FiUser,
+  "Privacy Policy": FiShield,
 };
 
 // Helper function to convert child name to route path

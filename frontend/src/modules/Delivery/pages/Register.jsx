@@ -366,6 +366,13 @@ const DeliveryRegister = () => {
                 {isLoading ? 'Submitting Registration...' : 'Submit Delivery Application'}
               </button>
 
+              <p className="text-center text-[11px] text-[#64748B]">
+                By registering, you agree to the SafeFire{' '}
+                <Link to="/delivery/privacy-policy" className="text-[#E31E24] hover:underline font-semibold" target="_blank" rel="noopener noreferrer">
+                  Delivery Partner Privacy Policy
+                </Link>.
+              </p>
+
               <div className="text-center pt-2 border-t border-[#E5E7EB]">
                 <p className="text-xs text-[#64748B]">
                   Already registered?{' '}
@@ -379,8 +386,13 @@ const DeliveryRegister = () => {
         </main>
 
         {/* Footer */}
-        <footer className="py-4 text-center text-xs text-[#64748B] border-t border-[#E5E7EB] bg-white">
-          © {new Date().getFullYear()} SafeFire Delivery Operations. Certified Fire Safety & Compliance Platform.
+        <footer className="py-4 text-center text-xs text-[#64748B] border-t border-[#E5E7EB] bg-white px-4">
+          <div className="max-w-md mx-auto flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
+            <span>© {new Date().getFullYear()} SafeFire Delivery Operations.</span>
+            <Link to="/delivery/privacy-policy" className="text-[#E31E24] hover:underline font-semibold">
+              Privacy Policy
+            </Link>
+          </div>
         </footer>
       </div>
     </PageTransition>

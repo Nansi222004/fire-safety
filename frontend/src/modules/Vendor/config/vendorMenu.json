@@ -129,5 +129,12 @@
         "children":  [
 
                      ]
+    },
+    {
+        "title":  "Privacy Policy",
+        "route":  "/vendor/privacy-policy",
+        "children":  [
+
+                     ]
     }
 ]

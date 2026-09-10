@@ -125,6 +125,9 @@ const getChildRoute = (parentRoute, childName) => {
       "Logistics & Delivery": "/admin/settings/logistics",
     },
     "/admin/policies": {
+      "Customer Privacy Policy": "/admin/policies/privacy-policy",
+      "Delivery Privacy Policy": "/admin/policies/delivery-privacy",
+      "Seller Privacy Policy": "/admin/policies/seller-privacy",
       "Privacy Policy": "/admin/policies/privacy-policy",
       "Refund Policy": "/admin/policies/refund-policy",
       "Terms & Conditions": "/admin/policies/terms-conditions",

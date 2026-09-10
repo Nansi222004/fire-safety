@@ -3,6 +3,9 @@ import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
 import DeliveryBoy from '../../../models/DeliveryBoy.model.js';
 import Admin from '../../../models/Admin.model.js';
+import Shipment from '../../../models/Shipment.model.js';
+import ReturnRequest from '../../../models/ReturnRequest.model.js';
+import Notification from '../../../models/Notification.model.js';
 import { generateTokens } from '../../../utils/generateToken.js';
 import { createNotification } from '../../../services/notification.service.js';
 import { sendEmail } from '../../../services/email.service.js';
@@ -337,3 +340,63 @@ export const updateProfile = asyncHandler(async (req, res) => {
     );
     res.status(200).json(new ApiResponse(200, deliveryBoy, 'Profile updated.'));
 });
+
+// DELETE /api/delivery/auth/account
+export const deleteAccount = asyncHandler(async (req, res) => {
+    const deliveryBoyId = req.user?.id;
+    if (!deliveryBoyId) {
+        throw new ApiError(401, 'Authentication required.');
+    }
+
+    const deliveryBoy = await DeliveryBoy.findById(deliveryBoyId);
+    if (!deliveryBoy) {
+        throw new ApiError(404, 'Delivery partner account not found.');
+    }
+
+    // Guard: Check for active assigned shipments
+    const activeShipments = await Shipment.find({
+        deliveryBoyId,
+        status: { $in: ['assigned', 'picked_up', 'out_for_delivery'] },
+    }).select('trackingNumber status').lean();
+
+    if (activeShipments.length > 0) {
+        const numbers = activeShipments.map((s) => s.trackingNumber || s._id).join(', ');
+        throw new ApiError(
+            400,
+            `Cannot delete account with active assigned deliveries (${numbers}). Please complete or hand back all active deliveries first.`
+        );
+    }
+
+    // Guard: Check for active return pickups
+    const activeReturns = await ReturnRequest.find({
+        deliveryBoyId,
+        status: { $in: ['assigned', 'out_for_pickup'] },
+    }).select('returnId status').lean();
+
+    if (activeReturns.length > 0) {
+        const returns = activeReturns.map((r) => r.returnId || r._id).join(', ');
+        throw new ApiError(
+            400,
+            `Cannot delete account with active return pickups assigned (${returns}). Please complete or release them first.`
+        );
+    }
+
+    // Guard: Check for uncollected or unremitted cash in hand
+    if (deliveryBoy.cashInHand > 0) {
+        throw new ApiError(
+            400,
+            `Cannot delete account with ₹${deliveryBoy.cashInHand.toFixed(2)} unremitted Cash-in-Hand. Please remit all collected cash first.`
+        );
+    }
+
+    // Clean up notifications
+    await Notification.deleteMany({ recipientId: deliveryBoyId });
+
+    // Permanently remove DeliveryBoy account
+    await DeliveryBoy.findByIdAndDelete(deliveryBoyId);
+
+    return res.status(200).json(
+        new ApiResponse(200, null, 'Your delivery partner account and personal data have been permanently deleted.')
+    );
+});
+

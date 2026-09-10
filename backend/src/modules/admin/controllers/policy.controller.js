@@ -8,14 +8,47 @@ const getOrCreatePolicyDoc = async () => {
     let doc = await PlatformPolicy.findOne();
     if (!doc) {
         doc = await PlatformPolicy.create({
-            privacy: { title: 'Privacy Policy', content: '' },
+            privacy: { title: 'Customer Privacy Policy', content: '' },
+            deliveryPrivacy: { title: 'Delivery Partner Privacy Policy', content: '' },
+            sellerPrivacy: { title: 'Seller Partner Privacy Policy', content: '' },
             refund: { title: 'Refund Policy', content: '' },
             terms: { title: 'Terms & Conditions', content: '' },
             sellerTerms: { title: 'Seller Terms & Conditions', content: '' },
             faq: { title: 'Frequently Asked Questions', items: [] }
         });
+    } else {
+        let needsSave = false;
+        if (!doc.deliveryPrivacy) {
+            doc.deliveryPrivacy = { title: 'Delivery Partner Privacy Policy', content: '' };
+            needsSave = true;
+        }
+        if (!doc.sellerPrivacy) {
+            doc.sellerPrivacy = { title: 'Seller Partner Privacy Policy', content: '' };
+            needsSave = true;
+        }
+        if (needsSave) {
+            await doc.save();
+        }
     }
     return doc;
+};
+
+const POLICY_KEY_MAP = {
+    'privacy': 'privacy',
+    'privacy-policy': 'privacy',
+    'customer-privacy': 'privacy',
+    'delivery-privacy': 'deliveryPrivacy',
+    'delivery-privacy-policy': 'deliveryPrivacy',
+    'delivery': 'deliveryPrivacy',
+    'seller-privacy': 'sellerPrivacy',
+    'seller-privacy-policy': 'sellerPrivacy',
+    'vendor-privacy': 'sellerPrivacy',
+    'refund': 'refund',
+    'refund-policy': 'refund',
+    'terms': 'terms',
+    'terms-conditions': 'terms',
+    'seller-terms': 'sellerTerms',
+    'faq': 'faq'
 };
 
 // GET /api/admin/policies/:type
@@ -23,20 +56,13 @@ export const getPolicy = asyncHandler(async (req, res) => {
     const { type } = req.params;
     const doc = await getOrCreatePolicyDoc();
     
-    const policyKeyMap = {
-        'privacy': 'privacy',
-        'privacy-policy': 'privacy',
-        'refund': 'refund',
-        'refund-policy': 'refund',
-        'terms': 'terms',
-        'terms-conditions': 'terms',
-        'seller-terms': 'sellerTerms',
-        'faq': 'faq'
-    };
-
-    const docKey = policyKeyMap[type];
+    const docKey = POLICY_KEY_MAP[type];
     if (!docKey) {
         throw new ApiError(400, 'Invalid policy type.');
+    }
+
+    if (!doc[docKey]) {
+        doc[docKey] = { title: type, content: '' };
     }
 
     const policy = doc[docKey];
@@ -59,20 +85,13 @@ export const updatePolicy = asyncHandler(async (req, res) => {
     const doc = await getOrCreatePolicyDoc();
     const now = new Date();
 
-    const policyKeyMap = {
-        'privacy': 'privacy',
-        'privacy-policy': 'privacy',
-        'refund': 'refund',
-        'refund-policy': 'refund',
-        'terms': 'terms',
-        'terms-conditions': 'terms',
-        'seller-terms': 'sellerTerms',
-        'faq': 'faq'
-    };
-
-    const docKey = policyKeyMap[type];
+    const docKey = POLICY_KEY_MAP[type];
     if (!docKey) {
         throw new ApiError(400, 'Invalid policy type.');
+    }
+
+    if (!doc[docKey]) {
+        doc[docKey] = { title: type, content: '' };
     }
 
     if (docKey === 'faq') {

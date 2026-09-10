@@ -50,6 +50,7 @@ router.get('/auth/profile', ...customerAuth, authController.getProfile);
 router.put('/auth/profile', ...customerAuth, validate(updateProfileSchema), authController.updateProfile);
 router.post('/auth/profile/avatar', ...customerAuth, uploadSingle('avatar'), authController.uploadProfileAvatar);
 router.post('/auth/change-password', ...customerAuth, validate(changePasswordSchema), authController.changePassword);
+router.delete('/auth/account', ...customerAuth, authController.deleteAccount);
 
 // Address routes (protected)
 router.get('/addresses', ...customerAuth, addressController.getAddresses);
@@ -98,12 +99,12 @@ router.delete('/cart/item/:itemId', ...customerAuth, cartController.removeFromCa
 router.delete('/cart/clear', ...customerAuth, cartController.clearCart);
 router.post('/cart/merge', ...customerAuth, cartController.mergeCart);
 
-// Support routes (protected)
+// Support routes (ticket-types is public, ticket actions protected)
+router.get('/support/ticket-types', supportController.getActiveTicketTypes);
 router.post('/support/tickets', ...customerAuth, supportController.createTicket);
 router.get('/support/tickets', ...customerAuth, supportController.getUserTickets);
 router.get('/support/tickets/:id', ...customerAuth, supportController.getTicketById);
 router.post('/support/tickets/:id/messages', ...customerAuth, supportController.addTicketMessage);
-router.get('/support/ticket-types', ...customerAuth, supportController.getActiveTicketTypes);
 
 // Wallet routes (protected)
 router.get('/wallet', ...customerAuth, walletController.getCustomerWallet);

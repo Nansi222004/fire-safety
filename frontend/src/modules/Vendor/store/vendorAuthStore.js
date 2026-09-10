@@ -149,6 +149,33 @@ export const useVendorAuthStore = create(
         localStorage.removeItem("vendor-refresh-token");
       },
 
+      // Vendor delete account action
+      deleteAccount: async () => {
+        set({ isLoading: true });
+        try {
+          const response = await api.delete('/vendor/auth/account');
+          const data = response?.data ?? response;
+
+          // Remove FCM push token
+          removeFCMToken().catch(() => {});
+
+          set({
+            vendor: null,
+            token: null,
+            refreshToken: null,
+            isAuthenticated: false,
+            isLoading: false,
+          });
+          localStorage.removeItem('vendor-token');
+          localStorage.removeItem('vendor-refresh-token');
+
+          return { success: true, message: data?.message || 'Vendor account deleted successfully.' };
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
       updateProfile: async (profileData) => {
         set({ isLoading: true });
         try {
