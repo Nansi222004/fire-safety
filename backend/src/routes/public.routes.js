@@ -20,6 +20,8 @@ import { getHomepage } from '../modules/admin/controllers/homepage.controller.js
 import Order from '../models/Order.model.js';
 import AppConfig from '../models/AppConfig.model.js';
 import HomeBanner from '../models/HomeBanner.model.js';
+import { isCodOnlyMode } from '../config/paymentConfig.js';
+import { submitCollaborationInquiry } from '../modules/support/controllers/collaboration.controller.js';
 
 const router = Router();
 import { optionalAuth } from '../middlewares/authenticate.js';
@@ -1288,6 +1290,7 @@ router.get('/settings/general', listCache, asyncHandler(async (req, res) => {
         supportEmail: value.supportEmail || value.contactEmail || "support@safefire.demo",
         contactPhone: value.contactPhone || value.supportPhone || value.phone || "+91 98765 43210",
         supportPhone: value.supportPhone || value.contactPhone || value.phone || "+91 98765 43210",
+        whatsappPhone: value.whatsappPhone || value.whatsapp || value.supportPhone || value.contactPhone || "+91 98765 43210",
         address: value.address || "",
         socialMedia: value.socialMedia || {
             facebook: "",
@@ -1309,13 +1312,15 @@ router.get('/settings/checkout', asyncHandler(async (req, res) => {
 
     const payVal = paymentSettings?.value || {};
     const shipVal = shippingSettings?.value || {};
+    const codOnly = isCodOnlyMode();
 
     const publicSettings = {
         payment: {
-            cod: payVal.codEnabled !== false,
-            razorpay: payVal.cardEnabled !== false,
-            wallet: payVal.walletEnabled !== false,
-            upi: payVal.upiEnabled !== false,
+            cod: true,
+            razorpay: codOnly ? false : payVal.cardEnabled !== false,
+            wallet: codOnly ? false : payVal.walletEnabled !== false,
+            upi: codOnly ? false : payVal.upiEnabled !== false,
+            paymentMode: codOnly ? 'COD_ONLY' : 'ONLINE_ENABLED',
         },
         shipping: {
             defaultShippingRate: shipVal.defaultShippingRate !== undefined ? Number(shipVal.defaultShippingRate) : 0,
@@ -1449,5 +1454,8 @@ router.get('/vendors/:id/services', listCache, asyncHandler(async (req, res) => 
 }));
 
 router.get('/:id([a-fA-F0-9]{24})', detailCache, getProductDetail);
+
+// POST /api/support/collaboration (Public collaboration / partnership inquiry submission)
+router.post('/support/collaboration', submitCollaborationInquiry);
 
 export default router;

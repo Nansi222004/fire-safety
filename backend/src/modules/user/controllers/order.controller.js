@@ -29,6 +29,7 @@ import logisticsEventBus from '../../../events/logisticsEventBus.js';
 import LOGISTICS_EVENTS from '../../../events/logisticsEvents.js';
 import AuditLog from '../../../models/AuditLog.model.js';
 import { cancelShipmentDeliveryAssignment } from '../../../services/assignmentService.js';
+import { isCodOnlyMode } from '../../../config/paymentConfig.js';
 
 const normalizeVariantPart = (value) => String(value || '').trim().toLowerCase();
 const normalizeAxisName = (value) =>
@@ -218,7 +219,15 @@ export const placeOrder = asyncHandler(async (req, res) => {
     // Validate that payment method is enabled
     const isMethodActive = await isPaymentMethodEnabled(normalizedPaymentMethod);
     if (!isMethodActive) {
+        if (isCodOnlyMode()) {
+            throw new ApiError(400, 'Online payments are temporarily disabled. Cash on Delivery is the only supported payment method.');
+        }
         throw new ApiError(400, `${paymentMethod === 'cash' ? 'Cash on Delivery' : paymentMethod} is currently unavailable.`);
+    }
+
+    // Central Payment Gate: In COD_ONLY mode, only COD orders can be placed
+    if (isCodOnlyMode() && normalizedPaymentMethod !== 'cod') {
+        throw new ApiError(400, 'Online payments are temporarily disabled. Cash on Delivery is the only supported payment method.');
     }
     const userId = req.user?.id || null;
     const rawIdempotencyKey = String(req.get('x-idempotency-key') || '').trim();

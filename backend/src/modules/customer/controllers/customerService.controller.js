@@ -17,6 +17,7 @@ import { createRazorpayOrder, verifyPaymentSignature, processRazorpayRefund } fr
 import { getWallet, debitWallet, creditWallet } from '../../../services/wallet.service.js';
 import { processCapturedPayment } from '../../../services/paymentProcessor.js';
 import { isPaymentMethodEnabled } from '../../../services/settingsService.js';
+import { isCodOnlyMode } from '../../../config/paymentConfig.js';
 import mongoose from 'mongoose';
 
 const DAYS_MAP = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -371,6 +372,12 @@ export const createBooking = asyncHandler(async (req, res) => {
     const bookingId = `SRV-${Date.now().toString().slice(-6)}${Math.floor(100 + Math.random() * 900)}`;
 
     const normalizedMethod = String(paymentMethod || 'cod').toLowerCase();
+
+    // Central Payment Gate: In COD_ONLY mode, online/wallet payments are rejected
+    if (isCodOnlyMode() && normalizedMethod !== 'cod') {
+        await rollbackCapacity();
+        throw new ApiError(400, 'Online payments are temporarily disabled for service bookings. Please select Pay On Service (Cash on Delivery).');
+    }
 
     // 8. Handle Payment Methods
     if (normalizedMethod === 'cod') {

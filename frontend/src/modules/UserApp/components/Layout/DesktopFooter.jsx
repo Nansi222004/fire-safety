@@ -86,12 +86,14 @@ const DesktopFooter = () => {
         {/* Support Column */}
         <div className="space-y-6">
           <h4 className="text-sm font-bold uppercase text-white tracking-widest">
-            Customer Care
+            Support & Partner Care
           </h4>
           <ul className="space-y-3 text-sm font-medium">
             {[
+              { name: "Customer Support Desk", path: "/support" },
+              { name: "Vendor & Merchant Support", path: "/vendor/support" },
+              { name: "Delivery Partner Support", path: "/delivery/support" },
               { name: "Help Center", path: "/policy/faq" },
-              { name: "Frequently Asked Questions", path: "/policy/faq" },
               { name: "Returns & Refund Policy", path: "/policy/refund-policy" },
             ].map((link, idx) => (
               <li key={idx}>

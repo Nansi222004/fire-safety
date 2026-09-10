@@ -68,7 +68,7 @@ const MobileCheckout = () => {
       zipCode: savedAddr?.zipCode || "",
       state: savedAddr?.state || "",
       country: savedAddr?.country || "India",
-      paymentMethod: "card",
+      paymentMethod: "cod",
     };
   });
 
@@ -150,12 +150,14 @@ const MobileCheckout = () => {
   const activePaymentMethods = useMemo(() => {
     if (!paymentSettings || !paymentSettings.payment) {
       return [
-        { id: "card", label: "Credit/Debit Card (Online Payment)" },
         { id: "cod", label: "Cash on Delivery" }
       ];
     }
     const methods = [];
     const p = paymentSettings.payment;
+    if (p.cod) {
+      methods.push({ id: "cod", label: "Cash on Delivery" });
+    }
     if (p.razorpay) {
       methods.push({ id: "card", label: "Credit/Debit Card (Online Payment)" });
     }
@@ -165,10 +167,7 @@ const MobileCheckout = () => {
     if (p.wallet) {
       methods.push({ id: "wallet", label: "Wallet Payment" });
     }
-    if (p.cod) {
-      methods.push({ id: "cod", label: "Cash on Delivery" });
-    }
-    return methods;
+    return methods.length > 0 ? methods : [{ id: "cod", label: "Cash on Delivery" }];
   }, [paymentSettings]);
 
   useEffect(() => {
@@ -847,8 +846,21 @@ const MobileCheckout = () => {
                       Payment Method
                     </h2>
 
+                    {/* COD Only Notice Banner */}
+                    {(paymentSettings?.paymentMode === 'COD_ONLY' || !paymentSettings?.payment?.razorpay) && (
+                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 mb-5 flex items-start gap-2.5 text-xs text-amber-900">
+                        <span className="text-base leading-none">🚚</span>
+                        <div>
+                          <p className="font-bold text-amber-950">Cash on Delivery Phase</p>
+                          <p className="text-amber-800 mt-0.5">
+                            SafeFire is currently operating in Cash on Delivery mode. You will pay in cash upon receiving your order.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Wallet Apply Box */}
-                    {isAuthenticated && walletBalance > 0 && (
+                    {isAuthenticated && walletBalance > 0 && paymentSettings?.payment?.wallet && (
                       <div className="bg-white p-4 rounded-xl border border-gray-200 mb-6 shadow-sm flex flex-col gap-3">
                         <div className="flex items-center justify-between">
                           <div>

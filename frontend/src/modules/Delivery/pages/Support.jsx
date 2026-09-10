@@ -1,15 +1,31 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { FiPlus, FiChevronRight, FiChevronDown, FiSend, FiArrowLeft, FiAlertCircle } from 'react-icons/fi';
+import {
+    FiPlus,
+    FiChevronRight,
+    FiChevronDown,
+    FiSend,
+    FiArrowLeft,
+    FiAlertCircle,
+    FiPhone,
+    FiMail,
+    FiLock,
+    FiLogIn,
+    FiHelpCircle,
+    FiTruck,
+    FiUserCheck
+} from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import PageTransition from '../../../shared/components/PageTransition';
 import * as supportService from '../services/supportService';
 import { getSocket, joinRoom, leaveRoom } from '../../../shared/utils/socket';
 import { useDeliveryAuthStore } from '../store/deliveryStore';
+import api from '../../../shared/utils/api';
 import toast from 'react-hot-toast';
 
 const DeliverySupport = () => {
     const navigate = useNavigate();
+    const { deliveryBoy, isAuthenticated } = useDeliveryAuthStore();
     const [tickets, setTickets] = useState([]);
     const [ticketTypes, setTicketTypes] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -21,6 +37,30 @@ const DeliverySupport = () => {
     const chatContainerRef = useRef(null);
     const [searchParams, setSearchParams] = useSearchParams();
     const queryTicketId = searchParams.get('id');
+
+    // Dynamic Contact Info & FAQs
+    const [supportPhone, setSupportPhone] = useState('+91 98765 43210');
+    const [supportEmail, setSupportEmail] = useState('support@safefire.demo');
+    const [openFaqIndex, setOpenFaqIndex] = useState(null);
+
+    const deliveryFaqs = [
+        {
+            q: 'What should I do if a customer is unreachable or the delivery address is incorrect?',
+            a: 'Attempt to call the customer up to 3 times through the in-app delivery contact button. If unreachable after 10 minutes, mark the delivery as "Customer Unreachable" in your app and contact dispatch helpline for further instructions.'
+        },
+        {
+            q: 'How are delivery earnings, order incentives, and fuel allowances settled?',
+            a: 'Completed deliveries and associated allowances are credited to your SafeFire Delivery Wallet in real time. Wallet balances can be transferred to your registered bank account on the scheduled weekly payout cycle.'
+        },
+        {
+            q: 'What is the emergency protocol for accidents, equipment leaks, or vehicle breakdowns on an active run?',
+            a: 'Ensure personal safety first. If dealing with heavy fire extinguishers or pressurized cylinders, move to a safe zone and dial our Emergency Dispatch Helpline immediately for backup dispatch reassignment.'
+        },
+        {
+            q: 'How do return pickups and exchange verifications work?',
+            a: 'When assigned a return pickup, verify the extinguisher seal, pressure gauge, and physical condition against the checklist in your delivery app before issuing the return acceptance OTP to the customer.'
+        }
+    ];
 
     useEffect(() => {
         if (queryTicketId && tickets.length > 0) {
@@ -83,14 +123,39 @@ const DeliverySupport = () => {
     const [priorityDropdownOpen, setPriorityDropdownOpen] = useState(false);
 
     useEffect(() => {
-        fetchInitialData();
-    }, []);
+        let isCancelled = false;
+        const fetchSettings = async () => {
+            try {
+                const res = await api.get('/settings/general');
+                if (isCancelled) return;
+                if (res?.data?.data) {
+                    const settings = res.data.data;
+                    const email = settings.supportEmail || settings.contactEmail;
+                    const phone = settings.contactPhone || settings.supportPhone;
+                    if (email) setSupportEmail(email);
+                    if (phone) setSupportPhone(phone);
+                }
+            } catch (err) {
+                console.error('Failed to load support settings:', err);
+            }
+        };
 
-    const { deliveryBoy } = useDeliveryAuthStore();
+        fetchSettings();
+
+        if (isAuthenticated) {
+            fetchInitialData();
+        } else {
+            setIsLoading(false);
+        }
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [isAuthenticated]);
 
     useEffect(() => {
         const token = localStorage.getItem('delivery-token') || localStorage.getItem('token');
-        if (!token || !deliveryBoy?.id) return;
+        if (!token || !deliveryBoy?.id || !isAuthenticated) return;
         
         const socket = getSocket(token);
         if (!socket) return;
@@ -610,10 +675,34 @@ const DeliverySupport = () => {
                                 )}
                             </div>
                         </div>
-                    ) : (
+                    ) : isAuthenticated ? (
                         <div className="space-y-4 pt-4">
-                            <div className="flex justify-between items-center mb-4 px-2">
-                                <h2 className="text-lg font-bold text-gray-800">Support Tickets</h2>
+                            {/* Emergency Dispatch Contact Banner */}
+                            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center text-lg shrink-0">
+                                        <FiPhone />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-xs font-bold text-blue-900">Emergency Dispatch Helpline</p>
+                                        <a href={`tel:${supportPhone.replace(/[^\d+]/g, '')}`} className="text-xs text-blue-700 font-semibold hover:underline block truncate">
+                                            {supportPhone}
+                                        </a>
+                                    </div>
+                                </div>
+                                <a
+                                    href={`tel:${supportPhone.replace(/[^\d+]/g, '')}`}
+                                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all shrink-0"
+                                >
+                                    <FiPhone className="text-xs" /> Call Dispatch
+                                </a>
+                            </div>
+
+                            <div className="flex justify-between items-center mb-2 px-2">
+                                <div>
+                                    <h2 className="text-lg font-bold text-gray-800">My Support Tickets</h2>
+                                    <p className="text-xs text-gray-500">Track assigned delivery inquiries & issues</p>
+                                </div>
                                 <button 
                                     onClick={() => setIsCreating(true)}
                                     className="flex items-center gap-1.5 bg-blue-600 text-white px-3.5 py-2 rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors shadow-md shadow-blue-100"
@@ -662,6 +751,139 @@ const DeliverySupport = () => {
                                         </p>
                                     </div>
                                 )}
+                            </div>
+                        </div>
+                    ) : (
+                        /* Public Delivery Partner Support View */
+                        <div className="space-y-6 pt-2">
+                            {/* Sign In CTA Banner */}
+                            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-150 rounded-2xl p-5 sm:p-6 shadow-xs">
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                    <div className="space-y-1">
+                                        <div className="flex items-center gap-2 text-blue-800 font-bold text-sm">
+                                            <FiLock className="text-base shrink-0" />
+                                            <span>Delivery Partner Account & Ticket Access</span>
+                                        </div>
+                                        <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                                            Are you a SafeFire delivery partner? Sign in to submit delivery tickets, report run breakdowns, and chat live with platform dispatch.
+                                        </p>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto shrink-0">
+                                        <button
+                                            type="button"
+                                            onClick={() => navigate('/delivery/login', { state: { from: '/delivery/support' } })}
+                                            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-100 transition-all min-h-[44px] flex-1 sm:flex-none"
+                                        >
+                                            <FiLogIn className="text-sm" /> Sign In as Driver
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => navigate('/delivery/register')}
+                                            className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all min-h-[44px] flex-1 sm:flex-none"
+                                        >
+                                            Join Delivery Fleet
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Direct Contact Channels */}
+                            <div>
+                                <h2 className="text-base font-bold text-gray-800 mb-3 px-1">
+                                    Get in Touch with Dispatch
+                                </h2>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    {/* Helpline Phone */}
+                                    <a href={`tel:${supportPhone.replace(/[^\d+]/g, '')}`} className="block">
+                                        <motion.div
+                                            whileTap={{ scale: 0.98 }}
+                                            className="bg-white p-5 rounded-2xl shadow-xs border border-gray-150 flex items-center gap-4 cursor-pointer hover:border-blue-300 transition-colors min-h-[44px]"
+                                        >
+                                            <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                                                <FiPhone className="text-xl" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="font-bold text-gray-800 text-sm">Emergency Dispatch Helpline</h3>
+                                                <p className="text-gray-500 text-sm font-semibold truncate">{supportPhone}</p>
+                                            </div>
+                                            <FiChevronRight className="text-gray-400 shrink-0" />
+                                        </motion.div>
+                                    </a>
+
+                                    {/* Support Email */}
+                                    <a href={`mailto:${supportEmail}?subject=Delivery%20Partner%20Support`} className="block">
+                                        <motion.div
+                                            whileTap={{ scale: 0.98 }}
+                                            className="bg-white p-5 rounded-2xl shadow-xs border border-gray-150 flex items-center gap-4 cursor-pointer hover:border-red-300 transition-colors min-h-[44px]"
+                                        >
+                                            <div className="w-12 h-12 rounded-xl bg-red-50 text-red-600 flex items-center justify-center shrink-0">
+                                                <FiMail className="text-xl" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="font-bold text-gray-800 text-sm">Dispatch Support Email</h3>
+                                                <p className="text-gray-500 text-sm font-semibold truncate">{supportEmail}</p>
+                                            </div>
+                                            <FiChevronRight className="text-gray-400 shrink-0" />
+                                        </motion.div>
+                                    </a>
+                                </div>
+                            </div>
+
+                            {/* Delivery Partner FAQs */}
+                            <div>
+                                <div className="flex items-center gap-2 mb-3 px-1">
+                                    <FiHelpCircle className="text-blue-600 text-lg shrink-0" />
+                                    <h2 className="text-base font-bold text-gray-800">
+                                        Frequently Asked Questions for Delivery Partners
+                                    </h2>
+                                </div>
+                                <div className="space-y-3">
+                                    {deliveryFaqs.map((faq, idx) => {
+                                        const isOpen = openFaqIndex === idx;
+                                        return (
+                                            <div
+                                                key={idx}
+                                                className="bg-white rounded-2xl border border-gray-150 overflow-hidden shadow-xs transition-colors"
+                                            >
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setOpenFaqIndex(isOpen ? null : idx)}
+                                                    className="w-full p-4 text-left flex items-center justify-between gap-3 min-h-[44px] hover:bg-gray-50/50 transition-colors"
+                                                >
+                                                    <span className="font-bold text-sm text-gray-800 leading-snug">
+                                                        {faq.q}
+                                                    </span>
+                                                    <FiChevronDown
+                                                        className={`text-gray-400 shrink-0 transition-transform duration-200 ${
+                                                            isOpen ? 'rotate-180 text-blue-600' : ''
+                                                        }`}
+                                                    />
+                                                </button>
+                                                <AnimatePresence>
+                                                    {isOpen && (
+                                                        <motion.div
+                                                            initial={{ height: 0, opacity: 0 }}
+                                                            animate={{ height: 'auto', opacity: 1 }}
+                                                            exit={{ height: 0, opacity: 0 }}
+                                                            transition={{ duration: 0.2 }}
+                                                            className="overflow-hidden"
+                                                        >
+                                                            <div className="px-4 pb-4 pt-1 text-xs text-gray-600 leading-relaxed border-t border-gray-100">
+                                                                {faq.a}
+                                                            </div>
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            <div className="pt-4 text-center">
+                                <p className="text-xs text-gray-400 font-medium">
+                                    SafeFire Logistics Operations — 24/7 On-Road Delivery Support Desk
+                                </p>
                             </div>
                         </div>
                     )}

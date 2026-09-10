@@ -82,6 +82,7 @@ import AllNotifications from "./modules/Admin/pages/notifications/AllNotificatio
 import LiveChat from "./modules/Admin/pages/support/LiveChat";
 import TicketTypes from "./modules/Admin/pages/support/TicketTypes";
 import Tickets from "./modules/Admin/pages/support/Tickets";
+import CollaborationInquiries from "./modules/Admin/pages/support/CollaborationInquiries";
 // Reports child pages
 import SalesReport from "./modules/Admin/pages/reports/SalesReport";
 import InventoryReport from "./modules/Admin/pages/reports/InventoryReport";
@@ -210,6 +211,7 @@ import VendorPerformanceMetrics from "./modules/Vendor/pages/PerformanceMetrics"
 import VendorDocuments from "./modules/Vendor/pages/Documents";
 import VendorNotifications from "./modules/Vendor/pages/Notifications";
 import VendorSupportTickets from "./modules/Vendor/pages/SupportTickets";
+import VendorSupport from "./modules/Vendor/pages/Support";
 import VendorProfile from "./modules/Vendor/pages/settings/ProfileSettings";
 import VendorPickupLocations from "./modules/Vendor/pages/PickupLocations";
 import VendorReports from "./modules/Vendor/pages/Reports";
@@ -721,6 +723,7 @@ const AppRoutes = () => {
         <Route path="support/live-chat" element={<LiveChat />} />
         <Route path="support/ticket-types" element={<TicketTypes />} />
         <Route path="support/tickets" element={<Tickets />} />
+        <Route path="support/collaboration-inquiries" element={<CollaborationInquiries />} />
         <Route path="reports" element={<SalesReport />} />
         <Route path="reports/sales-report" element={<SalesReport />} />
         <Route path="reports/inventory-report" element={<InventoryReport />} />
@@ -762,6 +765,7 @@ const AppRoutes = () => {
       {/* Delivery Routes */}
       <Route path="/delivery/privacy-policy" element={<DeliveryPrivacyPolicy />} />
       <Route path="/delivery/privacy" element={<Navigate to="/delivery/privacy-policy" replace />} />
+      <Route path="/delivery/support" element={<DeliverySupport />} />
       <Route path="/delivery/login" element={<DeliveryLogin />} />
       <Route path="/delivery/register" element={<DeliveryRegister />} />
       <Route
@@ -795,6 +799,8 @@ const AppRoutes = () => {
       <Route path="/vendor/privacy-policy" element={<VendorPrivacyPolicy />} />
       <Route path="/vendor/privacy" element={<Navigate to="/vendor/privacy-policy" replace />} />
       <Route path="/seller/privacy-policy" element={<Navigate to="/vendor/privacy-policy" replace />} />
+      <Route path="/vendor/support" element={<VendorSupport />} />
+      <Route path="/seller/support" element={<Navigate to="/vendor/support" replace />} />
       <Route path="/vendor/login" element={<VendorLogin />} />
       <Route path="/vendor/register" element={<VendorRegister />} />
       <Route path="/vendor/verification" element={<VendorVerification />} />
@@ -863,6 +869,7 @@ const AppRoutes = () => {
         <Route path="pickup-locations" element={<VendorPickupLocations />} />
         <Route path="customers/:id" element={<VendorCustomerDetail />} />
         <Route path="customers" element={<VendorCustomers />} />
+        <Route path="support" element={<Navigate to="/vendor/support" replace />} />
         <Route path="support-tickets" element={<VendorSupportTickets />} />
         <Route path="support-tickets/:id" element={<VendorSupportTickets />} />
         <Route path="inventory-reports" element={<VendorInventoryReports />} />

@@ -28,6 +28,7 @@ import { calculateOrderFinancials } from '../../../services/financial.service.js
 import { calculateVendorShippingForGroups } from '../../../services/vendorShipping.service.js';
 import { generateOrderId } from '../../../utils/generateOrderId.js';
 import { generateTrackingNumber } from '../../../utils/generateTrackingNumber.js';
+import { isCodOnlyMode } from '../../../config/paymentConfig.js';
 
 // ─── POST /api/user/payment/initialize ────────────────────────────────────────
 // Creates DB order (payment_pending) + Razorpay order. No stock deducted yet.
@@ -48,7 +49,15 @@ export const initializePayment = asyncHandler(async (req, res) => {
     // Validate that payment method is enabled
     const isMethodActive = await isPaymentMethodEnabled(normalizedPaymentMethod);
     if (!isMethodActive) {
+        if (isCodOnlyMode()) {
+            throw new ApiError(400, 'Online payments are temporarily disabled. Cash on Delivery is the only supported payment method.');
+        }
         throw new ApiError(400, `${paymentMethod === 'cash' ? 'Cash on Delivery' : paymentMethod} is currently unavailable.`);
+    }
+
+    // Central Payment Gate: In COD_ONLY mode, only COD orders can be initialized
+    if (isCodOnlyMode() && normalizedPaymentMethod !== 'cod') {
+        throw new ApiError(400, 'Online payments are temporarily disabled. Cash on Delivery is the only supported payment method.');
     }
 
     // 4.3 — Idempotency: if client sends a key, return the existing order if it was already created
@@ -500,6 +509,8 @@ export const initializePayment = asyncHandler(async (req, res) => {
             orderId: order.orderId,
             total,
             paymentMethod: 'cod',
+            paymentStatus: order.paymentStatus || 'pending',
+            razorpayOrderId: null,
         }, 'COD order placed successfully.'));
     }
 
@@ -831,6 +842,11 @@ export const retryPayment = asyncHandler(async (req, res) => {
     const order = await Order.findOne({ orderId, userId }).lean();
     if (!order) throw new ApiError(404, 'Order not found.');
 
+    // Central Payment Gate: In COD_ONLY mode, online retries are blocked
+    if (isCodOnlyMode()) {
+        throw new ApiError(400, 'Online payment retry is disabled during COD-only mode.');
+    }
+
     // Validate if the order's paymentMethod is still active in settings
     const isRetryMethodActive = await isPaymentMethodEnabled(order.paymentMethod);
     if (!isRetryMethodActive) {
@@ -892,6 +908,11 @@ export const exchangeUpgradePayment = asyncHandler(async (req, res) => {
     const request = await ReturnRequest.findOne({ _id: returnRequestId, userId }).lean();
     if (!request) throw new ApiError(404, 'Return request not found.');
     if (request.requestType !== 'exchange') throw new ApiError(400, 'Not an exchange request.');
+
+    // Central Payment Gate: In COD_ONLY mode, exchange upgrade payments are safely blocked
+    if (isCodOnlyMode()) {
+        throw new ApiError(400, 'Online payment is temporarily disabled. Exchange price-difference upgrades cannot be completed online during the COD-only phase. Please contact customer support or request a standard return.');
+    }
 
     const priceDelta = request.exchangeDetails?.priceDelta;
     const priceDeltaStatus = request.exchangeDetails?.priceDeltaStatus;

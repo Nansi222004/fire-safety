@@ -36,6 +36,7 @@ import {
 import { rejectServiceRequestSchema } from '../../vendor/validators/serviceRequest.validator.js';
 
 import * as policyController from '../controllers/policy.controller.js';
+import * as collaborationController from '../../support/controllers/collaboration.controller.js';
 import * as escrowController from '../controllers/escrow.controller.js';
 import logisticsRoutes from './logistics.routes.js';
 import AppConfig from '../../../models/AppConfig.model.js';
@@ -243,6 +244,11 @@ router.post('/support/ticket-types', ...adminAuth, supportController.createTicke
 router.post('/support/ticket-types/reorder', ...adminAuth, supportController.reorderTicketTypes);
 router.put('/support/ticket-types/:id', ...adminAuth, supportController.updateTicketType);
 router.delete('/support/ticket-types/:id', ...adminAuth, supportController.deleteTicketType);
+
+// ─── Collaboration Inquiries ────────────────────────────────────────────────
+router.get('/support/collaboration-inquiries', ...adminAuth, collaborationController.getCollaborationInquiries);
+router.get('/support/collaboration-inquiries/:id', ...adminAuth, collaborationController.getCollaborationInquiryById);
+router.patch('/support/collaboration-inquiries/:id/status', ...adminAuth, collaborationController.updateCollaborationInquiryStatus);
 
 // ─── Product Reviews ──────────────────────────────────────────────────────────
 router.get('/reviews', ...adminAuth, reviewController.getAllReviews);
