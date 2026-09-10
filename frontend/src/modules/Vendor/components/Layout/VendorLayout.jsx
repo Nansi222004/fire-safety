@@ -106,26 +106,26 @@ const VendorLayout = () => {
     location.pathname.startsWith('/vendor/support-tickets/') &&
     location.pathname !== '/vendor/support-tickets';
 
-  // Dynamic breathing room: 12px mobile (<640px), 16px tablet (sm: 640-1023px), 20px desktop (lg: >=1024px)
+  // Dynamic breathing room: 10px mobile (<640px), 14px tablet (sm: 640-1023px), 18px desktop (lg: >=1024px)
   const getBreathingRoom = () => {
-    if (typeof window === 'undefined') return 12;
+    if (typeof window === 'undefined') return 10;
     const width = window.innerWidth;
-    if (width >= 1024) return 20;
-    if (width >= 640) return 16;
-    return 12;
+    if (width >= 1024) return 18;
+    if (width >= 640) return 14;
+    return 10;
   };
 
   // Authoritative top padding: measured header height + breathing room,
   // falling back smoothly to CSS token before first measurement.
   const contentTopPadding = headerHeight > 0
     ? `${Math.round(headerHeight + getBreathingRoom())}px`
-    : 'var(--vendor-header-offset, calc(69px + env(safe-area-inset-top, 0px)))';
+    : 'var(--vendor-header-offset, 67px)';
 
-  // Authoritative bottom padding: clears fixed bottom navigation on mobile with breathing buffer,
+  // Authoritative bottom padding: clears fixed bottom navigation on mobile (64px + 8px buffer = 72px),
   // resets cleanly to 24px on desktop (lg:hidden) and 16px on support ticket details.
   const contentBottomPadding = isTicketDetail
     ? '16px'
-    : 'var(--vendor-bottom-pad, calc(80px + env(safe-area-inset-bottom, 0px)))';
+    : 'var(--vendor-bottom-pad, 72px)';
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
