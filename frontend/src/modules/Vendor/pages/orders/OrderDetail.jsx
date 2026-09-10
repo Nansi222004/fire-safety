@@ -221,19 +221,19 @@ const OrderDetail = () => {
             className="space-y-6"
         >
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
                 <div className="flex items-center gap-3">
                     <Link
                         to="/vendor/orders"
-                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                        className="p-2 sm:p-2 bg-white border border-gray-200 hover:bg-gray-100 rounded-xl sm:rounded-lg transition-all shadow-xs text-gray-700 flex-shrink-0 active:scale-95"
                     >
-                        <FiArrowLeft className="text-gray-600" />
+                        <FiArrowLeft className="text-lg sm:text-xl" />
                     </Link>
-                    <div className="lg:hidden">
-                        <h1 className="text-2xl font-bold text-gray-800 break-all">
-                            Order #{order.orderId ?? order._id}
+                    <div className="min-w-0 flex-1">
+                        <h1 className="text-base sm:text-2xl font-bold text-gray-900 tracking-tight truncate">
+                            Order <span className="font-mono text-sm sm:text-2xl font-extrabold text-primary-600 sm:text-gray-900">#{order.orderId ?? order._id}</span>
                         </h1>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
                             Placed on{' '}
                             {order.createdAt
                                 ? new Date(order.createdAt).toLocaleDateString()
@@ -242,7 +242,8 @@ const OrderDetail = () => {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3 lg:ml-auto">
+                <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 bg-white sm:bg-transparent p-2.5 sm:p-0 rounded-xl sm:rounded-none border border-gray-100 sm:border-0 shadow-xs sm:shadow-none">
+                    <span className="sm:hidden text-xs font-semibold text-gray-600">Update Status:</span>
                     <AnimatedSelect
                         options={visibleStatusOptions}
                         value={currentStatus}
@@ -256,22 +257,25 @@ const OrderDetail = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
                 {/* Main Content */}
-                <div className="lg:col-span-2 space-y-6">
+                <div className="lg:col-span-2 space-y-4 sm:space-y-6">
                     {/* Order Items */}
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                        <div className="p-4 border-b border-gray-200">
-                            <h2 className="font-semibold text-gray-800 flex items-center gap-2">
-                                <FiPackage />
+                    <div className="bg-white rounded-2xl sm:rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                        <div className="p-3.5 sm:p-4 border-b border-gray-100 sm:border-gray-200 bg-gray-50/50 sm:bg-white flex items-center justify-between">
+                            <h2 className="font-bold text-gray-900 text-sm sm:text-base flex items-center gap-2">
+                                <FiPackage className="text-primary-600 sm:text-gray-800" />
                                 Your Items in this Order
                             </h2>
+                            <span className="text-xs text-gray-500 font-medium">
+                                {vendorItems.length} item{vendorItems.length > 1 ? 's' : ''}
+                            </span>
                         </div>
-                        <div className="divide-y divide-gray-200">
+                        <div className="divide-y divide-gray-100 sm:divide-gray-200">
                             {vendorItems.length > 0 ? (
                                 vendorItems.map((item, index) => (
-                                    <div key={index} className="p-4 flex gap-4">
-                                        <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                                    <div key={index} className="p-3.5 sm:p-4 flex gap-3 sm:gap-4 items-center">
+                                        <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gray-100 rounded-xl overflow-hidden flex-shrink-0 border border-gray-100">
                                             <img
                                                 src={item.image}
                                                 alt={item.name}
@@ -282,17 +286,17 @@ const OrderDetail = () => {
                                                 }}
                                             />
                                         </div>
-                                        <div className="flex-1">
-                                            <div className="flex justify-between items-start">
-                                                <div>
-                                                    <h3 className="font-medium text-gray-800">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex justify-between items-start gap-2">
+                                                <div className="min-w-0">
+                                                    <h3 className="font-bold text-gray-900 text-xs sm:text-sm truncate">
                                                         {item.name}
                                                     </h3>
-                                                    <p className="text-sm text-gray-500">
+                                                    <span className="inline-block mt-0.5 text-[11px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md font-medium">
                                                         Qty: {item.quantity}
-                                                    </p>
+                                                    </span>
                                                 </div>
-                                                <p className="font-semibold text-gray-800">
+                                                <p className="font-extrabold text-gray-900 text-xs sm:text-sm flex-shrink-0">
                                                     {formatPrice(
                                                         (item.price ?? 0) * (item.quantity ?? 1)
                                                     )}
@@ -308,13 +312,13 @@ const OrderDetail = () => {
                             )}
                         </div>
                         {vendorSubtotal > 0 && (
-                            <div className="p-4 border-t border-gray-200 flex justify-end">
-                                <div className="text-right space-y-1.5 w-full sm:w-auto sm:min-w-[220px]">
-                                    <div className="flex justify-between gap-4 text-sm text-gray-500">
+                            <div className="p-3.5 sm:p-4 border-t border-gray-100 sm:border-gray-200 bg-slate-50/60 sm:bg-white flex justify-end">
+                                <div className="space-y-2 w-full sm:w-auto sm:min-w-[240px]">
+                                    <div className="flex justify-between gap-4 text-xs sm:text-sm text-gray-500">
                                         <span>Original Subtotal:</span>
                                         <span className="font-medium text-gray-700">{formatPrice(vendorSubtotal)}</span>
                                     </div>
-                                    <div className="flex justify-between gap-4 text-sm text-gray-500">
+                                    <div className="flex justify-between gap-4 text-xs sm:text-sm text-gray-500">
                                         <span>Discounted Subtotal:</span>
                                         <span className="font-semibold text-gray-800">
                                             {formatPrice(
@@ -324,13 +328,13 @@ const OrderDetail = () => {
                                             )}
                                         </span>
                                     </div>
-                                    <div className="flex justify-between gap-4 text-sm text-gray-500">
+                                    <div className="flex justify-between gap-4 text-xs sm:text-sm text-gray-500">
                                         <span>Tax:</span>
                                         <span className="font-medium text-gray-700">
                                             {formatPrice(order.vendorFinancials?.tax ?? vendorItem?.tax ?? 0)}
                                         </span>
                                     </div>
-                                    <div className="flex justify-between gap-4 text-sm text-gray-500">
+                                    <div className="flex justify-between gap-4 text-xs sm:text-sm text-gray-500">
                                         <span>Commission:</span>
                                         <span className="font-medium text-red-600">
                                             -{formatPrice(
@@ -340,9 +344,9 @@ const OrderDetail = () => {
                                             )}
                                         </span>
                                     </div>
-                                    <div className="flex justify-between gap-4 pt-2 border-t border-gray-150 text-sm">
-                                        <span className="font-semibold text-gray-700">Vendor Earnings:</span>
-                                        <span className="font-bold text-primary-600">
+                                    <div className="flex items-center justify-between gap-4 pt-2.5 border-t border-gray-200 text-xs sm:text-sm">
+                                        <span className="font-bold text-gray-800">Vendor Earnings:</span>
+                                        <span className="font-black text-primary-600 text-sm sm:text-base">
                                             {formatPrice(
                                                 order.commissionDetails?.vendorEarnings !== undefined
                                                     ? order.commissionDetails.vendorEarnings
@@ -356,13 +360,13 @@ const OrderDetail = () => {
                     </div>
 
                     {/* Order Status */}
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-                        <h2 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                            <FiDollarSign />
+                    <div className="bg-white rounded-2xl sm:rounded-xl shadow-sm border border-gray-200 p-3.5 sm:p-4">
+                        <h2 className="font-bold text-gray-900 text-sm sm:text-base mb-3 flex items-center gap-2">
+                            <FiDollarSign className="text-primary-600 sm:text-gray-800" />
                             Order Summary
                         </h2>
                         <div className="flex items-center justify-between">
-                            <span className="text-gray-600">Your items status</span>
+                            <span className="text-gray-600 text-xs sm:text-sm font-medium">Your items status</span>
                             <Badge
                                 variant={
                                     currentStatus === 'delivered'
@@ -516,58 +520,58 @@ const OrderDetail = () => {
                 </div>
 
                 {/* Sidebar */}
-                <div className="space-y-6">
+                <div className="space-y-4 sm:space-y-6">
                     {/* Customer Info */}
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-                        <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                            <FiUser />
+                    <div className="bg-white rounded-2xl sm:rounded-xl shadow-xs sm:shadow-sm border border-gray-200 p-3.5 sm:p-4">
+                        <h2 className="font-bold text-gray-900 text-sm sm:text-base mb-3 flex items-center gap-2">
+                            <FiUser className="text-primary-600 sm:text-gray-800" />
                             Customer Details
                         </h2>
-                        <div className="space-y-3">
-                            <div>
-                                <p className="text-sm text-gray-500">Name</p>
-                                <p className="font-medium">{customerName}</p>
+                        <div className="space-y-2.5 sm:space-y-3">
+                            <div className="bg-gray-50/70 sm:bg-transparent p-2.5 sm:p-0 rounded-xl sm:rounded-none">
+                                <p className="text-xs sm:text-sm text-gray-500 font-medium">Name</p>
+                                <p className="font-semibold text-gray-900 text-xs sm:text-sm">{customerName}</p>
                             </div>
-                            <div>
-                                <p className="text-sm text-gray-500">Email</p>
-                                <p className="font-medium">{customerEmail}</p>
+                            <div className="bg-gray-50/70 sm:bg-transparent p-2.5 sm:p-0 rounded-xl sm:rounded-none">
+                                <p className="text-xs sm:text-sm text-gray-500 font-medium">Email</p>
+                                <p className="font-semibold text-gray-900 text-xs sm:text-sm break-all">{customerEmail}</p>
                             </div>
                             {customerPhone !== 'N/A' && (
-                                <div>
-                                    <p className="text-sm text-gray-500">Phone</p>
-                                    <p className="font-medium">{customerPhone}</p>
+                                <div className="bg-gray-50/70 sm:bg-transparent p-2.5 sm:p-0 rounded-xl sm:rounded-none">
+                                    <p className="text-xs sm:text-sm text-gray-500 font-medium">Phone</p>
+                                    <p className="font-semibold text-xs sm:text-sm">
+                                        <a href={`tel:${customerPhone}`} className="text-primary-600 hover:underline">{customerPhone}</a>
+                                    </p>
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    {/* Legacy Delivery Partner Details - Hidden since it moved to main content */}
-
                     {/* Shipping Address */}
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-                        <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                            <FiMapPin />
+                    <div className="bg-white rounded-2xl sm:rounded-xl shadow-xs sm:shadow-sm border border-gray-200 p-3.5 sm:p-4">
+                        <h2 className="font-bold text-gray-900 text-sm sm:text-base mb-3 flex items-center gap-2">
+                            <FiMapPin className="text-primary-600 sm:text-gray-800" />
                             Shipping Address
                         </h2>
                         {shippingAddress ? (
-                            <div className="text-gray-600 text-sm leading-relaxed space-y-1">
+                            <div className="text-gray-600 text-xs sm:text-sm leading-relaxed space-y-1 bg-gray-50/70 sm:bg-transparent p-3 sm:p-0 rounded-xl sm:rounded-none">
                                 {shippingAddress.name && (
-                                    <p className="font-semibold text-gray-800">{shippingAddress.name}</p>
+                                    <p className="font-bold text-gray-900">{shippingAddress.name}</p>
                                 )}
-                                <p>{shippingAddress.address ?? shippingAddress.street ?? 'N/A'}</p>
-                                <p>
+                                <p className="text-gray-700">{shippingAddress.address ?? shippingAddress.street ?? 'N/A'}</p>
+                                <p className="text-gray-700">
                                     {shippingAddress.city}, {shippingAddress.state}{' '}
                                     {shippingAddress.zipCode}
                                 </p>
-                                <p>{shippingAddress.country}</p>
+                                <p className="text-gray-700">{shippingAddress.country}</p>
                                 {shippingAddress.phone && (
-                                    <p className="pt-1 text-xs text-gray-500 font-medium">
+                                    <p className="pt-1.5 text-xs font-semibold">
                                         Phone: <a href={`tel:${shippingAddress.phone}`} className="text-primary-600 hover:underline">{shippingAddress.phone}</a>
                                     </p>
                                 )}
                             </div>
                         ) : (
-                            <p className="text-sm text-gray-400">
+                            <p className="text-xs sm:text-sm text-gray-400">
                                 No address available
                             </p>
                         )}

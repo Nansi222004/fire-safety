@@ -103,12 +103,14 @@ const VendorLayout = () => {
 
         {/* Page Content - with dynamic padding to account for fixed header and bottom nav */}
         <main
-          className="flex-1 p-3 sm:p-4 lg:p-6 overflow-y-auto overflow-x-hidden pb-[var(--vendor-bottom-pad)] lg:pb-6 scrollbar-admin w-full min-w-0"
+          className="flex-1 p-3 sm:p-4 lg:p-6 overflow-y-auto overflow-x-hidden scrollbar-admin w-full min-w-0"
           style={{
-            // Mobile: Use calculated heights with safe area support
-            // Desktop: standard top spacing, bottom padding cleanly overridden by lg:pb-6
-            paddingTop: `${Math.max(topPadding, 80)}px`,
-            '--vendor-bottom-pad': isTicketDetail ? '0px' : `calc(${Math.max(bottomPadding, 76)}px + env(safe-area-inset-bottom, 0px))`,
+            paddingTop: window.innerWidth < 1024 ? '58px' : `${Math.max(topPadding, 76)}px`,
+            paddingBottom: isTicketDetail 
+              ? '16px' 
+              : window.innerWidth < 1024 
+              ? 'calc(88px + env(safe-area-inset-bottom, 0px))' 
+              : '24px',
           }}
         >
           <div className="w-full max-w-full overflow-x-hidden min-w-0">

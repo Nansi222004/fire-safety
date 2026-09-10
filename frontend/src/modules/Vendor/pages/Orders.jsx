@@ -9,10 +9,13 @@ import {
   FiXCircle,
   FiList,
   FiMapPin,
+  FiArrowRight,
+  FiChevronRight,
 } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useVendorAuthStore } from "../store/vendorAuthStore";
 import { getAllVendorOrders } from '../services/vendorService';
+import { formatPrice } from '../../../shared/utils/helpers';
 
 const Orders = () => {
   const navigate = useNavigate();
@@ -25,7 +28,7 @@ const Orders = () => {
   useEffect(() => {
     if (!vendorId) return;
 
-        const fetchOrders = async () => {
+    const fetchOrders = async () => {
       setIsLoading(true);
       try {
         const data = await getAllVendorOrders({ limit: 100 });
@@ -52,7 +55,6 @@ const Orders = () => {
     };
 
     orders.forEach((order) => {
-      // Each order's vendorItems may carry per-vendor status
       const vendorItem = order.vendorItems?.find(
         (vi) => vi.vendorId?.toString() === vendorId?.toString()
       );
@@ -68,48 +70,62 @@ const Orders = () => {
     return stats;
   }, [orders, vendorId]);
 
+  const recentOrders = useMemo(() => orders.slice(0, 4), [orders]);
+
   const analyticsCards = [
     {
       title: 'Total Orders',
+      shortTitle: 'Total',
       value: orderStats.total,
       icon: FiShoppingBag,
       bgColor: 'bg-gradient-to-br from-blue-500 to-indigo-600',
       cardBg: 'bg-gradient-to-br from-blue-50 to-indigo-50',
+      status: 'all',
     },
     {
       title: 'Pending',
+      shortTitle: 'Pending',
       value: orderStats.pending,
       icon: FiClock,
       bgColor: 'bg-gradient-to-br from-yellow-500 to-amber-600',
       cardBg: 'bg-gradient-to-br from-yellow-50 to-amber-50',
+      status: 'pending',
     },
     {
       title: 'Processing',
+      shortTitle: 'Processing',
       value: orderStats.processing,
       icon: FiPackage,
       bgColor: 'bg-gradient-to-br from-indigo-500 to-purple-600',
       cardBg: 'bg-gradient-to-br from-indigo-50 to-purple-50',
+      status: 'processing',
     },
     {
       title: 'Shipped',
+      shortTitle: 'Shipped',
       value: orderStats.shipped,
       icon: FiTruck,
       bgColor: 'bg-gradient-to-br from-cyan-500 to-blue-600',
       cardBg: 'bg-gradient-to-br from-cyan-50 to-blue-50',
+      status: 'shipped',
     },
     {
       title: 'Delivered',
+      shortTitle: 'Delivered',
       value: orderStats.delivered,
       icon: FiCheckCircle,
       bgColor: 'bg-gradient-to-br from-green-500 to-emerald-600',
       cardBg: 'bg-gradient-to-br from-green-50 to-emerald-50',
+      status: 'delivered',
     },
     {
       title: 'Cancelled',
+      shortTitle: 'Cancelled',
       value: orderStats.cancelled,
       icon: FiXCircle,
       bgColor: 'bg-gradient-to-br from-red-500 to-rose-600',
       cardBg: 'bg-gradient-to-br from-red-50 to-rose-50',
+      status: 'cancelled',
     },
   ];
 
@@ -148,20 +164,30 @@ const Orders = () => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-5 sm:space-y-6"
+      className="space-y-4 sm:space-y-6"
     >
       {/* Header */}
-      <div className="px-1">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1.5">
-          Orders
-        </h1>
-        <p className="text-sm sm:text-base text-gray-500">
-          Manage and track your orders
-        </p>
+      <div className="px-1 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl sm:text-3xl font-bold text-gray-900 mb-0.5 sm:mb-1.5">
+            Orders
+          </h1>
+          <p className="text-xs sm:text-base text-gray-500">
+            Manage and track your orders
+          </p>
+        </div>
+
+        {/* Mobile Quick Action Button */}
+        <button
+          onClick={() => navigate('/vendor/orders/all-orders')}
+          className="sm:hidden flex items-center gap-1 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-3 py-2 rounded-xl shadow-xs active:scale-95 transition-all"
+        >
+          <FiList className="text-sm" /> All Orders
+        </button>
       </div>
 
       {/* Analytics Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+      <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-4">
         {analyticsCards.map((card, index) => {
           const Icon = card.icon;
           return (
@@ -170,20 +196,22 @@ const Orders = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
-              className={`${card.cardBg} rounded-xl p-3 sm:p-4 shadow-md border-2 border-transparent hover:shadow-lg transition-all duration-300 relative overflow-hidden`}
+              onClick={() => navigate('/vendor/orders/all-orders')}
+              className={`${card.cardBg} rounded-xl sm:rounded-2xl p-2.5 sm:p-4 shadow-sm sm:shadow-md border-2 border-transparent hover:shadow-lg transition-all duration-300 relative overflow-hidden cursor-pointer active:scale-98`}
             >
-              <div className={`absolute top-0 right-0 w-24 h-24 sm:w-32 sm:h-32 ${card.bgColor} opacity-10 rounded-full -mr-12 -mt-12 sm:-mr-16 sm:-mt-16`}></div>
+              <div className={`absolute top-0 right-0 w-16 h-16 sm:w-32 sm:h-32 ${card.bgColor} opacity-10 rounded-full -mr-8 -mt-8 sm:-mr-16 sm:-mt-16`}></div>
 
-              <div className="flex items-center justify-between mb-2 sm:mb-3 relative z-10">
-                <div className={`${card.bgColor} bg-white/20 p-2 sm:p-2.5 rounded-lg shadow-md`}>
-                  <Icon className="text-white text-base sm:text-lg" />
+              <div className="flex items-center justify-between mb-1 sm:mb-3 relative z-10">
+                <div className={`${card.bgColor} p-1.5 sm:p-2.5 rounded-lg shadow-xs sm:shadow-md text-white`}>
+                  <Icon className="text-sm sm:text-lg" />
                 </div>
               </div>
               <div className="relative z-10">
-                <h3 className="text-gray-600 text-xs sm:text-sm font-medium mb-1">
-                  {card.title}
+                <h3 className="text-gray-600 text-[10px] sm:text-sm font-medium mb-0.5 sm:mb-1 truncate">
+                  <span className="sm:hidden">{card.shortTitle}</span>
+                  <span className="hidden sm:inline">{card.title}</span>
                 </h3>
-                <p className="text-gray-800 text-lg sm:text-xl font-bold">
+                <p className="text-gray-900 text-base sm:text-xl font-bold leading-none">
                   {isLoading ? '—' : card.value.toLocaleString()}
                 </p>
               </div>
@@ -192,8 +220,8 @@ const Orders = () => {
         })}
       </div>
 
-      {/* Option Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
+      {/* Option Cards (Desktop Layout) */}
+      <div className="hidden sm:grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
         {optionCards.map((item, index) => {
           const Icon = item.icon;
           return (
@@ -285,6 +313,128 @@ const Orders = () => {
             </motion.button>
           );
         })}
+      </div>
+
+      {/* Option Cards (Mobile Sleek Row Cards) */}
+      <div className="sm:hidden grid grid-cols-1 gap-2.5">
+        {optionCards.map((item) => {
+          const Icon = item.icon;
+          return (
+            <div
+              key={item.path}
+              onClick={() => navigate(item.path)}
+              className="bg-white p-3.5 rounded-2xl border border-slate-100 shadow-xs flex items-center justify-between gap-3 cursor-pointer active:scale-98 transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${item.gradient} flex items-center justify-center text-white shadow-sm flex-shrink-0`}>
+                  <Icon className="text-lg" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 leading-tight">
+                    {item.label}
+                  </h3>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    {item.description}
+                  </p>
+                </div>
+              </div>
+              <FiChevronRight className="text-slate-400 text-lg flex-shrink-0" />
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Mobile Recent Orders Feed */}
+      <div className="sm:hidden space-y-3 pt-1">
+        <div className="flex items-center justify-between px-1">
+          <div>
+            <h2 className="text-sm font-black text-slate-900 tracking-tight">Recent Orders</h2>
+            <p className="text-[11px] text-slate-500">Latest orders placed for your store</p>
+          </div>
+          <button
+            onClick={() => navigate('/vendor/orders/all-orders')}
+            className="text-xs text-primary-600 font-bold flex items-center gap-1 hover:underline"
+          >
+            View All <FiArrowRight className="text-xs" />
+          </button>
+        </div>
+
+        {isLoading ? (
+          <div className="bg-white rounded-2xl p-6 text-center border border-slate-100 text-xs text-slate-400">
+            Loading orders...
+          </div>
+        ) : recentOrders.length > 0 ? (
+          <div className="space-y-2">
+            {recentOrders.map((order) => {
+              const vendorItem = order.vendorItems?.find(
+                (vi) => vi.vendorId?.toString() === vendorId?.toString()
+              );
+              const displayStatus = (vendorItem?.status ?? order.status ?? 'pending').toLowerCase();
+              const displayAmount = order.commissionDetails?.vendorEarnings !== undefined
+                ? order.commissionDetails.vendorEarnings
+                : vendorItem
+                  ? (() => {
+                      const effectiveSub = vendorItem.subtotal - (vendorItem.discount || 0);
+                      const comm = order.commissionDetails?.commission !== undefined
+                        ? order.commissionDetails.commission
+                        : parseFloat((effectiveSub * 0.1).toFixed(2));
+                      return parseFloat((effectiveSub - comm).toFixed(2));
+                    })()
+                  : order.totalAmount || 0;
+
+              return (
+                <div
+                  key={order._id ?? order.orderId}
+                  onClick={() => navigate(`/vendor/orders/${order.orderId ?? order._id}`)}
+                  className="bg-white p-3 rounded-2xl border border-slate-100 shadow-xs flex items-center justify-between cursor-pointer active:scale-98 transition-all"
+                >
+                  <div className="min-w-0 pr-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold text-slate-900 text-xs">
+                        #{order.orderId ?? order._id?.slice(-6)?.toUpperCase()}
+                      </span>
+                      <span
+                        className={`text-[9px] uppercase font-bold px-2 py-0.5 rounded-full ${
+                          displayStatus === "delivered"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : displayStatus === "pending"
+                            ? "bg-amber-100 text-amber-800"
+                            : displayStatus === "shipped"
+                            ? "bg-blue-100 text-blue-800"
+                            : displayStatus === "cancelled" || displayStatus === "canceled"
+                            ? "bg-red-100 text-red-800"
+                            : "bg-indigo-100 text-indigo-800"
+                        }`}
+                      >
+                        {displayStatus}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'Recent'}
+                    </p>
+                  </div>
+
+                  <div className="text-right flex-shrink-0 flex items-center gap-2">
+                    <div>
+                      <p className="font-extrabold text-slate-900 text-xs">
+                        {formatPrice(displayAmount)}
+                      </p>
+                      <p className="text-[10px] text-slate-400">
+                        {vendorItem ? `${vendorItem.quantity || 1} items` : '1 order'}
+                      </p>
+                    </div>
+                    <FiChevronRight className="text-slate-300 text-base" />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl p-6 text-center border border-slate-100 space-y-1">
+            <FiShoppingBag className="text-2xl text-slate-300 mx-auto" />
+            <p className="text-xs font-semibold text-slate-600">No orders placed yet</p>
+          </div>
+        )}
       </div>
     </motion.div>
   );

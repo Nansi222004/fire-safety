@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   FiMessageSquare,
@@ -10,6 +11,8 @@ import {
   FiArrowLeft,
   FiAlertCircle,
   FiChevronRight,
+  FiClock,
+  FiTag,
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
@@ -156,10 +159,10 @@ const SupportTickets = () => {
 
   const getStatusVariant = (status) => {
     const statusMap = {
-      open: "success", // maps to Green
-      in_progress: "pending", // maps to Yellow/Orange
-      resolved: "info", // maps to Blue
-      closed: "cancelled", // maps to Gray/Red
+      open: "success",
+      in_progress: "pending",
+      resolved: "info",
+      closed: "cancelled",
     };
     return statusMap[status] || "default";
   };
@@ -167,11 +170,11 @@ const SupportTickets = () => {
   const getPriorityColor = (priority) => {
     const colors = {
       low: "bg-blue-50 text-blue-700 border border-blue-200",
-      medium: "bg-yellow-50 text-yellow-750 border border-yellow-250",
-      high: "bg-red-50 text-red-700 border border-red-200",
+      medium: "bg-amber-50 text-amber-700 border border-amber-200",
+      high: "bg-rose-50 text-rose-700 border border-rose-200",
       urgent: "bg-purple-50 text-purple-700 border border-purple-200",
     };
-    return colors[priority] || "bg-gray-50 text-gray-700 border border-gray-250";
+    return colors[priority] || "bg-gray-50 text-gray-700 border border-gray-200";
   };
 
   const getRelativeTime = (dateStr) => {
@@ -292,35 +295,37 @@ const SupportTickets = () => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm lg:bg-transparent lg:p-0 lg:border-0 lg:shadow-none">
+      className="space-y-4 sm:space-y-6 pb-6 px-1 sm:px-0">
+      {/* Header Banner */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 bg-white p-4 sm:p-6 rounded-2xl border border-gray-100 sm:border-gray-200 shadow-xs sm:shadow-sm lg:bg-transparent lg:p-0 lg:border-0 lg:shadow-none">
         <div className="lg:hidden">
-          <h1 className="text-2xl font-bold text-gray-800 mb-1 flex items-center gap-2">
+          <h1 className="text-xl sm:text-2xl font-extrabold text-gray-900 mb-0.5 flex items-center gap-2 tracking-tight">
             <FiMessageSquare className="text-primary-600" />
             Support Desk
           </h1>
-          <p className="text-sm text-gray-500">
+          <p className="text-xs text-gray-500 font-medium">
             Create and manage support tickets with platform admin
           </p>
         </div>
         <button
           onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors font-bold text-sm shadow-md shadow-primary-100 lg:ml-auto">
-          <FiPlus className="text-lg" />
+          className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white rounded-xl font-bold text-xs sm:text-sm shadow-md shadow-primary-500/20 active:scale-98 transition-all lg:ml-auto">
+          <FiPlus className="text-base" />
           <span>Create Ticket</span>
         </button>
       </div>
 
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-200">
-        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 sm:gap-4">
+      {/* Filter Toolbar */}
+      <div className="bg-white rounded-2xl p-3 sm:p-4 shadow-xs sm:shadow-sm border border-gray-100 sm:border-gray-200">
+        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2.5 sm:gap-4">
           <div className="relative flex-1 w-full sm:min-w-[200px]">
-            <FiSearch className="absolute left-3.5 top-3.5 text-gray-400 text-lg" />
+            <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search tickets by ID, subject..."
-              className="w-full pl-11 pr-4 py-2.5 bg-gray-55 border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 text-sm"
+              className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-xs sm:text-sm"
             />
           </div>
 
@@ -339,7 +344,8 @@ const SupportTickets = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-150">
+      {/* Tickets List Area */}
+      <div className="bg-white rounded-2xl p-3.5 sm:p-6 shadow-xs sm:shadow-sm border border-gray-100 sm:border-gray-150">
         {isLoading ? (
           <div className="flex justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
@@ -357,46 +363,64 @@ const SupportTickets = () => {
             </div>
             
             {/* Mobile List View */}
-            <div className="block md:hidden space-y-4">
+            <div className="block md:hidden space-y-3">
               {filteredTickets.map(ticket => (
                 <div 
                   key={ticket._id}
                   onClick={() => navigate(`/vendor/support-tickets/${ticket._id}`)}
-                  className="bg-white p-4 rounded-xl border border-gray-150 flex items-center justify-between cursor-pointer hover:border-primary-100 hover:shadow-sm transition-all duration-200"
+                  className="bg-white p-3.5 rounded-2xl border border-gray-100 flex items-center justify-between cursor-pointer active:scale-98 hover:border-primary-200 hover:shadow-xs transition-all shadow-xs"
                 >
-                  <div className="flex-1 min-w-0 pr-3">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <span className="text-sm font-bold text-gray-800 truncate">{ticket.subject}</span>
-                    </div>
-                    <p className="text-[10px] text-gray-400 font-mono">#{ticket._id.slice(-6).toUpperCase()}</p>
-                    <div className="flex flex-wrap items-center gap-2 mt-3">
-                      <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold border uppercase tracking-wider ${
-                        ticket.status === 'open' ? 'bg-green-50 text-green-700 border-green-200' :
-                        ticket.status === 'closed' ? 'bg-gray-50 text-gray-700 border-gray-200' :
+                  <div className="flex-1 min-w-0 pr-2.5">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <span className="text-xs font-bold text-gray-900 truncate">{ticket.subject}</span>
+                      <span className={`text-[9px] px-2 py-0.5 rounded-full font-black border uppercase tracking-wider flex-shrink-0 ${
+                        ticket.status === 'open' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                        ticket.status === 'closed' ? 'bg-gray-50 text-gray-600 border-gray-200' :
                         'bg-blue-50 text-blue-700 border-blue-200'
                       }`}>
                         {ticket.status.replace('_', ' ')}
                       </span>
-                      <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold border uppercase tracking-wider ${
-                        ticket.priority === 'high' || ticket.priority === 'urgent' ? 'bg-red-50 text-red-700 border-red-200' :
-                        ticket.priority === 'medium' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                        'bg-gray-50 text-gray-700 border-gray-200'
-                      }`}>
-                        {ticket.priority}
+                    </div>
+
+                    <div className="flex items-center gap-2 text-[10px] text-gray-400 font-mono mb-2">
+                      <span>#{ticket._id.slice(-8).toUpperCase()}</span>
+                      {ticket.ticketTypeId && (
+                        <>
+                          <span>•</span>
+                          <span className="font-sans text-gray-600 font-medium truncate">
+                            {ticket.ticketTypeId.icon} {ticket.ticketTypeId.name}
+                          </span>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-gray-50 text-[10px]">
+                      <span className={`px-2 py-0.5 rounded-md font-bold uppercase tracking-wider ${getPriorityColor(ticket.priority)}`}>
+                        {ticket.priority} priority
                       </span>
-                      <span className="text-[10px] text-gray-500 font-semibold">{getRelativeTime(ticket.updatedAt)}</span>
+                      <span className="text-gray-400 font-medium flex items-center gap-1">
+                        <FiClock className="text-[10px]" />
+                        {getRelativeTime(ticket.updatedAt)}
+                      </span>
                     </div>
                   </div>
-                  <FiChevronRight className="text-gray-400 text-lg flex-shrink-0" />
+                  <FiChevronRight className="text-gray-400 text-base flex-shrink-0 ml-1" />
                 </div>
               ))}
             </div>
           </>
         ) : (
-          <div className="text-center py-16 border border-dashed border-gray-250 rounded-2xl">
-            <FiAlertCircle className="mx-auto mb-3 text-4xl text-gray-300" />
-            <h3 className="font-bold text-gray-700 text-base">No support tickets found.</h3>
-            <p className="text-sm text-gray-500 mt-1">Create your first ticket if you have any store issues.</p>
+          <div className="text-center py-12 border border-dashed border-gray-200 rounded-2xl p-4">
+            <FiAlertCircle className="mx-auto mb-2 text-3xl text-gray-300" />
+            <h3 className="font-bold text-gray-800 text-sm">No support tickets found</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Create your first ticket if you have any store issues.</p>
+            <button
+              onClick={() => setShowForm(true)}
+              className="mt-3 px-4 py-2 bg-primary-50 text-primary-600 border border-primary-100 rounded-xl text-xs font-bold hover:bg-primary-100 transition-all inline-flex items-center gap-1.5"
+            >
+              <FiPlus className="text-xs" />
+              <span>New Ticket</span>
+            </button>
           </div>
         )}
       </div>
@@ -438,7 +462,7 @@ const TicketDetail = ({
     if (force) {
       container.scrollTop = container.scrollHeight;
     } else {
-      const threshold = 150; // pixels from bottom
+      const threshold = 150;
       const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= threshold;
       if (isNearBottom) {
         container.scrollTop = container.scrollHeight;
@@ -503,12 +527,12 @@ const TicketDetail = ({
 
     if (ticket) {
       elements.push(
-        <div key="ticket-metadata-mobile" className="block lg:hidden bg-gray-100/70 border border-gray-200 rounded-xl p-3 mb-4 text-center text-xs text-gray-600 space-y-1 mx-2">
-            <p className="font-semibold">Ticket Created: {new Date(ticket.createdAt).toLocaleString()}</p>
-            <p className="text-[10px] uppercase font-bold text-gray-400">
-                Status: <span className="text-gray-800 mr-3">{ticket.status.replace('_', ' ')}</span>
-                Priority: <span className={`font-extrabold ${getPriorityColor(ticket.priority)}`}>{ticket.priority}</span>
-            </p>
+        <div key="ticket-metadata-mobile" className="block lg:hidden bg-white border border-gray-100 rounded-2xl p-3 mb-3 text-center text-xs text-gray-600 space-y-1 shadow-xs">
+            <p className="font-bold text-gray-800 text-xs">Ticket Created: {new Date(ticket.createdAt).toLocaleString()}</p>
+            <div className="flex items-center justify-center gap-3 text-[10px] uppercase font-bold text-gray-400 mt-1">
+                <span>Status: <span className="text-gray-800">{ticket.status.replace('_', ' ')}</span></span>
+                <span>Priority: <span className={`font-black ${getPriorityColor(ticket.priority)}`}>{ticket.priority}</span></span>
+            </div>
         </div>
       );
     }
@@ -530,8 +554,8 @@ const TicketDetail = ({
         
         if (dateStr !== lastDateStr) {
             elements.push(
-                <div key={`sep-${idx}`} className="flex justify-center my-3 animate-fadeIn">
-                    <span className="text-[9px] bg-gray-250 text-gray-500 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">{separatorText}</span>
+                <div key={`sep-${idx}`} className="flex justify-center my-2.5">
+                    <span className="text-[9px] bg-gray-200/70 text-gray-600 px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">{separatorText}</span>
                 </div>
             );
             lastDateStr = dateStr;
@@ -542,14 +566,14 @@ const TicketDetail = ({
                 <div 
                     onDoubleClick={() => copyToClipboard(msg.message)}
                     title="Double-click to copy"
-                    className={`max-w-[80%] rounded-2xl px-4 py-2.5 shadow-sm cursor-pointer select-none ${
+                    className={`max-w-[85%] sm:max-w-[80%] rounded-2xl px-3.5 py-2 sm:px-4 sm:py-2.5 shadow-xs cursor-pointer select-none ${
                         msg.senderType === 'vendor' 
-                        ? 'bg-blue-600 text-white rounded-tr-none' 
-                        : 'bg-gray-150 text-gray-850 rounded-tl-none'
+                        ? 'bg-primary-600 text-white rounded-tr-none' 
+                        : 'bg-white text-gray-850 rounded-tl-none border border-gray-100'
                     }`}
                 >
-                    <p className="text-sm whitespace-pre-wrap break-words">{msg.message}</p>
-                    <p className={`text-[9px] mt-1 text-right ${msg.senderType === 'vendor' ? 'text-blue-200' : 'text-gray-400'}`}>
+                    <p className="text-xs sm:text-sm whitespace-pre-wrap break-words">{msg.message}</p>
+                    <p className={`text-[9px] mt-1 text-right ${msg.senderType === 'vendor' ? 'text-primary-100' : 'text-gray-400'}`}>
                         {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
                 </div>
@@ -564,56 +588,56 @@ const TicketDetail = ({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-6">
-      <div className="flex items-center gap-3 mb-4 px-3 lg:px-0 pt-2 lg:pt-0">
+      className="space-y-4 sm:space-y-6 pb-6 px-1 sm:px-0">
+      <div className="flex items-center gap-2.5 mb-2 px-1 lg:px-0 pt-1 lg:pt-0">
         <button
           onClick={() => navigate("/vendor/support-tickets")}
-          className="p-2 hover:bg-gray-150 rounded-xl transition-colors">
-          <FiArrowLeft className="text-xl text-gray-650" />
+          className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-600">
+          <FiArrowLeft className="text-lg" />
         </button>
-        <div className="lg:hidden">
-          <h1 className="text-xl font-bold text-gray-800">
-            Ticket Details
+        <div className="lg:hidden flex-1 min-w-0">
+          <h1 className="text-base sm:text-xl font-bold text-gray-900 truncate">
+            Ticket #{ticket._id.slice(-8).toUpperCase()}
           </h1>
-          <p className="text-xs text-gray-500 font-semibold font-mono mt-1">
-            #{ticket._id}
+          <p className="text-[11px] text-gray-400 font-semibold truncate">
+            {ticket.subject}
           </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
               {/* Messages Area */}
-              <div className="bg-white rounded-none sm:rounded-2xl shadow-sm border-x-0 sm:border-x border-y-0 sm:border-y border-gray-150 overflow-hidden flex flex-col h-[calc(100vh-170px)] sm:h-[600px]">
-                  <div className="p-4 border-b border-gray-100 bg-gray-50/50">
-                      <h2 className="font-bold text-gray-850 text-sm truncate">{ticket.subject}</h2>
+              <div className="bg-white rounded-2xl shadow-xs sm:shadow-sm border border-gray-100 sm:border-gray-150 overflow-hidden flex flex-col h-[calc(100vh-210px)] sm:h-[600px]">
+                  <div className="p-3.5 sm:p-4 border-b border-gray-100 bg-gray-50/70 flex items-center justify-between">
+                      <h2 className="font-bold text-gray-900 text-xs sm:text-sm truncate">{ticket.subject}</h2>
+                      <Badge variant={getStatusVariant(ticket.status)}>{ticket.status.replace('_', ' ')}</Badge>
                   </div>
                   
-                  <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-55">
+                  <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 bg-gray-50/40">
                       {renderMessagesWithDates(ticket.messages)}
                       <div ref={messagesEndRef} />
                   </div>
 
                   {ticket.status === 'closed' ? (
-                      <div className="border-t border-gray-100 p-6 text-center space-y-3 bg-gray-50/80">
-                          <p className="text-sm font-bold text-gray-500">This ticket has been closed. Replies are disabled.</p>
-                          <p className="text-xs text-gray-400">Need further help?</p>
+                      <div className="border-t border-gray-100 p-4 sm:p-6 text-center space-y-2 bg-gray-50/80">
+                          <p className="text-xs sm:text-sm font-bold text-gray-500">This ticket has been closed. Replies are disabled.</p>
                           <button
                               onClick={() => navigate("/vendor/support-tickets")}
-                              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-100 transition-colors"
+                              className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors"
                           >
                               Create New Ticket
                           </button>
                       </div>
                   ) : (
-                      <form onSubmit={handleSendReply} className="p-3 border-t border-gray-100 bg-white">
+                      <form onSubmit={handleSendReply} className="p-2.5 sm:p-3 border-t border-gray-100 bg-white">
                           <div className="flex gap-2">
                               <textarea 
                                 value={reply}
                                 onChange={(e) => {
                                     setReply(e.target.value);
                                     e.target.style.height = 'auto';
-                                    e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+                                    e.target.style.height = `${Math.min(e.target.scrollHeight, 100)}px`;
                                 }}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter' && !e.shiftKey) {
@@ -623,14 +647,14 @@ const TicketDetail = ({
                                 }}
                                 placeholder="Type a reply..."
                                 rows="1"
-                                className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 text-sm resize-none min-h-[44px] max-h-[120px] overflow-y-auto"
+                                className="flex-1 px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-xs sm:text-sm resize-none min-h-[40px] max-h-[100px] overflow-y-auto"
                               />
                               <button 
                                 type="submit"
                                 disabled={isSending || !reply.trim()}
-                                className="p-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center shadow-md shadow-blue-150"
+                                className="p-2.5 sm:p-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all disabled:opacity-50 flex items-center justify-center shadow-md shadow-primary-500/20 active:scale-95"
                               >
-                                  <FiSend />
+                                  <FiSend className="text-sm" />
                               </button>
                           </div>
                       </form>
@@ -685,14 +709,31 @@ const TicketForm = ({ onSave, onClose, ticketTypes = [] }) => {
     onSave(formData);
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/40 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm">
+  const modalJSX = (
+    <div className="fixed inset-0 z-[100000] flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
       <motion.div 
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        className="bg-white rounded-2xl p-4 sm:p-6 max-w-xl w-full max-h-[90vh] overflow-y-auto border border-gray-100 shadow-2xl flex flex-col"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[100000]"
+      />
+      <motion.div 
+        initial={{ scale: 0.95, opacity: 0, y: 10 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.95, opacity: 0, y: 10 }}
+        className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 max-w-xl w-full max-h-[85vh] sm:max-h-[90vh] overflow-y-auto border border-gray-100 shadow-2xl flex flex-col z-[100001] my-auto"
       >
-        <h3 className="text-lg font-bold mb-4 border-b border-gray-100 pb-2 text-gray-800">Create Support Ticket</h3>
+        <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-4">
+          <h3 className="text-base sm:text-lg font-bold text-gray-900">Create Support Ticket</h3>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 text-gray-500 transition-colors"
+          >
+            <FiX size={16} />
+          </button>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Subject */}
           <div>
@@ -709,12 +750,12 @@ const TicketForm = ({ onSave, onClose, ticketTypes = [] }) => {
               }
               placeholder="e.g. Settlement issue for June orders"
               required
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 text-sm"
+              className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-xs sm:text-sm"
             />
           </div>
 
           {/* Category & Priority */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1.5">Select Category *</label>
               <select
@@ -723,7 +764,7 @@ const TicketForm = ({ onSave, onClose, ticketTypes = [] }) => {
                   setFormData({ ...formData, ticketTypeId: e.target.value })
                 }
                 required
-                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 text-sm bg-white">
+                className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-xs sm:text-sm bg-white">
                 <option value="">Select Category</option>
                 {ticketTypes.map(type => (
                   <option key={type._id} value={type._id}>{type.icon || '❓'} {type.name}</option>
@@ -732,14 +773,14 @@ const TicketForm = ({ onSave, onClose, ticketTypes = [] }) => {
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                Priority (optional)
+                Priority
               </label>
               <select
                 value={formData.priority}
                 onChange={(e) =>
                   setFormData({ ...formData, priority: e.target.value })
                 }
-                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 text-sm bg-white uppercase font-semibold">
+                className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-xs sm:text-sm bg-white uppercase font-semibold">
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
                 <option value="high">High</option>
@@ -762,21 +803,21 @@ const TicketForm = ({ onSave, onClose, ticketTypes = [] }) => {
               }
               placeholder="Describe your issue in detail..."
               required
-              rows="5"
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 text-sm resize-none"
+              rows="4"
+              className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-xs sm:text-sm resize-none"
             />
           </div>
 
-          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2.5 pt-2 border-t border-gray-100 mt-4">
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2.5 pt-3 border-t border-gray-100 mt-4">
             <button
               type="button"
               onClick={onClose}
-              className="w-full sm:w-auto px-5 py-2.5 bg-gray-100 text-gray-750 rounded-xl font-bold hover:bg-gray-200 transition-colors text-sm text-center">
+              className="w-full sm:w-auto px-5 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-colors text-xs sm:text-sm text-center">
               Cancel
             </button>
             <button
               type="submit"
-              className="w-full sm:w-auto px-5 py-2.5 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition-colors text-sm shadow-md shadow-primary-200 text-center">
+              className="w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white rounded-xl font-bold transition-all text-xs sm:text-sm shadow-md shadow-primary-500/20 text-center active:scale-98">
               Create Ticket
             </button>
           </div>
@@ -784,6 +825,8 @@ const TicketForm = ({ onSave, onClose, ticketTypes = [] }) => {
       </motion.div>
     </div>
   );
+
+  return typeof document !== "undefined" ? createPortal(modalJSX, document.body) : null;
 };
 
 export default SupportTickets;

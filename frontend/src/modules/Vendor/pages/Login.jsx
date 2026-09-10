@@ -58,49 +58,42 @@ const VendorLogin = () => {
       {/* Top Header */}
       <header className="sticky top-0 z-30 bg-white border-b border-[#E5E7EB] px-4 lg:px-8 py-3.5 shadow-sm">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-3 group">
-            <img src={appLogo} alt="Fire Safety Shop Logo" className="h-9 w-auto object-contain" />
+          <Link to="/" className="flex items-center gap-2.5 sm:gap-3 group">
+            <img src={appLogo} alt="Fire Safety Shop Logo" className="h-8 sm:h-9 w-auto object-contain" />
             <div>
-              <span className="text-lg font-bold text-[#0F172A] tracking-tight group-hover:text-[#E31E24] transition-colors block leading-none">
+              <span className="text-base sm:text-lg font-bold text-[#0F172A] tracking-tight group-hover:text-[#E31E24] transition-colors block leading-none">
                 Fire Safety Shop
               </span>
-              <span className="text-xs text-[#64748B] font-medium block mt-0.5">
+              <span className="text-[11px] sm:text-xs text-[#64748B] font-medium block mt-0.5">
                 Seller Portal Access
               </span>
             </div>
-          </Link>
-
-          <Link
-            to="/vendor/register"
-            className="px-4 py-2 text-xs font-semibold text-[#E31E24] bg-[#FEF2F2] hover:bg-red-100 rounded-xl border border-red-200 transition-colors"
-          >
-            Register New Account
           </Link>
         </div>
       </header>
 
       {/* Main Login Card Container */}
-      <main className="flex-1 flex items-center justify-center p-4 py-10">
+      <main className="flex-1 flex items-center justify-center p-3.5 sm:p-4 py-6 sm:py-10">
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-3xl border border-[#E5E7EB] p-6 sm:p-8 w-full max-w-md shadow-xl space-y-6"
+          className="bg-white rounded-2xl sm:rounded-3xl border border-[#E5E7EB] p-5 sm:p-8 w-full max-w-md shadow-lg sm:shadow-xl space-y-5 sm:space-y-6"
         >
           {/* Header */}
-          <div className="text-center space-y-3">
-            <div className="w-14 h-14 rounded-2xl bg-[#FEF2F2] text-[#E31E24] border border-red-100 flex items-center justify-center mx-auto shadow-sm">
-              <FiLock className="text-2xl" />
+          <div className="text-center space-y-2.5 sm:space-y-3">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#FEF2F2] text-[#E31E24] border border-red-100 flex items-center justify-center mx-auto shadow-sm">
+              <FiLock className="text-xl sm:text-2xl" />
             </div>
             <div>
-              <h1 className="text-2xl font-extrabold text-[#0F172A] tracking-tight">Seller Account Login</h1>
-              <p className="text-xs text-[#64748B] mt-1">
+              <h1 className="text-xl sm:text-2xl font-extrabold text-[#0F172A] tracking-tight">Seller Account Login</h1>
+              <p className="text-xs text-[#64748B] mt-1 sm:mt-1.5 leading-relaxed">
                 Enter your registered credentials to access your seller dashboard.
               </p>
             </div>
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
             {/* Email Field */}
             <div>
               <label className="block text-xs font-bold text-[#1F2937] uppercase tracking-wider mb-1.5">
@@ -114,7 +107,7 @@ const VendorLogin = () => {
                   value={formData.email}
                   onChange={handleChange}
                   placeholder="vendor@example.com"
-                  className="w-full pl-10 pr-4 py-3 bg-[#F8FAFC] border border-[#E5E7EB] rounded-xl focus:outline-none focus:border-[#E31E24] focus:bg-white text-sm text-[#0F172A] placeholder:text-[#94A3B8] transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 sm:py-3 bg-[#F8FAFC] border border-[#E5E7EB] rounded-xl focus:outline-none focus:border-[#E31E24] focus:bg-white text-sm text-[#0F172A] placeholder:text-[#94A3B8] transition-all"
                   required
                 />
               </div>
@@ -133,21 +126,21 @@ const VendorLogin = () => {
                   value={formData.password}
                   onChange={handleChange}
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-11 py-3 bg-[#F8FAFC] border border-[#E5E7EB] rounded-xl focus:outline-none focus:border-[#E31E24] focus:bg-white text-sm text-[#0F172A] placeholder:text-[#94A3B8] transition-all"
+                  className="w-full pl-10 pr-11 py-2.5 sm:py-3 bg-[#F8FAFC] border border-[#E5E7EB] rounded-xl focus:outline-none focus:border-[#E31E24] focus:bg-white text-sm text-[#0F172A] placeholder:text-[#94A3B8] transition-all"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 transform -translate-y-1/2 text-[#64748B] hover:text-[#0F172A]"
+                  className="absolute right-3.5 top-1/2 transform -translate-y-1/2 text-[#64748B] hover:text-[#0F172A] p-1"
                 >
-                  {showPassword ? <FiEyeOff /> : <FiEye />}
+                  {showPassword ? <FiEyeOff className="text-base" /> : <FiEye className="text-base" />}
                 </button>
               </div>
             </div>
 
             {/* Remember Me & Forgot Password */}
-            <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center justify-between text-xs pt-0.5">
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input
                   type="checkbox"
@@ -169,7 +162,7 @@ const VendorLogin = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3.5 px-4 rounded-xl bg-[#E31E24] hover:bg-[#C8191E] text-white font-bold text-sm shadow-md transition-all active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full py-3 sm:py-3.5 px-4 rounded-xl bg-[#E31E24] hover:bg-[#C8191E] text-white font-bold text-sm shadow-md hover:shadow-lg transition-all active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {isLoading ? (
                 <span>Logging in...</span>
@@ -182,7 +175,7 @@ const VendorLogin = () => {
             </button>
 
             {/* Register Link */}
-            <div className="text-center pt-2 border-t border-[#E5E7EB]">
+            <div className="text-center pt-2.5 sm:pt-2 border-t border-[#E5E7EB]">
               <p className="text-xs text-[#64748B]">
                 Don't have a seller account?{' '}
                 <Link
@@ -198,7 +191,7 @@ const VendorLogin = () => {
           {/* Demo Credentials */}
           <div
             onClick={() => setFormData({ email: 'vendor@safefire.com', password: 'Password123!' })}
-            className="p-3.5 bg-[#FEF2F2] rounded-xl cursor-pointer hover:bg-red-100 transition-colors border border-red-200 group"
+            className="p-3 sm:p-3.5 bg-[#FEF2F2] rounded-xl cursor-pointer hover:bg-red-100 transition-colors border border-red-200 group"
             title="Click to autofill test credentials"
           >
             <div className="flex items-center justify-between mb-1">
@@ -212,8 +205,8 @@ const VendorLogin = () => {
       </main>
 
       {/* Simple Footer */}
-      <footer className="py-4 text-center text-xs text-[#64748B] border-t border-[#E5E7EB] bg-white px-4">
-        <div className="max-w-md mx-auto flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
+      <footer className="py-3.5 sm:py-4 text-center text-xs text-[#64748B] border-t border-[#E5E7EB] bg-white px-4">
+        <div className="max-w-md mx-auto flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-4">
           <span>© {new Date().getFullYear()} SafeFire Marketplace.</span>
           <Link to="/vendor/privacy-policy" className="text-[#E31E24] hover:underline font-semibold">
             Privacy Policy
