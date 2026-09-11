@@ -53,7 +53,6 @@ body::-webkit-scrollbar {
   touch-action: manipulation;
 }
 
-<<<<<<< HEAD
 /* Disable iOS long-press callout, preview popups, and image dragging */
 button,
 a,
@@ -74,8 +73,6 @@ textarea {
   user-select: text;
 }
 
-/* Dedicated scroll containers */
-=======
 /* Vendor Portal Layout Spacing Tokens */
 :root {
   --vendor-header-height: 57px;
@@ -100,7 +97,6 @@ textarea {
 }
 
 /* Allow single-finger horizontal scroll inside dedicated scroll containers while keeping multi-touch zoom disabled */
->>>>>>> fa0f6b338d9eb9385c531603ffcba0601fc9d88c
 .overflow-x-auto,
 .overflow-x-scroll,
 [class*="overflow-x-auto"],
