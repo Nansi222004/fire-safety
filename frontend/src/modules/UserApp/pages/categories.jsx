@@ -352,7 +352,7 @@ const MobileCategories = () => {
                 touchAction: "pan-y",
                 WebkitOverflowScrolling: "touch",
               }}>
-              <div className="pb-[190px]">
+              <div className="pb-2">
                 {rootCategoriesWithAll.map((category) => {
                   const isActive =
                     normalizeId(category.id) === normalizeId(selectedCategoryId);
