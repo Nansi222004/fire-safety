@@ -165,7 +165,25 @@ export const useSettingsStore = create(
             localStorage.setItem("admin-settings", JSON.stringify(merged));
           }
         } catch (error) {
-          console.error("Failed to fetch settings from backend:", error);
+          // If user is not admin, gracefully fetch public general settings
+          try {
+            const pubRes = await api.get('/settings/general');
+            const pubData = pubRes?.data ?? pubRes ?? {};
+            if (pubData && typeof pubData === 'object' && Object.keys(pubData).length > 0) {
+              const current = get().settings || defaultSettings;
+              const merged = {
+                ...current,
+                general: {
+                  ...current.general,
+                  ...pubData
+                }
+              };
+              set({ settings: merged });
+              localStorage.setItem("admin-settings", JSON.stringify(merged));
+              return;
+            }
+          } catch (_) {}
+
           const savedSettings = localStorage.getItem("admin-settings");
           if (savedSettings) {
             set({ settings: JSON.parse(savedSettings) });

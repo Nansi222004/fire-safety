@@ -18,22 +18,20 @@ import {
     autoAssignDeliveryPartnerLegacy,
 } from '../../../services/assignmentService.js';
 import { handleOrderDeliveryBalances } from '../../../services/orderFinancialHelper.js';
+import {
+    ensureDeliveryOtpForShipment,
+    resendDeliveryOtpForShipment,
+    verifyDeliveryOtpForShipment,
+    DELIVERY_OTP_TTL_MS,
+    DELIVERY_OTP_MAX_ATTEMPTS,
+    DELIVERY_OTP_RESEND_COOLDOWN_MS,
+} from '../../../services/deliveryOtp.service.js';
+import { hashOtp, verifyOtpHash, generateDeliveryOtpValue } from '../../../services/otp.service.js';
 
 const IS_PRODUCTION = String(process.env.NODE_ENV || '').toLowerCase() === 'production';
-const DELIVERY_OTP_TTL_MS = IS_PRODUCTION ? 10 * 60 * 1000 : 24 * 60 * 60 * 1000;
-const DELIVERY_OTP_MAX_ATTEMPTS = 5;
-const DELIVERY_OTP_RESEND_COOLDOWN_MS = 60 * 1000;
 
-const hashDeliveryOtp = (otp) => {
-    const secret = process.env.JWT_SECRET;
-    if (!secret) throw new Error('JWT_SECRET is not configured.');
-    return crypto.createHash('sha256').update(`${String(otp)}:${secret}`).digest('hex');
-};
-
-const generateDeliveryOtp = () => {
-    const { randomInt } = crypto;
-    return String(randomInt(100000, 1000000)); // T5.1: cryptographically secure
-};
+const hashDeliveryOtp = hashOtp;
+const generateDeliveryOtp = generateDeliveryOtpValue;
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Phase 5.3 — Shipment-primary lookup helper
@@ -428,73 +426,13 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
     const otpSource = shipment;
 
     if (status === 'shipped') {
-        const generatedOtp = generateDeliveryOtp();
-        const otpHash      = hashDeliveryOtp(generatedOtp);
-        const otpExpiry    = new Date(Date.now() + DELIVERY_OTP_TTL_MS);
-        const otpSentAt    = new Date();
-
         if (shipment) {
-            // ─ Phase 5.3: Shipment-primary write ───────────────────────
-            await Shipment.findByIdAndUpdate(shipment._id, {
-                $set: {
-                    deliveryOtpHash:     otpHash,
-                    deliveryOtpExpiry:   otpExpiry,
-                    deliveryOtpSentAt:   otpSentAt,
-                    deliveryOtpAttempts: 0,
-                    deliveryOtpVerifiedAt: undefined,
-                    deliveryOtpDebug:    !IS_PRODUCTION ? generatedOtp : undefined,
-                    status:              'out_for_delivery',
-                },
-            });
-        }
-
-        // Send OTP email regardless of which path was taken
-        try {
-            const sent = await sendDeliveryOtpEmail(order, generatedOtp);
-            if (!sent) {
-                console.warn(`[Delivery OTP] Missing customer email for order ${order.orderId || order._id}`);
-            }
-        } catch (err) {
-            console.warn(`[Delivery OTP] Failed to send OTP email for order ${order.orderId || order._id}: ${err.message}`);
+            await ensureDeliveryOtpForShipment(shipment, order, { setOutForDelivery: true });
         }
     }
 
     if (status === 'delivered') {
-        const normalizedOtp = String(otp || '').trim();
-        if (!/^\d{6}$/.test(normalizedOtp)) {
-            throw new ApiError(400, 'Delivery OTP is required to complete delivery.');
-        }
-
-        if (!otpSource.deliveryOtpHash || !otpSource.deliveryOtpExpiry) {
-            throw new ApiError(400, 'Delivery OTP was not generated. Re-mark order as shipped first.');
-        }
-
-        if (otpSource.deliveryOtpExpiry < new Date()) {
-            throw new ApiError(400, 'Delivery OTP has expired. Please resend OTP.');
-        }
-
-        const attempts = Number(otpSource.deliveryOtpAttempts || 0);
-        if (attempts >= DELIVERY_OTP_MAX_ATTEMPTS) {
-            throw new ApiError(429, 'Maximum OTP attempts reached. Please resend OTP.');
-        }
-
-        const isMatch = otpSource.deliveryOtpHash === hashDeliveryOtp(normalizedOtp);
-        if (!isMatch) {
-            // Increment attempt counter on the canonical source
-            if (shipment) {
-                await Shipment.findByIdAndUpdate(shipment._id, { $inc: { deliveryOtpAttempts: 1 } });
-            }
-            throw new ApiError(400, 'Invalid delivery OTP.');
-        }
-
-        const verifiedAt = new Date();
-        if (shipment) {
-            // Phase 5.3: Shipment-primary write
-            await Shipment.findByIdAndUpdate(shipment._id, {
-                $set:   { deliveryOtpVerifiedAt: verifiedAt, status: 'delivered', deliveredAt: new Date() },
-                $unset: { deliveryOtpHash: '', deliveryOtpExpiry: '', deliveryOtpSentAt: '', deliveryOtpAttempts: 0, deliveryOtpDebug: '' },
-            });
-        }
+        await verifyDeliveryOtpForShipment(otpSource, otp);
     }
 
     // ─ Handle Payouts ─────────────────────────────────────────
@@ -616,53 +554,11 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
 // POST /api/delivery/orders/:id/resend-delivery-otp
 export const resendDeliveryOtp = asyncHandler(async (req, res) => {
     const { shipment, order } = await findShipmentAndOrderForAgentOrThrow(
-        req.params.id, req.user.id
+        req.params.id, req.user.id,
+        '+deliveryOtpHash +deliveryOtpExpiry +deliveryOtpSentAt +deliveryOtpAttempts +deliveryOtpDebug'
     );
 
-    if (shipment.status !== 'out_for_delivery') {
-        throw new ApiError(409, 'Cannot resend OTP. Order is not out for delivery.');
-    }
-
-    // Cooldown check: use Shipment as source if available, otherwise Order
-    const otpSentAt = shipment.deliveryOtpSentAt;
-    if (
-        otpSentAt &&
-        new Date(otpSentAt).getTime() + DELIVERY_OTP_RESEND_COOLDOWN_MS > Date.now()
-    ) {
-        throw new ApiError(429, 'Please wait before requesting another OTP.');
-    }
-
-    const generatedOtp = generateDeliveryOtp();
-    const otpHash      = hashDeliveryOtp(generatedOtp);
-    const otpExpiry    = new Date(Date.now() + DELIVERY_OTP_TTL_MS);
-    const otpNow       = new Date();
-
-    if (shipment) {
-        // Phase 5.3: Shipment-primary write
-        await Shipment.findByIdAndUpdate(shipment._id, {
-            $set: {
-                deliveryOtpHash:     otpHash,
-                deliveryOtpExpiry:   otpExpiry,
-                deliveryOtpSentAt:   otpNow,
-                deliveryOtpAttempts: 0,
-                deliveryOtpDebug:    !IS_PRODUCTION ? generatedOtp : undefined,
-            },
-        });
-    }
-
-    notifyOrderUpdate(order);
-
-    try {
-        const sent = await sendDeliveryOtpEmail(order, generatedOtp);
-        if (!sent) {
-            throw new ApiError(400, 'Customer email is not available for this order.');
-        }
-    } catch (err) {
-        if (err instanceof ApiError) throw err;
-        console.warn(`[Delivery OTP] Failed to resend OTP for order ${order.orderId || order._id}: ${err.message}`);
-        throw new ApiError(500, 'Failed to send OTP email. Please try again.');
-    }
-
+    await resendDeliveryOtpForShipment(shipment, order);
     return res.status(200).json(new ApiResponse(200, null, 'Delivery OTP resent successfully.'));
 });
 
@@ -704,8 +600,8 @@ export const getDeliveryOtpForDebug = asyncHandler(async (req, res) => {
         '+deliveryOtpDebug +deliveryOtpExpiry status orderId',
     );
 
-    if (shipment.status !== 'out_for_delivery') {
-        throw new ApiError(409, 'Debug OTP is only available while order is out for delivery.');
+    if (!['shipped', 'out_for_delivery'].includes(shipment.status)) {
+        throw new ApiError(409, 'Debug OTP is only available while order is in transit or out for delivery.');
     }
 
     // Read from Shipment if available, otherwise fall back to Order
@@ -766,6 +662,11 @@ export const acceptOrder = asyncHandler(async (req, res) => {
             status:                   shipmentStatusUpdate,
         },
     });
+
+    // If the shipment was already marked shipped by vendor, ensure delivery OTP exists
+    if (['shipped', 'out_for_delivery'].includes(shipment.status)) {
+        await ensureDeliveryOtpForShipment(shipment, order);
+    }
 
     // Re-fetch a minimal order snapshot for socket notification + response
     // (we need orderId for the socket room key)

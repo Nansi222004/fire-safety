@@ -38,13 +38,11 @@ const VendorSupport = () => {
       try {
         const res = await api.get('/settings/general');
         if (isCancelled) return;
-        if (res?.data?.data) {
-          const settings = res.data.data;
-          const email = settings.supportEmail || settings.contactEmail;
-          const phone = settings.contactPhone || settings.supportPhone;
-          if (email) setSupportEmail(email);
-          if (phone) setSupportPhone(phone);
-        }
+        const settings = res?.data || res || {};
+        const email = settings.contactEmail || settings.supportEmail;
+        const phone = settings.contactPhone || settings.supportPhone;
+        if (email) setSupportEmail(email);
+        if (phone) setSupportPhone(phone);
       } catch (err) {
         console.error('Failed to load support settings:', err);
       } finally {

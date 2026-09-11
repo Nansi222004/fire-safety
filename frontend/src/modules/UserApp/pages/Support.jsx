@@ -27,12 +27,22 @@ import api from "../../../shared/utils/api";
 const Support = () => {
   const navigate = useNavigate();
   const { settings } = useSettingsStore();
+  const generalSettings = settings?.general || {};
   const [supportPhone, setSupportPhone] = useState(
-    settings?.general?.contactPhone || settings?.general?.supportPhone || "+91 98765 43210"
+    generalSettings.contactPhone || generalSettings.supportPhone || "+91 98765 43210"
   );
   const [supportEmail, setSupportEmail] = useState(
-    settings?.general?.supportEmail || settings?.general?.contactEmail || "support@safefire.demo"
+    generalSettings.contactEmail || generalSettings.supportEmail || "contact@example.com"
   );
+
+  useEffect(() => {
+    if (generalSettings.contactPhone || generalSettings.supportPhone) {
+      setSupportPhone(generalSettings.contactPhone || generalSettings.supportPhone);
+    }
+    if (generalSettings.contactEmail || generalSettings.supportEmail) {
+      setSupportEmail(generalSettings.contactEmail || generalSettings.supportEmail);
+    }
+  }, [generalSettings.contactPhone, generalSettings.supportPhone, generalSettings.contactEmail, generalSettings.supportEmail]);
   const [tickets, setTickets] = useState([]);
   const [ticketTypes, setTicketTypes] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -245,13 +255,14 @@ const Support = () => {
         setTicketTypes(typ?.data || typ || []);
       }
 
-      if (settingsRes.status === 'fulfilled' && settingsRes.value?.data?.data) {
-        const s = settingsRes.value.data.data;
-        if (s.contactPhone || s.supportPhone) {
-          setSupportPhone(s.contactPhone || s.supportPhone);
-        }
-        if (s.supportEmail || s.contactEmail) {
-          setSupportEmail(s.supportEmail || s.contactEmail);
+      if (settingsRes.status === 'fulfilled') {
+        const s = settingsRes.value?.data || settingsRes.value || {};
+        const phone = s.contactPhone || s.supportPhone;
+        const email = s.contactEmail || s.supportEmail;
+        if (phone) setSupportPhone(phone);
+        if (email) setSupportEmail(email);
+        if (s && Object.keys(s).length > 0) {
+          useSettingsStore.getState().setLocalSettings("general", s);
         }
       }
     } catch (error) {

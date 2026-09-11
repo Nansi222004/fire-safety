@@ -16,6 +16,7 @@ import { notifyOrderUpdate } from '../../../services/socket.service.js';
 import { buildVendorItemsSummary } from '../../../utils/notificationProductFormatter.js';
 import { getDefaultCommissionRate } from '../../../services/settingsService.js';
 import { processCancellationRefund } from '../../../services/cancellationRefundService.js';
+import { ensureDeliveryOtpForShipment } from '../../../services/deliveryOtp.service.js';
 
 const deriveTopLevelOrderStatus = (vendorItems = [], fallback = 'pending') => {
     const statuses = (vendorItems || [])
@@ -310,6 +311,10 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     if (shipmentForVendor) {
         shipmentForVendor.status = status === 'processing' ? 'confirmed' : status;
         await shipmentForVendor.save();
+
+        if (status === 'shipped' && (shipmentForVendor.providerId === 'own_fleet' || shipmentForVendor.deliveryBoyId)) {
+            await ensureDeliveryOtpForShipment(shipmentForVendor, order);
+        }
     }
 
     if (status === 'ready_for_pickup') {

@@ -46,6 +46,18 @@ export const updateSettings = asyncHandler(async (req, res) => {
         }
     }
 
+    if (key === 'general' && value && typeof value === 'object') {
+        if (value.contactEmail) {
+            value.supportEmail = value.contactEmail;
+        }
+        if (value.contactPhone) {
+            value.supportPhone = value.contactPhone;
+            if (!value.whatsappPhone) {
+                value.whatsappPhone = value.contactPhone;
+            }
+        }
+    }
+
     const settings = await Settings.findOneAndUpdate(
         { key },
         { value },

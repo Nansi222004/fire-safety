@@ -1278,19 +1278,23 @@ router.get('/orders/track/:id', detailCache, asyncHandler(async (req, res) => {
 }));
 
 // GET /api/settings/general
-router.get('/settings/general', listCache, asyncHandler(async (req, res) => {
+router.get('/settings/general', asyncHandler(async (req, res) => {
     const settings = await Settings.findOne({ key: 'general' }).lean();
     const value = settings?.value || {};
     
+    // Authoritative contact info configured in Admin Settings -> General -> Contact Info
+    const primaryContactEmail = value.contactEmail || value.supportEmail || "contact@example.com";
+    const primaryContactPhone = value.contactPhone || value.supportPhone || value.phone || "+91 98765 43210";
+
     // Filter out private administrative fields to protect platform configuration data
     const publicSettings = {
         storeName: value.storeName || "Fire Safety Shop",
         storeDescription: value.storeDescription || "",
-        contactEmail: value.contactEmail || value.supportEmail || "contact@example.com",
-        supportEmail: value.supportEmail || value.contactEmail || "support@safefire.demo",
-        contactPhone: value.contactPhone || value.supportPhone || value.phone || "+91 98765 43210",
-        supportPhone: value.supportPhone || value.contactPhone || value.phone || "+91 98765 43210",
-        whatsappPhone: value.whatsappPhone || value.whatsapp || value.supportPhone || value.contactPhone || "+91 98765 43210",
+        contactEmail: primaryContactEmail,
+        supportEmail: primaryContactEmail,
+        contactPhone: primaryContactPhone,
+        supportPhone: primaryContactPhone,
+        whatsappPhone: value.whatsappPhone || primaryContactPhone,
         address: value.address || "",
         socialMedia: value.socialMedia || {
             facebook: "",
@@ -1340,12 +1344,11 @@ router.get('/policies/:policyKey', asyncHandler(async (req, res) => {
     ]);
 
     const supportEmail =
-        generalSettings?.value?.supportEmail ||
         generalSettings?.value?.contactEmail ||
-        'support@safefire.demo';
+        generalSettings?.value?.supportEmail ||
+        'contact@example.com';
 
     const supportPhone =
-        generalSettings?.value?.supportPhone ||
         generalSettings?.value?.contactPhone ||
         generalSettings?.value?.phone ||
         '+91 98765 43210';
