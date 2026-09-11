@@ -311,7 +311,7 @@ const MobileCategories = () => {
     <PageTransition>
       <MobileLayout showBottomNav={true} showCartBar={false}>
         <div
-          className="w-full flex flex-col"
+          className="w-full max-w-full flex flex-col overflow-hidden"
           style={{ minHeight: contentHeight }}>
           
           {/* Category Header - Fixed Search at top */}
@@ -338,7 +338,7 @@ const MobileCategories = () => {
 
           {/* Main Content Area - Sidebar and Products */}
           <div
-            className="flex flex-1"
+            className="flex flex-1 w-full max-w-full min-w-0 overflow-hidden"
             style={{
               minHeight: `calc(${contentHeight} - ${headerSectionHeight}px)`,
             }}>
@@ -346,9 +346,11 @@ const MobileCategories = () => {
             {/* Left Panel - Vertical Category Sidebar with "All" at the top */}
             <div
               ref={categoryListRef}
-              className="w-20 md:w-24 bg-gray-50 border-r border-gray-200 overflow-y-auto scrollbar-hide flex-shrink-0"
+              className="w-20 md:w-24 bg-gray-50 border-r border-gray-200 overflow-y-auto overflow-x-hidden scrollbar-hide flex-shrink-0 select-none overscroll-contain"
               style={{
                 height: `calc(${contentHeight} - ${headerSectionHeight}px)`,
+                touchAction: "pan-y",
+                WebkitOverflowScrolling: "touch",
               }}>
               <div className="pb-[190px]">
                 {rootCategoriesWithAll.map((category) => {
@@ -358,30 +360,29 @@ const MobileCategories = () => {
                     <div
                       key={category.id}
                       ref={isActive ? activeCategoryRef : null}
+                      className="w-full select-none"
                       style={{
-                        willChange: isActive ? "transform" : "auto",
-                        transform: "translateZ(0)",
+                        touchAction: "pan-y",
                       }}>
-                      <motion.button
+                      <button
+                        type="button"
                         onClick={() => handleCategorySelect(category.id)}
-                        initial={isInitialMount ? { opacity: 0 } : false}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 0.2 }}
-                        whileTap={{ scale: 0.95 }}
-                        className={`w-full px-2 py-2 text-left transition-all duration-200 relative ${
+                        className={`w-full px-2 py-2 text-left transition-colors duration-150 relative select-none ${
                           isActive ? "bg-white shadow-sm border-l-4 border-primary-600" : "hover:bg-gray-100"
                         }`}
-                        style={{ willChange: "transform" }}>
-                        <div className="flex flex-col items-center gap-1">
+                        style={{
+                          touchAction: "pan-y",
+                          WebkitTouchCallout: "none",
+                          WebkitUserSelect: "none",
+                          userSelect: "none",
+                        }}>
+                        <div className="flex flex-col items-center gap-1 pointer-events-none select-none">
                           <div
-                            className={`w-12 h-12 rounded-2xl overflow-hidden flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
+                            className={`w-12 h-12 rounded-2xl overflow-hidden flex items-center justify-center flex-shrink-0 transition-all duration-200 pointer-events-none select-none ${
                               isActive
                                 ? "ring-2 ring-primary-500 ring-offset-1 scale-105"
                                 : ""
-                            } ${category.isAll ? "bg-red-50 text-primary-600" : "bg-gray-100"}`}
-                            style={{
-                              willChange: isActive ? "transform" : "auto",
-                            }}>
+                            } ${category.isAll ? "bg-red-50 text-primary-600" : "bg-gray-100"}`}>
                             {category.isAll ? (
                               <div className="flex flex-col items-center justify-center">
                                 <FiLayers className="text-xl text-primary-600" />
@@ -390,7 +391,8 @@ const MobileCategories = () => {
                               <LazyImage
                                 src={category.image}
                                 alt={category.name}
-                                className="w-full h-full object-cover"
+                                className="w-full h-full object-cover pointer-events-none select-none"
+                                draggable={false}
                                 placeholderWidth={48}
                                 placeholderHeight={48}
                                 placeholderText={category.name}
@@ -398,13 +400,13 @@ const MobileCategories = () => {
                             )}
                           </div>
                           <span
-                            className={`text-[11px] font-bold text-center leading-tight transition-colors ${
+                            className={`text-[11px] font-bold text-center leading-tight transition-colors select-none ${
                               isActive ? "text-primary-600" : "text-gray-700"
                             }`}>
                             {category.name}
                           </span>
                         </div>
-                      </motion.button>
+                      </button>
                     </div>
                   );
                 })}
@@ -413,7 +415,7 @@ const MobileCategories = () => {
 
             {/* Right Panel - Products Grid */}
             <div
-              className="flex-1 overflow-y-auto bg-white flex-shrink-0"
+              className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden bg-white"
               style={{
                 height: `calc(${contentHeight} - ${headerSectionHeight}px)`,
               }}>

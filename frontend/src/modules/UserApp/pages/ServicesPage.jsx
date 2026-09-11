@@ -34,8 +34,33 @@ const ServicesPage = () => {
 
       const res = await getServiceCatalog(params);
       const data = res?.data ?? res ?? {};
-      setCategories(data.categories || []);
-      setServices(data.services || []);
+      const rawCategories = data.categories || [];
+      const rawServices = data.services || [];
+
+      // Deduplicate categories and remove any test artifacts
+      const catMap = new Map();
+      rawCategories.forEach((cat) => {
+        if (/(mto[a-z0-9]+|\b\d{10,}\b)/i.test(cat.name || "")) return;
+        const cleanName = (cat.name || "").replace(/\s+(mto[a-z0-9]+|\d{10,})/i, "").trim();
+        const key = cleanName.toLowerCase();
+        if (cleanName && !catMap.has(key)) {
+          catMap.set(key, { ...cat, name: cleanName });
+        }
+      });
+
+      // Deduplicate services by clean base name
+      const servMap = new Map();
+      rawServices.forEach((srv) => {
+        if (/(mto[a-z0-9]+|\b\d{10,}\b)/i.test(srv.name || "")) return;
+        const cleanName = (srv.name || "").replace(/\s+(mto[a-z0-9]+|\d{10,})/i, "").trim();
+        const key = cleanName.toLowerCase();
+        if (cleanName && !servMap.has(key)) {
+          servMap.set(key, { ...srv, name: cleanName });
+        }
+      });
+
+      setCategories(Array.from(catMap.values()));
+      setServices(Array.from(servMap.values()));
     } catch (err) {
       console.error("Failed to load service catalog:", err);
     } finally {
@@ -61,7 +86,7 @@ const ServicesPage = () => {
               <div className="max-w-xl space-y-3 relative z-10">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-500/20 border border-red-500/30 rounded-full text-red-400 text-[11px] font-bold uppercase tracking-wider">
                   <FiShield className="text-xs" />
-                  <span>CERTIFIED FIRE SAFETY SERVICES</span>
+                  <span>FIRE SAFETY SERVICES</span>
                 </div>
 
                 <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-white leading-tight tracking-tight">
@@ -70,7 +95,7 @@ const ServicesPage = () => {
                 </h1>
 
                 <p className="text-slate-300 text-xs sm:text-sm leading-relaxed max-w-lg">
-                  Book certified fire extinguisher refilling, annual maintenance (AMC), inspections, and safety installations from verified vendors.
+                  Book fire extinguisher refilling, annual maintenance (AMC), inspections, and safety installations from verified vendors.
                 </p>
 
                 <div className="pt-2 flex flex-wrap gap-3 w-full">
@@ -129,7 +154,7 @@ const ServicesPage = () => {
                     Available Fire Safety Services
                   </h2>
                   <p className="text-xs text-slate-500">
-                    Select a service to check pincode availability and book a certified technician.
+                    Select a service to check pincode availability and book a technician.
                   </p>
                 </div>
               </div>
@@ -180,7 +205,7 @@ const ServicesPage = () => {
                         </h3>
 
                         <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed mb-4">
-                          {service.shortDescription || service.description || "Certified service provided by verified marketplace vendors."}
+                          {service.shortDescription || service.description || "Service provided by verified marketplace vendors."}
                         </p>
                       </div>
 

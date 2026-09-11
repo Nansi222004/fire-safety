@@ -381,7 +381,7 @@ const ServiceDetailPage = () => {
                       {service.name}
                     </h1>
                     <p className="text-xs text-slate-600 leading-relaxed">
-                      {service.description || service.shortDescription || "Certified service provided by verified marketplace vendors."}
+                      {service.description || service.shortDescription || "Service provided by verified marketplace vendors."}
                     </p>
                   </div>
                 </div>

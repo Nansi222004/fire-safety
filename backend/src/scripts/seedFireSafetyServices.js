@@ -19,7 +19,7 @@ const seedServices = async () => {
             category = await ServiceCategory.create({
                 name: 'Fire Safety Services',
                 slug: 'fire-safety-services',
-                description: 'Certified Fire Safety Refilling, Inspection, and Installation Services.',
+                description: 'Professional Fire Safety Refilling, Inspection, and Installation Services.',
                 sortOrder: 1,
                 isActive: true,
             });
@@ -34,8 +34,8 @@ const seedServices = async () => {
                 name: 'Fire Extinguisher Refill & Recharge',
                 slug: 'fire-extinguisher-refill-recharge',
                 categoryId: category._id,
-                description: 'Professional ISO-certified refilling, pressure checking, testing, and servicing for all types of fire extinguishers.',
-                shortDescription: 'Certified refilling, pressure checking & servicing for fire extinguishers.',
+                description: 'Professional refilling, pressure checking, testing, and servicing for all types of fire extinguishers.',
+                shortDescription: 'Professional refilling, pressure checking & servicing for fire extinguishers.',
                 pricingType: 'PER_UNIT',
                 bookingType: 'SCHEDULED',
                 estimatedDuration: '1 - 2 Hours',
@@ -80,7 +80,7 @@ const seedServices = async () => {
                 name: 'Fire Safety Inspection & Compliance Check',
                 slug: 'fire-safety-inspection-compliance-check',
                 categoryId: category._id,
-                description: 'Comprehensive site inspection by certified safety auditors to check fire hydrants, alarms, exit routes, and issue safety audit reports.',
+                description: 'Comprehensive site inspection by safety auditors to check fire hydrants, alarms, exit routes, and issue safety audit reports.',
                 shortDescription: 'On-site fire safety audit, hazard inspection & compliance check.',
                 pricingType: 'FIXED',
                 bookingType: 'SITE_VISIT',

@@ -308,7 +308,7 @@ const MyServiceBookingsPage = () => {
                         </span>
                         <span className="flex items-center gap-1 font-semibold text-slate-700 truncate max-w-[200px]">
                           <FiUser className="text-slate-400" />
-                          <span>{booking.vendorId?.storeName || booking.vendorId?.name || "Certified Partner"}</span>
+                          <span>{booking.vendorId?.storeName || booking.vendorId?.name || "Service Partner"}</span>
                         </span>
                       </div>
                     </div>

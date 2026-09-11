@@ -197,7 +197,7 @@ const ServiceBookingWizard = ({ isOpen, onClose, service }) => {
       setServiceabilityResult(data);
 
       if (data.available && Array.isArray(data.vendors) && data.vendors.length > 0) {
-        toast.success(`Found ${data.vendors.length} certified provider(s) for pincode ${cleanPin}! 🎉`);
+        toast.success(`Found ${data.vendors.length} provider(s) for pincode ${cleanPin}! 🎉`);
         setSelectedVendor(data.vendors[0]); // Auto-select first verified provider
         setStep(2);
       } else {
@@ -557,7 +557,7 @@ const ServiceBookingWizard = ({ isOpen, onClose, service }) => {
                       <div className="flex items-center gap-2.5">
                         <FiCheckCircle className="text-emerald-600 text-lg flex-shrink-0" />
                         <span className="font-bold">
-                          Great news! {serviceabilityResult.vendors?.length || 1} certified provider(s) available.
+                          Great news! {serviceabilityResult.vendors?.length || 1} provider(s) available.
                         </span>
                       </div>
                       <button
@@ -579,7 +579,7 @@ const ServiceBookingWizard = ({ isOpen, onClose, service }) => {
             <div className="space-y-4 animate-fadeIn">
               <div className="flex items-center justify-between pb-1">
                 <span className="text-xs font-bold text-slate-700">
-                  Certified Providers in <span className="font-mono text-[#E31E24]">PIN {pincode}</span>:
+                  Available Providers in <span className="font-mono text-[#E31E24]">PIN {pincode}</span>:
                 </span>
                 <button
                   type="button"
@@ -593,7 +593,7 @@ const ServiceBookingWizard = ({ isOpen, onClose, service }) => {
 
               {!serviceabilityResult?.vendors || serviceabilityResult.vendors.length === 0 ? (
                 <div className="text-center py-8 bg-slate-50 rounded-2xl text-xs text-slate-500 border border-slate-200">
-                  No certified providers found for this pincode.
+                  No service providers found for this pincode.
                 </div>
               ) : (
                 <div className="space-y-2.5">

@@ -283,7 +283,7 @@ const ServicePartnerApplication = () => {
               You are an Approved SafeFire Service Partner
             </h1>
             <p className="text-sm text-slate-600 max-w-lg mx-auto mt-1">
-              Your business has been vetted and certified to deliver fire safety maintenance, installation, and inspection services.
+              Your business has been vetted and approved to deliver fire safety maintenance, installation, and inspection services.
             </p>
           </div>
 

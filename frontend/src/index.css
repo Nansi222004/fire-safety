@@ -8,6 +8,7 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  -webkit-touch-callout: none;
 }
 
 html {
@@ -16,7 +17,7 @@ html {
   overflow-x: hidden;
   position: relative;
   -webkit-text-size-adjust: 100%;
-  touch-action: pan-y;
+  touch-action: manipulation;
   overscroll-behavior-y: auto;
   overscroll-behavior-x: none;
 }
@@ -32,7 +33,7 @@ body {
   max-width: 100%;
   overflow-x: hidden;
   position: relative;
-  touch-action: pan-y;
+  touch-action: manipulation;
   overscroll-behavior-x: none;
   /* Hide scrollbar */
   -ms-overflow-style: none;
@@ -49,6 +50,27 @@ body::-webkit-scrollbar {
   max-width: 100%;
   position: relative;
   overflow-x: hidden;
+  touch-action: manipulation;
+}
+
+/* Disable iOS long-press callout, preview popups, and image dragging */
+button,
+a,
+[role="button"],
+img {
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-user-drag: none !important;
+  touch-action: manipulation;
+}
+
+/* Allow text selection and normal callouts only inside inputs and textareas */
+input,
+textarea {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 /* Vendor Portal Layout Spacing Tokens */
@@ -79,7 +101,7 @@ body::-webkit-scrollbar {
 .overflow-x-scroll,
 [class*="overflow-x-auto"],
 [class*="overflow-x-scroll"] {
-  touch-action: pan-x pan-y;
+  touch-action: pan-x pan-y manipulation;
   overscroll-behavior-x: contain;
 }
 
