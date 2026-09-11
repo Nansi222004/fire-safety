@@ -63,14 +63,24 @@ const PolicyPage = ({ defaultType = "privacy-policy" }) => {
   const type = paramType || defaultType;
   const navigate = useNavigate();
   const { settings } = useSettingsStore();
+  const generalSettings = settings?.general || {};
   const [dynamicPolicy, setDynamicPolicy] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [supportEmail, setSupportEmail] = useState(
-    settings?.general?.supportEmail || settings?.general?.contactEmail || "support@safefire.demo"
+    generalSettings.contactEmail || generalSettings.supportEmail || "contact@example.com"
   );
   const [supportPhone, setSupportPhone] = useState(
-    settings?.general?.contactPhone || settings?.general?.supportPhone || "+91 98765 43210"
+    generalSettings.contactPhone || generalSettings.supportPhone || "+91 98765 43210"
   );
+
+  useEffect(() => {
+    if (generalSettings.contactEmail || generalSettings.supportEmail) {
+      setSupportEmail(generalSettings.contactEmail || generalSettings.supportEmail);
+    }
+    if (generalSettings.contactPhone || generalSettings.supportPhone) {
+      setSupportPhone(generalSettings.contactPhone || generalSettings.supportPhone);
+    }
+  }, [generalSettings.contactEmail, generalSettings.contactPhone, generalSettings.supportEmail, generalSettings.supportPhone]);
 
   // Map legacy URLs to valid backend types
   const apiType = useMemo(() => {
@@ -95,7 +105,7 @@ const PolicyPage = ({ defaultType = "privacy-policy" }) => {
 
         if (settingsRes.status === 'fulfilled') {
           const sData = settingsRes.value?.data?.data || settingsRes.value?.data || settingsRes.value;
-          const email = sData?.supportEmail || sData?.contactEmail;
+          const email = sData?.contactEmail || sData?.supportEmail;
           const phone = sData?.contactPhone || sData?.supportPhone;
           if (!cancelled && email) {
             setSupportEmail(email);

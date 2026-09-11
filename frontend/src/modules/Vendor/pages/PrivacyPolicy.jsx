@@ -38,9 +38,9 @@ const VendorPrivacyPolicy = () => {
         if (isCancelled) return;
 
         // Extract settings
-        if (settingsRes.status === 'fulfilled' && settingsRes.value?.data?.data) {
-          const settings = settingsRes.value.data.data;
-          const email = settings.supportEmail || settings.contactEmail;
+        if (settingsRes.status === 'fulfilled') {
+          const settings = settingsRes.value?.data || settingsRes.value || {};
+          const email = settings.contactEmail || settings.supportEmail;
           const phone = settings.contactPhone || settings.supportPhone;
           if (email) setSupportEmail(email);
           if (phone) setSupportPhone(phone);

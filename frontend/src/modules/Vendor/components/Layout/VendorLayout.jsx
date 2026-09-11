@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import VendorSidebar from './VendorSidebar';
 import VendorHeader from './VendorHeader';
 import VendorBottomNav from './VendorBottomNav';
-import useAdminHeaderHeight from '../../../Admin/hooks/useAdminHeaderHeight';
 import { useVendorAuthStore } from '../../store/vendorAuthStore';
 import { getVendorProfile } from '../../services/vendorService';
 import { getSocket, joinRoom, leaveRoom } from '../../../../shared/utils/socket';
@@ -15,10 +14,39 @@ const VendorLayout = () => {
   const [isCollapsed, setIsCollapsed] = useState(
     localStorage.getItem('vendor_sidebar_collapsed') === 'true'
   );
-  const headerHeight = useAdminHeaderHeight();
+  const headerRef = useRef(null);
+  const [headerHeight, setHeaderHeight] = useState(0);
   const location = useLocation();
   const { syncVendor, vendor, token } = useVendorAuthStore();
   const { addNotification } = useVendorNotificationStore();
+
+  // Authoritative dynamic measurement of the rendered VendorHeader height
+  useEffect(() => {
+    const updateHeaderHeight = () => {
+      const el = headerRef.current || document.getElementById('vendor-header');
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        if (rect.height > 0) {
+          setHeaderHeight(rect.height);
+        }
+      }
+    };
+
+    updateHeaderHeight();
+    window.addEventListener('resize', updateHeaderHeight);
+
+    const el = headerRef.current || document.getElementById('vendor-header');
+    let observer = null;
+    if (el && typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(updateHeaderHeight);
+      observer.observe(el);
+    }
+
+    return () => {
+      window.removeEventListener('resize', updateHeaderHeight);
+      if (observer) observer.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -74,14 +102,30 @@ const VendorLayout = () => {
     localStorage.setItem('vendor_sidebar_collapsed', String(nextVal));
   };
 
-  // Bottom nav height is 64px (h-16)
-  const bottomNavHeight = 64;
+  const isTicketDetail =
+    location.pathname.startsWith('/vendor/support-tickets/') &&
+    location.pathname !== '/vendor/support-tickets';
 
-  // Add small buffer to prevent content overlap (8px)
-  const topPadding = headerHeight + 8;
-  const bottomPadding = bottomNavHeight + 8;
+  // Dynamic breathing room: 10px mobile (<640px), 14px tablet (sm: 640-1023px), 18px desktop (lg: >=1024px)
+  const getBreathingRoom = () => {
+    if (typeof window === 'undefined') return 10;
+    const width = window.innerWidth;
+    if (width >= 1024) return 18;
+    if (width >= 640) return 14;
+    return 10;
+  };
 
-  const isTicketDetail = location.pathname.startsWith('/vendor/support-tickets/') && location.pathname !== '/vendor/support-tickets';
+  // Authoritative top padding: measured header height + breathing room,
+  // falling back smoothly to CSS token before first measurement.
+  const contentTopPadding = headerHeight > 0
+    ? `${Math.round(headerHeight + getBreathingRoom())}px`
+    : 'var(--vendor-header-offset, 67px)';
+
+  // Authoritative bottom padding: clears fixed bottom navigation on mobile (64px + 8px buffer = 72px),
+  // resets cleanly to 24px on desktop (lg:hidden) and 16px on support ticket details.
+  const contentBottomPadding = isTicketDetail
+    ? '16px'
+    : 'var(--vendor-bottom-pad, 72px)';
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -96,14 +140,19 @@ const VendorLayout = () => {
       <div className={`flex-1 flex flex-col min-w-0 max-w-full overflow-x-hidden transition-all duration-300 ${isCollapsed ? 'lg:ml-0' : 'lg:ml-64'}`}>
         {/* Header */}
         <VendorHeader
+          ref={headerRef}
           onMenuClick={() => setSidebarOpen(true)}
           isCollapsed={isCollapsed}
           onToggleSidebar={toggleSidebar}
         />
 
-        {/* Page Content - with dynamic padding to account for fixed header and bottom nav */}
+        {/* Page Content - Single authoritative top and bottom spacing */}
         <main
-          className="flex-1 p-3 sm:p-4 lg:p-6 overflow-y-auto overflow-x-hidden scrollbar-admin w-full min-w-0 pb-24 lg:pb-6 pt-16 lg:pt-20"
+          className="flex-1 px-3 sm:px-4 lg:px-6 overflow-y-auto overflow-x-hidden scrollbar-admin w-full min-w-0"
+          style={{
+            paddingTop: contentTopPadding,
+            paddingBottom: contentBottomPadding,
+          }}
         >
           <div className="w-full max-w-full overflow-x-hidden min-w-0">
             <Outlet />
@@ -116,6 +165,7 @@ const VendorLayout = () => {
     </div>
   );
 };
+
 
 export default VendorLayout;
 

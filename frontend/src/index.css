@@ -53,6 +53,7 @@ body::-webkit-scrollbar {
   touch-action: manipulation;
 }
 
+<<<<<<< HEAD
 /* Disable iOS long-press callout, preview popups, and image dragging */
 button,
 a,
@@ -74,6 +75,32 @@ textarea {
 }
 
 /* Dedicated scroll containers */
+=======
+/* Vendor Portal Layout Spacing Tokens */
+:root {
+  --vendor-header-height: 57px;
+  --vendor-header-offset: 67px;
+  --vendor-bottom-pad: 72px;
+}
+
+@media (min-width: 640px) {
+  :root {
+    --vendor-header-height: 65px;
+    --vendor-header-offset: 79px;
+    --vendor-bottom-pad: 72px;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --vendor-header-height: 65px;
+    --vendor-header-offset: 83px;
+    --vendor-bottom-pad: 24px;
+  }
+}
+
+/* Allow single-finger horizontal scroll inside dedicated scroll containers while keeping multi-touch zoom disabled */
+>>>>>>> fa0f6b338d9eb9385c531603ffcba0601fc9d88c
 .overflow-x-auto,
 .overflow-x-scroll,
 [class*="overflow-x-auto"],

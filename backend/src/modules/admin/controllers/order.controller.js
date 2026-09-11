@@ -22,6 +22,7 @@ import PaymentAttempt from '../../../models/PaymentAttempt.model.js';
 import { processRazorpayRefund } from '../../../services/payment.service.js';
 import { cancelShipmentDeliveryAssignment } from '../../../services/assignmentService.js';
 import { processCancellationRefund } from '../../../services/cancellationRefundService.js';
+import { ensureDeliveryOtpForShipment } from '../../../services/deliveryOtp.service.js';
 
 // GET /api/admin/orders
 export const getAllOrders = asyncHandler(async (req, res) => {
@@ -297,6 +298,15 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
                 if (current === 'cancelled' || current === 'delivered') return vi;
                 return { ...vi.toObject(), status: 'shipped' };
             });
+            const ownFleetShipments = await Shipment.find({
+                orderId: order._id,
+                $or: [{ providerId: 'own_fleet' }, { deliveryBoyId: { $ne: null } }]
+            });
+            for (const s of ownFleetShipments) {
+                s.status = 'shipped';
+                await s.save();
+                await ensureDeliveryOtpForShipment(s, order);
+            }
         }
         if (nextStatus === 'delivered') {
             order.vendorItems = (order.vendorItems || []).map((vi) => {

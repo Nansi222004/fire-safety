@@ -141,10 +141,10 @@ const DeliveryOrders = () => {
   };
 
   const handleCompleteOrder = async (orderId) => {
-    const otp = window.prompt('Enter 6-digit delivery OTP shared by customer:');
+    const otp = window.prompt('Enter delivery OTP shared by customer:');
     if (otp === null) return;
-    if (!/^\d{6}$/.test(String(otp).trim())) {
-      toast.error('Please enter a valid 6-digit OTP');
+    if (!/^\d{4,6}$/.test(String(otp).trim())) {
+      toast.error('Please enter a valid delivery OTP');
       return;
     }
 

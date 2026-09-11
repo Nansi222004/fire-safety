@@ -31,3 +31,41 @@ export const sendOTP = async (user, type = 'verification') => {
 
     return otp;
 };
+
+/**
+ * Standard SHA-256 HMAC-like hash using JWT_SECRET as salt
+ * @param {string|number} otp
+ * @returns {string} hex digest
+ */
+export const hashOtp = (otp) => {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) throw new Error('JWT_SECRET is not configured.');
+    return crypto.createHash('sha256').update(`${String(otp)}:${secret}`).digest('hex');
+};
+
+/**
+ * Compares plain OTP against stored hash using the standard hashing primitive
+ * @param {string|number} otp
+ * @param {string} hash
+ * @returns {boolean}
+ */
+export const verifyOtpHash = (otp, hash) => {
+    if (!otp || !hash) return false;
+    return hashOtp(otp) === hash;
+};
+
+/**
+ * Generates an OTP for customer delivery.
+ * In local development with DELIVERY_OTP_TEST_MODE=true, returns deterministic '9999'.
+ * In production or standard mode, returns cryptographically secure 6-digit random string.
+ * @returns {string}
+ */
+export const generateDeliveryOtpValue = () => {
+    const isProduction = String(process.env.NODE_ENV || '').toLowerCase() === 'production';
+    if (!isProduction && process.env.DELIVERY_OTP_TEST_MODE === 'true') {
+        return '9999';
+    }
+    const { randomInt } = crypto;
+    return String(randomInt(100000, 1000000));
+};
+

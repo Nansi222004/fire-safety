@@ -442,7 +442,7 @@ const VendorDashboard = () => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-4 sm:space-y-6 pb-12 sm:pb-6">
+      className="space-y-4 sm:space-y-6 pb-3 sm:pb-6">
 
       {/* Verification Warning (Only shown if vendor is truly unverified/not approved) */}
       {!hasUploadedDocs && vendor?.status !== 'approved' && !vendor?.isVerified && (

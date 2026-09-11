@@ -127,8 +127,8 @@ const DeliveryOrderDetail = () => {
   const handleCompleteOrder = async () => {
     if (!order || order.status !== 'in-transit') return;
     const normalizedOtp = String(deliveryOtp || '').trim();
-    if (!/^\d{6}$/.test(normalizedOtp)) {
-      toast.error('Please enter valid 6-digit OTP');
+    if (!/^\d{4,6}$/.test(normalizedOtp)) {
+      toast.error('Please enter valid delivery OTP');
       return;
     }
 
@@ -521,7 +521,7 @@ const DeliveryOrderDetail = () => {
                 maxLength={6}
                 value={deliveryOtp}
                 onChange={(e) => setDeliveryOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="Enter 6-digit delivery OTP"
+                placeholder="Enter delivery OTP"
                 className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-primary-500 focus:outline-none text-base"
               />
               <div className="grid grid-cols-2 gap-3">
