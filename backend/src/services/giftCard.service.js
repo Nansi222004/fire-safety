@@ -98,6 +98,11 @@ export async function createGiftCardOrder({
         throw new ApiError(400, 'A valid recipient email address is required');
     }
 
+    const cleanPhone = recipientPhone != null ? String(recipientPhone).trim() : '';
+    if (cleanPhone && !/^\d{10}$/.test(cleanPhone)) {
+        throw new ApiError(400, 'Recipient phone number must contain exactly 10 digits');
+    }
+
     const purchaser = await User.findById(userId);
     if (!purchaser) {
         throw new ApiError(404, 'User account not found');
@@ -160,7 +165,7 @@ export async function createGiftCardOrder({
         recipientUserId: recipientUser ? recipientUser._id : null,
         recipientName: recipientName.trim(),
         recipientEmail: recipientEmail.trim().toLowerCase(),
-        recipientPhone: recipientPhone.trim(),
+        recipientPhone: cleanPhone,
         message: message.trim(),
         razorpayOrderId: rzpOrder.id,
         paymentStatus: 'pending',

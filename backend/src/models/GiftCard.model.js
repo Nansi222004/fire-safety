@@ -83,6 +83,12 @@ const giftCardSchema = new mongoose.Schema(
             type: String,
             trim: true,
             default: '',
+            validate: {
+                validator: function (v) {
+                    return !v || /^\d{10}$/.test(v);
+                },
+                message: 'Recipient phone number must contain exactly 10 digits',
+            },
         },
         message: {
             type: String,

@@ -77,6 +77,8 @@ const VendorServiceConfigModal = ({ vendorService, onClose, onSave }) => {
         [variantKey]: Number(value) || 0,
       },
     }));
+  };
+
   const handleDayToggle = (dayKey) => {
     setFormData((prev) => ({
       ...prev,
@@ -93,30 +95,49 @@ const VendorServiceConfigModal = ({ vendorService, onClose, onSave }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (isSubmitting) return;
+
+    const numericPrice = Number(formData.price);
+    if (isNaN(numericPrice) || numericPrice < 0) {
+      toast.error('Please enter a valid non-negative price.');
+      return;
+    }
+
+    const areasList = (formData.serviceAreasStr || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    if (areasList.length === 0) {
+      toast.error('You MUST add at least 1 serviceable pincode or area.');
+      return;
+    }
+
+    const capacity = Number(formData.dailyCapacity);
+    if (isNaN(capacity) || capacity < 1) {
+      toast.error('Daily service capacity must be at least 1.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      const areasList = (formData.serviceAreasStr || '')
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
-
       const payload = {
-        price: Number(formData.price) || 0,
+        price: numericPrice,
         variantPrices: formData.variantPrices,
         serviceAreas: areasList,
         workingHours: formData.workingHours,
         workingSchedule: formData.workingSchedule,
-        dailyCapacity: Number(formData.dailyCapacity) || 0,
+        dailyCapacity: capacity,
         vendorNotes: formData.vendorNotes,
         isActive: formData.isActive,
       };
 
       await updateServiceConfig(vendorService.id || vendorService._id, payload);
+      toast.success('Service configuration updated successfully!');
       onSave?.();
       onClose();
     } catch (err) {
-      // Handled in store/interceptor
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to save service configuration');
     } finally {
       setIsSubmitting(false);
     }

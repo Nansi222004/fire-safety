@@ -22,7 +22,11 @@ import { useAuthStore } from '../../../../shared/store/authStore';
 
 const ALLOWED_DENOMINATIONS = [500, 1000, 2500, 5000, 10000];
 
-// Dynamic Razorpay SDK loader
+// =========================================================================
+// TEMPORARILY DISABLED — GIFT CARD RAZORPAY (DO NOT DELETE)
+// Re-enable when online Gift Card payment is approved.
+// =========================================================================
+/*
 const loadRazorpay = () => {
   return new Promise((resolve) => {
     if (typeof window === 'undefined') return resolve(false);
@@ -36,6 +40,20 @@ const loadRazorpay = () => {
     script.onerror = () => resolve(false);
     document.body.appendChild(script);
   });
+};
+*/
+// =========================================================================
+
+// Validate recipient phone (optional, but if non-empty requires strictly 10 digits)
+const validateRecipientPhone = (phone) => {
+  const trimmed = (phone || '').trim();
+  if (!trimmed) {
+    return '';
+  }
+  if (!/^\d{10}$/.test(trimmed)) {
+    return 'Please enter a valid 10-digit mobile number.';
+  }
+  return '';
 };
 
 const GiftCardsModal = ({ isOpen, onClose, onWalletUpdated }) => {
@@ -60,6 +78,7 @@ const GiftCardsModal = ({ isOpen, onClose, onWalletUpdated }) => {
   const [recipientName, setRecipientName] = useState('');
   const [recipientEmail, setRecipientEmail] = useState('');
   const [recipientPhone, setRecipientPhone] = useState('');
+  const [phoneError, setPhoneError] = useState('');
   const [message, setMessage] = useState('');
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [purchasedCard, setPurchasedCard] = useState(null);
@@ -178,6 +197,21 @@ const GiftCardsModal = ({ isOpen, onClose, onWalletUpdated }) => {
       return;
     }
 
+    const phoneValidationMsg = validateRecipientPhone(recipientPhone);
+    if (phoneValidationMsg) {
+      setPhoneError(phoneValidationMsg);
+      toast.error(phoneValidationMsg);
+      return;
+    }
+
+    // =========================================================================
+    // TEMPORARILY DISABLED — GIFT CARD RAZORPAY (DO NOT DELETE)
+    // Re-enable when online Gift Card payment is approved.
+    // =========================================================================
+    toast.error('Gift Card online payment is temporarily unavailable.');
+    return;
+
+    /*
     setIsPurchasing(true);
     try {
       // 1. Initialize Gift Card checkout with backend
@@ -238,6 +272,7 @@ const GiftCardsModal = ({ isOpen, onClose, onWalletUpdated }) => {
             setRecipientName('');
             setRecipientEmail('');
             setRecipientPhone('');
+            setPhoneError('');
             setMessage('');
             setCustomAmount('');
             setIsCustom(false);
@@ -258,6 +293,8 @@ const GiftCardsModal = ({ isOpen, onClose, onWalletUpdated }) => {
       toast.error(err.response?.data?.message || err.message || 'Could not initiate purchase');
       setIsPurchasing(false);
     }
+    */
+    // =========================================================================
   };
 
   if (!isOpen) return null;
@@ -536,15 +573,36 @@ const GiftCardsModal = ({ isOpen, onClose, onWalletUpdated }) => {
                         Recipient Phone (Optional)
                       </label>
                       <div className="relative">
-                        <FiPhone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <FiPhone className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${phoneError ? 'text-red-400' : 'text-gray-400'}`} />
                         <input
                           type="tel"
+                          inputMode="numeric"
+                          maxLength={10}
                           value={recipientPhone}
-                          onChange={(e) => setRecipientPhone(e.target.value)}
-                          className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-gray-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 text-sm focus:outline-none placeholder:text-gray-400"
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setRecipientPhone(val);
+                            if (phoneError) {
+                              setPhoneError(validateRecipientPhone(val));
+                            }
+                          }}
+                          onBlur={() => {
+                            setPhoneError(validateRecipientPhone(recipientPhone));
+                          }}
+                          className={`w-full pl-10 pr-3 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 transition-all placeholder:text-gray-400 ${
+                            phoneError
+                              ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20 bg-red-50/20'
+                              : 'border-gray-200 focus:border-primary-500 focus:ring-primary-500/20'
+                          }`}
                           placeholder="9876543210"
                         />
                       </div>
+                      {phoneError && (
+                        <p className="mt-1 text-xs text-red-600 font-medium flex items-center gap-1">
+                          <FiAlertCircle className="w-3.5 h-3.5 shrink-0" />
+                          <span>{phoneError}</span>
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -566,17 +624,38 @@ const GiftCardsModal = ({ isOpen, onClose, onWalletUpdated }) => {
                   </div>
 
                   {/* Payment Button */}
-                  <div className="pt-2 flex gap-3">
-                    <button
-                      type="button"
-                      onClick={onClose}
-                      className="flex-1 py-3 border border-gray-200 text-gray-700 font-bold rounded-xl text-sm hover:bg-gray-50 transition-colors"
-                    >
-                      Cancel
-                    </button>
+                  <div className="pt-2 flex flex-col gap-2">
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={onClose}
+                        className="flex-1 py-3 border border-gray-200 text-gray-700 font-bold rounded-xl text-sm hover:bg-gray-50 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isPurchasing || !!phoneError}
+                        className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-white font-extrabold rounded-xl text-sm transition-all flex items-center justify-center gap-2 shadow-md shadow-amber-500/20 disabled:opacity-50 cursor-pointer"
+                        title="Gift Card online payment is temporarily unavailable"
+                      >
+                        <FiAlertCircle className="text-base" />{' '}
+                        Online Payment Temporarily Unavailable
+                      </button>
+                    </div>
+                    <div className="flex items-center justify-center gap-1.5 py-0.5 text-[11px] text-amber-600 font-medium">
+                      <FiAlertCircle className="text-amber-500 shrink-0 text-xs" />
+                      <span>Gift Card online payment is temporarily unavailable</span>
+                    </div>
+
+                    {/*
+                    // =========================================================================
+                    // TEMPORARILY DISABLED — GIFT CARD RAZORPAY (DO NOT DELETE)
+                    // Re-enable when online Gift Card payment is approved.
+                    // =========================================================================
                     <button
                       type="submit"
-                      disabled={isPurchasing}
+                      disabled={isPurchasing || !!phoneError}
                       className="flex-1 py-3 bg-gradient-to-r from-[#E31E24] via-[#F02828] to-[#FF6A00] text-white font-extrabold rounded-xl text-sm hover:shadow-lg active:scale-98 transition-all flex items-center justify-center gap-2 shadow-md shadow-red-500/20 disabled:opacity-50"
                     >
                       <FiLock className="text-sm" />{' '}
@@ -584,6 +663,12 @@ const GiftCardsModal = ({ isOpen, onClose, onWalletUpdated }) => {
                         ? 'Connecting Razorpay...'
                         : `Pay ₹${(isCustom ? Number(customAmount) || 0 : selectedAmount).toLocaleString('en-IN')} Securely`}
                     </button>
+                    <div className="flex items-center justify-center gap-1.5 py-0.5 text-[11px] text-gray-400 font-medium">
+                      <FiLock className="text-emerald-500 shrink-0 text-xs" />
+                      <span>Instant Digital Delivery • Powered by Secure Razorpay Checkout</span>
+                    </div>
+                    // =========================================================================
+                    */}
                   </div>
                 </form>
               )}
