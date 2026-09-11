@@ -208,7 +208,7 @@ const GiftCardsModal = ({ isOpen, onClose, onWalletUpdated }) => {
     // TEMPORARILY DISABLED — GIFT CARD RAZORPAY (DO NOT DELETE)
     // Re-enable when online Gift Card payment is approved.
     // =========================================================================
-    toast.error('Gift Card online payment is temporarily unavailable.');
+    toast.error('Unable to complete your purchase right now. Please try again.');
     return;
 
     /*
@@ -636,16 +636,10 @@ const GiftCardsModal = ({ isOpen, onClose, onWalletUpdated }) => {
                       <button
                         type="submit"
                         disabled={isPurchasing || !!phoneError}
-                        className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-white font-extrabold rounded-xl text-sm transition-all flex items-center justify-center gap-2 shadow-md shadow-amber-500/20 disabled:opacity-50 cursor-pointer"
-                        title="Gift Card online payment is temporarily unavailable"
+                        className="flex-1 py-3 bg-gradient-to-r from-[#E31E24] via-[#F02828] to-[#FF6A00] text-white font-extrabold rounded-xl text-sm hover:shadow-lg active:scale-98 transition-all flex items-center justify-center gap-2 shadow-md shadow-red-500/20 disabled:opacity-50 cursor-pointer"
                       >
-                        <FiAlertCircle className="text-base" />{' '}
-                        Online Payment Temporarily Unavailable
+                        <FiGift className="text-base" /> Buy Gift Card
                       </button>
-                    </div>
-                    <div className="flex items-center justify-center gap-1.5 py-0.5 text-[11px] text-amber-600 font-medium">
-                      <FiAlertCircle className="text-amber-500 shrink-0 text-xs" />
-                      <span>Gift Card online payment is temporarily unavailable</span>
                     </div>
 
                     {/*

@@ -94,7 +94,9 @@ const getChildRoute = (parentRoute, childName) => {
       "Banner Library": "/admin/marketing/banner-library",
       Offers: "/admin/marketing/offers",
       "Promo Codes": "/admin/marketing/promocodes",
-      "Gift Cards & Vouchers": "/admin/marketing/gift-cards",
+      // TEMPORARILY DISABLED — GIFT CARD FEATURE
+      // DO NOT DELETE — RE-ENABLE WHEN GIFT CARD FEATURE IS ENABLED
+      // "Gift Cards & Vouchers": "/admin/marketing/gift-cards",
     },
     "/admin/notifications": {
       "All Notifications": "/admin/notifications",

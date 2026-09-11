@@ -709,7 +709,10 @@ const AppRoutes = () => {
         <Route path="marketing/banner-library" element={<HomepageBanners />} />
         <Route path="marketing/offers" element={<Offers />} />
         <Route path="marketing/promocodes" element={<PromoCodes />} />
-        <Route path="marketing/gift-cards" element={<GiftCards />} />
+        {/* TEMPORARILY DISABLED — GIFT CARD FEATURE */}
+        {/* DO NOT DELETE — RE-ENABLE WHEN GIFT CARD FEATURE IS ENABLED */}
+        {/* <Route path="marketing/gift-cards" element={<GiftCards />} /> */}
+        <Route path="marketing/gift-cards" element={<Navigate to="/admin/marketing" replace />} />
         <Route path="notifications" element={<AllNotifications />} />
         <Route
           path="notifications/push-notifications"
