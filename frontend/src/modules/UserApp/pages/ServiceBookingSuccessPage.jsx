@@ -75,7 +75,7 @@ const ServiceBookingSuccessPage = () => {
                 </h1>
                 <p className="text-xs text-slate-500 mt-1">
                   {!isLoading && booking && booking.status === 'confirmed'
-                    ? 'A certified technician has been assigned and will arrive as scheduled.'
+                    ? 'A technician has been assigned and will arrive as scheduled.'
                     : 'Your booking is received and awaiting vendor confirmation.'}
                 </p>
               </div>

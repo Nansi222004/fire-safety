@@ -415,13 +415,13 @@ const ServiceBookingDetailPage = () => {
                   <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-sm space-y-3">
                     <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#E31E24]">
                       <FiTool />
-                      <span>Certified Provider</span>
+                      <span>Service Provider</span>
                     </div>
 
                     <div className="space-y-1.5 pt-1">
                       <div className="flex items-center justify-between">
                         <h4 className="text-sm font-extrabold text-slate-900">
-                          {booking.vendorId?.storeName || booking.vendorId?.name || "Certified Partner"}
+                          {booking.vendorId?.storeName || booking.vendorId?.name || "Service Partner"}
                         </h4>
                         <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-extrabold rounded-md border border-emerald-200">
                           Verified

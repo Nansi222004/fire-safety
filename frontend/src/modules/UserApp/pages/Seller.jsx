@@ -424,7 +424,7 @@ const Seller = () => {
                         <div className="px-4 py-6 space-y-4">
                             <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 flex items-center justify-between">
                                 <div>
-                                    <h3 className="font-bold text-[#0F172A] text-sm">Certified Service Provider</h3>
+                                    <h3 className="font-bold text-[#0F172A] text-sm">Verified Service Provider</h3>
                                     <p className="text-xs text-[#64748B]">Select a service to check pincode coverage & book an appointment.</p>
                                 </div>
                                 <div className="w-9 h-9 rounded-xl bg-[#FF6A00] text-white flex items-center justify-center text-lg font-bold">
@@ -512,7 +512,7 @@ const Seller = () => {
                                     <div className="p-3 bg-[#F8FAFC] rounded-xl border border-slate-100">
                                         <span className="text-[#64748B] block mb-0.5">Service Marketplace:</span>
                                         <span className={`font-bold ${caps.providesServices ? 'text-emerald-600' : 'text-slate-400'}`}>
-                                            {caps.providesServices ? '✓ Certified Service Provider' : 'Disabled'}
+                                            {caps.providesServices ? '✓ Verified Service Provider' : 'Disabled'}
                                         </span>
                                     </div>
                                 </div>

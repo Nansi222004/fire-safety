@@ -53,7 +53,18 @@ export const getServiceCatalog = asyncHandler(async (req, res) => {
     const { categoryId, search } = req.query;
 
     const categoryFilter = { isActive: true };
-    const categories = await ServiceCategory.find(categoryFilter).sort({ sortOrder: 1, name: 1 }).lean();
+    const rawCategories = await ServiceCategory.find(categoryFilter).sort({ sortOrder: 1, name: 1 }).lean();
+
+    // Deduplicate categories and exclude any test junk
+    const categoryMap = new Map();
+    for (const cat of rawCategories) {
+        if (/(mto[a-z0-9]+|\b\d{10,}\b)/i.test(cat.name || '')) continue;
+        const normKey = (cat.name || '').trim().toLowerCase();
+        if (normKey && !categoryMap.has(normKey)) {
+            categoryMap.set(normKey, cat);
+        }
+    }
+    const categories = Array.from(categoryMap.values());
 
     const serviceFilter = { isActive: true };
     if (categoryId) {
@@ -67,10 +78,22 @@ export const getServiceCatalog = asyncHandler(async (req, res) => {
         ];
     }
 
-    const services = await Service.find(serviceFilter)
+    const rawServices = await Service.find(serviceFilter)
         .populate('categoryId', 'name slug image')
         .sort({ sortOrder: 1, name: 1 })
         .lean();
+
+    // Deduplicate services by clean base name and exclude test artifacts
+    const serviceMap = new Map();
+    for (const service of rawServices) {
+        if (/(mto[a-z0-9]+|\b\d{10,}\b)/i.test(service.name || '')) continue;
+        const cleanName = (service.name || '').replace(/\s+(mto[a-z0-9]+|\d{10,})/i, '').trim();
+        const normKey = cleanName.toLowerCase();
+        if (normKey && !serviceMap.has(normKey)) {
+            serviceMap.set(normKey, { ...service, name: cleanName });
+        }
+    }
+    const services = Array.from(serviceMap.values());
 
     res.status(200).json(
         new ApiResponse(200, { categories, services }, 'Service catalog fetched successfully.')
@@ -171,7 +194,7 @@ export const checkServiceability = asyncHandler(async (req, res) => {
     const vendorList = servicingVendors.map((vs) => ({
         vendorServiceId: vs._id,
         vendorId: vs.vendorId._id,
-        storeName: vs.vendorId.storeName || vs.vendorId.name || 'Certified Vendor',
+        storeName: vs.vendorId.storeName || vs.vendorId.name || 'Service Vendor',
         rating: vs.rating || vs.vendorId.rating || 4.8,
         reviewCount: vs.reviewCount || 0,
         price: vs.price || 0,

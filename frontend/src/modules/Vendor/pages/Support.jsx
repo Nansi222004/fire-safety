@@ -73,7 +73,7 @@ const VendorSupport = () => {
     },
     {
       q: 'How do service partners receive refilling and on-site maintenance bookings?',
-      a: 'Once approved as a Certified Service Partner, customer bookings within your serviceable pincodes are routed to your vendor dashboard, where your technicians can accept, schedule, and complete the service protocol.'
+      a: 'Once approved as a Service Partner, customer bookings within your serviceable pincodes are routed to your vendor dashboard, where your technicians can accept, schedule, and complete the service protocol.'
     },
     {
       q: 'How do I raise a ticket regarding order disputes or inventory issues?',
@@ -123,7 +123,7 @@ const VendorSupport = () => {
                     Vendor Partner Support Desk
                   </h1>
                   <p className="text-xs sm:text-sm text-[#64748B] mt-0.5">
-                    Official merchant assistance for SafeFire equipment sellers & certified service partners
+                    Official merchant assistance for SafeFire equipment sellers & service partners
                   </p>
                 </div>
               </div>

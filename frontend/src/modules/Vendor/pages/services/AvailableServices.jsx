@@ -144,7 +144,7 @@ const AvailableServices = () => {
           Available Fire Safety Services
         </h1>
         <p className="text-sm text-gray-600 mt-1">
-          Select and enable certified fire safety services for your store. Set custom pricing, service pincodes, and capacity.
+          Select and enable fire safety services for your store. Set custom pricing, service pincodes, and capacity.
         </p>
       </div>
 
