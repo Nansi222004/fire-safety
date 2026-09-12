@@ -1,6 +1,6 @@
 import { FiHeart, FiShoppingBag, FiStar, FiTrash2 } from "react-icons/fi";
 import { motion } from "framer-motion";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useCartStore, useUIStore } from "../store/useStore";
 import { useWishlistStore } from "../store/wishlistStore";
 import { formatPrice, getPlaceholderImage } from "../utils/helpers";
@@ -18,8 +18,11 @@ const ProductCard = ({
   hideRating = false,
   isFlashSale = false,
   enhancedLayout = false,
+  redirectToCheckout = false,
 }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isCategoriesRoute = redirectToCheckout || location.pathname.startsWith("/categories");
   const productLink = `/product/${product.id}`;
   const { items, addItem, removeItem } = useCartStore();
   const triggerCartAnimation = useUIStore(
@@ -56,7 +59,14 @@ const ProductCard = ({
       product.variants.attributes.some((attr) => Array.isArray(attr?.values) && attr.values.length > 0);
     const hasSizeVariants = Array.isArray(product?.variants?.sizes) && product.variants.sizes.length > 0;
     const hasColorVariants = Array.isArray(product?.variants?.colors) && product.variants.colors.length > 0;
-    if (hasDynamicAxes || hasSizeVariants || hasColorVariants) {
+    const hasMaterialVariants = Array.isArray(product?.variants?.materials) && product.variants.materials.length > 0;
+    const hasAnyVariants = Boolean(product?.hasVariants || hasDynamicAxes || hasSizeVariants || hasColorVariants || hasMaterialVariants);
+
+    if (hasAnyVariants) {
+      if (isCategoriesRoute) {
+        navigate(`${productLink}?scroll=variants#variants-section`);
+        return;
+      }
       toast.error("Please select variant on product page");
       navigate(productLink);
       return;
@@ -74,6 +84,11 @@ const ProductCard = ({
       vendorName: product.vendorName,
     });
     if (!addedToCart) return;
+
+    if (isCategoriesRoute) {
+      navigate("/checkout");
+      return;
+    }
 
     const isLargeScreen = window.innerWidth >= 1024;
     if (!isLargeScreen) {

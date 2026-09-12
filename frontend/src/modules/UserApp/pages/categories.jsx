@@ -521,7 +521,11 @@ const MobileCategories = () => {
                       transform: "translateZ(0)",
                     }}>
                     {filteredProducts.map((product) => (
-                      <ProductCard key={product.id} product={product} />
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        redirectToCheckout={true}
+                      />
                     ))}
                   </motion.div>
                 )}

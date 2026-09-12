@@ -187,20 +187,6 @@ const VendorLogin = () => {
               </p>
             </div>
           </form>
-
-          {/* Demo Credentials */}
-          <div
-            onClick={() => setFormData({ email: 'vendor@safefire.com', password: 'Password123!' })}
-            className="p-3 sm:p-3.5 bg-[#FEF2F2] rounded-xl cursor-pointer hover:bg-red-100 transition-colors border border-red-200 group"
-            title="Click to autofill test credentials"
-          >
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-xs text-[#0F172A] font-bold">Demo Credentials:</p>
-              <span className="text-[11px] text-[#E31E24] font-semibold group-hover:underline">Click to autofill</span>
-            </div>
-            <p className="text-xs text-[#64748B]">Email: <span className="font-semibold text-[#0F172A]">vendor@safefire.com</span></p>
-            <p className="text-xs text-[#64748B]">Password: <span className="font-semibold text-[#0F172A]">Password123!</span></p>
-          </div>
         </motion.div>
       </main>
 

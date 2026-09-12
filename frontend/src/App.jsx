@@ -911,6 +911,11 @@ function App() {
         <CartDrawer />
         <Toaster
           position="top-right"
+          containerStyle={{
+            top: 16,
+            left: 12,
+            right: 12,
+          }}
           toastOptions={{
             duration: 3000,
             style: {

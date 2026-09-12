@@ -534,7 +534,26 @@ const MobileCheckout = () => {
         // ── COD or Wallet Fully Paid: order already created, navigate to confirmation ──
         if (paymentMethod === "cash" || paymentMethod === "cod" || payload.paymentStatus === "paid") {
           clearCart();
-          toast.success("Order placed successfully!");
+          toast.success("Order placed successfully!", {
+            id: "order-placed-success",
+            duration: 4000,
+            position: typeof window !== "undefined" && window.innerWidth < 768 ? "top-center" : "top-right",
+            style: {
+              background: "#1E293B",
+              color: "#FFFFFF",
+              fontWeight: "600",
+              fontSize: "14px",
+              padding: "12px 20px",
+              borderRadius: "16px",
+              boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.25)",
+              maxWidth: "90vw",
+              margin: "0 auto",
+            },
+            iconTheme: {
+              primary: "#22C55E",
+              secondary: "#FFFFFF",
+            },
+          });
           navigate(`/order-confirmation/${payload.orderId}`);
           return;
         }
@@ -571,7 +590,26 @@ const MobileCheckout = () => {
                   razorpaySignature: response.razorpay_signature,
                 });
 
-                toast.success("Payment successful! Order confirmed.", { id: verifyToastId });
+                toast.success("Payment successful! Order confirmed.", {
+                  id: verifyToastId,
+                  duration: 4000,
+                  position: typeof window !== "undefined" && window.innerWidth < 768 ? "top-center" : "top-right",
+                  style: {
+                    background: "#1E293B",
+                    color: "#FFFFFF",
+                    fontWeight: "600",
+                    fontSize: "14px",
+                    padding: "12px 20px",
+                    borderRadius: "16px",
+                    boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.25)",
+                    maxWidth: "90vw",
+                    margin: "0 auto",
+                  },
+                  iconTheme: {
+                    primary: "#22C55E",
+                    secondary: "#FFFFFF",
+                  },
+                });
                 clearCart();
                 navigate(`/order-confirmation/${payload.orderId}`);
                 resolve();
