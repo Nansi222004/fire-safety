@@ -85,11 +85,6 @@ const ProductCard = ({
     });
     if (!addedToCart) return;
 
-    if (isCategoriesRoute) {
-      navigate("/checkout");
-      return;
-    }
-
     const isLargeScreen = window.innerWidth >= 1024;
     if (!isLargeScreen) {
       setIsAdding(true);

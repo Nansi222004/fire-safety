@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { FiArrowLeft, FiFilter, FiX, FiSearch, FiLayers, FiShield } from "react-icons/fi";
+import { FiArrowLeft, FiFilter, FiX, FiSearch, FiLayers, FiShield, FiShoppingBag } from "react-icons/fi";
 import MobileLayout from "../components/Layout/MobileLayout";
+import { useCartStore, useUIStore } from "../../../shared/store/useStore";
 import { categories as fallbackCategories } from "../../../data/categories";
 import { getCatalogProducts } from "../data/catalogData";
 import { useCategoryStore } from "../../../shared/store/categoryStore";
@@ -78,6 +79,9 @@ const MobileCategories = () => {
   const navigate = useNavigate();
   const { categories, initialize, getCategoriesByParent, getRootCategories } =
     useCategoryStore();
+  const itemCount = useCartStore((state) => state.getItemCount());
+  const toggleCart = useUIStore((state) => state.toggleCart);
+  const cartAnimationTrigger = useUIStore((state) => state.cartAnimationTrigger);
 
   // Initialize store on mount
   useEffect(() => {
@@ -309,14 +313,14 @@ const MobileCategories = () => {
 
   return (
     <PageTransition>
-      <MobileLayout showBottomNav={true} showCartBar={false}>
+      <MobileLayout showBottomNav={true} showCartBar={true}>
         <div
           className="w-full max-w-full flex flex-col overflow-hidden"
           style={{ minHeight: contentHeight }}>
           
-          {/* Category Header - Fixed Search at top */}
-          <div className="sticky top-0 z-40 bg-white border-b border-gray-200 px-4 py-3">
-            <div className="relative">
+          {/* Category Header - Fixed Search & Cart at top */}
+          <div className="sticky top-0 z-40 bg-white border-b border-gray-200 px-3 sm:px-4 py-2.5 flex items-center gap-2.5">
+            <div className="relative flex-1">
               <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
               <input
                 type="text"
@@ -334,6 +338,36 @@ const MobileCategories = () => {
                 </button>
               )}
             </div>
+
+            {/* Cart Icon in Header */}
+            <motion.button
+              data-cart-icon
+              onClick={toggleCart}
+              whileTap={{ scale: 0.9 }}
+              animate={
+                cartAnimationTrigger > 0
+                  ? {
+                      scale: [1, 1.2, 1],
+                    }
+                  : {}
+              }
+              transition={{ duration: 0.4, ease: "easeOut" }}
+              className="relative p-2.5 bg-gray-100 hover:bg-gray-200 rounded-xl flex items-center justify-center transition-all duration-200 shrink-0 shadow-xs active:scale-95"
+              title="View Cart"
+            >
+              <FiShoppingBag className="text-xl text-gray-700" />
+              {itemCount > 0 && (
+                <motion.span
+                  key={itemCount}
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-white text-[10px] font-black shadow-md border-2 border-white"
+                  style={{ backgroundColor: "#E31E24" }}
+                >
+                  {itemCount > 9 ? "9+" : itemCount}
+                </motion.span>
+              )}
+            </motion.button>
           </div>
 
           {/* Main Content Area - Sidebar and Products */}
@@ -521,11 +555,7 @@ const MobileCategories = () => {
                       transform: "translateZ(0)",
                     }}>
                     {filteredProducts.map((product) => (
-                      <ProductCard
-                        key={product.id}
-                        product={product}
-                        redirectToCheckout={true}
-                      />
+                      <ProductCard key={product.id} product={product} />
                     ))}
                   </motion.div>
                 )}
