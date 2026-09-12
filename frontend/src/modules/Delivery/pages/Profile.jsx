@@ -5,7 +5,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useDeliveryAuthStore } from '../store/deliveryStore';
 import { FiUser, FiMail, FiPhone, FiTruck, FiEdit2, FiSave, FiX, FiLogOut, FiChevronDown, FiTrash2, FiShield, FiChevronRight } from 'react-icons/fi';
 import PageTransition from '../../../shared/components/PageTransition';
-import toast from 'react-hot-toast';
 import { formatPrice } from '../../../shared/utils/helpers';
 
 const DeliveryProfile = () => {
@@ -75,26 +74,11 @@ const DeliveryProfile = () => {
   };
 
   const handleSave = async () => {
-    if (!formData.name?.trim()) {
-      toast.error('Name is required');
-      return;
-    }
-    if (!formData.email?.trim()) {
-      toast.error('Email is required');
-      return;
-    }
-    if (!formData.phone?.trim()) {
-      toast.error('Phone is required');
-      return;
-    }
-    if (!formData.vehicleType?.trim()) {
-      toast.error('Vehicle type is required');
-      return;
-    }
-    if (!formData.vehicleNumber?.trim()) {
-      toast.error('Vehicle number is required');
-      return;
-    }
+    if (!formData.name?.trim()) return;
+    if (!formData.email?.trim()) return;
+    if (!formData.phone?.trim()) return;
+    if (!formData.vehicleType?.trim()) return;
+    if (!formData.vehicleNumber?.trim()) return;
     try {
       await updateProfile({
         name: formData.name.trim(),
@@ -104,9 +88,8 @@ const DeliveryProfile = () => {
         vehicleNumber: formData.vehicleNumber.trim(),
       });
       setIsEditing(false);
-      toast.success('Profile updated successfully');
     } catch {
-      // Error toast handled by API interceptor.
+      // Error handled
     }
   };
 
@@ -123,7 +106,6 @@ const DeliveryProfile = () => {
 
   const handleLogout = () => {
     logout();
-    toast.success('Logged out successfully');
     navigate('/delivery/login');
   };
 
@@ -131,12 +113,11 @@ const DeliveryProfile = () => {
     setIsDeletingAccount(true);
     try {
       await deleteAccount();
-      toast.success('Your delivery partner account has been deleted.');
       setShowDeleteModal(false);
       setDeleteConfirmText('');
       navigate('/delivery/login');
     } catch (err) {
-      toast.error(err?.response?.data?.message || err.message || 'Failed to delete account.');
+      console.error(err);
     } finally {
       setIsDeletingAccount(false);
     }

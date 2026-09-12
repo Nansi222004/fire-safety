@@ -15,7 +15,6 @@ import {
 import PageTransition from '../../../shared/components/PageTransition';
 import { getSocket, joinRoom, leaveRoom } from '../../../shared/utils/socket';
 import { formatPrice } from '../../../shared/utils/helpers';
-import toast from 'react-hot-toast';
 import { useDeliveryAuthStore } from '../store/deliveryStore';
 
 const DeliveryOrderDetail = () => {
@@ -107,9 +106,8 @@ const DeliveryOrderDetail = () => {
     try {
       const updated = await acceptOrder(order.id);
       setOrder(updated);
-      toast.success('Order accepted successfully');
     } catch {
-      // Error toast handled by API interceptor.
+      // Error handled
     }
   };
 
@@ -117,10 +115,9 @@ const DeliveryOrderDetail = () => {
     if (!order) return;
     try {
       await rejectOrder(order.id);
-      toast.success('Order rejected successfully');
       navigate('/delivery/orders');
     } catch {
-      // Error toast handled by API interceptor.
+      // Error handled
     }
   };
 
@@ -128,7 +125,6 @@ const DeliveryOrderDetail = () => {
     if (!order || order.status !== 'in-transit') return;
     const normalizedOtp = String(deliveryOtp || '').trim();
     if (!/^\d{4,6}$/.test(normalizedOtp)) {
-      toast.error('Please enter valid delivery OTP');
       return;
     }
 
@@ -136,9 +132,8 @@ const DeliveryOrderDetail = () => {
       const updated = await completeOrder(order.id, normalizedOtp);
       setOrder(updated);
       setDeliveryOtp('');
-      toast.success('Order marked as delivered');
     } catch {
-      // Error toast handled by API interceptor.
+      // Error handled
     }
   };
 
@@ -147,10 +142,9 @@ const DeliveryOrderDetail = () => {
     try {
       setIsResendingOtp(true);
       await resendDeliveryOtp(order.id);
-      toast.success('Delivery OTP resent to customer');
       await loadOrder();
     } catch {
-      // Error toast handled by API interceptor.
+      // Error handled
     } finally {
       setIsResendingOtp(false);
     }
@@ -500,9 +494,8 @@ const DeliveryOrderDetail = () => {
                   try {
                     const updated = await updateOrderStatus(order.id, 'shipped');
                     setOrder(updated);
-                    toast.success('Started delivery!');
                   } catch (e) {
-                    toast.error(e?.response?.data?.message || 'Failed to start delivery');
+                    console.error(e);
                   }
                 }}
                 disabled={isUpdatingOrderStatus}

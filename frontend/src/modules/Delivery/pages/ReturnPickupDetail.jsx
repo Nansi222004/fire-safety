@@ -17,7 +17,6 @@ import {
 import PageTransition from '../../../shared/components/PageTransition';
 import { getSocket, joinRoom, leaveRoom } from '../../../shared/utils/socket';
 import { formatPrice } from '../../../shared/utils/helpers';
-import toast from 'react-hot-toast';
 import { useDeliveryAuthStore } from '../store/deliveryStore';
 
 const DeliveryReturnPickupDetail = () => {
@@ -98,36 +97,32 @@ const DeliveryReturnPickupDetail = () => {
     try {
       const updated = await acceptReturnPickup(id);
       setReturnRequest(updated);
-      toast.success('Offer accepted successfully!');
     } catch {
-      // toast error handled by api interceptor
+      // Handled
     }
   };
 
   const handleReject = async () => {
     try {
       await rejectReturnPickup(id);
-      toast.success('Offer rejected');
       navigate('/delivery/orders?tab=pickups');
     } catch {
-      // toast error handled by api interceptor
+      // Handled
     }
   };
 
   const handleVerifyOtp = async () => {
     const code = otpInput.trim();
     if (!code || code.length !== 6) {
-      toast.error('Please enter a valid 6-digit OTP');
       return;
     }
     setIsVerifyingOtp(true);
     try {
       await verifyReturnPickupOtp(id, code);
-      toast.success('Customer OTP verified successfully!');
       setOtpInput('');
       await loadDetail();
     } catch {
-      // toast error handled by api interceptor
+      // Handled
     } finally {
       setIsVerifyingOtp(false);
     }
@@ -136,17 +131,15 @@ const DeliveryReturnPickupDetail = () => {
   const handleVerifyVendorHandover = async () => {
     const code = otpInput.trim();
     if (!code || code.length !== 6) {
-      toast.error('Please enter a valid 6-digit OTP');
       return;
     }
     setIsVerifyingOtp(true);
     try {
       await verifyVendorHandoverOtp(id, code);
-      toast.success('Vendor Handover OTP verified successfully!');
       setOtpInput('');
       await loadDetail();
     } catch {
-      // toast error handled by api interceptor
+      // Handled
     } finally {
       setIsVerifyingOtp(false);
     }
@@ -155,17 +148,15 @@ const DeliveryReturnPickupDetail = () => {
   const handleVerifyCustomerDelivery = async () => {
     const code = otpInput.trim();
     if (!code || code.length !== 6) {
-      toast.error('Please enter a valid 6-digit OTP');
       return;
     }
     setIsVerifyingOtp(true);
     try {
       await verifyCustomerDeliveryOtp(id, code);
-      toast.success('Customer Delivery OTP verified successfully!');
       setOtpInput('');
       await loadDetail();
     } catch {
-      // toast error handled by api interceptor
+      // Handled
     } finally {
       setIsVerifyingOtp(false);
     }
@@ -181,7 +172,6 @@ const DeliveryReturnPickupDetail = () => {
     ];
     const isEvidenceBased = evidenceRequiredReasons.includes(returnRequest?.returnReason);
     if (isEvidenceBased && riderPhotos.length === 0) {
-      toast.error(`At least one pickup photo is required for reason: ${returnRequest?.returnReason}`);
       return;
     }
 
@@ -191,10 +181,9 @@ const DeliveryReturnPickupDetail = () => {
       const formData = new FormData();
       riderPhotos.forEach((file) => formData.append('photos', file));
       await updateReturnPickupStatus(id, 'picked_up', formData);
-      toast.success('Status updated to Picked Up!');
       await loadDetail();
     } catch {
-      // toast error handled by api interceptor
+      // Handled
     }
   };
 

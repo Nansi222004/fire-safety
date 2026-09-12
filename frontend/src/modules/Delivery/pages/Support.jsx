@@ -21,7 +21,6 @@ import * as supportService from '../services/supportService';
 import { getSocket, joinRoom, leaveRoom } from '../../../shared/utils/socket';
 import { useDeliveryAuthStore } from '../store/deliveryStore';
 import api from '../../../shared/utils/api';
-import toast from 'react-hot-toast';
 
 const DeliverySupport = () => {
     const navigate = useNavigate();
@@ -208,9 +207,7 @@ const DeliverySupport = () => {
                     };
                 });
             } else {
-                // Background notification toast (only if not viewing the ticket)
-                const senderName = normalizedMsg.senderType === 'admin' ? 'Admin Support' : 'Support';
-                toast.success(`New message on Ticket #${String(ticketId).slice(-6).toUpperCase()} from ${senderName}: "${msg.message}"`);
+                // Background notification (only if not viewing the ticket)
             }
         };
 
@@ -250,7 +247,7 @@ const DeliverySupport = () => {
             setTickets(ticketsRes?.tickets || ticketsRes?.data || ticketsRes || []);
             setTicketTypes(typesRes?.data || typesRes || []);
         } catch (error) {
-            toast.error('Failed to load support data');
+            console.error('Failed to load support data:', error);
         } finally {
             setIsLoading(false);
         }
@@ -278,17 +275,14 @@ const DeliverySupport = () => {
         const trimmedMessage = String(newTicket.message || '').trim();
 
         if (!trimmedSubject || !trimmedMessage || !newTicket.ticketTypeId) {
-            toast.error('Please fill all required fields');
             return;
         }
 
         if (trimmedSubject.length < 3 || trimmedSubject.length > 100) {
-            toast.error('Subject must be between 3 and 100 characters');
             return;
         }
 
         if (trimmedMessage.length < 3 || trimmedMessage.length > 1000) {
-            toast.error('Message must be between 3 and 1000 characters');
             return;
         }
 
@@ -300,12 +294,11 @@ const DeliverySupport = () => {
                 ticketTypeId: newTicket.ticketTypeId,
                 priority: newTicket.priority
             });
-            toast.success('Ticket created successfully');
             setNewTicket({ subject: '', ticketTypeId: '', message: '', priority: 'medium' });
             setIsCreating(false);
             fetchInitialData();
         } catch (error) {
-            toast.error(error.message || 'Failed to create ticket');
+            console.error(error);
         } finally {
             setIsSending(false);
         }
@@ -323,7 +316,7 @@ const DeliverySupport = () => {
             setReplyMessage('');
             fetchTicketsSilently();
         } catch (error) {
-            toast.error('Failed to send message');
+            console.error(error);
         } finally {
             setIsSending(false);
         }
@@ -374,7 +367,6 @@ const DeliverySupport = () => {
 
     const copyToClipboard = (text) => {
         navigator.clipboard.writeText(text);
-        toast.success('Copied to clipboard');
     };
 
     const renderMessagesWithDates = (messages) => {

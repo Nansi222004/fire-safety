@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FiArrowLeft, FiEye, FiEyeOff, FiLock, FiTruck } from 'react-icons/fi';
-import toast from 'react-hot-toast';
 import PageTransition from '../../../shared/components/PageTransition';
 import { useDeliveryAuthStore } from '../store/deliveryStore';
 import { appLogo } from '../../../shared/utils/imagePaths';
@@ -24,25 +23,21 @@ const DeliveryResetPassword = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email) {
-      toast.error('Session expired. Please start forgot password again.');
       navigate('/delivery/forgot-password', { replace: true });
       return;
     }
     if (!formData.password || !formData.confirmPassword) {
-      toast.error('Please fill both password fields.');
       return;
     }
     if (formData.password !== formData.confirmPassword) {
-      toast.error('Passwords do not match.');
       return;
     }
 
     try {
       await resetPassword(email, formData.password, formData.confirmPassword);
-      toast.success('Password reset successful. Please login.');
       navigate('/delivery/login', { replace: true });
     } catch {
-      // Global API interceptor shows toast
+      // Handled
     }
   };
 

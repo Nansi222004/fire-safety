@@ -4,7 +4,6 @@ import { useDeliveryAuthStore } from '../store/deliveryStore';
 import { FiPackage, FiCheckCircle, FiClock, FiTrendingUp, FiMapPin, FiTruck, FiChevronRight, FiChevronDown } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import PageTransition from '../../../shared/components/PageTransition';
-import toast from 'react-hot-toast';
 import { formatPrice } from '../../../shared/utils/helpers';
 
 const DeliveryDashboard = () => {
@@ -103,10 +102,9 @@ const DeliveryDashboard = () => {
     if (isUpdatingStatus) return;
     try {
       await updateStatus(newStatus);
-      toast.success(`Status updated to ${newStatus}`);
       setStatusMenuOpen(false);
     } catch {
-      // Error toast already handled by API interceptor.
+      // Error handled
     }
   };
 

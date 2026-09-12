@@ -16,7 +16,6 @@ import {
 import { useDeliveryAuthStore } from "../../store/deliveryStore";
 import { useDeliveryNotificationStore } from "../../store/deliveryNotificationStore";
 import { motion, AnimatePresence } from "framer-motion";
-import toast from "react-hot-toast";
 import DeliveryBottomNav from "./DeliveryBottomNav";
 import { appLogo } from "../../../../data/logos";
 
@@ -40,23 +39,17 @@ const DeliveryLayout = () => {
   const requestLocationAccess = () => {
     if (!navigator.geolocation) {
       setGpsStatus("unsupported");
-      toast.error("Geolocation is not supported by your browser.");
       return;
     }
 
     if (gpsStatus === "denied") {
-      const currentHost = typeof window !== "undefined" ? window.location.host : "your browser address bar";
-      toast.error(
-        `Location is blocked by browser settings! Click the 🔒 tune/lock icon in your address bar (next to ${currentHost}) and change Location to 'Allow', then click Enable GPS.`,
-        { duration: 6000 }
-      );
+      // Location blocked
     }
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude, longitude } = pos.coords;
         setGpsStatus("active");
-        toast.success("GPS Location Active!");
         updateProfile({
           currentLocation: {
             type: "Point",
@@ -67,13 +60,6 @@ const DeliveryLayout = () => {
       (err) => {
         console.warn("Geolocation access denied:", err.message);
         setGpsStatus("denied");
-        if (err.code === err.PERMISSION_DENIED) {
-          const currentHost = typeof window !== "undefined" ? window.location.host : "your address bar";
-          toast.error(
-            `Location access was blocked. Please enable Location in your address bar settings (next to ${currentHost}).`,
-            { duration: 6000 }
-          );
-        }
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
     );
@@ -141,7 +127,6 @@ const DeliveryLayout = () => {
 
   const handleLogout = () => {
     logout();
-    toast.success("Logged out successfully");
     navigate("/delivery/login");
   };
 

@@ -18,7 +18,6 @@ import {
   FiCheck,
 } from "react-icons/fi";
 import PageTransition from "../../../shared/components/PageTransition";
-import toast from "react-hot-toast";
 import { formatPrice } from "../../../shared/utils/helpers";
 
 const DeliveryWallet = () => {
@@ -83,7 +82,7 @@ const DeliveryWallet = () => {
           }
         }
       } catch (err) {
-        toast.error("Failed to load wallet data.");
+        console.error("Failed to load wallet data:", err);
       } finally {
         setIsLoading(false);
       }
@@ -115,32 +114,26 @@ const DeliveryWallet = () => {
     const amountNum = parseFloat(withdrawAmount);
 
     if (isNaN(amountNum) || amountNum <= 0) {
-      toast.error("Please enter a valid amount.");
       return;
     }
 
     if (amountNum < 100) {
-      toast.error("Minimum withdrawal amount is ₹100.");
       return;
     }
 
     const available = Number(walletSummary?.availableWithdrawal || 0);
     if (amountNum > available) {
-      toast.error(
-        "Dues check failed. You cannot request more than your net available balance.",
-      );
       return;
     }
 
     setIsSubmittingWithdraw(true);
     try {
       await requestWithdrawal(amountNum);
-      toast.success("Withdrawal request submitted successfully!");
       setWithdrawModalOpen(false);
       setWithdrawAmount("");
       loadData(currentPage); // reload details
     } catch (err) {
-      toast.error(err.message || "Failed to submit withdrawal request.");
+      console.error(err);
     } finally {
       setIsSubmittingWithdraw(false);
     }
@@ -149,7 +142,6 @@ const DeliveryWallet = () => {
   const handleCopy = (text, fieldName) => {
     navigator.clipboard.writeText(text);
     setCopiedField(fieldName);
-    toast.success(`${fieldName} copied to clipboard!`);
     setTimeout(() => setCopiedField(null), 2000);
   };
 
@@ -165,10 +157,9 @@ const DeliveryWallet = () => {
       };
 
       await updatePayoutSettings(payload);
-      toast.success("Payout details saved successfully!");
       setSettingsOpen(false);
     } catch (err) {
-      toast.error(err.message || "Failed to save payout settings.");
+      console.error(err);
     } finally {
       setIsSavingSettings(false);
     }

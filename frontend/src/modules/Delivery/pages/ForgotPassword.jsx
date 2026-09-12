@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FiArrowLeft, FiCheck, FiMail, FiRefreshCw, FiTruck } from 'react-icons/fi';
-import toast from 'react-hot-toast';
 import PageTransition from '../../../shared/components/PageTransition';
 import { useDeliveryAuthStore } from '../store/deliveryStore';
 import { appLogo } from '../../../shared/utils/imagePaths';
@@ -26,16 +25,14 @@ const DeliveryForgotPassword = () => {
   const handleRequestOtp = async (e) => {
     if (e) e.preventDefault();
     if (!email.trim()) {
-      toast.error('Please enter your email.');
       return;
     }
 
     try {
       await forgotPassword(email.trim().toLowerCase());
-      toast.success('If the email exists, reset OTP has been sent.');
       setStep('verify');
     } catch {
-      // Global API interceptor shows toast
+      // Handled
     }
   };
 
@@ -65,16 +62,14 @@ const DeliveryForgotPassword = () => {
     e.preventDefault();
     const otp = codes.join('');
     if (otp.length !== OTP_LENGTH) {
-      toast.error('Please enter the full OTP.');
       return;
     }
 
     try {
       await verifyResetOtp(email.trim().toLowerCase(), otp);
-      toast.success('OTP verified. Please set your new password.');
       navigate(`/delivery/reset-password?email=${encodeURIComponent(email.trim().toLowerCase())}`);
     } catch {
-      // Global API interceptor shows toast
+      // Handled
     }
   };
 

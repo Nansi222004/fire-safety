@@ -3,7 +3,6 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { FiMail, FiLock, FiEye, FiEyeOff, FiTruck, FiLogIn } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useDeliveryAuthStore } from '../store/deliveryStore';
-import toast from 'react-hot-toast';
 import { appLogo } from '../../../shared/utils/imagePaths';
 import PageTransition from '../../../shared/components/PageTransition';
 
@@ -39,16 +38,14 @@ const DeliveryLogin = () => {
     e.preventDefault();
     
     if (!formData.email || !formData.password) {
-      toast.error('Please fill in all fields');
       return;
     }
 
     try {
       await login(formData.email, formData.password, rememberMe);
-      toast.success('Login successful!');
       // Redirect is handled by auth effect above to avoid duplicate navigation.
     } catch (error) {
-      toast.error(error.message || 'Invalid credentials');
+      console.error(error);
     }
   };
 

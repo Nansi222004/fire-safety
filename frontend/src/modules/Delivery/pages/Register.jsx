@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiMail, FiLock, FiEye, FiEyeOff, FiUser, FiPhone, FiTruck, FiMapPin, FiFileText, FiChevronDown, FiArrowLeft } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
-import toast from 'react-hot-toast';
 import { useDeliveryAuthStore } from '../store/deliveryStore';
 import { appLogo } from '../../../shared/utils/imagePaths';
 import PageTransition from '../../../shared/components/PageTransition';
@@ -40,24 +39,20 @@ const DeliveryRegister = () => {
     e.preventDefault();
 
     if (!formData.name || !formData.email || !formData.phone || !formData.address || !formData.vehicleType || !formData.vehicleNumber || !formData.password) {
-      toast.error('Please fill in all required fields');
       return;
     }
     if (!formData.drivingLicense || !formData.aadharCard) {
-      toast.error('Driving License and Aadhar Card are required');
       return;
     }
     if (formData.password !== formData.confirmPassword) {
-      toast.error('Passwords do not match');
       return;
     }
     if (formData.password.length < 6) {
-      toast.error('Password must be at least 6 characters');
       return;
     }
 
     try {
-      const result = await register({
+      await register({
         name: formData.name.trim(),
         email: formData.email.trim().toLowerCase(),
         phone: formData.phone.trim(),
@@ -68,10 +63,9 @@ const DeliveryRegister = () => {
         drivingLicense: formData.drivingLicense,
         aadharCard: formData.aadharCard,
       });
-      toast.success(result.message || 'Registration submitted');
       navigate('/delivery/login', { replace: true });
     } catch (error) {
-      toast.error(error.message || 'Registration failed');
+      console.error(error);
     }
   };
 
