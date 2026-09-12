@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { FiSave, FiUser, FiLock, FiShield, FiFile, FiGrid, FiAlertTriangle, FiCheckCircle, FiArrowRight, FiClock, FiXCircle, FiTrash2, FiX } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -612,154 +613,154 @@ const ProfileSettings = () => {
         </div>
       </div>
 
-      {/* Confirmation Modal for Deleting Vendor Account */}
-      <AnimatePresence>
-        {showDeleteModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => !isDeletingAccount && setShowDeleteModal(false)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-xs"
-            />
+      {/* Modals rendered directly to document.body via Portal to guarantee perfect screen centering */}
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {showDeleteModal && (
+            <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => !isDeletingAccount && setShowDeleteModal(false)}
+                className="fixed inset-0 bg-black/60 backdrop-blur-xs"
+              />
 
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="bg-white rounded-3xl p-6 sm:p-7 max-w-md w-full relative z-10 shadow-2xl border border-red-100 space-y-4"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center font-bold text-xl">
-                    <FiTrash2 />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-black text-slate-900">Delete Vendor Account</h3>
-                    <p className="text-xs text-red-500 font-bold">Permanent Deletion</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => !isDeletingAccount && setShowDeleteModal(false)}
-                  className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 transition-colors"
-                >
-                  <FiX className="text-lg" />
-                </button>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-red-50/70 border border-red-100 space-y-2">
-                <p className="text-xs sm:text-sm text-slate-800 font-bold leading-relaxed">
-                  Are you sure you want to permanently delete your vendor account and store?
-                </p>
-                <ul className="text-xs text-slate-600 space-y-1 list-disc list-inside">
-                  <li>Your store profile, logo, products, and services will be removed.</li>
-                  <li>Deletion is blocked if there are active, unfulfilled orders or pending service requests.</li>
-                </ul>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Type <span className="text-red-600 font-black">DELETE</span> to confirm
-                </label>
-                <input
-                  type="text"
-                  value={deleteConfirmText}
-                  onChange={(e) => setDeleteConfirmText(e.target.value)}
-                  placeholder="Type DELETE"
-                  className="w-full px-4 py-2.5 border-2 border-slate-200 focus:border-red-500 rounded-xl text-sm font-semibold focus:outline-none"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDeleteConfirmText('');
-                    setShowDeleteModal(false);
-                  }}
-                  disabled={isDeletingAccount}
-                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDeleteAccount}
-                  disabled={deleteConfirmText !== 'DELETE' || isDeletingAccount}
-                  className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold text-xs transition-colors shadow-md flex items-center justify-center gap-1.5"
-                >
-                  {isDeletingAccount ? (
-                    <span>Deleting...</span>
-                  ) : (
-                    <>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                className="bg-white rounded-3xl p-6 sm:p-7 max-w-md w-full relative z-10 shadow-2xl border border-red-100 space-y-4"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center font-bold text-xl">
                       <FiTrash2 />
-                      <span>Delete Store</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black text-slate-900">Delete Vendor Account</h3>
+                      <p className="text-xs text-red-500 font-bold">Permanent Deletion</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => !isDeletingAccount && setShowDeleteModal(false)}
+                    className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 transition-colors"
+                  >
+                    <FiX className="text-lg" />
+                  </button>
+                </div>
 
-      {/* Confirmation Modal for Disabling Capabilities */}
-      <AnimatePresence>
-        {pendingDisableCap && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setPendingDisableCap(null)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-xs"
-            />
+                <div className="p-4 rounded-2xl bg-red-50/70 border border-red-100 space-y-2">
+                  <p className="text-xs sm:text-sm text-slate-800 font-bold leading-relaxed">
+                    Are you sure you want to permanently delete your vendor account and store?
+                  </p>
+                  <ul className="text-xs text-slate-600 space-y-1 list-disc list-inside">
+                    <li>Your store profile, logo, products, and services will be removed.</li>
+                    <li>Deletion is blocked if there are active, unfulfilled orders or pending service requests.</li>
+                  </ul>
+                </div>
 
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="relative bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border border-slate-200 z-10 space-y-5"
-            >
-              <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-2xl border border-amber-200">
-                <FiAlertTriangle />
-              </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Type <span className="text-red-600 font-black">DELETE</span> to confirm
+                  </label>
+                  <input
+                    type="text"
+                    value={deleteConfirmText}
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    placeholder="Type DELETE"
+                    className="w-full px-4 py-2.5 border-2 border-slate-200 focus:border-red-500 rounded-xl text-sm font-semibold focus:outline-none"
+                  />
+                </div>
 
-              <div>
-                <h3 className="text-lg font-black text-slate-900">Are you sure?</h3>
-                <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                  {pendingDisableCap === 'sellsProducts'
-                    ? 'Your existing products and orders will remain stored safely, but your products will no longer be available for new customer purchases.'
-                    : 'Your existing service bookings and service configurations will remain accessible, but you will no longer receive new customer service bookings.'}
-                </p>
-              </div>
+                <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteConfirmText('');
+                      setShowDeleteModal(false);
+                    }}
+                    disabled={isDeletingAccount}
+                    className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDeleteAccount}
+                    disabled={deleteConfirmText !== 'DELETE' || isDeletingAccount}
+                    className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold text-xs transition-colors shadow-md flex items-center justify-center gap-1.5"
+                  >
+                    {isDeletingAccount ? (
+                      <span>Deleting...</span>
+                    ) : (
+                      <>
+                        <FiTrash2 />
+                        <span>Delete Store</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setPendingDisableCap(null)}
-                  disabled={isSubmittingCap}
-                  className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition-colors"
-                >
-                  Cancel
-                </button>
+          {pendingDisableCap && (
+            <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setPendingDisableCap(null)}
+                className="fixed inset-0 bg-black/60 backdrop-blur-xs"
+              />
 
-                <button
-                  type="button"
-                  onClick={() => executeCapabilityChange(pendingDisableCap, false)}
-                  disabled={isSubmittingCap}
-                  className="px-5 py-2.5 bg-[#E31E24] hover:bg-[#c6151b] text-white rounded-xl font-bold text-xs transition-colors shadow-md disabled:opacity-50"
-                >
-                  {isSubmittingCap ? 'Updating...' : 'Disable Capability'}
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                className="relative bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border border-slate-200 z-10 space-y-5"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-2xl border border-amber-200">
+                  <FiAlertTriangle />
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">Are you sure?</h3>
+                  <p className="text-xs text-slate-600 mt-2 leading-relaxed">
+                    {pendingDisableCap === 'sellsProducts'
+                      ? 'Your existing products and orders will remain stored safely, but your products will no longer be available for new customer purchases.'
+                      : 'Your existing service bookings and service configurations will remain accessible, but you will no longer receive new customer service bookings.'}
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setPendingDisableCap(null)}
+                    disabled={isSubmittingCap}
+                    className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition-colors"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => executeCapabilityChange(pendingDisableCap, false)}
+                    disabled={isSubmittingCap}
+                    className="px-5 py-2.5 bg-[#E31E24] hover:bg-[#c6151b] text-white rounded-xl font-bold text-xs transition-colors shadow-md disabled:opacity-50"
+                  >
+                    {isSubmittingCap ? 'Updating...' : 'Disable Capability'}
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </motion.div>
   );
 };

@@ -371,14 +371,6 @@ const MobileProfile = () => {
           badge: unreadNotificationCount > 0 ? unreadNotificationCount : null,
           link: '/notifications',
         },
-        {
-          label: 'Delete Account',
-          description: 'Permanently remove your account and personal data',
-          icon: FiTrash2,
-          iconColor: 'text-rose-600',
-          iconBg: 'bg-rose-50',
-          action: () => setActiveModal('deleteAccount'),
-        },
       ],
     },
     {
@@ -607,7 +599,7 @@ const MobileProfile = () => {
               <button
                 type="button"
                 onClick={() => setActiveModal('deleteAccount')}
-                className="w-full py-2.5 px-4 rounded-2xl text-gray-400 hover:text-rose-600 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                className="w-full py-2.5 px-4 rounded-2xl text-red-600 hover:text-red-700 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors"
               >
                 <FiTrash2 className="text-sm" />
                 <span>Delete Account</span>
