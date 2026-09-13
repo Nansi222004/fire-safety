@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { useParams, useNavigate, Link, useSearchParams } from "react-router-dom";
+import { useParams, useNavigate, Link, useSearchParams, useLocation } from "react-router-dom";
 import {
   FiStar,
   FiHeart,
@@ -313,6 +313,7 @@ const normalizeProduct = (raw) => {
 const MobileProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const localFallbackProduct = useMemo(() => normalizeProduct(getProductById(id)), [id]);
   const [product, setProduct] = useState(localFallbackProduct);
@@ -538,6 +539,29 @@ const MobileProductDetail = () => {
       fetchReviews(product.id, { sort: "newest", limit: 50 });
     }
   }, [product?.id, fetchReviews]);
+
+  useEffect(() => {
+    if (!product || isLoadingProduct) return;
+    const isTargetingVariants =
+      location.hash === "#variants" ||
+      location.hash === "#variants-section" ||
+      searchParams.get("scroll") === "variants";
+
+    if (isTargetingVariants) {
+      const scrollToVariants = () => {
+        const el = document.getElementById("variants-section");
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      };
+      const t1 = setTimeout(scrollToVariants, 250);
+      const t2 = setTimeout(scrollToVariants, 600);
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
+    }
+  }, [product, isLoadingProduct, location.hash, searchParams]);
 
   const handleAddToCart = async () => {
     if (!product) return;
@@ -922,7 +946,7 @@ const MobileProductDetail = () => {
 
                     {/* Variants */}
                     {product.variants && (
-                      <div className="pt-2">
+                      <div id="variants-section" className="pt-2 scroll-mt-24">
                         <VariantSelector
                           variants={product.variants}
                           onVariantChange={setSelectedVariant}

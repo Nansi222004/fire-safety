@@ -3,7 +3,6 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { FiMail, FiLock, FiEye, FiEyeOff, FiTruck, FiLogIn } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useDeliveryAuthStore } from '../store/deliveryStore';
-import toast from 'react-hot-toast';
 import { appLogo } from '../../../shared/utils/imagePaths';
 import PageTransition from '../../../shared/components/PageTransition';
 
@@ -39,16 +38,14 @@ const DeliveryLogin = () => {
     e.preventDefault();
     
     if (!formData.email || !formData.password) {
-      toast.error('Please fill in all fields');
       return;
     }
 
     try {
       await login(formData.email, formData.password, rememberMe);
-      toast.success('Login successful!');
       // Redirect is handled by auth effect above to avoid duplicate navigation.
     } catch (error) {
-      toast.error(error.message || 'Invalid credentials');
+      console.error(error);
     }
   };
 
@@ -195,20 +192,6 @@ const DeliveryLogin = () => {
                 </p>
               </div>
             </form>
-
-            {/* Demo Credentials */}
-            <div
-              onClick={() => setFormData({ email: 'delivery@safefire.com', password: 'Password123!' })}
-              className="p-3.5 bg-[#FEF2F2] rounded-xl cursor-pointer hover:bg-red-100 transition-colors border border-red-200 group"
-              title="Click to autofill test credentials"
-            >
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-xs text-[#0F172A] font-bold">Demo Credentials:</p>
-                <span className="text-[11px] text-[#E31E24] font-semibold group-hover:underline">Click to autofill</span>
-              </div>
-              <p className="text-xs text-[#64748B]">Email: <span className="font-semibold text-[#0F172A]">delivery@safefire.com</span></p>
-              <p className="text-xs text-[#64748B]">Password: <span className="font-semibold text-[#0F172A]">Password123!</span></p>
-            </div>
           </motion.div>
         </main>
 

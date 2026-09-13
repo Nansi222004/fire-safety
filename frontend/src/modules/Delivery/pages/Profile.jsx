@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
 import { useDeliveryAuthStore } from '../store/deliveryStore';
 import { FiUser, FiMail, FiPhone, FiTruck, FiEdit2, FiSave, FiX, FiLogOut, FiChevronDown, FiTrash2, FiShield, FiChevronRight } from 'react-icons/fi';
 import PageTransition from '../../../shared/components/PageTransition';
-import toast from 'react-hot-toast';
 import { formatPrice } from '../../../shared/utils/helpers';
 
 const DeliveryProfile = () => {
@@ -74,26 +74,11 @@ const DeliveryProfile = () => {
   };
 
   const handleSave = async () => {
-    if (!formData.name?.trim()) {
-      toast.error('Name is required');
-      return;
-    }
-    if (!formData.email?.trim()) {
-      toast.error('Email is required');
-      return;
-    }
-    if (!formData.phone?.trim()) {
-      toast.error('Phone is required');
-      return;
-    }
-    if (!formData.vehicleType?.trim()) {
-      toast.error('Vehicle type is required');
-      return;
-    }
-    if (!formData.vehicleNumber?.trim()) {
-      toast.error('Vehicle number is required');
-      return;
-    }
+    if (!formData.name?.trim()) return;
+    if (!formData.email?.trim()) return;
+    if (!formData.phone?.trim()) return;
+    if (!formData.vehicleType?.trim()) return;
+    if (!formData.vehicleNumber?.trim()) return;
     try {
       await updateProfile({
         name: formData.name.trim(),
@@ -103,9 +88,8 @@ const DeliveryProfile = () => {
         vehicleNumber: formData.vehicleNumber.trim(),
       });
       setIsEditing(false);
-      toast.success('Profile updated successfully');
     } catch {
-      // Error toast handled by API interceptor.
+      // Error handled
     }
   };
 
@@ -122,7 +106,6 @@ const DeliveryProfile = () => {
 
   const handleLogout = () => {
     logout();
-    toast.success('Logged out successfully');
     navigate('/delivery/login');
   };
 
@@ -130,12 +113,11 @@ const DeliveryProfile = () => {
     setIsDeletingAccount(true);
     try {
       await deleteAccount();
-      toast.success('Your delivery partner account has been deleted.');
       setShowDeleteModal(false);
       setDeleteConfirmText('');
       navigate('/delivery/login');
     } catch (err) {
-      toast.error(err?.response?.data?.message || err.message || 'Failed to delete account.');
+      console.error(err);
     } finally {
       setIsDeletingAccount(false);
     }
@@ -444,91 +426,94 @@ const DeliveryProfile = () => {
           </button>
         </motion.div>
 
-        {/* Delete Confirmation Modal */}
-        <AnimatePresence>
-          {showDeleteModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-              <div className="absolute inset-0" onClick={() => !isDeletingAccount && setShowDeleteModal(false)} />
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="bg-white rounded-3xl p-6 w-full max-w-md relative z-10 shadow-2xl border border-slate-100 space-y-4"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center font-bold text-lg">
-                      <FiTrash2 />
-                    </div>
-                    <div>
-                      <h3 className="text-base font-black text-slate-900">Delete Account</h3>
-                      <p className="text-xs text-red-500 font-bold">Permanent Action</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => !isDeletingAccount && setShowDeleteModal(false)}
-                    className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 transition-colors"
-                  >
-                    <FiX className="text-lg" />
-                  </button>
-                </div>
-
-                <div className="p-4 rounded-2xl bg-red-50/60 border border-red-100 space-y-2">
-                  <p className="text-xs text-slate-800 font-semibold leading-relaxed">
-                    Are you sure you want to permanently delete your delivery partner account?
-                  </p>
-                  <ul className="text-xs text-slate-600 space-y-1 list-disc list-inside">
-                    <li>Your delivery profile, documents, and vehicle records will be wiped.</li>
-                    <li>Deletion is blocked if you have ongoing assigned shipments, pending pickups, or unremitted cash-in-hand.</li>
-                  </ul>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Type <span className="text-red-600 font-black">DELETE</span> to confirm
-                  </label>
-                  <input
-                    type="text"
-                    value={deleteConfirmText}
-                    onChange={(e) => setDeleteConfirmText(e.target.value)}
-                    placeholder="Type DELETE"
-                    className="w-full px-4 py-2.5 border-2 border-slate-100 focus:border-red-500 rounded-xl text-sm font-semibold focus:outline-none"
-                  />
-                </div>
-
-                <div className="flex items-center gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDeleteConfirmText('');
-                      setShowDeleteModal(false);
-                    }}
-                    disabled={isDeletingAccount}
-                    className="flex-1 py-3 px-4 rounded-xl border border-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-50 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleDeleteAccount}
-                    disabled={deleteConfirmText !== 'DELETE' || isDeletingAccount}
-                    className="flex-1 py-3 px-4 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-sm"
-                  >
-                    {isDeletingAccount ? (
-                      <span>Deleting...</span>
-                    ) : (
-                      <>
+        {/* Delete Confirmation Modal rendered to document.body to ensure true screen centering */}
+        {typeof document !== 'undefined' && createPortal(
+          <AnimatePresence>
+            {showDeleteModal && (
+              <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+                <div className="absolute inset-0" onClick={() => !isDeletingAccount && setShowDeleteModal(false)} />
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                  className="bg-white rounded-3xl p-6 w-full max-w-md relative z-10 shadow-2xl border border-slate-100 space-y-4"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center font-bold text-lg">
                         <FiTrash2 />
-                        <span>Delete Account</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
+                      </div>
+                      <div>
+                        <h3 className="text-base font-black text-slate-900">Delete Account</h3>
+                        <p className="text-xs text-red-500 font-bold">Permanent Action</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => !isDeletingAccount && setShowDeleteModal(false)}
+                      className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 transition-colors"
+                    >
+                      <FiX className="text-lg" />
+                    </button>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-red-50/60 border border-red-100 space-y-2">
+                    <p className="text-xs text-slate-800 font-semibold leading-relaxed">
+                      Are you sure you want to permanently delete your delivery partner account?
+                    </p>
+                    <ul className="text-xs text-slate-600 space-y-1 list-disc list-inside">
+                      <li>Your delivery profile, documents, and vehicle records will be wiped.</li>
+                      <li>Deletion is blocked if you have ongoing assigned shipments, pending pickups, or unremitted cash-in-hand.</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Type <span className="text-red-600 font-black">DELETE</span> to confirm
+                    </label>
+                    <input
+                      type="text"
+                      value={deleteConfirmText}
+                      onChange={(e) => setDeleteConfirmText(e.target.value)}
+                      placeholder="Type DELETE"
+                      className="w-full px-4 py-2.5 border-2 border-slate-100 focus:border-red-500 rounded-xl text-sm font-semibold focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDeleteConfirmText('');
+                        setShowDeleteModal(false);
+                      }}
+                      disabled={isDeletingAccount}
+                      className="flex-1 py-3 px-4 rounded-xl border border-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDeleteAccount}
+                      disabled={deleteConfirmText !== 'DELETE' || isDeletingAccount}
+                      className="flex-1 py-3 px-4 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-sm"
+                    >
+                      {isDeletingAccount ? (
+                        <span>Deleting...</span>
+                      ) : (
+                        <>
+                          <FiTrash2 />
+                          <span>Delete Account</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>,
+          document.body
+        )}
       </div>
     </PageTransition>
   );
