@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import toast from "react-hot-toast";
 import api from "../../../shared/utils/api";
 
 const normalizePayload = (response) => {
@@ -60,7 +59,6 @@ export const useDeliveryNotificationStore = create((set, get) => ({
     } catch (error) {
       console.error("Failed to fetch delivery notifications:", error);
       set({ isLoading: false });
-      toast.error("Failed to load notifications");
     }
   },
 
@@ -82,7 +80,6 @@ export const useDeliveryNotificationStore = create((set, get) => ({
       });
     } catch (error) {
       console.error("Failed to mark delivery notification as read:", error);
-      toast.error("Failed to mark notification as read");
     }
   },
 
@@ -93,10 +90,8 @@ export const useDeliveryNotificationStore = create((set, get) => ({
         notifications: state.notifications.map((n) => ({ ...n, isRead: true })),
         unreadCount: 0,
       }));
-      toast.success("All notifications marked as read");
     } catch (error) {
       console.error("Failed to mark all delivery notifications as read:", error);
-      toast.error("Failed to mark all notifications as read");
     }
   },
 
@@ -117,10 +112,8 @@ export const useDeliveryNotificationStore = create((set, get) => ({
               : state.unreadCount,
         };
       });
-      toast.success("Notification deleted");
     } catch (error) {
       console.error("Failed to delete delivery notification:", error);
-      toast.error("Failed to delete notification");
     }
   },
 

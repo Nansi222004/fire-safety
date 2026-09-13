@@ -109,9 +109,10 @@ const AppBootstrap = () => {
       // Centralized order store update
       useOrderStore.getState().fetchOrderById(orderId);
 
-      if (!isViewingThisOrder) {
+      const statusUpper = String(updatedOrder?.status || "").toUpperCase();
+      if (!isViewingThisOrder && statusUpper !== "PROCESSING") {
         const orderDisplayId = String(updatedOrder.orderId && typeof updatedOrder.orderId === "object" ? (updatedOrder.orderId.orderId || updatedOrder.orderId._id) : updatedOrder.orderId || updatedOrder._id).slice(-6).toUpperCase();
-        toast.success(`Order #${orderDisplayId} status updated to: ${String(updatedOrder.status).replace(/_/g, ' ').toUpperCase()}`);
+        toast.success(`Order #${orderDisplayId} status updated to: ${statusUpper.replace(/_/g, ' ')}`);
       }
     };
 
