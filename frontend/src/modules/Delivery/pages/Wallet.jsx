@@ -285,8 +285,8 @@ const DeliveryWallet = () => {
               </div>
             </div>
 
-            {/* COD Cash Settlement Instructions */}
-            {!isLoading && walletSummary && (
+            {/* TEMPORARILY COMMENTED OUT — COD CASH SETTLEMENT INSTRUCTIONS (QR / UPI / BANK TRANSFER) */}
+            {/* {!isLoading && walletSummary && (
               <div className="space-y-3">
                 {Number(walletSummary.codLiability || 0) <= 0 ? (
                   <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-3xl p-4 flex items-center gap-3">
@@ -344,7 +344,6 @@ const DeliveryWallet = () => {
                           className="border-t border-slate-50 overflow-hidden"
                         >
                           <div className="p-5 space-y-5">
-                            {/* Dynamic QR Code Section */}
                             <div className="flex flex-col sm:flex-row items-center gap-5 p-4 bg-slate-50 rounded-2xl border border-slate-100">
                               <div className="p-2 bg-white rounded-2xl border border-slate-100 shadow-sm flex-shrink-0">
                                 <img
@@ -376,7 +375,6 @@ const DeliveryWallet = () => {
                               </div>
                             </div>
 
-                            {/* UPI ID Transfer */}
                             <div className="space-y-2">
                               <label className="text-[9px] text-slate-400 font-black uppercase tracking-wider">
                                 Deposit via UPI ID
@@ -405,7 +403,6 @@ const DeliveryWallet = () => {
                               </div>
                             </div>
 
-                            {/* Bank Transfer Details */}
                             <div className="space-y-3">
                               <label className="text-[9px] text-slate-400 font-black uppercase tracking-wider block">
                                 Deposit via Bank Transfer
@@ -494,7 +491,6 @@ const DeliveryWallet = () => {
                               </div>
                             </div>
 
-                            {/* Step Instructions */}
                             <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-[10px] text-amber-700 leading-relaxed font-semibold">
                               <p className="font-black uppercase tracking-wider text-[9px] mb-1">
                                 Settlement instructions:
@@ -520,7 +516,7 @@ const DeliveryWallet = () => {
                   </div>
                 )}
               </div>
-            )}
+            )} */}
           </div>
 
           {/* Right Column: Transaction Statement Ledger */}
