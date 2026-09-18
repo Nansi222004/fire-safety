@@ -100,7 +100,7 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
     setIsUploadingImage(true);
     try {
       const response = await uploadAdminImage(file, "categories");
-      const imageUrl = response?.data?.url;
+      const imageUrl = response?.url || response?.data?.url;
       if (!imageUrl) {
         toast.error("Image upload failed");
         return;
