@@ -2,6 +2,12 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import LazyImage from '../../../../shared/components/LazyImage';
+import defaultBannerImg from '../../../../assets/banners/hero_slide_2.png';
+import abcExtinguisherImg from '../../../../assets/ABC Fire Extinguishers.webp';
+import co2ExtinguisherImg from '../../../../assets/CO₂ Fire Extinguishers.webp';
+import fireBlanketImg from '../../../../assets/Fire Blankets.jpg';
+import hoseReelImg from '../../../../assets/Fire Hoses & Hose Reels.webp';
+import smokeAlarmImg from '../../../../assets/Smoke & Fire Alarms.jpg';
 
 const getButtonStyleClasses = (style = "primary", isDarkBg = false) => {
   const base = "inline-flex items-center justify-center gap-1.5 font-bold py-2 px-5 rounded-xl transition-all duration-300 shadow-md cursor-pointer select-none text-xs active:scale-95 mt-3 self-start whitespace-nowrap";
@@ -30,11 +36,11 @@ const getButtonStyleClasses = (style = "primary", isDarkBg = false) => {
 
 const CategoryInFocus = ({ banner, items }) => {
   const defaultItems = [
-    { name: 'ABC Extinguishers', image: 'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=300&q=80' },
-    { name: 'CO₂ Extinguishers', image: 'https://images.unsplash.com/photo-1599481238640-4c1288750d7a?auto=format&fit=crop&w=300&q=80' },
-    { name: 'Fire Blankets', image: 'https://images.unsplash.com/photo-1544027993-37dbfe43562a?auto=format&fit=crop&w=300&q=80' },
-    { name: 'Smoke Alarms', image: 'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=300&q=80' },
-    { name: 'Hose Reels', image: 'https://images.unsplash.com/photo-1599481238640-4c1288750d7a?auto=format&fit=crop&w=300&q=80' },
+    { name: 'ABC Extinguishers', image: abcExtinguisherImg },
+    { name: 'CO₂ Extinguishers', image: co2ExtinguisherImg },
+    { name: 'Fire Blankets', image: fireBlanketImg },
+    { name: 'Smoke Alarms', image: smokeAlarmImg },
+    { name: 'Hose Reels', image: hoseReelImg },
   ];
 
   const focusItems = items && items.length > 0 ? items : defaultItems;
@@ -42,7 +48,7 @@ const CategoryInFocus = ({ banner, items }) => {
     title: "FIRE SAFETY EQUIPMENT SPOTLIGHT",
     subtitle: "Up To 25% Off Bulk Orders",
     description: "Certified fire extinguishers, smoke alarms & safety gear for workplace & home.",
-    image: "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=1200&q=80",
+    image: defaultBannerImg,
     link: "/shop"
   };
 

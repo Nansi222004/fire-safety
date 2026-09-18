@@ -477,31 +477,39 @@ export const updateVendorBankDetails = (data) =>
  * @param {File} file
  * @param {string} folder
  * @param {string} [publicId]
+ * @returns {Promise<{url: string, publicId: string}>}
  */
-export const uploadVendorImage = (file, folder = 'vendors/products', publicId) => {
+export const uploadVendorImage = async (file, folder = 'vendors/products', publicId) => {
     const formData = new FormData();
     formData.append('image', file);
     formData.append('folder', folder);
     if (publicId) {
         formData.append('publicId', publicId);
     }
-    return api.post('/vendor/uploads/image', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const res = await api.post('/vendor/uploads/image', formData);
+    const data = res?.data ?? res;
+    return {
+        url: data?.url || '',
+        publicId: data?.publicId || '',
+    };
 };
 
 /**
  * Upload multiple vendor images using multer + Cloudinary pipeline
  * @param {File[]} files
  * @param {string} folder
+ * @returns {Promise<Array<{url: string, publicId: string}>>}
  */
-export const uploadVendorImages = (files, folder = 'vendors/products') => {
+export const uploadVendorImages = async (files, folder = 'vendors/products') => {
     const formData = new FormData();
     files.forEach((file) => formData.append('images', file));
     formData.append('folder', folder);
-    return api.post('/vendor/uploads/images', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const res = await api.post('/vendor/uploads/images', formData);
+    const list = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+    return list.map((item) => ({
+        url: item?.url || '',
+        publicId: item?.publicId || '',
+    }));
 };
 
 // ─── SUPPORT TICKETS ──────────────────────────────────────────────────────────

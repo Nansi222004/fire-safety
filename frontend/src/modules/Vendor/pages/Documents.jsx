@@ -44,7 +44,7 @@ const Documents = () => {
     const socket = getSocket(token);
     if (!socket) return;
 
-    joinRoom(socket, `vendor_${vendorId}`);
+    joinRoom(`vendor_${vendorId}`);
 
     const handleNotification = (notification) => {
       // Refresh list if the notification relates to document changes
@@ -53,13 +53,11 @@ const Documents = () => {
       }
     };
 
-    socket.on("notification", handleNotification);
     socket.on("new_notification", handleNotification);
 
     return () => {
-      socket.off("notification", handleNotification);
       socket.off("new_notification", handleNotification);
-      leaveRoom(socket, `vendor_${vendorId}`);
+      leaveRoom(`vendor_${vendorId}`);
     };
   }, [token, vendorId, fetchDocuments]);
 

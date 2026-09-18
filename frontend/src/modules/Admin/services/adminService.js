@@ -332,16 +332,19 @@ export const updateCampaign = (id, data) => api.put(`/admin/marketing/campaigns/
 export const deleteCampaign = (id) => api.delete(`/admin/marketing/campaigns/${id}`);
 
 // Image Uploads
-export const uploadAdminImage = (file, folder = 'general', publicId) => {
+export const uploadAdminImage = async (file, folder = 'general', publicId) => {
     const formData = new FormData();
     formData.append('image', file);
     formData.append('folder', folder);
     if (publicId) {
         formData.append('publicId', publicId);
     }
-    return api.post('/admin/uploads/image', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const res = await api.post('/admin/uploads/image', formData);
+    const data = res?.data ?? res;
+    return {
+        url: data?.url || '',
+        publicId: data?.publicId || '',
+    };
 };
 
 // ─── Notifications ────────────────────────────────────────────────────────────

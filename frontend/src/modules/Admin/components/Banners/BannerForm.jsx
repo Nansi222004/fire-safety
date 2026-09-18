@@ -98,7 +98,7 @@ const BannerForm = ({ banner, allowedTypes, onClose, onSave }) => {
     setIsUploadingImage(true);
     try {
       const response = await uploadAdminImage(file, "banners");
-      const url = response?.data?.url;
+      const url = response?.url || response?.data?.url;
       if (!url) {
         toast.error("Image upload failed");
         return;
@@ -125,7 +125,7 @@ const BannerForm = ({ banner, allowedTypes, onClose, onSave }) => {
     setIsUploadingMobileImage(true);
     try {
       const response = await uploadAdminImage(file, "banners");
-      const url = response?.data?.url;
+      const url = response?.url || response?.data?.url;
       if (!url) {
         toast.error("Mobile image upload failed");
         return;

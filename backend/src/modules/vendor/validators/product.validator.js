@@ -41,22 +41,24 @@ export const createProductSchema = Joi.object({
         })
     ).optional(),
     variants: Joi.object({
-        sizes: Joi.array().items(Joi.string()),
-        colors: Joi.array().items(Joi.string()),
+        sizes: Joi.array().items(Joi.string()).optional(),
+        colors: Joi.array().items(Joi.string()).optional(),
+        materials: Joi.array().items(Joi.string().trim()).optional(),
         attributes: Joi.array().items(
             Joi.object({
                 name: Joi.string().trim().allow('').optional(),
                 values: Joi.array().items(Joi.string().trim()).optional(),
+                _id: objectId.optional(),
             })
         ).optional(),
-        prices: Joi.object().optional(),
-        stockMap: Joi.object().optional(),
-        imageMap: Joi.object().optional(),
+        prices: Joi.object().pattern(Joi.string(), Joi.number().min(0).allow(null)).optional(),
+        stockMap: Joi.object().pattern(Joi.string(), Joi.number().integer().min(0).allow(null)).optional(),
+        imageMap: Joi.object().pattern(Joi.string(), Joi.string().allow('', null)).optional(),
         defaultVariant: Joi.object({
             size: Joi.string().allow('').optional(),
             color: Joi.string().allow('').optional(),
         }).optional(),
-        defaultSelection: Joi.object().optional(),
+        defaultSelection: Joi.object().pattern(Joi.string(), Joi.string().allow('')).optional(),
     }).optional(),
     weight: Joi.number().min(1).required(),
     dimensions: Joi.object({
@@ -105,22 +107,24 @@ export const updateProductSchema = Joi.object({
         })
     ).optional(),
     variants: Joi.object({
-        sizes: Joi.array().items(Joi.string()),
-        colors: Joi.array().items(Joi.string()),
+        sizes: Joi.array().items(Joi.string()).optional(),
+        colors: Joi.array().items(Joi.string()).optional(),
+        materials: Joi.array().items(Joi.string().trim()).optional(),
         attributes: Joi.array().items(
             Joi.object({
                 name: Joi.string().trim().allow('').optional(),
                 values: Joi.array().items(Joi.string().trim()).optional(),
+                _id: objectId.optional(),
             })
         ).optional(),
-        prices: Joi.object().optional(),
-        stockMap: Joi.object().optional(),
-        imageMap: Joi.object().optional(),
+        prices: Joi.object().pattern(Joi.string(), Joi.number().min(0).allow(null)).optional(),
+        stockMap: Joi.object().pattern(Joi.string(), Joi.number().integer().min(0).allow(null)).optional(),
+        imageMap: Joi.object().pattern(Joi.string(), Joi.string().allow('', null)).optional(),
         defaultVariant: Joi.object({
             size: Joi.string().allow('').optional(),
             color: Joi.string().allow('').optional(),
         }).optional(),
-        defaultSelection: Joi.object().optional(),
+        defaultSelection: Joi.object().pattern(Joi.string(), Joi.string().allow('')).optional(),
     }).optional(),
     weight: Joi.number().min(1).required(),
     dimensions: Joi.object({

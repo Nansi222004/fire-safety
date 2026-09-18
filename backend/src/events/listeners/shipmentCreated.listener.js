@@ -52,28 +52,12 @@ const shipmentCreatedListener = (payload) => {
             `selectedBy=${selectedBy}`
         );
 
-        if (providerId === 'own_fleet') {
-            // Phase 5.2: Trigger Shipment-primary auto-assignment.
-            // Fire-and-forget — failure is logged inside autoAssignDeliveryPartner.
-            // Do NOT await here; the order placement response must not be blocked.
-            console.log(
-                `[${LOGISTICS_EVENTS.SHIPMENT_CREATED}]`,
-                `Own fleet shipment ${shipmentNumber} — triggering driver assignment (Phase 5.2).`
-            );
-            autoAssignDeliveryPartner(shipmentId).catch(err => {
-                console.error(
-                    `[${LOGISTICS_EVENTS.SHIPMENT_CREATED}] Assignment error for Shipment ${shipmentNumber}:`,
-                    err.message
-                );
-            });
-        } else {
-            // Courier provider: no-op at order placement.
-            // Courier shipment booking happens at vendor ready_for_pickup (Phase 6).
-            console.log(
-                `[${LOGISTICS_EVENTS.SHIPMENT_CREATED}]`,
-                `Courier shipment ${shipmentNumber} (provider=${providerId}) — no-op until vendor marks ready_for_pickup (Phase 6).`
-            );
-        }
+        // Delivery partner assignment is triggered when the vendor marks the order/package as 'ready_for_pickup'.
+        // Driver assignment must NOT happen prematurely at order creation.
+        console.log(
+            `[${LOGISTICS_EVENTS.SHIPMENT_CREATED}]`,
+            `Shipment ${shipmentNumber} (provider=${providerId}) registered. Awaiting vendor preparation and ready_for_pickup.`
+        );
 
     } catch (err) {
         // CRITICAL: Listener failures must NEVER propagate to the emitter.

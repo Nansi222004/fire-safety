@@ -17,6 +17,7 @@ import {
   syncVariantPricesWithAxes,
   buildVariantPayload,
   normalizeVariantStateForForm,
+  decodeVariantKey,
 } from "../../utils/variantHelpers";
 
 const ProductForm = () => {
@@ -100,16 +101,33 @@ const ProductForm = () => {
 
   const normalizeId = (value) => {
     if (!value) return null;
-    if (typeof value === "object") return value._id ?? value.id ?? null;
-    return value;
+    if (typeof value === "object") {
+      const extracted = value._id ?? value.id ?? null;
+      return extracted ? String(extracted).trim() : null;
+    }
+    return String(value).trim();
   };
 
-  const findCategoryPlacement = (catId, subcatId, cats) => {
+  const findCategoryPlacement = (catId, subcatId, cats = []) => {
     const targetId = subcatId || catId;
-    const item = cats.find((c) => String(c._id ?? c.id) === String(targetId));
-    if (!item) return { primaryCategoryId: catId, subcategoryId: subcatId };
-    if (item.parentId) return { primaryCategoryId: item.parentId, subcategoryId: item._id ?? item.id };
-    return { primaryCategoryId: item._id ?? item.id, subcategoryId: null };
+    if (!targetId) return { primaryCategoryId: null, subcategoryId: null };
+    const item = (cats || []).find((c) => String(c._id ?? c.id) === String(targetId));
+    if (!item) {
+      return {
+        primaryCategoryId: catId ? String(catId).trim() : null,
+        subcategoryId: subcatId ? String(subcatId).trim() : null,
+      };
+    }
+    if (item.parentId) {
+      return {
+        primaryCategoryId: String(item.parentId).trim(),
+        subcategoryId: String(item._id ?? item.id).trim(),
+      };
+    }
+    return {
+      primaryCategoryId: String(item._id ?? item.id).trim(),
+      subcategoryId: null,
+    };
   };
 
   useEffect(() => {
@@ -566,21 +584,43 @@ const ProductForm = () => {
     }
 
     const payload = {
-      ...formData,
+      name: String(formData.name || "").trim(),
+      description: String(formData.description || ""),
+      unit: String(formData.unit || "Piece"),
       price: parsedPrice,
-      originalPrice: parsedOriginalPrice,
-      stockQuantity: parsedStockQuantity,
-      totalAllowedQuantity: parsedTotalAllowedQuantity,
-      minimumOrderQuantity: parsedMinimumOrderQuantity,
+      originalPrice: Number.isFinite(parsedOriginalPrice) ? parsedOriginalPrice : null,
+      stockQuantity: Number.isInteger(parsedStockQuantity) ? parsedStockQuantity : 0,
+      totalAllowedQuantity: Number.isInteger(parsedTotalAllowedQuantity) ? parsedTotalAllowedQuantity : null,
+      minimumOrderQuantity: Number.isInteger(parsedMinimumOrderQuantity) ? parsedMinimumOrderQuantity : null,
       categoryId: finalCategoryId,
-      subcategoryId: (formData.subcategoryId && String(formData.subcategoryId).trim()) ? formData.subcategoryId : null,
-      brandId: formData.brandId ?? null,
+      subcategoryId: (formData.subcategoryId && String(formData.subcategoryId).trim()) ? String(formData.subcategoryId).trim() : null,
+      brandId: formData.brandId ? String(formData.brandId).trim() : null,
+      image: formData.image || "",
+      images: Array.isArray(formData.images) ? formData.images : [],
+      stock: formData.stock || "in_stock",
+      lowStockThreshold: parseInt(formData.lowStockThreshold, 10) || 10,
+      warrantyPeriod: formData.warrantyPeriod || null,
+      guaranteePeriod: formData.guaranteePeriod || null,
+      hsnCode: formData.hsnCode || null,
+      flashSale: Boolean(formData.flashSale),
+      isNewArrival: Boolean(formData.isNewArrival),
+      isFeatured: Boolean(formData.isFeatured),
+      isVisible: formData.isVisible ?? true,
+      codAllowed: formData.codAllowed ?? true,
+      returnable: formData.returnable ?? true,
+      cancelable: formData.cancelable ?? true,
+      taxIncluded: Boolean(formData.taxIncluded),
+      taxRate: parseFloat(formData.taxRate) || 18,
       weight: parseFloat(formData.weight) || 1,
       dimensions: {
-        length: parseFloat(formData.dimensions.length) || 10,
-        breadth: parseFloat(formData.dimensions.breadth) || 10,
-        height: parseFloat(formData.dimensions.height) || 10,
+        length: parseFloat(formData.dimensions?.length) || 10,
+        breadth: parseFloat(formData.dimensions?.breadth) || 10,
+        height: parseFloat(formData.dimensions?.height) || 10,
       },
+      tags: Array.isArray(formData.tags) ? formData.tags : [],
+      seoTitle: formData.seoTitle || "",
+      seoDescription: formData.seoDescription || "",
+      relatedProducts: Array.isArray(formData.relatedProducts) ? formData.relatedProducts : [],
       faqs: (formData.faqs || [])
         .map((faq) => ({
           question: String(faq?.question || "").trim(),
@@ -602,12 +642,25 @@ const ProductForm = () => {
         navigate("/vendor/products/manage-products");
       }
     } catch (err) {
-      if (err?.response?.data?.errors && Array.isArray(err.response.data.errors)) {
+      console.error("Product save failed:", err?.response?.data || err);
+      const errorsList = err?.response?.data?.errors;
+      if (Array.isArray(errorsList) && errorsList.length > 0) {
         const backendFieldErrors = {};
-        err.response.data.errors.forEach((d) => {
-          if (d.field) backendFieldErrors[d.field] = d.message;
+        const messages = [];
+        errorsList.forEach((d) => {
+          if (d.field) {
+            backendFieldErrors[d.field] = d.message;
+            if (d.field.startsWith("variants.") || d.field === "variants") {
+              backendFieldErrors.variants = d.message;
+            }
+          }
+          if (d.message) messages.push(d.message);
         });
-        setFieldErrors(backendFieldErrors);
+        setFieldErrors((prev) => ({ ...prev, ...backendFieldErrors }));
+        toast.error(`Validation failed: ${messages.slice(0, 2).join(", ")}`);
+      } else {
+        const msg = err?.response?.data?.message || err?.message || "Failed to save product";
+        toast.error(msg);
       }
     }
   };
@@ -1042,6 +1095,12 @@ const ProductForm = () => {
           <h2 className="text-base font-bold text-gray-800 mb-2">
             Product Variants
           </h2>
+          {fieldErrors.variants && (
+            <div className="mb-3 p-2.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg flex items-center gap-1.5">
+              <span>⚠️</span>
+              <span>{fieldErrors.variants}</span>
+            </div>
+          )}
           <div className="space-y-3">
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
@@ -1191,7 +1250,7 @@ const ProductForm = () => {
                         type="number"
                         min="0"
                         step="0.01"
-                        value={formData.variants?.prices?.[combo.key] ?? ""}
+                        value={formData.variants?.prices?.[combo.key] ?? formData.variants?.prices?.[decodeVariantKey(combo.key)] ?? ""}
                         onChange={(e) => {
                           const nextValue = e.target.value;
                           setFormData((prev) => ({
@@ -1212,7 +1271,7 @@ const ProductForm = () => {
                         type="number"
                         min="0"
                         step="1"
-                        value={formData.variants?.stockMap?.[combo.key] ?? ""}
+                        value={formData.variants?.stockMap?.[combo.key] ?? formData.variants?.stockMap?.[decodeVariantKey(combo.key)] ?? ""}
                         onChange={(e) => {
                           const nextValue = e.target.value;
                           setFormData((prev) => ({
@@ -1247,9 +1306,9 @@ const ProductForm = () => {
                         >
                           Upload
                         </label>
-                        {formData.variants?.imageMap?.[combo.key] && (
+                        {(formData.variants?.imageMap?.[combo.key] || formData.variants?.imageMap?.[decodeVariantKey(combo.key)]) && (
                           <img
-                            src={formData.variants.imageMap[combo.key]}
+                            src={formData.variants.imageMap[combo.key] || formData.variants.imageMap[decodeVariantKey(combo.key)]}
                             alt="Variant"
                             className="w-8 h-8 rounded object-cover border border-gray-300"
                           />

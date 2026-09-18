@@ -77,21 +77,20 @@ export const getVendorOrders = asyncHandler(async (req, res) => {
         const filteredItems = (order.items || []).filter(item => String(item.vendorId) === String(req.user.id));
         const filteredVendorItems = (order.vendorItems || []).filter(vi => String(vi.vendorId) === String(req.user.id));
         
-        // Sync real-time status from shipment or top-level order status
+        // Resolve vendor shipment
         const vendorShipment = (order.shipments || []).find(s => String(s.vendorId) === String(req.user.id));
-        if (vendorShipment && vendorShipment.status) {
-            filteredVendorItems.forEach(vi => {
-                if (vi.status !== 'cancelled') {
-                    vi.status = vendorShipment.status;
+
+        // Preserve vendor preparation status as source of truth.
+        // Only sync forward when delivery actually enters transit or completes delivery.
+        filteredVendorItems.forEach(vi => {
+            if (vi.status !== 'cancelled') {
+                if (vendorShipment?.status === 'delivered' || order.status === 'delivered') {
+                    vi.status = 'delivered';
+                } else if (['shipped', 'out_for_delivery', 'picked_up', 'in_transit'].includes(vendorShipment?.status) || order.status === 'shipped') {
+                    vi.status = 'shipped';
                 }
-            });
-        } else if (order.status === 'delivered' || order.status === 'shipped') {
-            filteredVendorItems.forEach(vi => {
-                if (vi.status !== 'cancelled') {
-                    vi.status = order.status;
-                }
-            });
-        }
+            }
+        });
 
         const vi = filteredVendorItems[0] || {};
         const vSubtotal = vi.subtotal || 0;
@@ -113,8 +112,10 @@ export const getVendorOrders = asyncHandler(async (req, res) => {
 
         return {
             ...order,
+            status: vi.status || order.status,
             items: filteredItems,
             vendorItems: filteredVendorItems,
+            shipment: vendorShipment || null,
             commissionDetails: comm ? {
                 ...comm,
                 effectiveSubtotal: commDiscountedSub,
@@ -170,21 +171,20 @@ export const getVendorOrderById = asyncHandler(async (req, res) => {
     const filteredItems = (orderObj.items || []).filter(item => String(item.vendorId) === String(req.user.id));
     const filteredVendorItems = (orderObj.vendorItems || []).filter(vi => String(vi.vendorId) === String(req.user.id));
     
-    // Sync real-time status from shipment or top-level order status
+    // Resolve vendor shipment
     const vendorShipment = (orderObj.shipments || []).find(s => String(s.vendorId) === String(req.user.id));
-    if (vendorShipment && vendorShipment.status) {
-        filteredVendorItems.forEach(vi => {
-            if (vi.status !== 'cancelled') {
-                vi.status = vendorShipment.status;
+
+    // Preserve vendor preparation status as source of truth.
+    // Only sync forward when delivery actually enters transit or completes delivery.
+    filteredVendorItems.forEach(vi => {
+        if (vi.status !== 'cancelled') {
+            if (vendorShipment?.status === 'delivered' || orderObj.status === 'delivered') {
+                vi.status = 'delivered';
+            } else if (['shipped', 'out_for_delivery', 'picked_up', 'in_transit'].includes(vendorShipment?.status) || orderObj.status === 'shipped') {
+                vi.status = 'shipped';
             }
-        });
-    } else if (orderObj.status === 'delivered' || orderObj.status === 'shipped') {
-        filteredVendorItems.forEach(vi => {
-            if (vi.status !== 'cancelled') {
-                vi.status = orderObj.status;
-            }
-        });
-    }
+        }
+    });
     
     const vi = filteredVendorItems[0] || {};
     const vSubtotal = vi.subtotal || 0;
@@ -204,8 +204,10 @@ export const getVendorOrderById = asyncHandler(async (req, res) => {
     const escrowStatus = comm ? (comm.escrowStatus || 'held') : 'held';
     const settlementStatus = comm ? (comm.settlementStatus || comm.status || 'pending') : 'pending';
 
+    orderObj.status = vi.status || orderObj.status;
     orderObj.items = filteredItems;
     orderObj.vendorItems = filteredVendorItems;
+    orderObj.shipment = vendorShipment || null;
     orderObj.commissionDetails = comm ? {
         ...comm,
         effectiveSubtotal: commDiscountedSub,
@@ -407,7 +409,11 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
             type: 'order',
             data: {
                 orderId: String(order.orderId || order._id),
+                mongoOrderId: String(order._id),
                 status: String(status),
+                actorId: String(req.user.id),
+                actorRole: 'vendor',
+                action: 'vendor_order_status_update',
             },
         })
     );

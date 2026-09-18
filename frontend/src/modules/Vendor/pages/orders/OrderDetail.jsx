@@ -15,6 +15,7 @@ import { formatPrice } from '../../../../shared/utils/helpers';
 import Badge from '../../../../shared/components/Badge';
 import AnimatedSelect from '../../../Admin/components/AnimatedSelect';
 import toast from 'react-hot-toast';
+import { recordSelfAction, cancelSelfAction } from '../../../../shared/utils/selfActionTracker';
 
 const OrderDetail = () => {
     const { id } = useParams();
@@ -132,6 +133,13 @@ const OrderDetail = () => {
     const handleStatusChange = async (newStatus) => {
         if (!order) return;
         setUpdatingStatus(true);
+        const actionKey = recordSelfAction({
+            type: 'order_status_update',
+            orderId: order._id,
+            humanOrderId: order.orderId,
+            status: newStatus,
+        });
+
         try {
             await updateVendorOrderStatus(order.orderId ?? order._id, newStatus);
             // Optimistically update local state
@@ -144,8 +152,10 @@ const OrderDetail = () => {
                 ),
                 status: newStatus,
             }));
-            toast.success(`Order status updated to ${newStatus}`);
+            const formattedStatus = newStatus.charAt(0).toUpperCase() + newStatus.slice(1).replace(/_/g, ' ');
+            toast.success(`Order status updated to ${formattedStatus}`);
         } catch {
+            cancelSelfAction(actionKey);
             // api.js shows toast
         } finally {
             setUpdatingStatus(false);

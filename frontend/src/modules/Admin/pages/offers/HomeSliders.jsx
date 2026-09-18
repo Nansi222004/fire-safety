@@ -92,7 +92,7 @@ const HomeSliders = () => {
     setIsUploadingImage(true);
     try {
       const response = await uploadAdminImage(file, "banners");
-      const imageUrl = response?.data?.url;
+      const imageUrl = response?.url || response?.data?.url;
       if (!imageUrl) {
         toast.error("Image upload failed");
         return;

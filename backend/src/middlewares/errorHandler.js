@@ -12,6 +12,15 @@ const errorHandler = (err, req, res, next) => {
         error = new ApiError(statusCode, message, error.errors || [], err.stack);
     }
 
+    // Multer upload errors
+    if (err.name === 'MulterError') {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+            error = new ApiError(400, 'File size exceeds allowed limit (maximum 5MB for images, 10MB for documents).');
+        } else {
+            error = new ApiError(400, err.message || 'File upload error.');
+        }
+    }
+
     // Mongoose duplicate key error
     if (err.code === 11000) {
         const field = Object.keys(err.keyValue)[0];

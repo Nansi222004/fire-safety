@@ -275,7 +275,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
     setIsUploadingMainImage(true);
     try {
       const response = await uploadAdminImage(file, "products");
-      const imageUrl = response?.data?.url;
+      const imageUrl = response?.url || response?.data?.url;
       if (!imageUrl) {
         toast.error("Image upload failed");
         return;
@@ -320,7 +320,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
 
       const successfulUrls = uploadResults
         .filter((result) => result.status === "fulfilled")
-        .map((result) => result.value?.data?.url)
+        .map((result) => result.value?.url || result.value?.data?.url)
         .filter(Boolean);
 
       if (successfulUrls.length > 0) {
@@ -569,7 +569,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
     setIsUploadingGallery(true);
     try {
       const response = await uploadAdminImage(file, "products/variants");
-      const imageUrl = response?.data?.url;
+      const imageUrl = response?.url || response?.data?.url;
       if (!imageUrl) return;
       setFormData((prev) => ({
         ...prev,

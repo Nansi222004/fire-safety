@@ -94,7 +94,7 @@ const BrandForm = ({ brand, onClose, onSave }) => {
     setIsUploadingLogo(true);
     try {
       const response = await uploadAdminImage(file, "brands");
-      const logoUrl = response?.data?.url;
+      const logoUrl = response?.url || response?.data?.url;
       if (!logoUrl) {
         toast.error("Logo upload failed");
         return;

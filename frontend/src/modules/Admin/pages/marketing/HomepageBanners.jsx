@@ -166,8 +166,10 @@ const HomepageBanners = () => {
 
     // Read aspect ratio
     const img = new Image();
-    img.src = URL.createObjectURL(file);
+    const objectUrl = URL.createObjectURL(file);
+    img.src = objectUrl;
     img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
       const width = img.width;
       const height = img.height;
       const ratio = width / height;
@@ -188,10 +190,13 @@ const HomepageBanners = () => {
         }
       }
     };
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+    };
 
     try {
       const response = await uploadAdminImage(file, 'homepage_banners');
-      const imageUrl = response?.data?.url;
+      const imageUrl = response?.url || response?.data?.url;
       if (!imageUrl) {
         toast.error('Image upload failed');
         return;
@@ -203,7 +208,7 @@ const HomepageBanners = () => {
       }
       toast.success('Banner uploaded successfully');
     } catch (err) {
-      toast.error('Failed to upload image');
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to upload image');
     } finally {
       if (mode === 'desktop') {
         setUploadingDesktop(false);

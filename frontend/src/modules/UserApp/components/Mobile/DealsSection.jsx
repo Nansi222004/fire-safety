@@ -2,6 +2,11 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import heroBanner1 from '../../../../assets/banners/hero_slide_1.png';
 import heroBanner2 from '../../../../assets/banners/hero_slide_2.png';
+import smokeAlarmImg from '../../../../assets/Smoke & Fire Alarms.jpg';
+import hoseReelImg from '../../../../assets/Fire Hoses & Hose Reels.webp';
+import foamExtinguisherImg from '../../../../assets/Foam Fire Extinguishers.jpg';
+import abcExtinguisherImg from '../../../../assets/ABC Fire Extinguishers.webp';
+import co2ExtinguisherImg from '../../../../assets/CO₂ Fire Extinguishers.webp';
 
 const getButtonStyleClasses = (style = "primary") => {
   const base = "inline-flex items-center justify-center gap-1 font-bold py-1.5 px-3.5 rounded-xl transition-all duration-300 shadow-sm cursor-pointer select-none text-[10px] active:scale-95 mt-2 self-start whitespace-nowrap";
@@ -19,46 +24,52 @@ const getButtonStyleClasses = (style = "primary") => {
 const DealsSection = ({ items }) => {
   const defaultDeals = [
     { 
-      brand: 'Demo Safety Equipment', 
+      category: 'Fire Extinguisher',
+      brand: 'ABC Dry Powder 6kg', 
       offer: 'Up To 25% OFF', 
-      image: heroBanner1, 
+      image: abcExtinguisherImg, 
       link: '/shop?category=abc-fire-extinguishers',
-      altText: 'ABC Fire Extinguishers'
+      altText: 'ABC Dry Powder Fire Extinguisher'
     },
     { 
-      brand: 'FireShield Pro', 
+      category: 'CO₂ Extinguisher',
+      brand: 'CO₂ Fire Extinguisher 4.5kg', 
       offer: 'Up To 30% OFF', 
-      image: heroBanner2, 
+      image: co2ExtinguisherImg, 
       link: '/shop?category=co2-fire-extinguishers',
-      altText: 'CO2 Extinguishers'
+      altText: 'CO2 Carbon Dioxide Extinguisher'
     },
     { 
-      brand: 'FlameSafe Tech', 
+      category: 'Detection System',
+      brand: 'Optical Smoke & Fire Alarm', 
       offer: 'Flat 20% OFF', 
-      image: 'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=400&q=80', 
+      image: smokeAlarmImg, 
       link: '/shop?category=smoke-fire-alarms',
-      altText: 'Smoke & Fire Alarms'
+      altText: 'Optical Smoke & Fire Alarm'
     },
     { 
-      brand: 'Safeguard Armor', 
+      category: 'Foam Extinguisher',
+      brand: 'Mechanical Foam AFFF 9L', 
       offer: 'Up To 40% OFF', 
-      image: heroBanner1, 
-      link: '/shop?category=fire-blankets-equipment',
-      altText: 'Fire Blankets & PPE'
+      image: foamExtinguisherImg, 
+      link: '/shop?category=foam-fire-extinguishers',
+      altText: 'Mechanical Foam Fire Extinguisher'
     },
     { 
-      brand: 'HydraFlow Safety', 
+      category: 'Hoses & Reels',
+      brand: 'Heavy-Duty Fire Hose Reel', 
       offer: 'Up To 15% OFF', 
-      image: heroBanner2, 
+      image: hoseReelImg, 
       link: '/shop?category=fire-hoses-hose-reels',
-      altText: 'Hose Reels & Hydrants'
+      altText: 'Fire Hose Reel System'
     },
     { 
-      brand: 'LuminoExit', 
+      category: 'Safety Protection',
+      brand: 'Certified Safety Gear Kit', 
       offer: 'Flat 10% OFF', 
-      image: 'https://images.unsplash.com/photo-1599481238640-4c1288750d7a?auto=format&fit=crop&w=400&q=80', 
-      link: '/shop?category=emergency-exit-signs',
-      altText: 'Emergency Exit Signs'
+      image: heroBanner1, 
+      link: '/shop',
+      altText: 'Complete Fire Safety Protection Gear'
     },
   ];
 
@@ -129,7 +140,7 @@ const DealsSection = ({ items }) => {
             <div className="p-3 md:p-4 flex flex-col justify-between text-left flex-1 min-h-[95px] md:min-h-[120px]">
               <div>
                 <p className="text-[9px] md:text-[10px] font-extrabold tracking-widest text-slate-400 uppercase">
-                  Safety Equipment
+                  {deal.category || "Safety Equipment"}
                 </p>
                 <p className="text-xs md:text-sm font-bold text-white mt-0.5 leading-tight truncate group-hover:text-red-400 transition-colors">
                   {deal.brand}

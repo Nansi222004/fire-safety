@@ -23,7 +23,15 @@ const sanitizeFaqs = (faqs) => {
         .filter((faq) => faq.question && faq.answer);
 };
 
-const normalizeVariantPart = (value) => String(value || '').trim().toLowerCase();
+import {
+    encodeVariantKey,
+    decodeVariantKey,
+    normalizeVariantPart,
+    normalizeAxisName,
+    createVariantKey,
+    createDynamicVariantKey,
+    resolveVariantMapValue,
+} from '../../../utils/variantKeyHelper.js';
 
 const uniqueAxisValues = (values = []) => {
     const seen = new Set();
@@ -38,21 +46,6 @@ const uniqueAxisValues = (values = []) => {
     }
     return out;
 };
-
-const createVariantKey = (size = '', color = '') =>
-    `${normalizeVariantPart(size)}|${normalizeVariantPart(color)}`;
-const normalizeAxisName = (value) =>
-    String(value || '')
-        .trim()
-        .toLowerCase()
-        .replace(/\s+/g, '_');
-const createDynamicVariantKey = (selection = {}) =>
-    Object.entries(selection || {})
-        .map(([axis, value]) => [normalizeAxisName(axis), normalizeVariantPart(value)])
-        .filter(([axis, value]) => axis && value)
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([axis, value]) => `${axis}=${value}`)
-        .join('|');
 
 const toObjectEntries = (value) => {
     if (!value) return [];
@@ -122,9 +115,6 @@ const normalizeVariantsPayload = (rawVariants = {}, fallbackPrice) => {
         colors.forEach((color) => combinations.push({ selection: { color } }));
     }
 
-    const pricesSource = Object.fromEntries(toObjectEntries(rawVariants.prices));
-    const stockSource = Object.fromEntries(toObjectEntries(rawVariants.stockMap));
-    const imageSource = Object.fromEntries(toObjectEntries(rawVariants.imageMap));
     const prices = {};
     const stockMap = {};
     const imageMap = {};
@@ -135,7 +125,14 @@ const normalizeVariantsPayload = (rawVariants = {}, fallbackPrice) => {
         const key = hasDynamicAxes
             ? createDynamicVariantKey(selection)
             : createVariantKey(size, color);
-        const parsedPrice = toNonNegativeNumber(pricesSource[key]);
+        const decodedKey = decodeVariantKey(key);
+        const candidates = [key, decodedKey];
+        if (!hasDynamicAxes) {
+            candidates.push(`${normalizeVariantPart(size)}|${normalizeVariantPart(color)}`);
+        }
+
+        const rawPrice = resolveVariantMapValue(rawVariants.prices, candidates);
+        const parsedPrice = toNonNegativeNumber(rawPrice);
         if (parsedPrice !== null) {
             prices[key] = parsedPrice;
         } else {
@@ -143,10 +140,12 @@ const normalizeVariantsPayload = (rawVariants = {}, fallbackPrice) => {
             if (fallback !== null) prices[key] = fallback;
         }
 
-        const parsedStock = toNonNegativeNumber(stockSource[key]);
+        const rawStock = resolveVariantMapValue(rawVariants.stockMap, candidates);
+        const parsedStock = toNonNegativeNumber(rawStock);
         if (parsedStock !== null) stockMap[key] = parsedStock;
 
-        const image = String(imageSource[key] || '').trim();
+        const rawImage = resolveVariantMapValue(rawVariants.imageMap, candidates);
+        const image = String(rawImage || '').trim();
         if (image) imageMap[key] = image;
     });
 
@@ -178,6 +177,7 @@ const normalizeVariantsPayload = (rawVariants = {}, fallbackPrice) => {
     return {
         sizes,
         colors,
+        materials: Array.isArray(rawVariants.materials) ? rawVariants.materials : [],
         attributes: attributes.map((attr) => ({ name: attr.name, values: attr.values })),
         prices,
         stockMap,

@@ -413,7 +413,7 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
     setIsUploadingBannerImage(true);
     try {
       const response = await uploadAdminImage(file, "campaigns");
-      const imageUrl = response?.data?.url;
+      const imageUrl = response?.url || response?.data?.url;
       if (!imageUrl) {
         toast.error("Banner image upload failed");
         return;

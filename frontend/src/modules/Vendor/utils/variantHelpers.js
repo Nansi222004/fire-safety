@@ -22,15 +22,28 @@ const uniqueClean = (values) => {
 export const parseVariantAxis = (text) =>
   uniqueClean(String(text || "").split(","));
 
-export const createVariantKey = (size, color) =>
-  `${normalizePart(size)}|${normalizePart(color)}`;
+export const encodeVariantKey = (key) => {
+  if (!key || typeof key !== "string") return "";
+  return key.replace(/%/g, "%25").replace(/\./g, "%2e");
+};
+
+export const decodeVariantKey = (key) => {
+  if (!key || typeof key !== "string") return "";
+  return key.replace(/%2e/gi, ".").replace(/%25/g, "%");
+};
+
+export const createVariantKey = (size, color) => {
+  const rawKey = `${normalizePart(size)}|${normalizePart(color)}`;
+  return encodeVariantKey(rawKey);
+};
 
 export const createDynamicVariantKey = (selection = {}) => {
   const entries = Object.entries(selection || {})
     .map(([axis, value]) => [normalizeAxisName(axis), normalizePart(value)])
     .filter(([axis, value]) => axis && value)
     .sort((a, b) => a[0].localeCompare(b[0]));
-  return entries.map(([axis, value]) => `${axis}=${value}`).join("|");
+  const rawKey = entries.map(([axis, value]) => `${axis}=${value}`).join("|");
+  return encodeVariantKey(rawKey);
 };
 
 const normalizeAttributes = (attributes = []) => {
@@ -124,14 +137,18 @@ const parsePriceValue = (value) => {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 };
 
-const resolveCombinationPrice = (rawPrices, size, color) => {
+const resolveCombinationPrice = (rawPrices, size, color, key = "") => {
   const entries = toEntries(rawPrices);
   if (!entries.length) return null;
 
   const sizePart = normalizePart(size);
   const colorPart = normalizePart(color);
+  const decodedKey = key ? decodeVariantKey(key) : null;
   const candidates = [
+    key,
+    decodedKey,
     `${sizePart}|${colorPart}`,
+    encodeVariantKey(`${sizePart}|${colorPart}`),
     `${sizePart}-${colorPart}`,
     `${sizePart}_${colorPart}`,
     `${sizePart}:${colorPart}`,
@@ -140,12 +157,12 @@ const resolveCombinationPrice = (rawPrices, size, color) => {
   ].filter(Boolean);
 
   for (const candidate of candidates) {
-    const exact = entries.find(([key]) => String(key).trim() === candidate);
+    const exact = entries.find(([k]) => String(k).trim() === candidate);
     if (exact) {
       const parsed = parsePriceValue(exact[1]);
       if (parsed !== null) return parsed;
     }
-    const normalized = entries.find(([key]) => normalizePart(key) === candidate);
+    const normalized = entries.find(([k]) => normalizePart(k) === candidate || normalizePart(decodeVariantKey(k)) === candidate);
     if (normalized) {
       const parsed = parsePriceValue(normalized[1]);
       if (parsed !== null) return parsed;
@@ -168,14 +185,16 @@ export const normalizeVariantStateForForm = (rawVariants = {}, basePrice = "") =
   const stockMap = {};
   const imageMap = {};
   combinations.forEach(({ size, color, key }) => {
-    const resolved = resolveCombinationPrice(rawVariants?.prices, size, color);
+    const resolved = resolveCombinationPrice(rawVariants?.prices, size, color, key);
     if (resolved !== null) prices[key] = resolved;
     else if (fallbackPrice !== null) prices[key] = fallbackPrice;
 
-    const stockValue = parsePriceValue(rawVariants?.stockMap?.[key]);
+    const rawStockVal = rawVariants?.stockMap?.[key] ?? rawVariants?.stockMap?.[decodeVariantKey(key)];
+    const stockValue = parsePriceValue(rawStockVal);
     if (stockValue !== null) stockMap[key] = stockValue;
 
-    const imageValue = String(rawVariants?.imageMap?.[key] || "").trim();
+    const rawImageVal = rawVariants?.imageMap?.[key] ?? rawVariants?.imageMap?.[decodeVariantKey(key)];
+    const imageValue = String(rawImageVal || "").trim();
     if (imageValue) imageMap[key] = imageValue;
   });
 
@@ -248,17 +267,18 @@ export const buildVariantPayload = (rawVariants = {}) => {
   const imageMap = {};
 
   combinations.forEach(({ key }) => {
-    const parsedPrice = parsePriceValue(rawVariants?.prices?.[key]);
+    const decoded = decodeVariantKey(key);
+    const parsedPrice = parsePriceValue(rawVariants?.prices?.[key] ?? rawVariants?.prices?.[decoded]);
     if (parsedPrice !== null) {
       prices[key] = parsedPrice;
     }
 
-    const parsedStock = parsePriceValue(rawVariants?.stockMap?.[key]);
+    const parsedStock = parsePriceValue(rawVariants?.stockMap?.[key] ?? rawVariants?.stockMap?.[decoded]);
     if (parsedStock !== null) {
       stockMap[key] = parsedStock;
     }
 
-    const image = String(rawVariants?.imageMap?.[key] || "").trim();
+    const image = String(rawVariants?.imageMap?.[key] ?? rawVariants?.imageMap?.[decoded] ?? "").trim();
     if (image) {
       imageMap[key] = image;
     }
@@ -277,12 +297,26 @@ export const buildVariantPayload = (rawVariants = {}) => {
     }, {})
     : {};
 
+  const materials = Array.isArray(rawVariants?.materials) ? rawVariants.materials : [];
   const hasVariants = attributes.length > 0 || sizes.length > 0 || colors.length > 0;
-  if (!hasVariants) return { sizes: [], colors: [], attributes: [], prices: {}, stockMap: {}, imageMap: {}, defaultVariant: {}, defaultSelection: {} };
+  if (!hasVariants) {
+    return {
+      sizes: [],
+      colors: [],
+      materials,
+      attributes: [],
+      prices: {},
+      stockMap: {},
+      imageMap: {},
+      defaultVariant: {},
+      defaultSelection: {},
+    };
+  }
 
   return {
     sizes,
     colors,
+    materials,
     attributes,
     prices,
     stockMap,

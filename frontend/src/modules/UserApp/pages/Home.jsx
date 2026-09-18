@@ -568,6 +568,7 @@ const MobileHome = () => {
           .map((banner) => ({
             brand: banner.title,
             offer: banner.subtitle,
+            category: banner.altText || "Safety Equipment",
             image: banner.image,
             mobileImage: banner.mobileImage,
             altText: banner.altText || "",

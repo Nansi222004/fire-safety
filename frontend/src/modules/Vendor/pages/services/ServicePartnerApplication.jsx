@@ -18,6 +18,7 @@ import {
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import api from '../../../../shared/utils/api';
+import { uploadVendorImage } from '../../services/vendorService';
 import { useVendorAuthStore } from '../../store/vendorAuthStore';
 import { getVendorCapabilities } from '../../utils/vendorCapabilities';
 
@@ -135,16 +136,9 @@ const ServicePartnerApplication = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const uploadForm = new FormData();
-    uploadForm.append('image', file);
-    uploadForm.append('folder', 'vendors/certifications');
-
     const toastId = toast.loading('Uploading document...');
     try {
-      const res = await api.post('/vendor/uploads/image', uploadForm, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      const data = res?.data?.data || res?.data;
+      const data = await uploadVendorImage(file, 'vendors/certifications');
       if (data?.url) {
         setFormData((prev) => ({
           ...prev,

@@ -8,6 +8,7 @@ import { getVendorProfile } from '../../services/vendorService';
 import { getSocket, joinRoom, leaveRoom } from '../../../../shared/utils/socket';
 import { useVendorNotificationStore } from '../../store/vendorNotificationStore';
 import toast from 'react-hot-toast';
+import { isSelfInitiatedNotification, isDuplicateNotification } from '../../../../shared/utils/selfActionTracker';
 
 const VendorLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -64,20 +65,26 @@ const VendorLayout = () => {
     fetchProfile();
   }, [syncVendor, token]);
 
+  const vendorId = vendor?.id || vendor?._id;
+
   useEffect(() => {
-    if (!token || !vendor) return;
+    if (!token || !vendorId) return;
     const socket = getSocket(token);
     if (!socket) return;
 
-    const vendorId = vendor.id || vendor._id;
     joinRoom(`vendor_${vendorId}`);
 
     const handleNewNotification = (notif) => {
+      if (isDuplicateNotification(notif)) return;
       addNotification(notif);
+
+      // Suppress detailed toast popup if this notification was triggered by this vendor session's own action
+      if (isSelfInitiatedNotification(notif)) return;
+
       toast.success(
         <div className="flex flex-col gap-1 text-white">
-          <p className="font-semibold text-sm text-white">{notif.title}</p>
-          <p className="text-xs text-gray-200 leading-relaxed">{notif.message}</p>
+          <p className="font-semibold text-sm text-white">{notif?.title || 'Notification'}</p>
+          <p className="text-xs text-gray-200 leading-relaxed">{notif?.message || ''}</p>
         </div>,
         {
           duration: 6000,
@@ -87,14 +94,12 @@ const VendorLayout = () => {
     };
 
     socket.on('new_notification', handleNewNotification);
-    socket.on('notification', handleNewNotification);
 
     return () => {
       socket.off('new_notification', handleNewNotification);
-      socket.off('notification', handleNewNotification);
       leaveRoom(`vendor_${vendorId}`);
     };
-  }, [token, vendor, addNotification]);
+  }, [token, vendorId, addNotification]);
 
   const toggleSidebar = () => {
     const nextVal = !isCollapsed;

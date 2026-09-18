@@ -40,7 +40,7 @@ export const categories = [
     _id: "65f1a2b3c4d5e6f7a8b9c005",
     name: "Fire Blankets & Emergency Equipment",
     description: "Emergency fiberglass fire blankets, fire buckets, and safety kits",
-    image: "https://images.unsplash.com/photo-1544027993-37dbfe43562a?auto=format&fit=crop&w=600&q=80",
+    image: "/products/emergency-fire-blanket-1-2m.jpg",
     order: 5,
     isActive: true,
   },

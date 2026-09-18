@@ -61,7 +61,7 @@ const Orders = () => {
       const status = (vendorItem?.status ?? order.status ?? '').toLowerCase();
 
       if (status === 'pending') stats.pending++;
-      else if (status === 'processing') stats.processing++;
+      else if (status === 'processing' || status === 'ready_for_pickup') stats.processing++;
       else if (status === 'shipped') stats.shipped++;
       else if (status === 'delivered') stats.delivered++;
       else if (status === 'cancelled' || status === 'canceled') stats.cancelled++;

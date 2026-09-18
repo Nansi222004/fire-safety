@@ -99,10 +99,9 @@ export const createNotification = async (optionsOrRecipientId, ...rest) => {
         data,
     });
 
-    // 2. Real-time WebSocket Broadcast (Preserve existing socket behavior)
+    // 2. Real-time WebSocket Broadcast (Canonical event: 'new_notification')
     try {
         const room = `${normalizedRecipientType}_${recipientId}`;
-        emitToRoom(room, 'notification', notification);
         emitToRoom(room, 'new_notification', notification);
     } catch (socketErr) {
         console.error('[Notification Service] Socket emit error:', socketErr.message);
