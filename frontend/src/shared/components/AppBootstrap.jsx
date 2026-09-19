@@ -110,7 +110,7 @@ const AppBootstrap = () => {
       useOrderStore.getState().fetchOrderById(orderId);
 
       const statusUpper = String(updatedOrder?.status || "").toUpperCase();
-      if (!isViewingThisOrder && statusUpper !== "PROCESSING") {
+      if (!isViewingThisOrder && statusUpper !== "PROCESSING" && statusUpper !== "PENDING") {
         const orderDisplayId = String(updatedOrder.orderId && typeof updatedOrder.orderId === "object" ? (updatedOrder.orderId.orderId || updatedOrder.orderId._id) : updatedOrder.orderId || updatedOrder._id).slice(-6).toUpperCase();
         toast.success(`Order #${orderDisplayId} status updated to: ${statusUpper.replace(/_/g, ' ')}`);
       }
