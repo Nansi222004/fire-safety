@@ -30,7 +30,7 @@ const MobileCheckout = () => {
   const navigate = useNavigate();
   const { items, getTotal, clearCart, getItemsByVendor } = useCartStore();
   const { user, isAuthenticated } = useAuthStore();
-  const { addresses, getDefaultAddress, addAddress, fetchAddresses } =
+  const { addresses, getDefaultAddress, addAddress, updateAddress, fetchAddresses } =
     useAddressStore();
   const { createOrder } = useOrderStore();
 
@@ -506,6 +506,15 @@ const MobileCheckout = () => {
             country: normalizedShipping.country,
             isDefault: addresses.length === 0,
           }).catch((err) => console.warn("Auto-save address error:", err));
+        } else if (selectedAddressId) {
+          const currentSelected = addresses.find((a) => String(a.id || a._id) === String(selectedAddressId));
+          if (currentSelected && (currentSelected.fullName !== normalizedShipping.name || currentSelected.phone !== normalizedShipping.phone)) {
+            updateAddress(selectedAddressId, {
+              ...currentSelected,
+              fullName: normalizedShipping.name,
+              phone: normalizedShipping.phone,
+            }).catch((err) => console.warn("Update saved address error:", err));
+          }
         }
       }
 
@@ -554,6 +563,11 @@ const MobileCheckout = () => {
         if (paymentMethod === "cash" || paymentMethod === "cod" || payload.paymentStatus === "paid") {
           clearCart();
           fetchWallet();
+          toast.success("Order placed successfully!", {
+            id: "order-placed-success",
+            duration: 4000,
+            position: typeof window !== "undefined" && window.innerWidth < 768 ? "top-center" : "top-right",
+          });
           navigate(`/order-confirmation/${payload.orderId}`, { state: { orderPlaced: true } });
           return;
         }
@@ -591,6 +605,11 @@ const MobileCheckout = () => {
                 });
 
                 toast.dismiss(verifyToastId);
+                toast.success("Order placed successfully!", {
+                  id: "order-placed-success",
+                  duration: 4000,
+                  position: typeof window !== "undefined" && window.innerWidth < 768 ? "top-center" : "top-right",
+                });
                 clearCart();
                 navigate(`/order-confirmation/${payload.orderId}`, { state: { orderPlaced: true } });
                 resolve();
@@ -742,7 +761,7 @@ const MobileCheckout = () => {
                           name="name"
                           value={formData.name}
                           onChange={handleInputChange}
-                          placeholder="Demo Customer"
+                          placeholder="Enter your full name"
                           required
                           className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 text-base"
                         />
@@ -757,7 +776,7 @@ const MobileCheckout = () => {
                             name="email"
                             value={formData.email}
                             onChange={handleInputChange}
-                            placeholder="customer@safefire.com"
+                            placeholder="Enter your email address"
                             required
                             className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 text-base"
                           />
@@ -771,7 +790,7 @@ const MobileCheckout = () => {
                             name="phone"
                             value={formData.phone}
                             onChange={handleInputChange}
-                            placeholder="9876543210"
+                            placeholder="Enter 10-digit phone number"
                             maxLength={10}
                             required
                             className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 text-base"

@@ -14,20 +14,11 @@ const MobileOrderConfirmation = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { getOrder, fetchOrderById, fetchPublicTrackingOrder } = useOrderStore();
+  const { getOrder, fetchOrderById, fetchPublicTrackingOrder, lastError } = useOrderStore();
   const [isResolving, setIsResolving] = useState(true);
   const order = getOrder(orderId);
   const orderItems = Array.isArray(order?.items) ? order.items : [];
   const displayOrderId = order?.orderId || order?.id || orderId;
-
-  useEffect(() => {
-    if (location.state?.orderPlaced) {
-      const t = setTimeout(() => {
-        toast.success("Order placed successfully!", { id: "order-placed-success", duration: 4000 });
-      }, 300);
-      return () => clearTimeout(t);
-    }
-  }, [location.state]);
 
   useEffect(() => {
     let mounted = true;
