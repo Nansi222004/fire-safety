@@ -288,6 +288,7 @@ api.interceptors.response.use(
           '/checkout',
           '/wishlist',
           '/order-confirmation',
+          '/order-success',
           '/orders',
           '/profile',
           '/wallet',
