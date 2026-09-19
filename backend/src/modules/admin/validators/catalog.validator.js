@@ -75,7 +75,7 @@ export const createProductSchema = Joi.object({
     name: productBaseSchema.name.required(),
     price: productBaseSchema.price.required(),
     categoryId: productBaseSchema.categoryId.required(),
-    vendorId: objectId.optional(),
+    vendorId: objectId.allow(null, '').optional(),
 });
 
 export const updateProductSchema = Joi.object(productBaseSchema).min(1);
