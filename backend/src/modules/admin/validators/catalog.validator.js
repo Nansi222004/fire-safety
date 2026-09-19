@@ -81,7 +81,7 @@ export const createProductSchema = Joi.object({
         breadth: Joi.number().min(1).required(),
         height: Joi.number().min(1).required(),
     }).required(),
-    vendorId: objectId.optional(),
+    vendorId: objectId.allow(null, '').optional(),
 });
 
 export const updateProductSchema = Joi.object(productBaseSchema).min(1);

@@ -648,7 +648,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
       categoryId: finalCategoryId,
       subcategoryId: formData.subcategoryId || null,
       brandId: formData.brandId || null,
-      vendorId: formData.vendorId || null,
+      vendorId: formData.vendorId || undefined,
       weight: parseFloat(formData.weight) || undefined,
       dimensions: {
         length: parseFloat(formData.dimensions.length) || undefined,
