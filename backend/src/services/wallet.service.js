@@ -221,17 +221,31 @@ export const debitWallet = async (userId, amount, transactionType, details = {},
         throw new ApiError(400, 'Debit amount must be greater than zero');
     }
 
+    const { serviceBookingId, orderId, returnRequestId, description, reference, createdBy, createdByModel, adjustmentReason } = details || {};
+
+    // 1. Check if reference already exists to prevent duplicate debit (idempotency guard)
+    if (reference) {
+        const existingTxn = await WalletTransaction.findOne({ reference, type: 'debit', status: 'completed' }).session(session);
+        if (existingTxn) {
+            console.warn(`[Wallet Service] Duplicate wallet debit skipped. Reference: ${reference}`);
+            return {
+                wallet: await UserWallet.findOne({ userId }).session(session),
+                transaction: existingTxn
+            };
+        }
+    }
+
     let wallet = await UserWallet.findOne({ userId }).session(session);
     if (!wallet) {
         wallet = await createWalletIfMissing(userId, session);
     }
 
-    // 1. Verify wallet is active. Locked wallets block debits/payments
+    // 2. Verify wallet is active. Locked wallets block debits/payments
     if (wallet.status === 'locked') {
         throw new ApiError(403, "Your wallet is temporarily locked. Wallet balance cannot be used for purchases at the moment. Any eligible refunds will still be credited to your wallet.");
     }
 
-    // 2. Enforce zero balance floor
+    // 3. Enforce zero balance floor
     const balanceBefore = wallet.balance;
     if (balanceBefore < amount) {
         throw new ApiError(400, 'Insufficient wallet balance');
@@ -251,8 +265,6 @@ export const debitWallet = async (userId, amount, transactionType, details = {},
     }
 
     await wallet.save({ session });
-
-    const { serviceBookingId, orderId, returnRequestId, description, reference, createdBy, createdByModel, adjustmentReason } = details || {};
 
     const [transaction] = await WalletTransaction.create(
         [{

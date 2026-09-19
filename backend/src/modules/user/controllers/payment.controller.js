@@ -29,6 +29,7 @@ import { calculateVendorShippingForGroups } from '../../../services/vendorShippi
 import { generateOrderId } from '../../../utils/generateOrderId.js';
 import { generateTrackingNumber } from '../../../utils/generateTrackingNumber.js';
 import { isCodOnlyMode } from '../../../config/paymentConfig.js';
+import { findMatchingVariantKey, encodeVariantKey } from '../../../utils/variantKeyHelper.js';
 
 // ─── POST /api/user/payment/initialize ────────────────────────────────────────
 // Creates DB order (payment_pending) + Razorpay order. No stock deducted yet.
@@ -50,14 +51,14 @@ export const initializePayment = asyncHandler(async (req, res) => {
     const isMethodActive = await isPaymentMethodEnabled(normalizedPaymentMethod);
     if (!isMethodActive) {
         if (isCodOnlyMode()) {
-            throw new ApiError(400, 'Online payments are temporarily disabled. Cash on Delivery is the only supported payment method.');
+            throw new ApiError(400, 'Online payments are temporarily disabled. Cash on Delivery and SafeFire Wallet are the supported payment methods.');
         }
         throw new ApiError(400, `${paymentMethod === 'cash' ? 'Cash on Delivery' : paymentMethod} is currently unavailable.`);
     }
 
-    // Central Payment Gate: In COD_ONLY mode, only COD orders can be initialized
-    if (isCodOnlyMode() && normalizedPaymentMethod !== 'cod') {
-        throw new ApiError(400, 'Online payments are temporarily disabled. Cash on Delivery is the only supported payment method.');
+    // Central Payment Gate: In COD_ONLY mode, only COD and Wallet orders can be initialized
+    if (isCodOnlyMode() && !['cod', 'wallet'].includes(normalizedPaymentMethod)) {
+        throw new ApiError(400, 'Online payments are temporarily disabled. Cash on Delivery and SafeFire Wallet are the supported payment methods.');
     }
 
     // 4.3 — Idempotency: if client sends a key, return the existing order if it was already created
@@ -68,6 +69,27 @@ export const initializePayment = asyncHandler(async (req, res) => {
             status: { $in: ['payment_pending', 'processing', 'pending'] },
         }).lean();
         if (existing) {
+            if (existing.paymentMethod === 'wallet' || existing.paymentStatus === 'paid') {
+                const currentWallet = await getWallet(userId);
+                return res.status(200).json(new ApiResponse(200, {
+                    orderId: existing.orderId,
+                    total: existing.total,
+                    paymentMethod: existing.paymentMethod,
+                    paymentStatus: existing.paymentStatus,
+                    walletBalance: currentWallet.balance,
+                    idempotent: true,
+                }, 'Returning existing paid order.'));
+            }
+            if (existing.paymentMethod === 'cod') {
+                return res.status(200).json(new ApiResponse(200, {
+                    orderId: existing.orderId,
+                    total: existing.total,
+                    paymentMethod: 'cod',
+                    paymentStatus: existing.paymentStatus || 'pending',
+                    razorpayOrderId: null,
+                    idempotent: true,
+                }, 'Returning existing COD order.'));
+            }
             const existingAttempt = await PaymentAttempt.findOne({ orderId: existing._id }).sort({ attemptNumber: -1 }).lean();
             return res.status(200).json(new ApiResponse(200, {
                 orderId: existing.orderId,
@@ -524,10 +546,24 @@ export const initializePayment = asyncHandler(async (req, res) => {
         await session.withTransaction(async () => {
             const orderId = generateOrderId();
 
-            // 1. Calculate wallet deductions if useWallet is true
-            if (req.body.useWallet) {
+            // 1. Calculate wallet deductions if paymentMethod is wallet or useWallet is true
+            if (normalizedPaymentMethod === 'wallet' || req.body.useWallet) {
+                if (!userId) {
+                    throw new ApiError(401, 'Authentication required for wallet payment.');
+                }
                 const wallet = await getWallet(userId);
-                walletAmountUsed = Math.min(wallet.balance, total);
+                if (wallet.status === 'locked') {
+                    throw new ApiError(403, 'Your wallet is temporarily locked. Wallet balance cannot be used for purchases at the moment.');
+                }
+                if (normalizedPaymentMethod === 'wallet') {
+                    if (wallet.balance < total) {
+                        const shortfall = (total - wallet.balance).toFixed(2);
+                        throw new ApiError(400, `Insufficient wallet balance. Short by ₹${shortfall}. Please choose Cash on Delivery or add funds.`);
+                    }
+                    walletAmountUsed = total;
+                } else {
+                    walletAmountUsed = Math.min(wallet.balance, total);
+                }
             }
 
             const remainingTotal = Number((total - walletAmountUsed).toFixed(2));
@@ -585,6 +621,8 @@ export const initializePayment = asyncHandler(async (req, res) => {
                 estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
                 invoiceNumber: `INV-${orderId}`,
                 invoiceDate: new Date(),
+                idempotencyKey: idempotencyKey || undefined,
+                idempotencyScope: idempotencyKey ? `user:${String(userId)}` : undefined,
                 // Store coupon info for use at webhook time
                 couponId: appliedCoupon?._id,
             }], { session });
@@ -594,6 +632,7 @@ export const initializePayment = asyncHandler(async (req, res) => {
             if (walletAmountUsed > 0) {
                 await debitWallet(userId, walletAmountUsed, 'wallet_payment', {
                     orderId: order._id,
+                    reference: `ORDER_PAYMENT_${order.orderId}`,
                     description: `Paid ₹${walletAmountUsed} via wallet for order #${order.orderId}`
                 }, session);
             }
@@ -601,9 +640,28 @@ export const initializePayment = asyncHandler(async (req, res) => {
             if (isFullyPaidByWallet) {
                 // Fully paid by wallet - complete order setups (stock, commissions, coupon count)
                 for (const item of enrichedItems) {
+                    const productSnapshot = await Product.findById(item.productId).session(session);
+                    const matchedStockKey = item.variantKey ? findMatchingVariantKey(productSnapshot?.variants?.stockMap, item.variantKey) : null;
+                    const safeVariantKey = matchedStockKey ? encodeVariantKey(matchedStockKey) : null;
+                    const variantPath = safeVariantKey ? `variants.stockMap.${safeVariantKey}` : null;
+
+                    const baseFilter = {
+                        _id: item.productId,
+                        stock: { $ne: 'out_of_stock' },
+                        stockQuantity: { $gte: Number(item.quantity) }
+                    };
+                    if (variantPath) {
+                        baseFilter[variantPath] = { $gte: Number(item.quantity) };
+                    }
+
+                    const updatePayload = { $inc: { stockQuantity: -Number(item.quantity) } };
+                    if (variantPath) {
+                        updatePayload.$inc[variantPath] = -Number(item.quantity);
+                    }
+
                     const updatedProduct = await Product.findOneAndUpdate(
-                        { _id: item.productId, stock: { $ne: 'out_of_stock' }, stockQuantity: { $gte: Number(item.quantity) } },
-                        { $inc: { stockQuantity: -Number(item.quantity) } },
+                        baseFilter,
+                        updatePayload,
                         { new: true, session }
                     );
                     if (!updatedProduct) throw new ApiError(409, `Insufficient stock for ${item.name}.`);
@@ -816,11 +874,14 @@ export const initializePayment = asyncHandler(async (req, res) => {
         order.paymentStatus = 'paid';
         notifyOrderUpdate(order).catch(console.error);
 
+        const updatedWallet = await getWallet(userId);
+
         return res.status(201).json(new ApiResponse(201, {
             orderId: order.orderId,
             total,
             paymentMethod: 'wallet',
             paymentStatus: 'paid',
+            walletBalance: updatedWallet.balance,
         }, 'Order placed successfully using wallet balance.'));
     }
 
