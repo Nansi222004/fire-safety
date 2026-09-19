@@ -297,6 +297,10 @@ export const useOrderStore = create(
             ...(payload?.vendorId ? { vendorId: payload.vendorId } : {}),
             ...(Array.isArray(payload?.items) ? { items: payload.items } : {}),
             ...(Array.isArray(payload?.images) ? { images: payload.images } : {}),
+            ...(payload?.refundMethod ? { refundMethod: payload.refundMethod } : {}),
+            ...(payload?.bankDetails ? { bankDetails: payload.bankDetails } : {}),
+            ...(payload?.bankDetailsJson ? { bankDetailsJson: payload.bankDetailsJson } : {}),
+            ...(payload?.upiId ? { upiId: payload.upiId } : {}),
           };
         }
 

@@ -1,8 +1,10 @@
+import mongoose from 'mongoose';
 import logger from '../utils/logger.js';
 import UserWallet from '../models/UserWallet.model.js';
 import WalletTransaction from '../models/WalletTransaction.model.js';
 import Refund from '../models/Refund.model.js';
 import Order from '../models/Order.model.js';
+import ServiceBooking from '../models/ServiceBooking.model.js';
 import { createNotification } from './notification.service.js';
 import ApiError from '../utils/ApiError.js';
 
@@ -125,22 +127,56 @@ export const creditWallet = async (userId, amount, transactionType, details = {}
     );
 
     // Contextual notification message builder
-    let notificationMsg = `₹${amount} has been credited to your wallet.`;
-    if (transactionType === 'return_refund' && returnRequestId) {
-        notificationMsg = `₹${amount} has been credited to your wallet for Return #${returnRequestId}.`;
-    } else if (transactionType === 'cancel_refund') {
-        let orderNumber = 'N/A';
-        if (orderId) {
-            const orderObj = await Order.findById(orderId).session(session).lean();
-            if (orderObj) orderNumber = orderObj.orderId;
-            notificationMsg = `₹${amount} has been credited to your wallet for cancelled Order #${orderNumber}.`;
-        } else if (serviceBookingId) {
-            notificationMsg = `₹${amount} has been credited to your SafeFire Wallet for cancelled Service Booking #${details?.bookingNumber || serviceBookingId}.`;
-        } else {
-            notificationMsg = `₹${amount} has been credited to your SafeFire Wallet for your cancellation refund.`;
+    const isRefund = ['cancel_refund', 'return_refund', 'exchange_refund'].includes(transactionType);
+    const title = isRefund ? 'Refund Credited to Your Wallet' : 'Wallet Credited';
+
+    let orderNumber = details?.orderNumber || null;
+    if (!orderNumber && orderId) {
+        try {
+            const orderQuery = mongoose.Types.ObjectId.isValid(orderId) ? { _id: orderId } : { orderId };
+            const orderObj = await Order.findOne(orderQuery).session(session).select('orderId').lean();
+            if (orderObj?.orderId) {
+                orderNumber = orderObj.orderId;
+            } else if (typeof orderId === 'string' && !mongoose.Types.ObjectId.isValid(orderId)) {
+                orderNumber = orderId;
+            }
+        } catch (_) {
+            if (typeof orderId === 'string' && !mongoose.Types.ObjectId.isValid(orderId)) {
+                orderNumber = orderId;
+            }
         }
-    } else if (transactionType === 'exchange_refund') {
-        notificationMsg = `₹${amount} has been credited to your wallet for exchange price difference on Return #${returnRequestId || 'N/A'}.`;
+    }
+
+    let bookingNumber = details?.bookingNumber || null;
+    if (!bookingNumber && serviceBookingId) {
+        try {
+            const bookingQuery = mongoose.Types.ObjectId.isValid(serviceBookingId) ? { _id: serviceBookingId } : { bookingId: serviceBookingId };
+            const bookingObj = await ServiceBooking.findOne(bookingQuery).session(session).select('bookingId').lean();
+            if (bookingObj?.bookingId) {
+                bookingNumber = bookingObj.bookingId;
+            } else if (typeof serviceBookingId === 'string' && !mongoose.Types.ObjectId.isValid(serviceBookingId)) {
+                bookingNumber = serviceBookingId;
+            }
+        } catch (_) {
+            if (typeof serviceBookingId === 'string' && !mongoose.Types.ObjectId.isValid(serviceBookingId)) {
+                bookingNumber = serviceBookingId;
+            }
+        }
+    }
+
+    let notificationMsg = `₹${amount} has been credited to your wallet.`;
+    if (isRefund) {
+        if (serviceBookingId || bookingNumber) {
+            notificationMsg = `₹${amount} has been credited to your SafeFire Wallet for Service Booking #${bookingNumber || serviceBookingId}. You can use it for your next purchase.`;
+        } else if (transactionType === 'return_refund' && returnRequestId && orderNumber) {
+            notificationMsg = `₹${amount} has been credited to your SafeFire Wallet for Return #${returnRequestId} (Order #${orderNumber}). You can use it for your next purchase.`;
+        } else if (orderNumber) {
+            notificationMsg = `₹${amount} has been credited to your SafeFire Wallet for Order #${orderNumber}. You can use it for your next purchase.`;
+        } else if (returnRequestId) {
+            notificationMsg = `₹${amount} has been credited to your SafeFire Wallet for Return #${returnRequestId}. You can use it for your next purchase.`;
+        } else {
+            notificationMsg = `₹${amount} has been credited to your SafeFire Wallet. You can use it for your next purchase.`;
+        }
     } else if (transactionType === 'reward') {
         notificationMsg = `Reward bonus of ₹${amount} has been added to your wallet.`;
     } else if (transactionType === 'promo_credit') {
@@ -151,19 +187,28 @@ export const creditWallet = async (userId, amount, transactionType, details = {}
         notificationMsg = `₹${amount} manual adjustment has been credited to your wallet: ${description || 'Admin credit'}`;
     }
 
-    createNotification({
-        recipientId: userId,
-        recipientType: 'user',
-        title: 'Wallet Credited',
-        message: notificationMsg,
-        type: 'payment',
-        data: {
-            walletId: String(wallet._id),
-            transactionId: String(transaction._id),
-            amount: String(amount),
-            transactionType
-        }
-    }).catch(err => logger.error('[Wallet Credit Notification Error]', err.message));
+    try {
+        await createNotification({
+            recipientId: userId,
+            recipientType: 'user',
+            title,
+            message: notificationMsg,
+            type: 'payment',
+            data: {
+                walletId: String(wallet._id),
+                transactionId: String(transaction._id),
+                amount: String(amount),
+                transactionType,
+                ...(orderNumber ? { orderNumber: String(orderNumber) } : {}),
+                ...(orderId ? { orderId: String(orderId) } : {}),
+                ...(bookingNumber ? { bookingNumber: String(bookingNumber) } : {}),
+                ...(serviceBookingId ? { serviceBookingId: String(serviceBookingId) } : {}),
+                ...(returnRequestId ? { returnRequestId: String(returnRequestId) } : {}),
+            }
+        });
+    } catch (err) {
+        logger.error('[Wallet Credit Notification Error]', err.message);
+    }
 
     return { wallet, transaction };
 };

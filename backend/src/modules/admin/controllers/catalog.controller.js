@@ -31,6 +31,7 @@ import {
     createVariantKey,
     createDynamicVariantKey,
     resolveVariantMapValue,
+    toNonNegativeNumber,
 } from '../../../utils/variantKeyHelper.js';
 
 const uniqueAxisValues = (values = []) => {
@@ -52,11 +53,6 @@ const toObjectEntries = (value) => {
     if (value instanceof Map) return Array.from(value.entries());
     if (typeof value === 'object') return Object.entries(value);
     return [];
-};
-
-const toNonNegativeNumber = (raw) => {
-    const parsed = Number(raw);
-    return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 };
 
 const normalizeAttributes = (rawAttributes = []) => {
@@ -131,7 +127,7 @@ const normalizeVariantsPayload = (rawVariants = {}, fallbackPrice) => {
             candidates.push(`${normalizeVariantPart(size)}|${normalizeVariantPart(color)}`);
         }
 
-        const rawPrice = resolveVariantMapValue(rawVariants.prices, candidates);
+        const rawPrice = resolveVariantMapValue(rawVariants.prices, candidates, { throwOnConflict: true });
         const parsedPrice = toNonNegativeNumber(rawPrice);
         if (parsedPrice !== null) {
             prices[key] = parsedPrice;
@@ -140,11 +136,11 @@ const normalizeVariantsPayload = (rawVariants = {}, fallbackPrice) => {
             if (fallback !== null) prices[key] = fallback;
         }
 
-        const rawStock = resolveVariantMapValue(rawVariants.stockMap, candidates);
+        const rawStock = resolveVariantMapValue(rawVariants.stockMap, candidates, { throwOnConflict: true });
         const parsedStock = toNonNegativeNumber(rawStock);
         if (parsedStock !== null) stockMap[key] = parsedStock;
 
-        const rawImage = resolveVariantMapValue(rawVariants.imageMap, candidates);
+        const rawImage = resolveVariantMapValue(rawVariants.imageMap, candidates, { throwOnConflict: true });
         const image = String(rawImage || '').trim();
         if (image) imageMap[key] = image;
     });
@@ -193,10 +189,16 @@ const normalizeVariantsPayload = (rawVariants = {}, fallbackPrice) => {
 const calculateVariantAggregateStock = (variants = {}) => {
     const entries = toObjectEntries(variants.stockMap);
     if (!entries.length) return null;
-    return entries.reduce((sum, [, value]) => {
-        const parsed = Number(value);
-        return Number.isFinite(parsed) && parsed >= 0 ? sum + parsed : sum;
+    let hasValidStock = false;
+    const sum = entries.reduce((acc, [, value]) => {
+        const parsed = toNonNegativeNumber(value);
+        if (parsed !== null) {
+            hasValidStock = true;
+            return acc + parsed;
+        }
+        return acc;
     }, 0);
+    return hasValidStock ? sum : null;
 };
 
 const sanitizeCategoryPayload = (payload = {}) => {
@@ -373,6 +375,14 @@ export const createProduct = asyncHandler(async (req, res) => {
             ? 'low_stock'
             : 'in_stock');
 
+    if (rest.categoryId) {
+        const category = await Category.findById(rest.categoryId);
+        if (!category) throw new ApiError(404, 'Category not found.');
+        if (!category.isActive) throw new ApiError(400, 'Selected category is inactive.');
+    } else {
+        throw new ApiError(400, 'Product category is required.');
+    }
+
     if (rest.brandId) {
         const brand = await Brand.findById(rest.brandId);
         if (!brand) throw new ApiError(404, 'Brand not found.');
@@ -407,6 +417,15 @@ export const updateProduct = asyncHandler(async (req, res) => {
     
     // Determine the effective vendorId (either being set, or existing)
     const targetVendorId = payload.vendorId || existingProduct.vendorId;
+
+    if (typeof payload.categoryId !== 'undefined') {
+        if (!payload.categoryId) {
+            throw new ApiError(400, 'Product category cannot be empty.');
+        }
+        const category = await Category.findById(payload.categoryId);
+        if (!category) throw new ApiError(404, 'Category not found.');
+        if (!category.isActive) throw new ApiError(400, 'Selected category is inactive.');
+    }
 
     if (payload.brandId) {
         const brand = await Brand.findById(payload.brandId);

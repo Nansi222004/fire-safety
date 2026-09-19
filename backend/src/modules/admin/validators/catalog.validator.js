@@ -17,8 +17,8 @@ const variantSchema = Joi.object({
             values: Joi.array().items(Joi.string().trim()).optional(),
         })
     ).optional(),
-    prices: Joi.object().pattern(Joi.string(), Joi.number().min(0)).optional(),
-    stockMap: Joi.object().pattern(Joi.string(), Joi.number().min(0)).optional(),
+    prices: Joi.object().pattern(Joi.string(), Joi.number().min(0).allow(null, '')).optional(),
+    stockMap: Joi.object().pattern(Joi.string(), Joi.number().min(0).allow(null, '')).optional(),
     imageMap: Joi.object().pattern(Joi.string(), Joi.string().allow('')).optional(),
     defaultVariant: Joi.object({
         size: Joi.string().trim().allow('').optional(),
@@ -62,12 +62,12 @@ const productBaseSchema = {
     relatedProducts: Joi.array().items(objectId).optional(),
     faqs: Joi.array().items(faqSchema).optional(),
     variants: variantSchema,
-    weight: Joi.number().min(1).required(),
+    weight: Joi.number().min(1).optional(),
     dimensions: Joi.object({
         length: Joi.number().min(1).required(),
         breadth: Joi.number().min(1).required(),
         height: Joi.number().min(1).required(),
-    }).required(),
+    }).optional(),
 };
 
 export const createProductSchema = Joi.object({
@@ -75,6 +75,12 @@ export const createProductSchema = Joi.object({
     name: productBaseSchema.name.required(),
     price: productBaseSchema.price.required(),
     categoryId: productBaseSchema.categoryId.required(),
+    weight: Joi.number().min(1).required(),
+    dimensions: Joi.object({
+        length: Joi.number().min(1).required(),
+        breadth: Joi.number().min(1).required(),
+        height: Joi.number().min(1).required(),
+    }).required(),
     vendorId: objectId.optional(),
 });
 

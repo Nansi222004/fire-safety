@@ -31,19 +31,16 @@ import AuditLog from '../../../models/AuditLog.model.js';
 import { cancelShipmentDeliveryAssignment } from '../../../services/assignmentService.js';
 import { isCodOnlyMode } from '../../../config/paymentConfig.js';
 
-const normalizeVariantPart = (value) => String(value || '').trim().toLowerCase();
-const normalizeAxisName = (value) =>
-    String(value || '')
-        .trim()
-        .toLowerCase()
-        .replace(/\s+/g, '_');
-const createDynamicVariantKey = (selection = {}) =>
-    Object.entries(selection || {})
-        .map(([axis, value]) => [normalizeAxisName(axis), normalizeVariantPart(value)])
-        .filter(([axis, value]) => axis && value)
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([axis, value]) => `${axis}=${value}`)
-        .join('|');
+import {
+    encodeVariantKey,
+    decodeVariantKey,
+    normalizeVariantPart,
+    normalizeAxisName,
+    createVariantKey,
+    createDynamicVariantKey,
+    findMatchingVariantKey,
+    resolveVariantMapValue,
+} from '../../../utils/variantKeyHelper.js';
 
 const toVariantPriceEntries = (variantPrices) => {
     if (!variantPrices) return [];
@@ -97,20 +94,12 @@ const resolveVariantSelection = (product, selectedVariant) => {
             return { price: basePrice, variantKey: selectionKey, hasVariantAxes: true };
         }
 
-        const exact = entries.find(([rawKey]) => String(rawKey).trim() === selectionKey);
-        if (exact) {
-            const price = Number(exact[1]);
+        const matchedKey = findMatchingVariantKey(product?.variants?.prices, selectionKey);
+        if (matchedKey) {
+            const rawPrice = product.variants.prices instanceof Map ? product.variants.prices.get(matchedKey) : product.variants.prices[matchedKey];
+            const price = Number(rawPrice);
             if (Number.isFinite(price) && price >= 0) {
-                return { price, variantKey: String(exact[0]).trim(), hasVariantAxes: true };
-            }
-        }
-        const normalized = entries.find(
-            ([rawKey]) => normalizeVariantPart(rawKey) === normalizeVariantPart(selectionKey)
-        );
-        if (normalized) {
-            const price = Number(normalized[1]);
-            if (Number.isFinite(price) && price >= 0) {
-                return { price, variantKey: String(normalized[0]).trim(), hasVariantAxes: true };
+                return { price, variantKey: matchedKey, hasVariantAxes: true };
             }
         }
         throw new ApiError(400, `Selected variant is not available for ${product?.name || 'product'}.`);
@@ -130,6 +119,7 @@ const resolveVariantSelection = (product, selectedVariant) => {
     }
 
     const candidateKeys = [
+        createVariantKey(size, color),
         `${size}|${color}`,
         `${size}-${color}`,
         `${size}_${color}`,
@@ -139,21 +129,12 @@ const resolveVariantSelection = (product, selectedVariant) => {
     ].filter(Boolean);
 
     for (const candidate of candidateKeys) {
-        const exact = entries.find(([rawKey]) => String(rawKey).trim() === candidate);
-        if (exact) {
-            const price = Number(exact[1]);
+        const matchedKey = findMatchingVariantKey(product?.variants?.prices, candidate);
+        if (matchedKey) {
+            const rawPrice = product.variants.prices instanceof Map ? product.variants.prices.get(matchedKey) : product.variants.prices[matchedKey];
+            const price = Number(rawPrice);
             if (Number.isFinite(price) && price >= 0) {
-                return { price, variantKey: String(exact[0]).trim(), hasVariantAxes };
-            }
-        }
-
-        const normalized = entries.find(
-            ([rawKey]) => normalizeVariantPart(rawKey) === normalizeVariantPart(candidate)
-        );
-        if (normalized) {
-            const price = Number(normalized[1]);
-            if (Number.isFinite(price) && price >= 0) {
-                return { price, variantKey: String(normalized[0]).trim(), hasVariantAxes };
+                return { price, variantKey: matchedKey, hasVariantAxes };
             }
         }
     }
@@ -166,12 +147,12 @@ const resolveVariantSelection = (product, selectedVariant) => {
 
 const resolveOrderItemVariantKey = (product, orderItem) => {
     const explicitKey = String(orderItem?.variantKey || '').trim();
-    if (explicitKey) return explicitKey;
-
-    const stockEntries = toVariantStockEntries(product?.variants?.stockMap).map(([k]) => String(k).trim());
-    const priceEntries = toVariantPriceEntries(product?.variants?.prices).map(([k]) => String(k).trim());
-    const existingKeys = [...new Set([...stockEntries, ...priceEntries])];
-    if (!existingKeys.length) return null;
+    if (explicitKey) {
+        const matched = findMatchingVariantKey(product?.variants?.stockMap, explicitKey) ||
+                        findMatchingVariantKey(product?.variants?.prices, explicitKey);
+        if (matched) return matched;
+        return explicitKey;
+    }
 
     const dynamicSelection = Object.entries(orderItem?.variant || {}).reduce((acc, [axis, value]) => {
         const axisKey = normalizeAxisName(axis);
@@ -181,12 +162,9 @@ const resolveOrderItemVariantKey = (product, orderItem) => {
     }, {});
     const dynamicKey = createDynamicVariantKey(dynamicSelection);
     if (dynamicKey) {
-        const exactDynamic = existingKeys.find((key) => key === dynamicKey);
-        if (exactDynamic) return exactDynamic;
-        const normalizedDynamic = existingKeys.find(
-            (key) => normalizeVariantPart(key) === normalizeVariantPart(dynamicKey)
-        );
-        if (normalizedDynamic) return normalizedDynamic;
+        const matched = findMatchingVariantKey(product?.variants?.stockMap, dynamicKey) ||
+                        findMatchingVariantKey(product?.variants?.prices, dynamicKey);
+        if (matched) return matched;
     }
 
     const size = normalizeVariantPart(orderItem?.variant?.size);
@@ -194,6 +172,7 @@ const resolveOrderItemVariantKey = (product, orderItem) => {
     if (!size && !color) return null;
 
     const candidates = [
+        createVariantKey(size, color),
         `${size}|${color}`,
         `${size}-${color}`,
         `${size}_${color}`,
@@ -203,10 +182,9 @@ const resolveOrderItemVariantKey = (product, orderItem) => {
     ].filter(Boolean);
 
     for (const candidate of candidates) {
-        const exact = existingKeys.find((key) => key === candidate);
-        if (exact) return exact;
-        const normalized = existingKeys.find((key) => normalizeVariantPart(key) === normalizeVariantPart(candidate));
-        if (normalized) return normalized;
+        const matched = findMatchingVariantKey(product?.variants?.stockMap, candidate) ||
+                        findMatchingVariantKey(product?.variants?.prices, candidate);
+        if (matched) return matched;
     }
     return null;
 };
@@ -286,7 +264,8 @@ export const placeOrder = asyncHandler(async (req, res) => {
 
         // Always trust server-side product pricing; never trust client-sent item.price.
         const { price: itemPrice, variantKey, hasVariantAxes } = resolveVariantSelection(product, item.variant);
-        const variantStockValue = variantKey ? Number(product?.variants?.stockMap?.get?.(variantKey) ?? product?.variants?.stockMap?.[variantKey]) : null;
+        const matchedStockKey = variantKey ? findMatchingVariantKey(product?.variants?.stockMap, variantKey) : null;
+        const variantStockValue = matchedStockKey ? Number(product?.variants?.stockMap?.get?.(matchedStockKey) ?? product?.variants?.stockMap?.[matchedStockKey]) : null;
         if (hasVariantAxes && variantKey && Number.isFinite(variantStockValue) && variantStockValue < item.quantity) {
             throw new ApiError(400, `Only ${variantStockValue} units available for selected variant of ${product.name}.`);
         }
@@ -295,9 +274,10 @@ export const placeOrder = asyncHandler(async (req, res) => {
         const itemTax = parseFloat(((itemSubtotal * itemTaxRate) / 100).toFixed(2));
         subtotal += itemSubtotal;
 
+        const matchedImageKey = variantKey ? findMatchingVariantKey(product?.variants?.imageMap, variantKey) : null;
         const variantImage =
-            variantKey
-                ? String((product?.variants?.imageMap?.get?.(variantKey) ?? product?.variants?.imageMap?.[variantKey]) || '').trim()
+            matchedImageKey
+                ? String((product?.variants?.imageMap?.get?.(matchedImageKey) ?? product?.variants?.imageMap?.[matchedImageKey]) || '').trim()
                 : '';
         const enriched = {
             productId: product._id,
@@ -544,11 +524,9 @@ export const placeOrder = asyncHandler(async (req, res) => {
             // 7. Deduct stock atomically to prevent oversell under concurrent checkout.
             for (const item of enrichedItems) {
                 const product = await Product.findById(item.productId).session(session);
-                const hasVariantStock = item.variantKey && product?.variants?.stockMap && (
-                    (product.variants.stockMap instanceof Map && product.variants.stockMap.has(item.variantKey)) ||
-                    (typeof product.variants.stockMap === 'object' && product.variants.stockMap[item.variantKey] !== undefined)
-                );
-                const variantPath = hasVariantStock ? `variants.stockMap.${item.variantKey}` : null;
+                const matchedStockKey = item.variantKey ? findMatchingVariantKey(product?.variants?.stockMap, item.variantKey) : null;
+                const safeVariantKey = matchedStockKey ? encodeVariantKey(matchedStockKey) : null;
+                const variantPath = safeVariantKey ? `variants.stockMap.${safeVariantKey}` : null;
                 const baseFilter = {
                     _id: item.productId,
                     stock: { $ne: 'out_of_stock' },
@@ -886,7 +864,16 @@ export const getOrderDetail = asyncHandler(async (req, res) => {
 
     const returnRequests = await ReturnRequest.find({ orderId: order._id }).populate('vendorId', 'storeName email');
     const orderObject = order.toObject({ virtuals: true });
-    orderObject.returnRequests = returnRequests || [];
+    
+    // Mask sensitive bank account number in order detail response
+    if (orderObject.bankDetails?.accountNumber) {
+        orderObject.bankDetails = {
+            ...orderObject.bankDetails,
+            accountNumber: maskAccountNumber(orderObject.bankDetails.accountNumber)
+        };
+    }
+
+    orderObject.returnRequests = (returnRequests || []).map(normalizeReturnRequest);
 
     if (orderObject.shipments && orderObject.shipments.length > 0) {
         const allDelivered = orderObject.shipments.every(s => s.status === 'delivered');
@@ -1097,10 +1084,28 @@ export const cancelVendorItem = asyncHandler(async (req, res) => {
 });
 
 
+const maskAccountNumber = (accNo) => {
+    if (!accNo || typeof accNo !== 'string') return '';
+    const clean = accNo.trim();
+    if (clean.length <= 4) return clean;
+    return '••••••••' + clean.slice(-4);
+};
+
 const normalizeReturnRequest = (requestDoc) => {
-    const request = typeof requestDoc?.toObject === 'function' ? requestDoc.toObject() : requestDoc;
+    const request = typeof requestDoc?.toObject === 'function' ? requestDoc.toObject() : { ...requestDoc };
     const orderOrderId = request?.orderId?.orderId || '';
     const orderRefId = request?.orderId?._id || request?.orderId || null;
+
+    if (request?.refundDetails?.bankDetails?.accountNumber) {
+        request.refundDetails = {
+            ...request.refundDetails,
+            bankDetails: {
+                ...request.refundDetails.bankDetails,
+                accountNumber: maskAccountNumber(request.refundDetails.bankDetails.accountNumber)
+            }
+        };
+    }
+
     return {
         ...request,
         id: String(request?._id || ''),
@@ -1309,12 +1314,10 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
                 }
             }
 
-            const getStockFromMap = (stockMap, key) => {
-                if (!stockMap) return 0;
-                if (typeof stockMap.get === 'function') return Number(stockMap.get(key) || 0);
-                return Number(stockMap[key] || 0);
-            };
-            const stock = getStockFromMap(product.variants?.stockMap, variantKey);
+            const matchedStockKey = findMatchingVariantKey(product.variants?.stockMap, variantKey);
+            const stock = matchedStockKey
+                ? Number((product.variants.stockMap instanceof Map ? product.variants.stockMap.get(matchedStockKey) : product.variants.stockMap[matchedStockKey]) || 0)
+                : 0;
             if (stock < item.quantity) {
                 throw new ApiError(400, `The requested variant (Size: ${size || 'N/A'}, Color: ${color || 'N/A'}) is currently out of stock for product ${product.name}.`);
             }
@@ -1363,32 +1366,83 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
         }
     }
 
-    if (requestType === 'return' && order.paymentMethod === 'cod') {
-        const refundMethod = req.body.refundMethod;
-        if (!refundMethod || !['bank', 'upi'].includes(refundMethod)) {
+    let returnRefundDetails = undefined;
+    if (requestType === 'return' && String(order.paymentMethod || '').toLowerCase() === 'cod') {
+        const refundMethod = String(req.body.refundMethod || '').trim().toLowerCase();
+        if (!refundMethod || !['bank', 'upi', 'wallet'].includes(refundMethod)) {
             throw new ApiError(400, 'Refund method is required for Cash on Delivery returns.');
         }
 
         order.refundMethod = refundMethod;
-        if (refundMethod === 'bank') {
-            const details = req.body.bankDetails || {};
-            if (!details.accountHolder || !details.accountNumber || !details.ifsc || !details.bankName) {
-                throw new ApiError(400, 'All bank details (accountHolder, accountNumber, ifsc, bankName) are required.');
+
+        if (refundMethod === 'wallet') {
+            order.bankDetails = undefined;
+            order.upiId = undefined;
+            returnRefundDetails = { method: 'wallet' };
+        } else if (refundMethod === 'upi') {
+            const rawUpi = String(req.body.upiId || '').trim();
+            const upiRegex = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
+            if (!rawUpi || !rawUpi.includes('@') || !upiRegex.test(rawUpi)) {
+                throw new ApiError(400, 'A valid UPI ID is required (e.g. username@bank).');
             }
+            order.upiId = rawUpi;
+            order.bankDetails = undefined;
+            returnRefundDetails = { method: 'upi', upiId: rawUpi };
+        } else if (refundMethod === 'bank') {
+            let details = req.body.bankDetails || {};
+            if (typeof details === 'string') {
+                try {
+                    details = JSON.parse(details);
+                } catch (e) {
+                    throw new ApiError(400, 'Invalid bank details JSON format.');
+                }
+            }
+            if ((!details || typeof details !== 'object' || !details.accountHolder) && req.body.bankDetailsJson) {
+                try {
+                    details = JSON.parse(req.body.bankDetailsJson);
+                } catch (e) {
+                    throw new ApiError(400, 'Invalid bank details JSON format.');
+                }
+            }
+
+            const accountHolder = String(details?.accountHolder || '').trim();
+            const accountNumber = String(details?.accountNumber || '').trim();
+            const ifsc = String(details?.ifsc || '').trim().toUpperCase();
+            const bankName = String(details?.bankName || '').trim();
+
+            if (!accountHolder || accountHolder.length < 2 || accountHolder.length > 100) {
+                throw new ApiError(400, 'Account holder name is required (2 to 100 characters).');
+            }
+
+            if (!accountNumber || !/^\d{8,20}$/.test(accountNumber)) {
+                throw new ApiError(400, 'A valid bank account number is required (8 to 20 numeric digits).');
+            }
+
+            const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+            if (!ifsc || !ifscRegex.test(ifsc)) {
+                throw new ApiError(400, 'A valid 11-character IFSC code is required (e.g. HDFC0001234).');
+            }
+
+            if (!bankName || bankName.length < 2 || bankName.length > 100) {
+                throw new ApiError(400, 'Bank name is required (2 to 100 characters).');
+            }
+
             order.bankDetails = {
-                accountHolder: details.accountHolder,
-                accountNumber: details.accountNumber,
-                ifsc: details.ifsc,
-                bankName: details.bankName
+                accountHolder,
+                accountNumber,
+                ifsc,
+                bankName
             };
             order.upiId = undefined;
-        } else {
-            const upiId = req.body.upiId;
-            if (!upiId || !upiId.includes('@')) {
-                throw new ApiError(400, 'A valid UPI ID is required.');
-            }
-            order.upiId = upiId;
-            order.bankDetails = undefined;
+            returnRefundDetails = {
+                method: 'bank',
+                bankDetails: {
+                    accountHolder,
+                    accountNumber,
+                    ifsc,
+                    bankName
+                }
+            };
         }
         await order.save();
     }
@@ -1407,6 +1461,7 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
         refundAmount: Number(refundAmount.toFixed(2)),
         refundStatus: 'pending',
         images: evidenceImages.map(img => img.url),
+        refundDetails: returnRefundDetails,
     });
 
     const requestTypeLabel = requestType === 'exchange' ? 'exchange' : 'return';

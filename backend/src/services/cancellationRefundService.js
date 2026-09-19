@@ -9,26 +9,42 @@ import Shipment from '../models/Shipment.model.js';
 import PaymentAttempt from '../models/PaymentAttempt.model.js';
 import { processRazorpayRefund } from './payment.service.js';
 import { cancelShipmentDeliveryAssignment } from './assignmentService.js';
+import {
+    findMatchingVariantKey,
+    encodeVariantKey,
+    createVariantKey,
+    normalizeVariantPart,
+} from '../utils/variantKeyHelper.js';
 
 const resolveOrderItemVariantKey = (productSnapshot, item) => {
-    if (item?.variantKey) return item.variantKey;
-    const variantObject = item?.variant || {};
-    const size = String(variantObject?.size || '').trim();
-    const color = String(variantObject?.color || '').trim();
-    if (!size && !color) return null;
+    const explicitKey = String(item?.variantKey || '').trim();
     const stockMap = productSnapshot?.variants?.stockMap;
-    if (!stockMap) return null;
-    const keys = stockMap instanceof Map ? Array.from(stockMap.keys()) : Object.keys(stockMap);
-    for (const key of keys) {
-        const parts = String(key).split('_');
-        const keySize = parts[0] || '';
-        const keyColor = parts[1] || '';
-        if (
-            (!size || keySize.toLowerCase() === size.toLowerCase()) &&
-            (!color || keyColor.toLowerCase() === color.toLowerCase())
-        ) {
-            return key;
-        }
+    const prices = productSnapshot?.variants?.prices;
+
+    if (explicitKey) {
+        const matched = findMatchingVariantKey(stockMap, explicitKey) || findMatchingVariantKey(prices, explicitKey);
+        if (matched) return matched;
+        return explicitKey;
+    }
+
+    const variantObject = item?.variant || {};
+    const size = normalizeVariantPart(variantObject?.size);
+    const color = normalizeVariantPart(variantObject?.color);
+    if (!size && !color) return null;
+
+    const candidates = [
+        createVariantKey(size, color),
+        `${size}|${color}`,
+        `${size}-${color}`,
+        `${size}_${color}`,
+        `${size}:${color}`,
+        size && !color ? size : null,
+        color && !size ? color : null,
+    ].filter(Boolean);
+
+    for (const candidate of candidates) {
+        const matched = findMatchingVariantKey(stockMap, candidate) || findMatchingVariantKey(prices, candidate);
+        if (matched) return matched;
     }
     return null;
 };
@@ -183,10 +199,11 @@ export const processCancellationRefund = async ({
                         .session(internalSession)
                         .lean();
                     const variantKey = resolveOrderItemVariantKey(productSnapshot, item);
+                    const safeVariantKey = variantKey ? encodeVariantKey(variantKey) : null;
 
                     const incUpdate = { stockQuantity: quantity };
-                    if (variantKey) {
-                        incUpdate[`variants.stockMap.${variantKey}`] = quantity;
+                    if (safeVariantKey) {
+                        incUpdate[`variants.stockMap.${safeVariantKey}`] = quantity;
                     }
 
                     const product = await Product.findByIdAndUpdate(
@@ -381,10 +398,11 @@ export const processCancellationRefund = async ({
                     .session(internalSession)
                     .lean();
                 const variantKey = resolveOrderItemVariantKey(productSnapshot, item);
+                const safeVariantKey = variantKey ? encodeVariantKey(variantKey) : null;
 
                 const incUpdate = { stockQuantity: quantity };
-                if (variantKey) {
-                    incUpdate[`variants.stockMap.${variantKey}`] = quantity;
+                if (safeVariantKey) {
+                    incUpdate[`variants.stockMap.${safeVariantKey}`] = quantity;
                 }
 
                 const product = await Product.findByIdAndUpdate(

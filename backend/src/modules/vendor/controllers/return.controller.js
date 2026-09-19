@@ -49,14 +49,34 @@ const enrichReturnItems = (request) => {
     });
 };
 
+const maskAccountNumber = (accNo) => {
+    if (!accNo) return '';
+    const s = String(accNo).trim();
+    if (s.length <= 4) return s;
+    return '••••••••' + s.slice(-4);
+};
+
 const normalizeReturnRequest = (requestDoc) => {
     const request = requestDoc.toObject ? requestDoc.toObject() : requestDoc;
     const orderOrderId = request.orderId?.orderId;
     const orderRefId = request.orderId?._id ?? request.orderId ?? null;
 
+    // Mask sensitive bank account number from vendor views
+    let sanitizedRefundDetails = request.refundDetails ? { ...request.refundDetails } : undefined;
+    if (sanitizedRefundDetails?.bankDetails) {
+        sanitizedRefundDetails.bankDetails = {
+            bankName: sanitizedRefundDetails.bankDetails.bankName || '',
+            accountNumber: maskAccountNumber(sanitizedRefundDetails.bankDetails.accountNumber),
+        };
+    }
+    if (sanitizedRefundDetails?.upiId) {
+        sanitizedRefundDetails.upiId = '••••••••';
+    }
+
     return {
         ...request,
         id: String(request._id),
+        refundDetails: sanitizedRefundDetails,
         customer: request.userId
             ? {
                 name: request.userId.name ?? 'Guest',
@@ -618,36 +638,77 @@ export const updateVendorReturnRequestStatus = asyncHandler(async (req, res) => 
                             }
 
                             const refundAmount = request.refundAmount || 0;
+                            const refundMethodChoice = request.refundDetails?.method || order.refundMethod || 'wallet';
+                            const isWalletRefund = !order.paymentMethod || String(order.paymentMethod).toLowerCase() !== 'cod' || refundMethodChoice === 'wallet';
+                            const refundRef = `RETURN_REFUND_${request._id}`;
 
-                            if (refundAmount > 0) {
-                                await creditWallet(
-                                    request.userId?._id || request.userId,
-                                    refundAmount,
-                                    'return_refund',
-                                    {
-                                        returnRequestId: request._id,
+                            // Idempotency: verify if refund was already created
+                            const existingRefund = await Refund.findOne({ referenceId: refundRef }).session(session);
+
+                            if (existingRefund) {
+                                updatedRequest.refundId = existingRefund._id;
+                                updatedRequest.refundStatus = existingRefund.status === 'completed' ? 'processed' : 'pending';
+                            } else if (refundAmount > 0) {
+                                if (isWalletRefund) {
+                                    await creditWallet(
+                                        request.userId?._id || request.userId,
+                                        refundAmount,
+                                        'return_refund',
+                                        {
+                                            returnRequestId: request._id,
+                                            orderId: order._id,
+                                            description: `Refunded ₹${refundAmount} to wallet for Return #${request._id}`,
+                                            reference: refundRef
+                                        },
+                                        session
+                                    );
+
+                                    const refund = (await Refund.create([{
                                         orderId: order._id,
-                                        description: `Refunded ₹${refundAmount} to wallet for Return #${request._id}`,
-                                        reference: `RETURN_REFUND_${request._id}`
-                                    },
-                                    session
-                                );
+                                        returnRequestId: request._id,
+                                        userId: request.userId?._id || request.userId,
+                                        amount: refundAmount,
+                                        referenceId: refundRef,
+                                        method: 'wallet_credit',
+                                        destination: 'wallet',
+                                        status: 'completed',
+                                        notes: 'Refund credited to customer wallet'
+                                    }], { session }))[0];
+
+                                    updatedRequest.refundId = refund._id;
+                                    updatedRequest.refundStatus = 'processed';
+                                } else if (refundMethodChoice === 'bank') {
+                                    const refund = (await Refund.create([{
+                                        orderId: order._id,
+                                        returnRequestId: request._id,
+                                        userId: request.userId?._id || request.userId,
+                                        amount: refundAmount,
+                                        referenceId: refundRef,
+                                        method: 'bank_transfer',
+                                        destination: 'bank',
+                                        status: 'processing',
+                                        notes: `COD Return Refund: Bank transfer to ${order.bankDetails?.accountHolder || ''} (A/C: ${maskAccountNumber(order.bankDetails?.accountNumber)}, IFSC: ${order.bankDetails?.ifsc || ''})`
+                                    }], { session }))[0];
+
+                                    updatedRequest.refundId = refund._id;
+                                    updatedRequest.refundStatus = 'pending';
+                                } else if (refundMethodChoice === 'upi') {
+                                    const refund = (await Refund.create([{
+                                        orderId: order._id,
+                                        returnRequestId: request._id,
+                                        userId: request.userId?._id || request.userId,
+                                        amount: refundAmount,
+                                        referenceId: refundRef,
+                                        method: 'upi',
+                                        destination: 'upi',
+                                        status: 'processing',
+                                        notes: `COD Return Refund: UPI transfer to ${order.upiId || ''}`
+                                    }], { session }))[0];
+
+                                    updatedRequest.refundId = refund._id;
+                                    updatedRequest.refundStatus = 'pending';
+                                }
                             }
-
-                            const refund = (await Refund.create([{
-                                orderId: order._id,
-                                returnRequestId: request._id,
-                                userId: request.userId?._id || request.userId,
-                                amount: refundAmount,
-                                referenceId: `RETURN_REFUND_${request._id}`,
-                                method: 'wallet_credit',
-                                destination: 'wallet',
-                                status: 'completed',
-                                notes: 'Refund credited to customer wallet'
-                            }], { session }))[0];
-
-                            updatedRequest.refundId = refund._id;
-                            updatedRequest.refundStatus = 'processed';
 
                             if (allItemsReturned) {
                                 if (order.status !== 'cancelled') {

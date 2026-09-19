@@ -49,6 +49,13 @@ const enrichReturnItems = (request) => {
     });
 };
 
+const maskAccountNumber = (accNo) => {
+    if (!accNo) return '';
+    const s = String(accNo).trim();
+    if (s.length <= 4) return s;
+    return '••••••••' + s.slice(-4);
+};
+
 const normalizeReturnRequest = (request) => ({
     ...request._doc,
     id: request._id,
@@ -513,36 +520,77 @@ export const updateReturnRequestStatus = asyncHandler(async (req, res) => {
                         }
 
                         const refundAmount = request.refundAmount || 0;
+                        const refundMethodChoice = request.refundDetails?.method || order.refundMethod || 'wallet';
+                        const isWalletRefund = !order.paymentMethod || String(order.paymentMethod).toLowerCase() !== 'cod' || refundMethodChoice === 'wallet';
+                        const refundRef = `RETURN_REFUND_${request._id}`;
 
-                        if (refundAmount > 0) {
-                            await creditWallet(
-                                request.userId?._id || request.userId,
-                                refundAmount,
-                                'return_refund',
-                                {
+                        // Idempotency: verify if refund was already created
+                        const existingRefund = await Refund.findOne({ referenceId: refundRef }).session(session);
+
+                        if (existingRefund) {
+                            updatedRequest.refundId = existingRefund._id;
+                            updatedRequest.refundStatus = existingRefund.status === 'completed' ? 'processed' : 'pending';
+                        } else if (refundAmount > 0) {
+                            if (isWalletRefund) {
+                                await creditWallet(
+                                    request.userId?._id || request.userId,
+                                    refundAmount,
+                                    'return_refund',
+                                    {
+                                        returnRequestId: request._id,
+                                        orderId: order._id,
+                                        description: `Refunded ₹${refundAmount} to wallet for Return #${request._id}`,
+                                        reference: refundRef
+                                    },
+                                    session
+                                );
+
+                                const refund = (await Refund.create([{
+                                    orderId:         request.orderId?._id || request.orderId,
                                     returnRequestId: request._id,
-                                    orderId: order._id,
-                                    description: `Refunded ₹${refundAmount} to wallet for Return #${request._id}`,
-                                    reference: `RETURN_REFUND_${request._id}`
-                                },
-                                session
-                            );
+                                    userId:          request.userId?._id || request.userId,
+                                    amount:          refundAmount,
+                                    referenceId:     refundRef,
+                                    method:          'wallet_credit',
+                                    destination:     'wallet',
+                                    status:          'completed',
+                                    notes:           'Refund credited to customer wallet'
+                                }], { session }))[0];
+
+                                updatedRequest.refundId = refund._id;
+                                updatedRequest.refundStatus = 'processed';
+                            } else if (refundMethodChoice === 'bank') {
+                                const refund = (await Refund.create([{
+                                    orderId:         request.orderId?._id || request.orderId,
+                                    returnRequestId: request._id,
+                                    userId:          request.userId?._id || request.userId,
+                                    amount:          refundAmount,
+                                    referenceId:     refundRef,
+                                    method:          'bank_transfer',
+                                    destination:     'bank',
+                                    status:          'processing',
+                                    notes:           `COD Return Refund: Bank transfer to ${order.bankDetails?.accountHolder || ''} (A/C: ${maskAccountNumber(order.bankDetails?.accountNumber)}, IFSC: ${order.bankDetails?.ifsc || ''})`
+                                }], { session }))[0];
+
+                                updatedRequest.refundId = refund._id;
+                                updatedRequest.refundStatus = 'pending';
+                            } else if (refundMethodChoice === 'upi') {
+                                const refund = (await Refund.create([{
+                                    orderId:         request.orderId?._id || request.orderId,
+                                    returnRequestId: request._id,
+                                    userId:          request.userId?._id || request.userId,
+                                    amount:          refundAmount,
+                                    referenceId:     refundRef,
+                                    method:          'upi',
+                                    destination:     'upi',
+                                    status:          'processing',
+                                    notes:           `COD Return Refund: UPI transfer to ${order.upiId || ''}`
+                                }], { session }))[0];
+
+                                updatedRequest.refundId = refund._id;
+                                updatedRequest.refundStatus = 'pending';
+                            }
                         }
-
-                        const refund = (await Refund.create([{
-                            orderId:         request.orderId?._id || request.orderId,
-                            returnRequestId: request._id,
-                            userId:          request.userId?._id || request.userId,
-                            amount:          refundAmount,
-                            referenceId:     `RETURN_REFUND_${request._id}`,
-                            method:          'wallet_credit',
-                            destination:     'wallet',
-                            status:          'completed',
-                            notes:           'Refund credited to customer wallet'
-                        }], { session }))[0];
-
-                        updatedRequest.refundId = refund._id;
-                        updatedRequest.refundStatus = 'processed';
 
                         const allItemsReturned = returnedItemsCount >= totalItemsCount || keptSubtotal <= 0;
                         const isEscrowReleased = order.escrowStatus === 'released';
