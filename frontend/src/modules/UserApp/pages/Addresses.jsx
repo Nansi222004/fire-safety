@@ -34,8 +34,8 @@ const MobileAddresses = () => {
     try {
       const payload = {
         ...data,
-        fullName: editingAddress?.fullName || user?.name || 'Customer',
-        phone: editingAddress?.phone || user?.phone || '0000000000',
+        fullName: String(data.fullName || editingAddress?.fullName || user?.name || 'Customer').trim(),
+        phone: String(data.phone || editingAddress?.phone || user?.phone || '0000000000').replace(/\D/g, '').slice(-10),
       };
 
       if (editingAddress) {
@@ -53,9 +53,28 @@ const MobileAddresses = () => {
     }
   };
 
+  const handleAddNew = () => {
+    setEditingAddress(null);
+    reset({
+      name: '',
+      fullName: user?.name || '',
+      phone: user?.phone || '',
+      address: '',
+      city: '',
+      state: '',
+      zipCode: '',
+      country: 'India',
+    });
+    setIsFormOpen(true);
+  };
+
   const handleEdit = (address) => {
     setEditingAddress(address);
-    reset(address);
+    reset({
+      ...address,
+      fullName: address.fullName || user?.name || '',
+      phone: address.phone || user?.phone || '',
+    });
     setIsFormOpen(true);
   };
 
@@ -105,7 +124,7 @@ const MobileAddresses = () => {
                   <h3 className="text-lg font-bold text-gray-800 mb-2">No addresses saved</h3>
                   <p className="text-sm text-gray-600 mb-6">Add your first address to get started</p>
                   <button
-                    onClick={() => setIsFormOpen(true)}
+                    onClick={handleAddNew}
                     className="gradient-green text-white px-6 py-3 rounded-xl font-semibold"
                   >
                     Add Address
@@ -115,7 +134,7 @@ const MobileAddresses = () => {
                 <div className="space-y-3">
                   <div className="flex justify-end">
                     <button
-                      onClick={() => setIsFormOpen(true)}
+                      onClick={handleAddNew}
                       className="rounded-md bg-[#e7f7f5] px-5 py-3 text-[15px] font-semibold text-[#0f5c56] shadow-sm"
                     >
                       Add New Address
@@ -129,10 +148,15 @@ const MobileAddresses = () => {
                       className="rounded-3xl bg-white p-5 shadow-sm border border-gray-100"
                     >
                       <div className="min-w-0">
-                        <div className="mb-1 flex items-center gap-2">
+                        <div className="mb-1 flex items-center justify-between">
                           <h3 className="text-[16px] font-bold capitalize text-[#0f5c56]">{address.name}</h3>
                         </div>
-                        <p className="text-[14px] font-semibold leading-5 text-gray-400">
+                        {address.fullName && (
+                          <p className="text-[14px] font-bold text-gray-800">
+                            {address.fullName} {address.phone ? `• ${address.phone}` : ''}
+                          </p>
+                        )}
+                        <p className="text-[13px] font-normal leading-5 text-gray-500 mt-0.5">
                           {[address.address, address.city, address.state, address.country, address.zipCode]
                             .filter(Boolean)
                             .join(', ')}
@@ -267,6 +291,37 @@ const AddressFormModal = ({
               placeholder="Home, Work, etc."
             />
             {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Recipient Full Name</label>
+              <input
+                type="text"
+                {...register('fullName', { required: 'Recipient full name is required' })}
+                className={`w-full px-4 py-3 rounded-xl border-2 ${errors.fullName ? 'border-red-300' : 'border-gray-200'
+                  } focus:outline-none focus:ring-2 focus:ring-primary-500 text-base`}
+                placeholder="Full Name"
+              />
+              {errors.fullName && <p className="mt-1 text-sm text-red-600">{errors.fullName.message}</p>}
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Phone Number (10 digits)</label>
+              <input
+                type="tel"
+                maxLength={10}
+                {...register('phone', {
+                  required: 'Phone number is required',
+                  pattern: {
+                    value: /^\d{10}$/,
+                    message: 'Please enter a valid 10-digit mobile number'
+                  }
+                })}
+                className={`w-full px-4 py-3 rounded-xl border-2 ${errors.phone ? 'border-red-300' : 'border-gray-200'
+                  } focus:outline-none focus:ring-2 focus:ring-primary-500 text-base`}
+                placeholder="10-digit mobile number"
+              />
+              {errors.phone && <p className="mt-1 text-sm text-red-600">{errors.phone.message}</p>}
+            </div>
           </div>
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Street Address</label>

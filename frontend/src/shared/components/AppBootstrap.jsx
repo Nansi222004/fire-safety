@@ -66,6 +66,10 @@ const AppBootstrap = () => {
       if (payload?.data?.link && document.visibilityState === 'visible') {
         const title = payload.notification?.title || payload.data?.title || 'SafeFire Alert';
         const msg = payload.notification?.body || payload.data?.body || payload.data?.message || '';
+        // Suppress duplicate foreground toast for new order placement
+        if (title === 'Order Placed!' || title.includes('Order Placed') || msg.toLowerCase().includes('placed successfully')) {
+          return;
+        }
         if (title && msg) {
           toast(msg, { icon: '🔔' });
         }

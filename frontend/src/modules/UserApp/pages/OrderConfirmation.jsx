@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { FiCheckCircle, FiTruck, FiEye } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import MobileLayout from "../components/Layout/MobileLayout";
@@ -13,21 +12,11 @@ import LazyImage from '../../../shared/components/LazyImage';
 const MobileOrderConfirmation = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
   const { getOrder, fetchOrderById, lastError } = useOrderStore();
   const [isResolving, setIsResolving] = useState(true);
   const order = getOrder(orderId);
   const orderItems = Array.isArray(order?.items) ? order.items : [];
   const displayOrderId = order?.id || order?.orderId || orderId;
-
-  useEffect(() => {
-    if (location.state?.orderPlaced) {
-      const t = setTimeout(() => {
-        toast.success("Order placed successfully!", { id: "order-placed-success", duration: 4000 });
-      }, 300);
-      return () => clearTimeout(t);
-    }
-  }, [location.state]);
 
   useEffect(() => {
     let mounted = true;
