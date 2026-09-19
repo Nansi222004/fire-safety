@@ -554,7 +554,6 @@ const MobileCheckout = () => {
         if (paymentMethod === "cash" || paymentMethod === "cod" || payload.paymentStatus === "paid") {
           clearCart();
           fetchWallet();
-          toast.success("Order placed successfully!", { id: "order-placed-success" });
           navigate(`/order-confirmation/${payload.orderId}`, { state: { orderPlaced: true } });
           return;
         }
@@ -592,7 +591,6 @@ const MobileCheckout = () => {
                 });
 
                 toast.dismiss(verifyToastId);
-                toast.success("Order placed successfully!", { id: "order-placed-success" });
                 clearCart();
                 navigate(`/order-confirmation/${payload.orderId}`, { state: { orderPlaced: true } });
                 resolve();

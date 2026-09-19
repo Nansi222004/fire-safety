@@ -22,7 +22,10 @@ const MobileOrderConfirmation = () => {
 
   useEffect(() => {
     if (location.state?.orderPlaced) {
-      toast.success("Order placed successfully!", { id: "order-placed-success" });
+      const t = setTimeout(() => {
+        toast.success("Order placed successfully!", { id: "order-placed-success", duration: 4000 });
+      }, 300);
+      return () => clearTimeout(t);
     }
   }, [location.state]);
 
