@@ -566,6 +566,7 @@ const MobileCheckout = () => {
           toast.success("Order placed successfully!", {
             id: "order-placed-success",
             duration: 4000,
+            position: typeof window !== "undefined" && window.innerWidth < 768 ? "top-center" : "top-right",
           });
           navigate(`/order-confirmation/${payload.orderId}`, { state: { orderPlaced: true } });
           return;
@@ -607,6 +608,7 @@ const MobileCheckout = () => {
                 toast.success("Order placed successfully!", {
                   id: "order-placed-success",
                   duration: 4000,
+                  position: typeof window !== "undefined" && window.innerWidth < 768 ? "top-center" : "top-right",
                 });
                 clearCart();
                 navigate(`/order-confirmation/${payload.orderId}`, { state: { orderPlaced: true } });

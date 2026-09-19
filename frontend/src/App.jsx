@@ -1,3 +1,5 @@
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   BrowserRouter as Router,
   Routes,
@@ -898,6 +900,18 @@ const AppRoutes = () => {
 };
 
 function App() {
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth < 768 : false
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   return (
     <ErrorBoundary>
       <Router
@@ -909,35 +923,49 @@ function App() {
         <ScrollToTop />
         <AppRoutes />
         <CartDrawer />
-        <Toaster
-          position="top-right"
-          containerStyle={{
-            top: 16,
-            left: 12,
-            right: 12,
-          }}
-          toastOptions={{
-            duration: 3000,
-            style: {
-              background: "#212121",
-              color: "#fff",
-            },
-            success: {
-              duration: 3000,
-              iconTheme: {
-                primary: "#388E3C",
-                secondary: "#fff",
-              },
-            },
-            error: {
-              duration: 4000,
-              iconTheme: {
-                primary: "#FF6161",
-                secondary: "#fff",
-              },
-            },
-          }}
-        />
+        {typeof document !== "undefined" &&
+          createPortal(
+            <Toaster
+              position={isMobile ? "top-center" : "top-right"}
+              containerStyle={{
+                top: isMobile ? 12 : 16,
+                left: 12,
+                right: 12,
+                zIndex: 9999999,
+                pointerEvents: "none",
+              }}
+              toastOptions={{
+                duration: 3500,
+                style: {
+                  background: "#1E293B",
+                  color: "#FFFFFF",
+                  fontWeight: "600",
+                  fontSize: "14px",
+                  padding: "12px 18px",
+                  borderRadius: "14px",
+                  boxShadow:
+                    "0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2)",
+                  maxWidth: "min(420px, calc(100vw - 24px))",
+                  zIndex: 9999999,
+                },
+                success: {
+                  duration: 4000,
+                  iconTheme: {
+                    primary: "#22C55E",
+                    secondary: "#FFFFFF",
+                  },
+                },
+                error: {
+                  duration: 4000,
+                  iconTheme: {
+                    primary: "#EF4444",
+                    secondary: "#FFFFFF",
+                  },
+                },
+              }}
+            />,
+            document.body
+          )}
       </Router>
     </ErrorBoundary>
   );
