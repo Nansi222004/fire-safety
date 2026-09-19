@@ -554,31 +554,7 @@ const MobileCheckout = () => {
         if (paymentMethod === "cash" || paymentMethod === "cod" || payload.paymentStatus === "paid") {
           clearCart();
           fetchWallet();
-          toast.success(
-            paymentMethod === "wallet"
-              ? "Order placed successfully using SafeFire Wallet!"
-              : "Order placed successfully!",
-            {
-              id: "order-placed-success",
-              duration: 4000,
-              position: typeof window !== "undefined" && window.innerWidth < 768 ? "top-center" : "top-right",
-              style: {
-                background: "#1E293B",
-                color: "#FFFFFF",
-                fontWeight: "600",
-                fontSize: "14px",
-                padding: "12px 20px",
-                borderRadius: "16px",
-                boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.25)",
-                maxWidth: "90vw",
-                margin: "0 auto",
-              },
-              iconTheme: {
-                primary: "#22C55E",
-                secondary: "#FFFFFF",
-              },
-            }
-          );
+          toast.success("Order placed successfully!");
           navigate(`/order-confirmation/${payload.orderId}`);
           return;
         }
@@ -615,26 +591,8 @@ const MobileCheckout = () => {
                   razorpaySignature: response.razorpay_signature,
                 });
 
-                toast.success("Payment successful! Order confirmed.", {
-                  id: verifyToastId,
-                  duration: 4000,
-                  position: typeof window !== "undefined" && window.innerWidth < 768 ? "top-center" : "top-right",
-                  style: {
-                    background: "#1E293B",
-                    color: "#FFFFFF",
-                    fontWeight: "600",
-                    fontSize: "14px",
-                    padding: "12px 20px",
-                    borderRadius: "16px",
-                    boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.25)",
-                    maxWidth: "90vw",
-                    margin: "0 auto",
-                  },
-                  iconTheme: {
-                    primary: "#22C55E",
-                    secondary: "#FFFFFF",
-                  },
-                });
+                toast.dismiss(verifyToastId);
+                toast.success("Order placed successfully!");
                 clearCart();
                 navigate(`/order-confirmation/${payload.orderId}`);
                 resolve();
