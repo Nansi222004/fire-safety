@@ -1,6 +1,12 @@
 import Product from '../models/Product.model.js';
 import ApiError from '../utils/ApiError.js';
 import crypto from 'crypto';
+import {
+    findMatchingVariantKey,
+    encodeVariantKey,
+    decodeVariantKey,
+    createVariantKey,
+} from '../utils/variantKeyHelper.js';
 
 // ─── Variant Key Resolution Helpers ───────────────────────────────────────────
 
@@ -27,17 +33,17 @@ export const toVariantPriceEntries = (prices) => {
 export const createDynamicVariantKey = (selection = {}) => {
     const keys = Object.keys(selection).sort();
     if (!keys.length) return null;
-    return keys.map((k) => `${k}:${selection[k]}`).join('|');
+    return encodeVariantKey(keys.map((k) => `${k}:${selection[k]}`).join('|'));
 };
 
 export const resolveOrderItemVariantKey = (product, orderItem) => {
     const explicitKey = String(orderItem?.variantKey || '').trim();
-    if (explicitKey) return explicitKey;
-
-    const stockEntries = toVariantStockEntries(product?.variants?.stockMap).map(([k]) => String(k).trim());
-    const priceEntries = toVariantPriceEntries(product?.variants?.prices).map(([k]) => String(k).trim());
-    const existingKeys = [...new Set([...stockEntries, ...priceEntries])];
-    if (!existingKeys.length) return null;
+    if (explicitKey) {
+        const matched = findMatchingVariantKey(product?.variants?.stockMap, explicitKey) ||
+                        findMatchingVariantKey(product?.variants?.prices, explicitKey);
+        if (matched) return matched;
+        return explicitKey;
+    }
 
     const dynamicSelection = Object.entries(orderItem?.variant || {}).reduce((acc, [axis, value]) => {
         const axisKey = normalizeAxisName(axis);
@@ -47,12 +53,9 @@ export const resolveOrderItemVariantKey = (product, orderItem) => {
     }, {});
     const dynamicKey = createDynamicVariantKey(dynamicSelection);
     if (dynamicKey) {
-        const exactDynamic = existingKeys.find((key) => key === dynamicKey);
-        if (exactDynamic) return exactDynamic;
-        const normalizedDynamic = existingKeys.find(
-            (key) => normalizeVariantPart(key) === normalizeVariantPart(dynamicKey)
-        );
-        if (normalizedDynamic) return normalizedDynamic;
+        const matched = findMatchingVariantKey(product?.variants?.stockMap, dynamicKey) ||
+                        findMatchingVariantKey(product?.variants?.prices, dynamicKey);
+        if (matched) return matched;
     }
 
     const size = normalizeVariantPart(orderItem?.variant?.size);
@@ -60,6 +63,7 @@ export const resolveOrderItemVariantKey = (product, orderItem) => {
     if (!size && !color) return null;
 
     const candidates = [
+        createVariantKey(size, color),
         `${size}|${color}`,
         `${size}-${color}`,
         `${size}_${color}`,
@@ -69,10 +73,9 @@ export const resolveOrderItemVariantKey = (product, orderItem) => {
     ].filter(Boolean);
 
     for (const candidate of candidates) {
-        const exact = existingKeys.find((key) => key === candidate);
-        if (exact) return exact;
-        const normalized = existingKeys.find((key) => normalizeVariantPart(key) === normalizeVariantPart(candidate));
-        if (normalized) return normalized;
+        const matched = findMatchingVariantKey(product?.variants?.stockMap, candidate) ||
+                        findMatchingVariantKey(product?.variants?.prices, candidate);
+        if (matched) return matched;
     }
     return null;
 };
@@ -81,8 +84,8 @@ export const getVariantKeyFromVariant = (variant) => {
     if (!variant) return '';
     const size = variant.size ? String(variant.size).trim().toLowerCase() : '';
     const color = variant.color ? String(variant.color).trim().toLowerCase() : '';
-    if (size && color) return `${size}|${color}`;
-    return size || color || '';
+    if (size && color) return createVariantKey(size, color);
+    return encodeVariantKey(size || color || '');
 };
 
 export const getOrderItemIdentifier = (item) => {
@@ -155,18 +158,23 @@ export const reserveReplacementStock = async (request, session) => {
         if (!product) continue;
 
         if (variantKey) {
+            const matchedKey = findMatchingVariantKey(product.variants?.stockMap, variantKey) || encodeVariantKey(variantKey);
             const getStockFromMap = (stockMap, key) => {
                 if (!stockMap) return 0;
                 if (typeof stockMap.get === 'function') return Number(stockMap.get(key) || 0);
                 return Number(stockMap[key] || 0);
             };
-            const currentStock = getStockFromMap(product.variants?.stockMap, variantKey);
+            const currentStock = getStockFromMap(product.variants?.stockMap, matchedKey);
             if (currentStock < item.quantity) {
                 throw new ApiError(400, `Cannot approve exchange. Replacement variant (Size: ${size}, Color: ${color}) is out of stock.`);
             }
 
             // Reserve/Decrement Stock immediately
-            product.variants?.stockMap?.set(variantKey, currentStock - item.quantity);
+            if (typeof product.variants?.stockMap?.set === 'function') {
+                product.variants.stockMap.set(matchedKey, currentStock - item.quantity);
+            } else if (product.variants?.stockMap) {
+                product.variants.stockMap[matchedKey] = currentStock - item.quantity;
+            }
             product.stockQuantity = Math.max(0, product.stockQuantity - item.quantity);
 
             if (product.stockQuantity <= 0) product.stock = 'out_of_stock';
@@ -190,13 +198,18 @@ export const restoreReservedStockOnRejection = async (request, session) => {
         if (!product) continue;
 
         if (variantKey) {
+            const matchedKey = findMatchingVariantKey(product.variants?.stockMap, variantKey) || encodeVariantKey(variantKey);
             const getStockFromMap = (stockMap, key) => {
                 if (!stockMap) return 0;
                 if (typeof stockMap.get === 'function') return Number(stockMap.get(key) || 0);
                 return Number(stockMap[key] || 0);
             };
-            const currentStock = getStockFromMap(product.variants?.stockMap, variantKey);
-            product.variants?.stockMap?.set(variantKey, currentStock + item.quantity);
+            const currentStock = getStockFromMap(product.variants?.stockMap, matchedKey);
+            if (typeof product.variants?.stockMap?.set === 'function') {
+                product.variants.stockMap.set(matchedKey, currentStock + item.quantity);
+            } else if (product.variants?.stockMap) {
+                product.variants.stockMap[matchedKey] = currentStock + item.quantity;
+            }
             product.stockQuantity = product.stockQuantity + item.quantity;
 
             if (product.stockQuantity <= 0) product.stock = 'out_of_stock';
@@ -226,13 +239,18 @@ export const restoreReturnedStock = async (request, order, session) => {
         const oldVariantKey = resolveOrderItemVariantKey(product, orderItem);
 
         if (oldVariantKey) {
+            const matchedOldKey = findMatchingVariantKey(product.variants?.stockMap, oldVariantKey) || encodeVariantKey(oldVariantKey);
             const getStockFromMap = (stockMap, key) => {
                 if (!stockMap) return 0;
                 if (typeof stockMap.get === 'function') return Number(stockMap.get(key) || 0);
                 return Number(stockMap[key] || 0);
             };
-            const currentVarStock = getStockFromMap(product.variants?.stockMap, oldVariantKey);
-            product.variants?.stockMap?.set(oldVariantKey, currentVarStock + qty);
+            const currentVarStock = getStockFromMap(product.variants?.stockMap, matchedOldKey);
+            if (typeof product.variants?.stockMap?.set === 'function') {
+                product.variants.stockMap.set(matchedOldKey, currentVarStock + qty);
+            } else if (product.variants?.stockMap) {
+                product.variants.stockMap[matchedOldKey] = currentVarStock + qty;
+            }
         }
 
         product.stockQuantity += qty;

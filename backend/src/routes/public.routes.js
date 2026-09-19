@@ -1322,7 +1322,7 @@ router.get('/settings/checkout', asyncHandler(async (req, res) => {
         payment: {
             cod: true,
             razorpay: codOnly ? false : payVal.cardEnabled !== false,
-            wallet: codOnly ? false : payVal.walletEnabled !== false,
+            wallet: payVal.walletEnabled !== false,
             upi: codOnly ? false : payVal.upiEnabled !== false,
             paymentMode: codOnly ? 'COD_ONLY' : 'ONLINE_ENABLED',
         },

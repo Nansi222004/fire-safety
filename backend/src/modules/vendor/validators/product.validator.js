@@ -51,8 +51,8 @@ export const createProductSchema = Joi.object({
                 _id: objectId.optional(),
             })
         ).optional(),
-        prices: Joi.object().pattern(Joi.string(), Joi.number().min(0).allow(null)).optional(),
-        stockMap: Joi.object().pattern(Joi.string(), Joi.number().integer().min(0).allow(null)).optional(),
+        prices: Joi.object().pattern(Joi.string(), Joi.number().min(0).allow(null, '')).optional(),
+        stockMap: Joi.object().pattern(Joi.string(), Joi.number().integer().min(0).allow(null, '')).optional(),
         imageMap: Joi.object().pattern(Joi.string(), Joi.string().allow('', null)).optional(),
         defaultVariant: Joi.object({
             size: Joi.string().allow('').optional(),
@@ -117,8 +117,8 @@ export const updateProductSchema = Joi.object({
                 _id: objectId.optional(),
             })
         ).optional(),
-        prices: Joi.object().pattern(Joi.string(), Joi.number().min(0).allow(null)).optional(),
-        stockMap: Joi.object().pattern(Joi.string(), Joi.number().integer().min(0).allow(null)).optional(),
+        prices: Joi.object().pattern(Joi.string(), Joi.number().min(0).allow(null, '')).optional(),
+        stockMap: Joi.object().pattern(Joi.string(), Joi.number().integer().min(0).allow(null, '')).optional(),
         imageMap: Joi.object().pattern(Joi.string(), Joi.string().allow('', null)).optional(),
         defaultVariant: Joi.object({
             size: Joi.string().allow('').optional(),
@@ -126,12 +126,12 @@ export const updateProductSchema = Joi.object({
         }).optional(),
         defaultSelection: Joi.object().pattern(Joi.string(), Joi.string().allow('')).optional(),
     }).optional(),
-    weight: Joi.number().min(1).required(),
+    weight: Joi.number().min(1).optional(),
     dimensions: Joi.object({
         length: Joi.number().min(1).required(),
         breadth: Joi.number().min(1).required(),
         height: Joi.number().min(1).required(),
-    }).required(),
+    }).optional(),
 }).unknown(true);
 
 export const productIdParamSchema = Joi.object({

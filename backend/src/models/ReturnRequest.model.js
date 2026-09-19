@@ -124,7 +124,7 @@ const returnRequestSchema = new mongoose.Schema(
         replacementPayoutProcessed: { type: Boolean, default: false, index: true },
         replacementPayoutProcessedAt: Date,
         refundDetails: {
-            method:      { type: String, enum: ['bank', 'upi'] },
+            method:      { type: String, enum: ['bank', 'upi', 'wallet'] },
             bankDetails: {
                 accountHolder: String,
                 accountNumber: String,

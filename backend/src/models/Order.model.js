@@ -148,7 +148,7 @@ const orderSchema = new mongoose.Schema(
         escrowReleaseDate: { type: Date, default: null },
         refundMethod: {
             type: String,
-            enum: ["bank", "upi"]
+            enum: ["bank", "upi", "wallet"]
         },
         walletAmountUsed: { type: Number, default: 0 },
         bankDetails: {

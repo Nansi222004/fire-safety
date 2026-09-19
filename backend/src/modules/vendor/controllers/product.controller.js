@@ -3,6 +3,7 @@ import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
 import Product from '../../../models/Product.model.js';
 import Brand from '../../../models/Brand.model.js';
+import Category from '../../../models/Category.model.js';
 import { slugify } from '../../../utils/slugify.js';
 
 const deriveStockStatus = (stockQuantity = 0, lowStockThreshold = 10) => {
@@ -29,6 +30,7 @@ import {
     createVariantKey,
     createDynamicVariantKey,
     resolveVariantMapValue,
+    toNonNegativeNumber,
 } from '../../../utils/variantKeyHelper.js';
 
 const uniqueAxisValues = (values = []) => {
@@ -50,11 +52,6 @@ const toObjectEntries = (value) => {
     if (value instanceof Map) return Array.from(value.entries());
     if (typeof value === 'object') return Object.entries(value);
     return [];
-};
-
-const toNonNegativeNumber = (raw) => {
-    const parsed = Number(raw);
-    return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 };
 
 const normalizeAttributes = (rawAttributes = []) => {
@@ -129,24 +126,24 @@ const normalizeVariantsPayload = (rawVariants = {}, fallbackPrice) => {
             candidates.push(`${normalizeVariantPart(size)}|${normalizeVariantPart(color)}`);
         }
 
-        const rawPrice = resolveVariantMapValue(rawVariants.prices, candidates);
+        const rawPrice = resolveVariantMapValue(rawVariants.prices, candidates, { throwOnConflict: true });
         const parsedPrice = toNonNegativeNumber(rawPrice);
         if (parsedPrice !== null) {
             prices[key] = parsedPrice;
         } else {
-            const fallback = Number(fallbackPrice);
-            if (Number.isFinite(fallback) && fallback >= 0) {
+            const fallback = toNonNegativeNumber(fallbackPrice);
+            if (fallback !== null) {
                 prices[key] = fallback;
             }
         }
 
-        const rawStock = resolveVariantMapValue(rawVariants.stockMap, candidates);
+        const rawStock = resolveVariantMapValue(rawVariants.stockMap, candidates, { throwOnConflict: true });
         const parsedStock = toNonNegativeNumber(rawStock);
         if (parsedStock !== null) {
             stockMap[key] = parsedStock;
         }
 
-        const rawImage = resolveVariantMapValue(rawVariants.imageMap, candidates);
+        const rawImage = resolveVariantMapValue(rawVariants.imageMap, candidates, { throwOnConflict: true });
         const image = String(rawImage || '').trim();
         if (image) {
             imageMap[key] = image;
@@ -198,10 +195,16 @@ const normalizeVariantsPayload = (rawVariants = {}, fallbackPrice) => {
 const calculateVariantAggregateStock = (variants = {}) => {
     const entries = toObjectEntries(variants.stockMap);
     if (!entries.length) return null;
-    return entries.reduce((sum, [, value]) => {
-        const parsed = Number(value);
-        return Number.isFinite(parsed) && parsed >= 0 ? sum + parsed : sum;
+    let hasValidStock = false;
+    const sum = entries.reduce((acc, [, value]) => {
+        const parsed = toNonNegativeNumber(value);
+        if (parsed !== null) {
+            hasValidStock = true;
+            return acc + parsed;
+        }
+        return acc;
     }, 0);
+    return hasValidStock ? sum : null;
 };
 
 // GET /api/vendor/products
@@ -255,6 +258,14 @@ export const createProduct = asyncHandler(async (req, res) => {
     if (!Number.isFinite(price) || price < 0) {
         throw new ApiError(400, 'Invalid product price.');
     }
+
+    if (!rest.categoryId) {
+        throw new ApiError(400, 'Category ID is required.');
+    }
+    const category = await Category.findById(rest.categoryId);
+    if (!category) throw new ApiError(404, 'Category not found.');
+    if (!category.isActive) throw new ApiError(400, 'Selected category is inactive.');
+
     const normalizedVariants = normalizeVariantsPayload(rest.variants, price);
     const variantAggregateStock = calculateVariantAggregateStock(normalizedVariants);
     const finalStockQuantity = Number.isFinite(variantAggregateStock)
@@ -290,6 +301,15 @@ export const createProduct = asyncHandler(async (req, res) => {
 export const updateProduct = asyncHandler(async (req, res) => {
     const product = await Product.findOne({ _id: req.params.id, vendorId: req.user.id });
     if (!product) throw new ApiError(404, 'Product not found or access denied.');
+
+    if (req.body.categoryId !== undefined) {
+        if (!req.body.categoryId) {
+            throw new ApiError(400, 'Category ID cannot be empty.');
+        }
+        const category = await Category.findById(req.body.categoryId);
+        if (!category) throw new ApiError(404, 'Category not found.');
+        if (!category.isActive) throw new ApiError(400, 'Selected category is inactive.');
+    }
 
     if (req.body.brandId) {
         const brand = await Brand.findById(req.body.brandId);

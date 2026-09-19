@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
 import {
@@ -74,27 +74,25 @@ const MobileCheckout = () => {
 
   const [paymentSettings, setPaymentSettings] = useState(null);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
-  const [useWallet, setUseWallet] = useState(false);
   const [walletBalance, setWalletBalance] = useState(0);
 
-  useEffect(() => {
-    let active = true;
-    const fetchWallet = async () => {
-      if (isAuthenticated) {
-        try {
-          const response = await api.get("/user/wallet");
-          const data = response?.data ?? response;
-          if (active && data) {
-            setWalletBalance(data.balance || 0);
-          }
-        } catch (err) {
-          console.error("Failed to fetch user wallet balance:", err);
+  const fetchWallet = useCallback(async () => {
+    if (isAuthenticated) {
+      try {
+        const response = await api.get("/user/wallet");
+        const data = response?.data ?? response;
+        if (data) {
+          setWalletBalance(Number(data.balance || 0));
         }
+      } catch (err) {
+        console.error("Failed to fetch user wallet balance:", err);
       }
-    };
-    fetchWallet();
-    return () => { active = false; };
+    }
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    fetchWallet();
+  }, [fetchWallet]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -150,7 +148,8 @@ const MobileCheckout = () => {
   const activePaymentMethods = useMemo(() => {
     if (!paymentSettings || !paymentSettings.payment) {
       return [
-        { id: "cod", label: "Cash on Delivery" }
+        { id: "cod", label: "Cash on Delivery" },
+        { id: "wallet", label: "SafeFire Wallet" }
       ];
     }
     const methods = [];
@@ -158,14 +157,14 @@ const MobileCheckout = () => {
     if (p.cod) {
       methods.push({ id: "cod", label: "Cash on Delivery" });
     }
+    if (p.wallet) {
+      methods.push({ id: "wallet", label: "SafeFire Wallet" });
+    }
     if (p.razorpay) {
       methods.push({ id: "card", label: "Credit/Debit Card (Online Payment)" });
     }
     if (p.upi) {
       methods.push({ id: "upi", label: "UPI Direct" });
-    }
-    if (p.wallet) {
-      methods.push({ id: "wallet", label: "Wallet Payment" });
     }
     return methods.length > 0 ? methods : [{ id: "cod", label: "Cash on Delivery" }];
   }, [paymentSettings]);
@@ -255,8 +254,15 @@ const MobileCheckout = () => {
   const tax = Number(calculatedTax.toFixed(2));
   const finalTotal = Math.max(0, total + shipping + tax - discount);
   const taxableAmount = Math.max(0, total - discount);
-  const walletAmountUsed = useWallet ? Math.min(walletBalance, finalTotal) : 0;
-  const remainingPayable = Number((finalTotal - walletAmountUsed).toFixed(2));
+  const isWalletPayment = formData.paymentMethod === "wallet";
+  const walletAmountUsed = isWalletPayment ? finalTotal : 0;
+  const remainingPayable = isWalletPayment ? 0 : finalTotal;
+
+  useEffect(() => {
+    if (formData.paymentMethod === "wallet" && walletBalance < finalTotal) {
+      setFormData((prev) => ({ ...prev, paymentMethod: "cod" }));
+    }
+  }, [walletBalance, finalTotal, formData.paymentMethod]);
 
   const prevTotalRef = useRef(total);
   useEffect(() => {
@@ -505,10 +511,23 @@ const MobileCheckout = () => {
 
       setStep(2);
     } else if (step === 2) {
+      const paymentMethod = formData.paymentMethod;
+
+      if (paymentMethod === "wallet") {
+        if (!isAuthenticated) {
+          toast.error("Please login to pay with SafeFire Wallet.");
+          return;
+        }
+        if (walletBalance < finalTotal) {
+          toast.error(
+            `Insufficient wallet balance. You are short by ₹${(finalTotal - walletBalance).toFixed(2)}. Please choose Cash on Delivery.`
+          );
+          return;
+        }
+      }
+
       setIsPlacingOrder(true);
       try {
-        const paymentMethod = formData.paymentMethod;
-
         // Build items payload — use DB-verified prices from cart
         const itemsPayload = items.map((item) => ({
           productId: item.id || item._id || item.productId,
@@ -516,7 +535,7 @@ const MobileCheckout = () => {
           variantKey: item.variantKey || null,
         }));
 
-        // Call payment/initialize for all payment methods (COD included)
+        // Call payment/initialize for all payment methods (COD and Wallet included)
         const initData = await api.post("/user/payment/initialize", {
           items: itemsPayload,
           shippingAddress: normalizedShipping,
@@ -526,7 +545,7 @@ const MobileCheckout = () => {
             : undefined,
           shippingOption,
           shippingQuotes,
-          useWallet,
+          useWallet: paymentMethod === "wallet",
         });
 
         const payload = initData?.data ?? initData;
@@ -534,26 +553,32 @@ const MobileCheckout = () => {
         // ── COD or Wallet Fully Paid: order already created, navigate to confirmation ──
         if (paymentMethod === "cash" || paymentMethod === "cod" || payload.paymentStatus === "paid") {
           clearCart();
-          toast.success("Order placed successfully!", {
-            id: "order-placed-success",
-            duration: 4000,
-            position: typeof window !== "undefined" && window.innerWidth < 768 ? "top-center" : "top-right",
-            style: {
-              background: "#1E293B",
-              color: "#FFFFFF",
-              fontWeight: "600",
-              fontSize: "14px",
-              padding: "12px 20px",
-              borderRadius: "16px",
-              boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.25)",
-              maxWidth: "90vw",
-              margin: "0 auto",
-            },
-            iconTheme: {
-              primary: "#22C55E",
-              secondary: "#FFFFFF",
-            },
-          });
+          fetchWallet();
+          toast.success(
+            paymentMethod === "wallet"
+              ? "Order placed successfully using SafeFire Wallet!"
+              : "Order placed successfully!",
+            {
+              id: "order-placed-success",
+              duration: 4000,
+              position: typeof window !== "undefined" && window.innerWidth < 768 ? "top-center" : "top-right",
+              style: {
+                background: "#1E293B",
+                color: "#FFFFFF",
+                fontWeight: "600",
+                fontSize: "14px",
+                padding: "12px 20px",
+                borderRadius: "16px",
+                boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.25)",
+                maxWidth: "90vw",
+                margin: "0 auto",
+              },
+              iconTheme: {
+                primary: "#22C55E",
+                secondary: "#FFFFFF",
+              },
+            }
+          );
           navigate(`/order-confirmation/${payload.orderId}`);
           return;
         }
@@ -884,90 +909,149 @@ const MobileCheckout = () => {
                       Payment Method
                     </h2>
 
-                    {/* COD Only Notice Banner */}
+                    {/* Payment Mode Notice Banner */}
                     {(paymentSettings?.paymentMode === 'COD_ONLY' || !paymentSettings?.payment?.razorpay) && (
                       <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 mb-5 flex items-start gap-2.5 text-xs text-amber-900">
                         <span className="text-base leading-none">🚚</span>
                         <div>
-                          <p className="font-bold text-amber-950">Cash on Delivery Phase</p>
+                          <p className="font-bold text-amber-950">Supported Payment Methods</p>
                           <p className="text-amber-800 mt-0.5">
-                            SafeFire is currently operating in Cash on Delivery mode. You will pay in cash upon receiving your order.
+                            You can complete your order using Cash on Delivery or your SafeFire Wallet balance. External online cards and UPI gateways are temporarily offline.
                           </p>
                         </div>
                       </div>
                     )}
 
-                    {/* Wallet Apply Box */}
-                    {isAuthenticated && walletBalance > 0 && paymentSettings?.payment?.wallet && (
-                      <div className="bg-white p-4 rounded-xl border border-gray-200 mb-6 shadow-sm flex flex-col gap-3">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <span className="text-xs text-gray-500 font-bold uppercase tracking-wider block">Wallet Balance</span>
-                            <span className="text-base font-black text-gray-800">{formatPrice(walletBalance)}</span>
-                          </div>
-                          <label className="flex items-center gap-2 cursor-pointer bg-purple-50 text-purple-700 hover:bg-purple-100 px-4 py-2 rounded-xl transition-all border border-purple-200 font-bold text-xs select-none">
-                            <input
-                              type="checkbox"
-                              checked={useWallet}
-                              onChange={(e) => setUseWallet(e.target.checked)}
-                              className="w-4 h-4 text-purple-650 rounded focus:ring-purple-500 cursor-pointer"
-                            />
-                            Apply Wallet
-                          </label>
-                        </div>
-                        {useWallet && (
-                          <div className="bg-purple-50/50 p-2.5 rounded-lg border border-purple-100 flex items-center justify-between text-xs text-purple-800 font-semibold">
-                            <span>Applying Wallet Amount:</span>
-                            <span className="font-black">-{formatPrice(walletAmountUsed)}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {useWallet && remainingPayable === 0 ? (
-                      <div className="bg-green-50 p-4 rounded-xl border border-green-200 text-green-700 text-sm font-semibold mb-6 flex items-center gap-2">
-                        <span>✓</span>
-                        <span>Your order is fully covered by your wallet. No additional payment is required!</span>
-                      </div>
-                    ) : (
-                      <>
-                        {useWallet && (
-                          <h3 className="text-xs font-semibold text-gray-700 mb-3">
-                            Select payment method for remaining {formatPrice(remainingPayable)}:
-                          </h3>
-                        )}
-                        <div className="space-y-3 mb-6">
-                          {activePaymentMethods.length > 0 ? (
-                            activePaymentMethods.map((method) => (
-                              <label
-                                key={method.id}
-                                className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                                  formData.paymentMethod === method.id
-                                    ? "border-primary-500 bg-primary-50"
-                                    : "border-gray-200"
-                                }`}
-                              >
-                                <input
-                                  type="radio"
-                                  name="paymentMethod"
-                                  value={method.id}
-                                  checked={formData.paymentMethod === method.id}
-                                  onChange={handleInputChange}
-                                  className="w-5 h-5 text-primary-500"
-                                />
-                                <span className="font-semibold text-gray-800 capitalize text-sm">
-                                  {method.label}
-                                </span>
-                              </label>
-                            ))
-                          ) : (
-                            <div className="p-4 bg-red-50 text-red-700 rounded-xl border border-red-200 text-sm font-semibold">
-                              No payment methods are currently available. Please contact support.
+                    <div className="space-y-3.5 mb-6">
+                      {/* 1. Cash on Delivery */}
+                      {activePaymentMethods.some((m) => m.id === "cod") && (
+                        <label
+                          className={`flex items-start gap-3.5 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                            formData.paymentMethod === "cod"
+                              ? "border-primary-500 bg-primary-50/70 shadow-sm"
+                              : "border-gray-200 hover:border-gray-300 bg-white"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="paymentMethod"
+                            value="cod"
+                            checked={formData.paymentMethod === "cod"}
+                            onChange={handleInputChange}
+                            className="mt-1 w-4 h-4 text-primary-600 focus:ring-primary-500"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-base">🚚</span>
+                              <span className="font-bold text-gray-900 text-sm">Cash on Delivery (COD)</span>
                             </div>
-                          )}
-                        </div>
-                      </>
-                    )}
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              Pay in cash to the delivery partner upon arrival at your doorstep.
+                            </p>
+                          </div>
+                        </label>
+                      )}
+
+                      {/* 2. SafeFire Wallet */}
+                      {activePaymentMethods.some((m) => m.id === "wallet") && (
+                        <label
+                          className={`flex items-start gap-3.5 p-4 rounded-xl border-2 transition-all ${
+                            walletBalance < finalTotal || !isAuthenticated
+                              ? "border-gray-200 bg-gray-50/70 opacity-85 cursor-not-allowed"
+                              : formData.paymentMethod === "wallet"
+                                ? "border-primary-500 bg-primary-50/70 shadow-sm cursor-pointer"
+                                : "border-gray-200 hover:border-gray-300 bg-white cursor-pointer"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="paymentMethod"
+                            value="wallet"
+                            checked={formData.paymentMethod === "wallet"}
+                            onChange={handleInputChange}
+                            disabled={walletBalance < finalTotal || !isAuthenticated}
+                            className="mt-1 w-4 h-4 text-primary-600 focus:ring-primary-500 disabled:opacity-50"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-base">👛</span>
+                                <span className="font-bold text-gray-900 text-sm">SafeFire Wallet</span>
+                              </div>
+                              {isAuthenticated ? (
+                                <div className="flex items-center gap-1.5 text-xs">
+                                  <span className="text-gray-500 font-medium">Available Balance:</span>
+                                  <span className="font-black text-gray-900 bg-gray-100 px-2.5 py-0.5 rounded-lg">
+                                    {formatPrice(walletBalance)}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded font-semibold">
+                                  Login Required
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Balance and Deduction Feedback */}
+                            {isAuthenticated && (
+                              <div className="mt-2.5 text-xs">
+                                {walletBalance < finalTotal ? (
+                                  <div className="bg-red-50 border border-red-200 text-red-700 p-2.5 rounded-lg flex items-center justify-between gap-2">
+                                    <span>
+                                      Insufficient balance (Short by <strong>{formatPrice(finalTotal - walletBalance)}</strong>).
+                                    </span>
+                                    <span className="font-bold text-red-800 flex-shrink-0">Choose COD</span>
+                                  </div>
+                                ) : (
+                                  <>
+                                    {formData.paymentMethod === "wallet" ? (
+                                      <div className="bg-green-50 border border-green-200 text-green-800 p-2.5 rounded-lg font-medium flex items-center gap-1.5">
+                                        <span className="font-bold text-green-600">✓</span>
+                                        <span>
+                                          <strong>{formatPrice(finalTotal)}</strong> will be deducted from your SafeFire Wallet when the order is placed.
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <p className="text-green-700 font-medium">
+                                        Sufficient balance available ({formatPrice(walletBalance)} available for {formatPrice(finalTotal)} payable total).
+                                      </p>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </label>
+                      )}
+
+                      {/* 3. External Payment Gateways (Cards / UPI) if enabled */}
+                      {activePaymentMethods
+                        .filter((m) => !["cod", "wallet"].includes(m.id))
+                        .map((method) => (
+                          <label
+                            key={method.id}
+                            className={`flex items-start gap-3.5 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                              formData.paymentMethod === method.id
+                                ? "border-primary-500 bg-primary-50/70 shadow-sm"
+                                : "border-gray-200 hover:border-gray-300 bg-white"
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="paymentMethod"
+                              value={method.id}
+                              checked={formData.paymentMethod === method.id}
+                              onChange={handleInputChange}
+                              className="mt-1 w-4 h-4 text-primary-600 focus:ring-primary-500"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <span className="font-bold text-gray-900 text-sm">
+                                {method.label}
+                              </span>
+                            </div>
+                          </label>
+                        ))}
+                    </div>
 
                     {/* Shipping Options */}
                     {total < 100 && (

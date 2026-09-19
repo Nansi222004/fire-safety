@@ -19,6 +19,7 @@ import { createNotification } from './notification.service.js';
 import { sendOrderConfirmationEmail } from './email.service.js';
 import { notifyOrderUpdate } from './socket.service.js';
 import { getDefaultCommissionRate } from './settingsService.js';
+import { findMatchingVariantKey, encodeVariantKey } from '../utils/variantKeyHelper.js';
 
 /**
  * Reusable core payment processor.
@@ -134,7 +135,18 @@ export async function processCapturedPayment({ razorpayOrderId, razorpayPaymentI
                 };
 
                 // Also check variant stock if applicable
-                const variantPath = item.variantKey ? `variants.stockMap.${item.variantKey}` : null;
+                let variantPath = null;
+                if (item.variantKey) {
+                    const prodSnapshot = await Product.findById(item.productId)
+                        .select('variants.stockMap')
+                        .session(session)
+                        .lean();
+                    const matchedStockKey = findMatchingVariantKey(prodSnapshot?.variants?.stockMap, item.variantKey);
+                    const safeVariantKey = matchedStockKey ? encodeVariantKey(matchedStockKey) : encodeVariantKey(item.variantKey);
+                    if (safeVariantKey) {
+                        variantPath = `variants.stockMap.${safeVariantKey}`;
+                    }
+                }
                 if (variantPath) baseFilter[variantPath] = { $gte: qty };
 
                 const incUpdate = { stockQuantity: -qty };

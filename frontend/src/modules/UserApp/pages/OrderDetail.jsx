@@ -74,6 +74,29 @@ const MobileOrderDetail = () => {
   const [evidencePreviews, setEvidencePreviews] = useState([]);
   const [isRetryingPayment, setIsRetryingPayment] = useState(false);
 
+  // COD Refund Destination State
+  const [refundMethod, setRefundMethod] = useState("");
+  const [upiId, setUpiId] = useState("");
+  const [bankDetails, setBankDetails] = useState({
+    accountHolder: "",
+    accountNumber: "",
+    confirmAccountNumber: "",
+    ifsc: "",
+    bankName: "",
+  });
+
+  const resetRefundInputs = () => {
+    setRefundMethod("");
+    setUpiId("");
+    setBankDetails({
+      accountHolder: "",
+      accountNumber: "",
+      confirmAccountNumber: "",
+      ifsc: "",
+      bankName: "",
+    });
+  };
+
   // Cancellation Modal State (handles both full order and vendor package cancellations)
   const [cancelModalTarget, setCancelModalTarget] = useState(null); // 'order' or vendorGroup object
   const [cancelReason, setCancelReason] = useState("Ordered by mistake");
@@ -560,6 +583,7 @@ const MobileOrderDetail = () => {
 
   const resetReturnModal = () => {
     setRequestType("return");
+    resetRefundInputs();
     setExchangeVariants({});
     setReturnReason(RETURN_REASONS[0]);
     setCustomReason("");
@@ -655,6 +679,58 @@ const MobileOrderDetail = () => {
       }
     }
 
+    const isCodOrder = String(order?.paymentMethod || "").toLowerCase() === "cod";
+    if (requestType === "return" && isCodOrder) {
+      if (!refundMethod) {
+        toast.error("Refund method is required for Cash on Delivery returns.");
+        return;
+      }
+      if (!["wallet", "upi", "bank"].includes(refundMethod)) {
+        toast.error("Invalid refund method selected.");
+        return;
+      }
+      if (refundMethod === "upi") {
+        const trimmedUpi = upiId.trim();
+        if (!trimmedUpi) {
+          toast.error("Please enter your UPI ID.");
+          return;
+        }
+        const upiRegex = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
+        if (!trimmedUpi.includes("@") || !upiRegex.test(trimmedUpi)) {
+          toast.error("Please enter a valid UPI ID (e.g. username@bank).");
+          return;
+        }
+      } else if (refundMethod === "bank") {
+        const accountHolder = bankDetails.accountHolder.trim();
+        const accountNumber = bankDetails.accountNumber.trim();
+        const confirmAccountNumber = bankDetails.confirmAccountNumber.trim();
+        const ifsc = bankDetails.ifsc.trim().toUpperCase();
+        const bankName = bankDetails.bankName.trim();
+
+        if (!accountHolder || accountHolder.length < 2 || accountHolder.length > 100) {
+          toast.error("Please enter account holder name (2 to 100 characters).");
+          return;
+        }
+        if (!accountNumber || !/^\d{8,20}$/.test(accountNumber)) {
+          toast.error("Account number must be between 8 and 20 numeric digits.");
+          return;
+        }
+        if (accountNumber !== confirmAccountNumber) {
+          toast.error("Account number and confirm account number do not match.");
+          return;
+        }
+        const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+        if (!ifsc || !ifscRegex.test(ifsc)) {
+          toast.error("Please enter a valid 11-character IFSC code (e.g. HDFC0001234).");
+          return;
+        }
+        if (!bankName || bankName.length < 2 || bankName.length > 100) {
+          toast.error("Please enter bank name (2 to 100 characters).");
+          return;
+        }
+      }
+    }
+
     const itemsByVendor = {};
     checkedItemsList.forEach((item) => {
       if (!itemsByVendor[item.vendorId]) {
@@ -688,6 +764,20 @@ const MobileOrderDetail = () => {
               String(variant.color || "").trim(),
             );
             formData.append("exchangeVariantJson", JSON.stringify(variant));
+          } else if (requestType === "return" && isCodOrder) {
+            formData.append("refundMethod", refundMethod);
+            if (refundMethod === "upi") {
+              formData.append("upiId", upiId.trim());
+            } else if (refundMethod === "bank") {
+              const bankPayload = {
+                accountHolder: bankDetails.accountHolder.trim(),
+                accountNumber: bankDetails.accountNumber.trim(),
+                ifsc: bankDetails.ifsc.trim().toUpperCase(),
+                bankName: bankDetails.bankName.trim(),
+              };
+              formData.append("bankDetailsJson", JSON.stringify(bankPayload));
+              formData.append("bankDetails", JSON.stringify(bankPayload));
+            }
           }
 
           evidenceFiles.forEach((file) => {
@@ -1372,7 +1462,10 @@ const MobileOrderDetail = () => {
                         </button>
                         <button
                           type="button"
-                          onClick={() => setRequestType("exchange")}
+                          onClick={() => {
+                            setRequestType("exchange");
+                            resetRefundInputs();
+                          }}
                           className={`py-2 rounded-lg text-xs font-bold transition-all ${requestType === "exchange"
                               ? "bg-white text-slate-800 shadow-sm border border-slate-100"
                               : "text-slate-500 hover:text-slate-700"
@@ -1593,6 +1686,163 @@ const MobileOrderDetail = () => {
                           className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
                           placeholder="Please explain your return request in detail..."
                         />
+                      </div>
+                    )}
+
+                    {/* COD Refund Destination Selector (Shown only for COD returns) */}
+                    {requestType === "return" && String(order?.paymentMethod || "").toLowerCase() === "cod" && (
+                      <div className="space-y-3 p-3.5 bg-amber-50/50 border border-amber-200 rounded-2xl animate-fadeIn">
+                        <div>
+                          <label className="block text-xs font-bold text-gray-800 uppercase tracking-wider mb-1">
+                            Refund Destination <span className="text-red-500">*</span>
+                          </label>
+                          <p className="text-[11px] text-gray-600 mb-2.5">
+                            Because this order was paid via Cash on Delivery, please select where your refund should be sent:
+                          </p>
+                          <div className="grid grid-cols-3 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setRefundMethod("wallet")}
+                              className={`p-2.5 rounded-xl border flex flex-col items-center justify-center text-center transition-all ${
+                                refundMethod === "wallet"
+                                  ? "bg-amber-600 text-white border-amber-700 shadow-sm font-bold"
+                                  : "bg-white text-gray-700 border-gray-200 hover:border-amber-300 font-medium"
+                              }`}
+                            >
+                              <span className="text-xs">SafeFire Wallet</span>
+                              <span className={`text-[10px] mt-0.5 ${refundMethod === "wallet" ? "text-amber-100" : "text-emerald-600 font-semibold"}`}>
+                                Instant Credit
+                              </span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setRefundMethod("upi")}
+                              className={`p-2.5 rounded-xl border flex flex-col items-center justify-center text-center transition-all ${
+                                refundMethod === "upi"
+                                  ? "bg-amber-600 text-white border-amber-700 shadow-sm font-bold"
+                                  : "bg-white text-gray-700 border-gray-200 hover:border-amber-300 font-medium"
+                              }`}
+                            >
+                              <span className="text-xs">UPI Transfer</span>
+                              <span className={`text-[10px] mt-0.5 ${refundMethod === "upi" ? "text-amber-100" : "text-gray-400"}`}>
+                                Direct to UPI ID
+                              </span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setRefundMethod("bank")}
+                              className={`p-2.5 rounded-xl border flex flex-col items-center justify-center text-center transition-all ${
+                                refundMethod === "bank"
+                                  ? "bg-amber-600 text-white border-amber-700 shadow-sm font-bold"
+                                  : "bg-white text-gray-700 border-gray-200 hover:border-amber-300 font-medium"
+                              }`}
+                            >
+                              <span className="text-xs">Bank Transfer</span>
+                              <span className={`text-[10px] mt-0.5 ${refundMethod === "bank" ? "text-amber-100" : "text-gray-400"}`}>
+                                NEFT / IMPS
+                              </span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {refundMethod === "wallet" && (
+                          <div className="p-3 bg-white border border-amber-200/80 rounded-xl text-xs text-amber-900 leading-relaxed font-sans shadow-sm">
+                            <span className="font-bold">⚡ Instant SafeFire Wallet Credit:</span> Once your return is received and inspected by the vendor, your refund is credited directly to your SafeFire Wallet. You can use your wallet balance immediately at checkout for any future order.
+                          </div>
+                        )}
+
+                        {refundMethod === "upi" && (
+                          <div className="space-y-2 p-3 bg-white border border-amber-200/80 rounded-xl shadow-sm animate-fadeIn">
+                            <label className="block text-xs font-bold text-gray-700">
+                              UPI ID (VPA) <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={upiId}
+                              onChange={(e) => setUpiId(e.target.value)}
+                              placeholder="e.g. mobileNumber@upi or user@okaxis"
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+                            />
+                            <p className="text-[10px] text-gray-500">
+                              Refund will be queued for transfer to this UPI ID upon return completion.
+                            </p>
+                          </div>
+                        )}
+
+                        {refundMethod === "bank" && (
+                          <div className="space-y-2.5 p-3 bg-white border border-amber-200/80 rounded-xl shadow-sm animate-fadeIn">
+                            <div>
+                              <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                                Account Holder Name <span className="text-red-500">*</span>
+                              </label>
+                              <input
+                                type="text"
+                                value={bankDetails.accountHolder}
+                                onChange={(e) => setBankDetails((prev) => ({ ...prev, accountHolder: e.target.value }))}
+                                placeholder="Full Name as on Bank Account"
+                                className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-amber-500"
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                                  Account Number <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                  type="password"
+                                  value={bankDetails.accountNumber}
+                                  onChange={(e) => setBankDetails((prev) => ({ ...prev, accountNumber: e.target.value }))}
+                                  placeholder="8 to 20 Digits"
+                                  className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-amber-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                                  Confirm Account Number <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                  type="text"
+                                  value={bankDetails.confirmAccountNumber}
+                                  onChange={(e) => setBankDetails((prev) => ({ ...prev, confirmAccountNumber: e.target.value }))}
+                                  placeholder="Re-enter Account No."
+                                  className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-amber-500"
+                                />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                                  IFSC Code <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                  type="text"
+                                  value={bankDetails.ifsc}
+                                  onChange={(e) => setBankDetails((prev) => ({ ...prev, ifsc: e.target.value.toUpperCase() }))}
+                                  placeholder="e.g. SBIN0001234"
+                                  maxLength={11}
+                                  className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs uppercase focus:outline-none focus:ring-2 focus:ring-amber-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                                  Bank Name <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                  type="text"
+                                  value={bankDetails.bankName}
+                                  onChange={(e) => setBankDetails((prev) => ({ ...prev, bankName: e.target.value }))}
+                                  placeholder="e.g. State Bank of India"
+                                  className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-amber-500"
+                                />
+                              </div>
+                            </div>
+                            <p className="text-[10px] text-gray-400">
+                              Bank details are securely handled and used strictly for payout processing upon return completion.
+                            </p>
+                          </div>
+                        )}
                       </div>
                     )}
 

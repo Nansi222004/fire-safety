@@ -62,13 +62,17 @@ export const createReturnRequestSchema = Joi.object({
     exchangeColor: Joi.string().allow('').optional(),
     exchangeVariantJson: Joi.string().allow('').optional(),
     images: Joi.any().optional(),
-    refundMethod: Joi.string().valid('bank', 'upi').optional(),
-    bankDetails: Joi.object({
-        accountHolder: Joi.string().allow('').optional(),
-        accountNumber: Joi.string().allow('').optional(),
-        ifsc: Joi.string().allow('').optional(),
-        bankName: Joi.string().allow('').optional()
-    }).optional(),
+    refundMethod: Joi.string().valid('bank', 'upi', 'wallet').optional(),
+    bankDetails: Joi.alternatives().try(
+        Joi.object({
+            accountHolder: Joi.string().allow('').optional(),
+            accountNumber: Joi.string().allow('').optional(),
+            ifsc: Joi.string().allow('').optional(),
+            bankName: Joi.string().allow('').optional()
+        }),
+        Joi.string().allow('')
+    ).optional(),
+    bankDetailsJson: Joi.string().allow('').optional(),
     upiId: Joi.string().allow('').optional(),
 });
 

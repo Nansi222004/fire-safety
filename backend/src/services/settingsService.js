@@ -82,11 +82,11 @@ export const getPaymentSettings = async () => {
             ...settings,
             codEnabled: true,
             cardEnabled: false,
-            walletEnabled: false,
+            walletEnabled: settings.walletEnabled !== false,
             upiEnabled: false,
             cod: true,
             razorpay: false,
-            wallet: false,
+            wallet: settings.walletEnabled !== false,
             upi: false,
             paymentMode: 'COD_ONLY',
         };
@@ -111,9 +111,16 @@ export const getShippingSettings = async () => {
 export const isPaymentMethodEnabled = async (method) => {
     const cleanMethod = String(method || '').trim().toLowerCase();
     
-    // Central Payment Gate: In COD_ONLY mode, only COD and cash are accepted
+    // Central Payment Gate: In COD_ONLY mode, COD, cash, and SafeFire Wallet (if enabled) are accepted
     if (isCodOnlyMode()) {
-        return cleanMethod === 'cod' || cleanMethod === 'cash';
+        if (cleanMethod === 'cod' || cleanMethod === 'cash') {
+            return true;
+        }
+        if (cleanMethod === 'wallet') {
+            const payment = await getPaymentSettings();
+            return payment.walletEnabled !== false;
+        }
+        return false;
     }
 
     const payment = await getPaymentSettings();
