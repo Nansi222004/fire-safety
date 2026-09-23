@@ -334,6 +334,9 @@ const DesktopHeader = ({ onSearch }) => {
                         <FiUser className="text-gray-500 text-base" />
                         <span>Profile</span>
                       </Link>
+                      {/* TEMPORARILY DISABLED — USER WALLET FEATURE */}
+                      {/* DO NOT DELETE — RE-ENABLE WHEN WALLET FEATURE IS RESTORED */}
+                      {/*
                       <Link
                         to="/user/wallet"
                         onClick={() => setShowUserMenu(false)}
@@ -342,6 +345,7 @@ const DesktopHeader = ({ onSearch }) => {
                         <FiCreditCard className="text-gray-500 text-base" />
                         <span>Wallet</span>
                       </Link>
+                      */}
                       <Link
                         to="/orders"
                         onClick={() => setShowUserMenu(false)}

@@ -246,6 +246,9 @@ const MobileProfile = () => {
       border: 'border-emerald-100',
       link: '/addresses',
     },
+    // TEMPORARILY DISABLED — USER WALLET FEATURE
+    // DO NOT DELETE — RE-ENABLE WHEN WALLET FEATURE IS RESTORED
+    /*
     {
       title: 'Wallet',
       subtitle: 'Balance & Refunds',
@@ -255,6 +258,7 @@ const MobileProfile = () => {
       border: 'border-amber-100',
       link: '/user/wallet',
     },
+    */
     // TEMPORARILY DISABLED — GIFT CARD FEATURE
     // DO NOT DELETE — RE-ENABLE WHEN GIFT CARD FEATURE IS ENABLED
     /*
