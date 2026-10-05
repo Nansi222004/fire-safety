@@ -58,6 +58,7 @@ export const addToCart = asyncHandler(async (req, res) => {
 
     const product = await Product.findById(productId);
     if (!product || !product.isActive) throw new ApiError(404, 'Product not found.');
+    if (product.b2cAvailable === false) throw new ApiError(400, 'This product is available for wholesale (B2B) purchase only.');
 
     // Stock validation
     const requestedQuantity = Number(quantity);

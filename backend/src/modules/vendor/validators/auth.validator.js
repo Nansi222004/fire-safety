@@ -39,6 +39,14 @@ export const registerSchema = Joi.object({
         sellsProducts: Joi.boolean().default(true),
         providesServices: Joi.boolean().default(false),
     }).optional(),
+    // Optional Wholesale/B2B request — creates a pending application only (admin approval required).
+    requestWholesale: Joi.boolean().optional(),
+    wholesaleDetails: Joi.object({
+        businessType: Joi.string().trim().max(100).allow('').optional(),
+        gstNumber: Joi.string().trim().max(20).allow('').optional(),
+        expectedMonthlyVolume: Joi.string().trim().max(100).allow('').optional(),
+        description: Joi.string().trim().max(1000).allow('').optional(),
+    }).optional(),
 });
 
 export const loginSchema = Joi.object({

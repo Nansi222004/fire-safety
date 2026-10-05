@@ -137,6 +137,16 @@ export const updateVendorStatus = asyncHandler(async (req, res) => {
         reason: trimmedReason || undefined,
     });
 
+    // A Wholesale/B2B request submitted at registration is reviewed together with the
+    // account: approving a new vendor also approves that pending wholesale request.
+    if (status === 'approved' && previousStatus === 'pending' && vendor.wholesaleCapability?.status === 'pending') {
+        vendor.vendorCapabilities.wholesaleEnabled = true;
+        vendor.wholesaleCapability.status = 'approved';
+        vendor.wholesaleCapability.reviewedBy = req.user.id;
+        vendor.wholesaleCapability.reviewedAt = new Date();
+        vendor.wholesaleCapability.rejectionReason = null;
+    }
+
     await vendor.save();
 
     // 5. Tailored Notification Messages

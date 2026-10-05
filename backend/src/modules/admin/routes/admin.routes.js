@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as authController from '../controllers/auth.controller.js';
 import * as vendorController from '../controllers/vendor.controller.js';
+import * as adminWholesaleController from '../controllers/adminWholesale.controller.js';
 import * as orderController from '../controllers/order.controller.js';
 import * as catalogController from '../controllers/catalog.controller.js';
 import * as customerController from '../controllers/customer.controller.js';
@@ -191,6 +192,11 @@ router.get('/service-partner-applications', ...adminAuth, adminServicePartnerApp
 router.get('/service-partner-applications/:id', ...adminAuth, adminServicePartnerAppController.getApplicationById);
 router.post('/service-partner-applications/:id/approve', ...adminAuth, audit('APPROVE_SERVICE_PARTNER_APPLICATION', 'ServicePartnerApplication'), adminServicePartnerAppController.approveApplication);
 router.post('/service-partner-applications/:id/reject', ...adminAuth, audit('REJECT_SERVICE_PARTNER_APPLICATION', 'ServicePartnerApplication'), adminServicePartnerAppController.rejectApplication);
+
+// ─── Wholesale / B2B Capability ───────────────────────────────────────────────
+router.get('/wholesale/applications', ...adminAuth, adminWholesaleController.listWholesaleApplications);
+router.post('/wholesale/applications/:id/approve', ...adminAuth, audit('APPROVE_WHOLESALE_CAPABILITY', 'Vendor'), validate(vendorIdParamSchema, 'params'), adminWholesaleController.approveWholesale);
+router.post('/wholesale/applications/:id/reject', ...adminAuth, audit('REJECT_WHOLESALE_CAPABILITY', 'Vendor'), validate(vendorIdParamSchema, 'params'), adminWholesaleController.rejectWholesale);
 
 // ─── Customers ────────────────────────────────────────────────────────────────
 router.get('/customers', ...adminAuth, validate(customerListQuerySchema, 'query'), customerController.getAllCustomers);

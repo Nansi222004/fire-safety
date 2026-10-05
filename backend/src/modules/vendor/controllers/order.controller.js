@@ -53,6 +53,13 @@ export const getVendorOrders = asyncHandler(async (req, res) => {
         ? { vendorItems: { $elemMatch: { vendorId: req.user.id, status } } }
         : { 'vendorItems.vendorId': req.user.id };
 
+    // Optional B2C / B2B (wholesale) segmentation. Absent → all orders (unchanged behaviour).
+    if (req.query.orderType === 'b2b') {
+        filter.orderType = 'b2b';
+    } else if (req.query.orderType === 'b2c') {
+        filter.orderType = { $ne: 'b2b' };
+    }
+
     const orders = await Order.find(filter)
         .populate({
             path: 'shipments',

@@ -30,6 +30,7 @@ import { generateOrderId } from '../../../utils/generateOrderId.js';
 import { generateTrackingNumber } from '../../../utils/generateTrackingNumber.js';
 import { isCodOnlyMode } from '../../../config/paymentConfig.js';
 import { findMatchingVariantKey, encodeVariantKey } from '../../../utils/variantKeyHelper.js';
+import { assertWholesaleBuyer, resolveWholesaleLine } from '../../../services/wholesale.service.js';
 
 // ─── POST /api/user/payment/initialize ────────────────────────────────────────
 // Creates DB order (payment_pending) + Razorpay order. No stock deducted yet.
@@ -42,9 +43,14 @@ export const initializePayment = asyncHandler(async (req, res) => {
         shippingOption,
         shippingQuotes,
         idempotencyKey,
+        orderType,
     } = req.body;
 
     const userId = req.user?.id;
+    if (orderType !== undefined && !['b2c', 'b2b'].includes(orderType)) {
+        throw new ApiError(400, 'Invalid order type.');
+    }
+    const isWholesaleOrder = orderType === 'b2b';
     const normalizedPaymentMethod = paymentMethod === 'cash' ? 'cod' : paymentMethod;
 
     // Validate that payment method is enabled
@@ -114,6 +120,21 @@ export const initializePayment = asyncHandler(async (req, res) => {
     const products = await Product.find({ _id: { $in: productIds }, isActive: true }).lean();
     const productMap = Object.fromEntries(products.map(p => [String(p._id), p]));
 
+    // --- Wholesale / B2B: server-side eligibility (never trust the client) ---
+    let wholesaleBuyer = null;
+    let wholesaleSellerMap = {};
+    if (isWholesaleOrder) {
+        wholesaleBuyer = await assertWholesaleBuyer(userId);
+        if (couponCode) {
+            throw new ApiError(400, 'Coupons cannot be applied to wholesale orders.');
+        }
+        const sellerIds = [...new Set(products.map(p => String(p.vendorId)))];
+        const sellers = await Vendor.find({ _id: { $in: sellerIds } })
+            .select('status vendorCapabilities wholesaleCapability.status')
+            .lean();
+        wholesaleSellerMap = Object.fromEntries(sellers.map(v => [String(v._id), v]));
+    }
+
     const enrichedItems = [];
     const vendorMap = {};
 
@@ -124,10 +145,24 @@ export const initializePayment = asyncHandler(async (req, res) => {
         const basePrice = Number(product.price);
         if (!Number.isFinite(basePrice)) throw new ApiError(400, `Invalid price for ${product.name}`);
 
-        const price = basePrice;
+        let price = basePrice;
         const quantity = Number(item.quantity);
         if (!Number.isInteger(quantity) || quantity < 1 || quantity > 10000) {
             throw new ApiError(400, `Invalid quantity for product ${item.productId}. Must be a positive integer between 1 and 10000.`);
+        }
+
+        if (isWholesaleOrder) {
+            const seller = wholesaleSellerMap[String(product.vendorId)];
+            if (!seller || seller.status !== 'approved') {
+                throw new ApiError(400, `${product.name} is not currently available.`);
+            }
+            // Validates B2B availability, approved seller, MOQ and stock; returns the wholesale unit price.
+            price = resolveWholesaleLine(product, quantity, {
+                buyerVendorId: wholesaleBuyer._id,
+                sellerVendor: seller,
+            }).price;
+        } else if (product.b2cAvailable === false) {
+            throw new ApiError(400, `${product.name} is available for wholesale (B2B) purchase only.`);
         }
         const vendorId = String(product.vendorId);
 
@@ -286,6 +321,7 @@ export const initializePayment = asyncHandler(async (req, res) => {
                 const [createdOrder] = await Order.create([{
                     orderId,
                     userId,
+                    ...(isWholesaleOrder ? { orderType: 'b2b' } : {}),
                     items: financials.items.map(item => ({
                         productId: item.productId,
                         vendorId: item.vendorId,
@@ -572,6 +608,7 @@ export const initializePayment = asyncHandler(async (req, res) => {
             const [createdOrder] = await Order.create([{
                 orderId,
                 userId,
+                ...(isWholesaleOrder ? { orderType: 'b2b' } : {}),
                 items: financials.items.map(item => ({
                     productId: item.productId,
                     vendorId: item.vendorId,

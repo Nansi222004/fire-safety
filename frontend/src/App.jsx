@@ -69,6 +69,7 @@ import Vendors from "./modules/Admin/pages/Vendors";
 import ManageVendors from "./modules/Admin/pages/vendors/ManageVendors";
 import PendingApprovals from "./modules/Admin/pages/vendors/PendingApprovals";
 import AdminServicePartnerApplications from "./modules/Admin/pages/vendors/AdminServicePartnerApplications";
+import AdminWholesaleApplications from "./modules/Admin/pages/vendors/AdminWholesaleApplications";
 import VendorDetail from "./modules/Admin/pages/vendors/VendorDetail";
 import CommissionRates from "./modules/Admin/pages/vendors/CommissionRates";
 import AdminVendorAnalytics from "./modules/Admin/pages/vendors/VendorAnalytics";
@@ -123,6 +124,7 @@ import MobileCategory from "./modules/UserApp/pages/Category";
 import MobileBrand from "./modules/UserApp/pages/Brand";
 import MobileCategories from "./modules/UserApp/pages/categories";
 import MobileCheckout from "./modules/UserApp/pages/Checkout";
+import MobileWholesale from "./modules/UserApp/pages/Wholesale";
 import MobileSearch from "./modules/UserApp/pages/Search";
 import MobileShop from "./modules/UserApp/pages/Shop";
 import MobileLogin from "./modules/UserApp/pages/Login";
@@ -193,6 +195,11 @@ import RequestService from "./modules/Vendor/pages/services/RequestService";
 import VendorServiceRequests from "./modules/Vendor/pages/services/VendorServiceRequests";
 import VendorServiceBookings from "./modules/Vendor/pages/services/VendorServiceBookings";
 import ServicePartnerApplication from "./modules/Vendor/pages/services/ServicePartnerApplication";
+import VendorWholesaleApplication from "./modules/Vendor/pages/wholesale/WholesaleApplication";
+import VendorWholesaleProducts from "./modules/Vendor/pages/wholesale/WholesaleProducts";
+import VendorAddWholesaleProduct from "./modules/Vendor/pages/wholesale/AddWholesaleProduct";
+import VendorWholesalePricing from "./modules/Vendor/pages/wholesale/WholesalePricing";
+import VendorWholesaleOrders from "./modules/Vendor/pages/wholesale/WholesaleOrders";
 import VendorOrders from "./modules/Vendor/pages/Orders";
 import VendorAllOrders from "./modules/Vendor/pages/orders/AllOrders";
 import VendorOrderTracking from "./modules/Vendor/pages/orders/OrderTracking";
@@ -502,6 +509,16 @@ const AppRoutes = () => {
         }
       />
       <Route
+        path="/wholesale"
+        element={
+          <RouteWrapper>
+            <ProtectedRoute>
+              <MobileWholesale />
+            </ProtectedRoute>
+          </RouteWrapper>
+        }
+      />
+      <Route
         path="/addresses"
         element={
           <RouteWrapper>
@@ -707,6 +724,7 @@ const AppRoutes = () => {
           path="vendors/service-partner-applications"
           element={<AdminServicePartnerApplications />}
         />
+        <Route path="vendors/wholesale-applications" element={<AdminWholesaleApplications />} />
         <Route path="vendors/commission-rates" element={<CommissionRates />} />
         <Route
           path="vendors/vendor-analytics"
@@ -856,6 +874,15 @@ const AppRoutes = () => {
         <Route path="services/request-new" element={<VendorProtectedRoute requiredCapability="services"><RequestService /></VendorProtectedRoute>} />
         <Route path="services/my-requests" element={<VendorProtectedRoute requiredCapability="services"><VendorServiceRequests /></VendorProtectedRoute>} />
         <Route path="services/service-bookings" element={<VendorProtectedRoute requiredCapability="services"><VendorServiceBookings /></VendorProtectedRoute>} />
+
+        {/* Wholesale / B2B Capability Routes */}
+        <Route path="wholesale/apply" element={<VendorWholesaleApplication />} />
+        <Route path="wholesale" element={<Navigate to="/vendor/wholesale/products" replace />} />
+        <Route path="wholesale/products" element={<VendorProtectedRoute requiredCapability="wholesale"><VendorWholesaleProducts /></VendorProtectedRoute>} />
+        <Route path="wholesale/add-product" element={<VendorProtectedRoute requiredCapability="wholesale"><VendorAddWholesaleProduct /></VendorProtectedRoute>} />
+        <Route path="wholesale/pricing" element={<VendorProtectedRoute requiredCapability="wholesale"><VendorWholesalePricing /></VendorProtectedRoute>} />
+        <Route path="wholesale/orders" element={<VendorProtectedRoute requiredCapability="wholesale"><VendorWholesaleOrders /></VendorProtectedRoute>} />
+        <Route path="wholesale/orders/:id" element={<VendorProtectedRoute requiredCapability="wholesale"><VendorOrderDetail /></VendorProtectedRoute>} />
 
         <Route path="orders" element={<VendorProtectedRoute requiredCapability="products"><VendorOrders /></VendorProtectedRoute>} />
         <Route path="orders/all-orders" element={<VendorProtectedRoute requiredCapability="products"><VendorAllOrders /></VendorProtectedRoute>} />

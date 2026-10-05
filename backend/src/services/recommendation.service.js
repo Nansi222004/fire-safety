@@ -6,6 +6,7 @@ export class RecommendationService {
 
         const baseQuery = {
             isActive: true,
+            b2cAvailable: { $ne: false },
             _id: { $nin: excludeList }
         };
 

@@ -40,7 +40,7 @@ export const enforceAccountStatus = async (req, res, next) => {
         }
 
         if (role === 'vendor') {
-            const vendor = await Vendor.findById(req.user.id).select('status isVerified vendorCapabilities serviceCapability').lean();
+            const vendor = await Vendor.findById(req.user.id).select('status isVerified vendorCapabilities serviceCapability wholesaleCapability.status').lean();
             if (!vendor) return next(new ApiError(401, 'Account not found.'));
             if (!vendor.isVerified) return next(new ApiError(403, 'Please verify your email first.'));
             if (vendor.status !== 'approved') {
@@ -48,6 +48,7 @@ export const enforceAccountStatus = async (req, res, next) => {
             }
             req.vendorCapabilities = vendor.vendorCapabilities || { sellsProducts: true, providesServices: false };
             req.serviceCapability = vendor.serviceCapability || { status: 'none' };
+            req.wholesaleCapability = vendor.wholesaleCapability || { status: 'none' };
             return next();
         }
 
@@ -112,6 +113,15 @@ export const requireVendorCapability = (capability) =>
                 }
                 if (serviceStatus !== 'approved') {
                     return next(new ApiError(403, 'Approved Service Partner status is required to perform this action.'));
+                }
+            } else if (targetCap === 'wholesale' || targetCap === 'wholesaleenabled') {
+                let wholesaleStatus = req.wholesaleCapability?.status;
+                if (!wholesaleStatus) {
+                    const vendor = await Vendor.findById(req.user.id).select('wholesaleCapability.status').lean();
+                    wholesaleStatus = vendor?.wholesaleCapability?.status || 'none';
+                }
+                if (caps.wholesaleEnabled !== true || wholesaleStatus !== 'approved') {
+                    return next(new ApiError(403, 'Approved Wholesale/B2B capability is required to perform this action.'));
                 }
             }
             next();

@@ -13,18 +13,20 @@ const cleanProducts = (products = []) => {
     return products
         .map((p) => {
             if (!p) return null;
+            // Wholesale pricing is never exposed on the public B2C homepage.
+            const { wholesale, ...publicProduct } = p;
             return {
-                ...p,
+                ...publicProduct,
                 id: String(p._id),
                 _id: String(p._id),
             };
         })
-        .filter((p) => p && p.isActive !== false);
+        .filter((p) => p && p.isActive !== false && p.b2cAvailable !== false);
 };
 
 // Helper to build dynamic mongoose query and fetch products for automatic rule builders
 const queryRuleBuilderProducts = async (sec) => {
-    const query = { isActive: true, stock: { $ne: 'out_of_stock' } };
+    const query = { isActive: true, b2cAvailable: { $ne: false }, stock: { $ne: 'out_of_stock' } };
     
     // Categories filter
     if (Array.isArray(sec.autoCategories) && sec.autoCategories.length > 0) {

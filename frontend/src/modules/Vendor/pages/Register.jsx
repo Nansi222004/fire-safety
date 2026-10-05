@@ -52,16 +52,32 @@ const VendorRegister = () => {
     providesServices: false,
   });
 
+  // Optional Wholesale/B2B request — submitted as a pending application, never auto-enabled.
+  const [requestWholesale, setRequestWholesale] = useState(false);
+  const [wholesaleDetails, setWholesaleDetails] = useState({
+    gstNumber: '',
+    expectedMonthlyVolume: '',
+    description: '',
+  });
+
   const toggleCapability = (cap) => {
     setVendorCapabilities((prev) => {
       const next = { ...prev, [cap]: !prev[cap] };
-      // Prevent unselecting both
-      if (!next.sellsProducts && !next.providesServices) {
-        toast.error('At least one capability (Products or Services) must be selected.');
+      // Prevent unselecting everything (Wholesale/B2B alone is a valid choice)
+      if (!next.sellsProducts && !next.providesServices && !requestWholesale) {
+        toast.error('At least one capability (Products, Services or Wholesale) must be selected.');
         return prev;
       }
       return next;
     });
+  };
+
+  const toggleWholesale = () => {
+    if (requestWholesale && !vendorCapabilities.sellsProducts && !vendorCapabilities.providesServices) {
+      toast.error('At least one capability (Products, Services or Wholesale) must be selected.');
+      return;
+    }
+    setRequestWholesale((prev) => !prev);
   };
 
   const handleChange = (e) => {
@@ -99,8 +115,8 @@ const VendorRegister = () => {
     e.preventDefault();
 
     // Capability Validation
-    if (!vendorCapabilities.sellsProducts && !vendorCapabilities.providesServices) {
-      toast.error('At least one offering (Products or Services) must be selected.');
+    if (!vendorCapabilities.sellsProducts && !vendorCapabilities.providesServices && !requestWholesale) {
+      toast.error('At least one offering (Products, Services or Wholesale) must be selected.');
       return;
     }
 
@@ -152,6 +168,10 @@ const VendorRegister = () => {
       payload.append('storeName', formData.storeName.trim());
       payload.append('storeDescription', formData.storeDescription.trim());
       payload.append('vendorCapabilities', JSON.stringify(vendorCapabilities));
+      if (requestWholesale) {
+        payload.append('requestWholesale', 'true');
+        payload.append('wholesaleDetails', JSON.stringify(wholesaleDetails));
+      }
       payload.append('address', JSON.stringify({
         street: formData.address.street.trim(),
         city: formData.address.city.trim(),
@@ -271,7 +291,7 @@ const VendorRegister = () => {
                       <h2 className="text-base font-bold text-[#0F172A] uppercase tracking-wider text-xs">
                         What would you like to offer on SafeFire?
                       </h2>
-                      <p className="text-xs text-[#64748B]">Select one or both marketplace modules you wish to participate in.</p>
+                      <p className="text-xs text-[#64748B]">Select any combination — Products, Services and/or Wholesale (B2B).</p>
                     </div>
                   </div>
 
@@ -321,6 +341,61 @@ const VendorRegister = () => {
                         Provide professional fire safety maintenance, refill, and installation services to customers.
                       </p>
                     </div>
+                  </div>
+
+                  {/* Wholesale / B2B — optional, independent capability (admin approval required) */}
+                  <div
+                    className={`p-5 rounded-2xl border-2 transition-all ${
+                      requestWholesale
+                        ? 'border-sky-500 bg-sky-50/40 shadow-sm'
+                        : 'border-[#E5E7EB] bg-white hover:border-gray-300'
+                    }`}
+                  >
+                    <div
+                      className="flex items-start justify-between cursor-pointer"
+                      onClick={toggleWholesale}
+                    >
+                      <div>
+                        <div className="text-2xl mb-2">📦</div>
+                        <h3 className="font-bold text-[#0F172A] text-sm mb-1">WHOLESALE / B2B</h3>
+                        <p className="text-xs text-[#64748B] leading-relaxed">
+                          Also sell in bulk to approved business buyers with wholesale pricing and MOQ. Activated after admin approval.
+                        </p>
+                      </div>
+                      <div className={`w-5 h-5 rounded-md border flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                        requestWholesale ? 'bg-sky-500 border-sky-500 text-white' : 'border-gray-300 bg-white'
+                      }`}>
+                        {requestWholesale && '✓'}
+                      </div>
+                    </div>
+                    {requestWholesale && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                        <input
+                          type="text"
+                          value={wholesaleDetails.gstNumber}
+                          onChange={(e) => setWholesaleDetails((prev) => ({ ...prev, gstNumber: e.target.value }))}
+                          placeholder="GST Number"
+                          maxLength={20}
+                          className="w-full px-4 py-2.5 border border-[#E5E7EB] rounded-xl text-sm uppercase focus:outline-none focus:border-sky-500 bg-white"
+                        />
+                        <input
+                          type="text"
+                          value={wholesaleDetails.expectedMonthlyVolume}
+                          onChange={(e) => setWholesaleDetails((prev) => ({ ...prev, expectedMonthlyVolume: e.target.value }))}
+                          placeholder="Expected monthly volume (e.g. 500 units)"
+                          maxLength={100}
+                          className="w-full px-4 py-2.5 border border-[#E5E7EB] rounded-xl text-sm focus:outline-none focus:border-sky-500 bg-white"
+                        />
+                        <textarea
+                          value={wholesaleDetails.description}
+                          onChange={(e) => setWholesaleDetails((prev) => ({ ...prev, description: e.target.value }))}
+                          placeholder="Briefly describe your wholesale business"
+                          rows={2}
+                          maxLength={1000}
+                          className="md:col-span-2 w-full px-4 py-2.5 border border-[#E5E7EB] rounded-xl text-sm focus:outline-none focus:border-sky-500 bg-white"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
 

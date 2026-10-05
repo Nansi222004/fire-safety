@@ -70,7 +70,7 @@ console.assert(serviceGroupTitles.includes('CORE WORKFLOW'), 'Service-only shoul
 console.assert(serviceGroupTitles.includes('MANAGEMENT & TOOLS'), 'Service-only should have MANAGEMENT & TOOLS group');
 console.assert(serviceGroupTitles.includes('CATALOG & ORDERS') === false, 'Service-only should NOT have CATALOG & ORDERS group');
 const serviceTotalItems = serviceGrouped.reduce((acc, g) => acc + g.items.length, 0);
-console.assert(serviceTotalItems === 10, `Service-only should have 10 items in groups, found ${serviceTotalItems}`);
+console.assert(serviceTotalItems === 11, `Service-only should have 11 items in groups, found ${serviceTotalItems}`);
 console.log('Test 4 (Service Grouping): PASS');
 
 // Product groups
@@ -79,7 +79,7 @@ const productGroupTitles = productGrouped.map(g => g.title);
 console.assert(productGroupTitles.includes('CATALOG & ORDERS'), 'Product-only should have CATALOG & ORDERS group');
 console.assert(productGroupTitles.includes('MANAGEMENT & TOOLS'), 'Product-only should have MANAGEMENT & TOOLS group');
 const productTotalItems = productGrouped.reduce((acc, g) => acc + g.items.length, 0);
-console.assert(productTotalItems === 17, `Product-only should have 17 items in groups, found ${productTotalItems}`);
+console.assert(productTotalItems === 18, `Product-only should have 18 items in groups, found ${productTotalItems}`);
 console.log('Test 5 (Product Grouping): PASS');
 
 // Hybrid groups
@@ -88,7 +88,7 @@ const hybridGroupTitles = hybridGrouped.map(g => g.title);
 console.assert(hybridGroupTitles.includes('CORE WORKFLOW'), 'Hybrid should have CORE WORKFLOW group');
 console.assert(hybridGroupTitles.includes('MANAGEMENT & TOOLS'), 'Hybrid should have MANAGEMENT & TOOLS group');
 const hybridTotalItems = hybridGrouped.reduce((acc, g) => acc + g.items.length, 0);
-console.assert(hybridTotalItems === 18, `Hybrid should have 18 items in groups, found ${hybridTotalItems}`);
+console.assert(hybridTotalItems === 19, `Hybrid should have 19 items in groups, found ${hybridTotalItems}`);
 console.log('Test 6 (Hybrid Grouping): PASS');
 
 console.log('--- ALL CAPABILITY & GROUPING UNIT TESTS PASSED ---');

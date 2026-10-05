@@ -257,6 +257,7 @@ export const placeOrder = asyncHandler(async (req, res) => {
         if (!product.vendorId) {
             throw new ApiError(400, `The vendor for product ${product.name} is inactive or does not exist.`);
         }
+        if (product.b2cAvailable === false) throw new ApiError(400, `${product.name} is available for wholesale (B2B) purchase only.`);
         if (product.stock === 'out_of_stock') throw new ApiError(400, `${product.name} is out of stock.`);
         if (product.stockQuantity < item.quantity) throw new ApiError(400, `Only ${product.stockQuantity} units of ${product.name} available.`);
 
