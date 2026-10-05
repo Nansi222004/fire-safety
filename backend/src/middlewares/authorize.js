@@ -3,6 +3,7 @@ import User from '../models/User.model.js';
 import Vendor from '../models/Vendor.model.js';
 import DeliveryBoy from '../models/DeliveryBoy.model.js';
 import Admin from '../models/Admin.model.js';
+import Worker from '../models/Worker.model.js';
 
 /**
  * Role-based authorization middleware
@@ -61,6 +62,13 @@ export const enforceAccountStatus = async (req, res, next) => {
             if (!deliveryBoy.isActive) {
                 return next(new ApiError(403, 'Account is deactivated. Contact admin.'));
             }
+            return next();
+        }
+
+        if (role === 'worker') {
+            const worker = await Worker.findById(req.user.id).select('isActive').lean();
+            if (!worker) return next(new ApiError(401, 'Account not found.'));
+            if (!worker.isActive) return next(new ApiError(403, 'Worker account is deactivated. Contact admin.'));
             return next();
         }
 

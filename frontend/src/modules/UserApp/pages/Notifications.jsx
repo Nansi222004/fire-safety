@@ -41,7 +41,10 @@ const UserNotifications = () => {
     const msgLower = (notification.message || '').toLowerCase();
 
     // Determine target route
-    if (data.orderId) {
+    if (data.fireSafetyEquipmentId) {
+      // Fire Safety Alert → My Fire Safety → equipment → specific issue
+      navigate(`/my-fire-safety/${data.fireSafetyEquipmentId}${data.fireSafetyIssueId ? `?issue=${data.fireSafetyIssueId}` : ''}`);
+    } else if (data.orderId) {
       navigate(`/orders/${data.orderId}`);
     } else if (titleLower.includes('wallet') || msgLower.includes('wallet') || data.walletId) {
       navigate('/user/wallet');

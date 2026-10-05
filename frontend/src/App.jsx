@@ -125,6 +125,22 @@ import MobileBrand from "./modules/UserApp/pages/Brand";
 import MobileCategories from "./modules/UserApp/pages/categories";
 import MobileCheckout from "./modules/UserApp/pages/Checkout";
 import MobileWholesale from "./modules/UserApp/pages/Wholesale";
+import MyFireSafety from "./modules/UserApp/pages/MyFireSafety";
+import FireSafetyEquipmentDetail from "./modules/UserApp/pages/FireSafetyEquipmentDetail";
+// Fire Safety Inspector (worker) portal
+import WorkerLogin from "./modules/Worker/pages/Login";
+import WorkerProtectedRoute from "./modules/Worker/components/WorkerProtectedRoute";
+import WorkerLayout from "./modules/Worker/components/WorkerLayout";
+import WorkerDashboard from "./modules/Worker/pages/Dashboard";
+import WorkerTasks from "./modules/Worker/pages/Tasks";
+import WorkerTaskDetail from "./modules/Worker/pages/TaskDetail";
+import WorkerReports from "./modules/Worker/pages/Reports";
+// Admin – Fire Safety Inspection module
+import FsWorkers from "./modules/Admin/pages/fireSafety/FsWorkers";
+import FsEquipment from "./modules/Admin/pages/fireSafety/FsEquipment";
+import FsTasks from "./modules/Admin/pages/fireSafety/FsTasks";
+import FsReports from "./modules/Admin/pages/fireSafety/FsReports";
+import FsIssues from "./modules/Admin/pages/fireSafety/FsIssues";
 import MobileSearch from "./modules/UserApp/pages/Search";
 import MobileShop from "./modules/UserApp/pages/Shop";
 import MobileLogin from "./modules/UserApp/pages/Login";
@@ -515,6 +531,26 @@ const AppRoutes = () => {
         }
       />
       <Route
+        path="/my-fire-safety"
+        element={
+          <RouteWrapper>
+            <ProtectedRoute>
+              <MyFireSafety />
+            </ProtectedRoute>
+          </RouteWrapper>
+        }
+      />
+      <Route
+        path="/my-fire-safety/:equipmentId"
+        element={
+          <RouteWrapper>
+            <ProtectedRoute>
+              <FireSafetyEquipmentDetail />
+            </ProtectedRoute>
+          </RouteWrapper>
+        }
+      />
+      <Route
         path="/wholesale"
         element={
           <RouteWrapper>
@@ -731,6 +767,12 @@ const AppRoutes = () => {
           element={<AdminServicePartnerApplications />}
         />
         <Route path="vendors/wholesale-applications" element={<AdminWholesaleApplications />} />
+        <Route path="fire-safety" element={<Navigate to="/admin/fire-safety/tasks" replace />} />
+        <Route path="fire-safety/workers" element={<FsWorkers />} />
+        <Route path="fire-safety/equipment" element={<FsEquipment />} />
+        <Route path="fire-safety/tasks" element={<FsTasks />} />
+        <Route path="fire-safety/reports" element={<FsReports />} />
+        <Route path="fire-safety/issues" element={<FsIssues />} />
         <Route path="vendors/commission-rates" element={<CommissionRates />} />
         <Route
           path="vendors/vendor-analytics"
@@ -806,6 +848,23 @@ const AppRoutes = () => {
       <Route path="/delivery/privacy" element={<Navigate to="/delivery/privacy-policy" replace />} />
       <Route path="/delivery/support" element={<DeliverySupport />} />
       <Route path="/delivery/login" element={<DeliveryLogin />} />
+      {/* Fire Safety Inspector (worker) portal */}
+      <Route path="/worker/login" element={<WorkerLogin />} />
+      <Route
+        path="/worker"
+        element={
+          <WorkerProtectedRoute>
+            <ErrorBoundary>
+              <WorkerLayout />
+            </ErrorBoundary>
+          </WorkerProtectedRoute>
+        }>
+        <Route index element={<Navigate to="/worker/dashboard" replace />} />
+        <Route path="dashboard" element={<WorkerDashboard />} />
+        <Route path="tasks" element={<WorkerTasks />} />
+        <Route path="tasks/:taskId" element={<WorkerTaskDetail />} />
+        <Route path="reports" element={<WorkerReports />} />
+      </Route>
       <Route path="/delivery/register" element={<DeliveryRegister />} />
       <Route
         path="/delivery/forgot-password"

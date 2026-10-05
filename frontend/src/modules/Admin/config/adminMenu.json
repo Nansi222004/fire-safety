@@ -73,6 +73,17 @@
     ]
   },
   {
+    "title": "Fire Safety",
+    "route": "/admin/fire-safety",
+    "children": [
+      "Workers",
+      "Customer Equipment",
+      "Inspection Tasks",
+      "Inspection Reports",
+      "Issues & Alerts"
+    ]
+  },
+  {
     "title": "Vendors",
     "route": "/admin/vendors",
     "children": [

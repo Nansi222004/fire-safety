@@ -47,6 +47,7 @@ const iconMap = {
   Settings: FiSettings,
   Policies: FiShield,
   "Social Control": FiShield,
+  "Fire Safety": FiShield,
 };
 
 // Helper function to convert child name to route path
@@ -136,6 +137,13 @@ const getChildRoute = (parentRoute, childName) => {
       "Terms & Conditions": "/admin/policies/terms-conditions",
       "Seller Terms & Conditions": "/admin/policies/seller-terms",
       "Frequently Asked Questions": "/admin/policies/faq",
+    },
+    "/admin/fire-safety": {
+      Workers: "/admin/fire-safety/workers",
+      "Customer Equipment": "/admin/fire-safety/equipment",
+      "Inspection Tasks": "/admin/fire-safety/tasks",
+      "Inspection Reports": "/admin/fire-safety/reports",
+      "Issues & Alerts": "/admin/fire-safety/issues",
     },
     "/admin/vendors": {
       "Manage Vendors": "/admin/vendors/manage-vendors",
