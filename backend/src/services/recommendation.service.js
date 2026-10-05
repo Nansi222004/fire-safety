@@ -1,8 +1,22 @@
+import mongoose from 'mongoose';
 import Product from '../models/Product.model.js';
 
 export class RecommendationService {
     static async getProducts({ source, categories = [], brands = [], averagePrice, excludeProductIds = [], limit = 12 }) {
-        const excludeList = excludeProductIds.map(id => String(id));
+        const excludeList = (excludeProductIds || [])
+            .map(id => (id && typeof id === 'object' ? id._id || id.id : id))
+            .filter(id => id && mongoose.Types.ObjectId.isValid(String(id)))
+            .map(id => String(id));
+
+        const validCategories = (categories || [])
+            .map(c => (c && typeof c === 'object' ? c._id || c.id : c))
+            .filter(c => c && mongoose.Types.ObjectId.isValid(String(c)))
+            .map(c => String(c));
+
+        const validBrands = (brands || [])
+            .map(b => (b && typeof b === 'object' ? b._id || b.id : b))
+            .filter(b => b && mongoose.Types.ObjectId.isValid(String(b)))
+            .map(b => String(b));
 
         const baseQuery = {
             isActive: true,
@@ -13,10 +27,10 @@ export class RecommendationService {
         let matchingProducts = [];
 
         // 1. Same Category
-        if (categories.length > 0) {
+        if (validCategories.length > 0) {
             const catMatches = await Product.find({
                 ...baseQuery,
-                categoryId: { $in: categories }
+                categoryId: { $in: validCategories }
             })
             .limit(limit)
             .lean();
@@ -24,13 +38,13 @@ export class RecommendationService {
         }
 
         // 2. Same Brand
-        if (matchingProducts.length < limit && brands.length > 0) {
+        if (matchingProducts.length < limit && validBrands.length > 0) {
             const currentIds = matchingProducts.map(p => String(p._id));
             const remainingLimit = limit - matchingProducts.length;
             const brandMatches = await Product.find({
                 ...baseQuery,
                 _id: { $nin: [...excludeList, ...currentIds] },
-                brandId: { $in: brands }
+                brandId: { $in: validBrands }
             })
             .limit(remainingLimit)
             .lean();

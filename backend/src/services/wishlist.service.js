@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Wishlist from '../models/Wishlist.model.js';
 import RecentlyViewed from '../models/RecentlyViewed.model.js';
 import RecommendationService from './recommendation.service.js';
@@ -65,10 +66,16 @@ export class WishlistService {
 
         // Extract raw products for category/brand matching recommendations
         const activeProducts = activeItems.map(i => i.productId);
-        const categories = [...new Set(activeProducts.map(p => String(p.categoryId)))];
-        const brands = [...new Set(activeProducts.map(p => String(p.brandId)).filter(Boolean))];
+        const categories = [...new Set(activeProducts.map(p => {
+            const id = p?.categoryId?._id || p?.categoryId?.id || p?.categoryId;
+            return id && mongoose.Types.ObjectId.isValid(String(id)) ? String(id) : null;
+        }).filter(Boolean))];
+        const brands = [...new Set(activeProducts.map(p => {
+            const id = p?.brandId?._id || p?.brandId?.id || p?.brandId;
+            return id && mongoose.Types.ObjectId.isValid(String(id)) ? String(id) : null;
+        }).filter(Boolean))];
         const averagePrice = activeProducts.length > 0
-            ? activeProducts.reduce((acc, p) => acc + p.price, 0) / activeProducts.length
+            ? activeProducts.reduce((acc, p) => acc + (p?.price || 0), 0) / activeProducts.length
             : 0;
 
         // Fetch Recommendations

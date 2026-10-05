@@ -133,7 +133,9 @@ import MobileVerification from "./modules/UserApp/pages/Verification";
 import MobileForgotPassword from "./modules/UserApp/pages/ForgotPassword";
 import MobileResetPassword from "./modules/UserApp/pages/ResetPassword";
 import MobileProfile from "./modules/UserApp/pages/Profile";
-import UserWalletPage from "./modules/UserApp/pages/Wallet";
+// TEMPORARILY DISABLED — USER WALLET PAGE IMPORT
+// DO NOT DELETE — RE-ENABLE WHEN WALLET FEATURE IS RESTORED
+// import UserWalletPage from "./modules/UserApp/pages/Wallet";
 import UserNotifications from "./modules/UserApp/pages/Notifications";
 import MobileOrders from "./modules/UserApp/pages/Orders";
 import MobileOrderDetail from "./modules/UserApp/pages/OrderDetail";
@@ -478,6 +480,9 @@ const AppRoutes = () => {
           </RouteWrapper>
         }
       />
+      {/* TEMPORARILY DISABLED — USER WALLET ROUTE */}
+      {/* DO NOT DELETE — RE-ENABLE WHEN WALLET FEATURE IS RESTORED */}
+      {/*
       <Route
         path="/user/wallet"
         element={
@@ -488,6 +493,7 @@ const AppRoutes = () => {
           </RouteWrapper>
         }
       />
+      */}
       <Route
         path="/notifications"
         element={

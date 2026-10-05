@@ -149,7 +149,8 @@ const MobileCheckout = () => {
     if (!paymentSettings || !paymentSettings.payment) {
       return [
         { id: "cod", label: "Cash on Delivery" },
-        { id: "wallet", label: "SafeFire Wallet" }
+        // TEMPORARILY DISABLED — USER WALLET PAYMENT METHOD
+        // { id: "wallet", label: "SafeFire Wallet" }
       ];
     }
     const methods = [];
@@ -157,9 +158,10 @@ const MobileCheckout = () => {
     if (p.cod) {
       methods.push({ id: "cod", label: "Cash on Delivery" });
     }
-    if (p.wallet) {
-      methods.push({ id: "wallet", label: "SafeFire Wallet" });
-    }
+    // TEMPORARILY DISABLED — USER WALLET PAYMENT METHOD
+    // if (p.wallet) {
+    //   methods.push({ id: "wallet", label: "SafeFire Wallet" });
+    // }
     if (p.razorpay) {
       methods.push({ id: "card", label: "Credit/Debit Card (Online Payment)" });
     }
@@ -884,7 +886,9 @@ const MobileCheckout = () => {
                       Payment Method
                     </h2>
 
-                    {/* Payment Mode Notice Banner */}
+                    {/* TEMPORARILY DISABLED — SUPPORTED PAYMENT METHODS BANNER */}
+                    {/* DO NOT DELETE — RE-ENABLE WHEN BANNER IS RESTORED */}
+                    {/*
                     {(paymentSettings?.paymentMode === 'COD_ONLY' || !paymentSettings?.payment?.razorpay) && (
                       <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 mb-5 flex items-start gap-2.5 text-xs text-amber-900">
                         <span className="text-base leading-none">🚚</span>
@@ -896,6 +900,7 @@ const MobileCheckout = () => {
                         </div>
                       </div>
                     )}
+                    */}
 
                     <div className="space-y-3.5 mb-6">
                       {/* 1. Cash on Delivery */}
@@ -927,7 +932,9 @@ const MobileCheckout = () => {
                         </label>
                       )}
 
-                      {/* 2. SafeFire Wallet */}
+                      {/* TEMPORARILY DISABLED — SAFEFIRE WALLET PAYMENT OPTION */}
+                      {/* DO NOT DELETE — RE-ENABLE WHEN WALLET PAYMENT IS RESTORED */}
+                      {/*
                       {activePaymentMethods.some((m) => m.id === "wallet") && (
                         <label
                           className={`flex items-start gap-3.5 p-4 rounded-xl border-2 transition-all ${
@@ -967,7 +974,7 @@ const MobileCheckout = () => {
                               )}
                             </div>
 
-                            {/* Balance and Deduction Feedback */}
+                            // Balance and Deduction Feedback
                             {isAuthenticated && (
                               <div className="mt-2.5 text-xs">
                                 {walletBalance < finalTotal ? (
@@ -998,6 +1005,7 @@ const MobileCheckout = () => {
                           </div>
                         </label>
                       )}
+                      */}
 
                       {/* 3. External Payment Gateways (Cards / UPI) if enabled */}
                       {activePaymentMethods
