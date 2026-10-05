@@ -2,6 +2,7 @@ import asyncHandler from '../../../utils/asyncHandler.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
 import ReturnRequest from '../../../models/ReturnRequest.model.js';
+import Shipment from '../../../models/Shipment.model.js';
 import DeliveryWalletTransaction from '../../../models/DeliveryWalletTransaction.model.js';
 import DeliveryBoy from '../../../models/DeliveryBoy.model.js';
 import mongoose from 'mongoose';
@@ -80,6 +81,15 @@ export const acceptReturnPickup = asyncHandler(async (req, res) => {
         }
     }
     await returnRequest.save();
+    await Shipment.findOneAndUpdate(
+        { returnRequestId: returnRequest._id, type: isExchangeLeg2 ? 'exchange_forward' : 'reverse' },
+        {
+            $set: {
+                deliveryBoyId: req.user.id,
+                deliveryAssignmentStatus: 'accepted',
+            },
+        }
+    );
     notifyReturnUpdate(returnRequest);
 
     const rItemsSummary = buildExchangeSummary(returnRequest);
@@ -136,13 +146,25 @@ export const rejectReturnPickup = asyncHandler(async (req, res) => {
         returnRequest.status = 'replacement_ready';
         await returnRequest.save();
         notifyReturnUpdate(returnRequest);
-        autoAssignExchangeReplacementPartner(returnRequest._id);
     } else {
         if (returnRequest.status === 'pickup_pending' || returnRequest.status === 'pickup_assigned') {
             returnRequest.status = 'approved';
         }
         await returnRequest.save();
         notifyReturnUpdate(returnRequest);
+    }
+
+    await Shipment.findOneAndUpdate(
+        { returnRequestId: returnRequest._id, type: isExchangeLeg2 ? 'exchange_forward' : 'reverse' },
+        {
+            $set: { deliveryAssignmentStatus: 'pending', status: 'pending' },
+            $unset: { deliveryBoyId: 1 },
+        }
+    );
+
+    if (isExchangeLeg2) {
+        autoAssignExchangeReplacementPartner(returnRequest._id);
+    } else {
         autoAssignReturnPickupPartner(returnRequest._id);
     }
 
@@ -332,6 +354,35 @@ export const updateReturnPickupStatus = asyncHandler(async (req, res) => {
     } else {
         returnRequest.status = status;
         await returnRequest.save();
+    }
+
+    const shipmentType = ['out_for_delivery', 'completed'].includes(status)
+        ? 'exchange_forward'
+        : 'reverse';
+    const shipmentStatus = {
+        picked_up: 'picked_up',
+        delivered_to_vendor: 'delivered',
+        out_for_delivery: 'out_for_delivery',
+        completed: 'delivered',
+    }[status];
+    if (shipmentStatus) {
+        const timestamps = shipmentStatus === 'delivered'
+            ? { deliveredAt: new Date() }
+            : (shipmentStatus === 'picked_up' ? { pickedUpAt: new Date() } : {});
+        await Shipment.findOneAndUpdate(
+            { returnRequestId: returnRequest._id, type: shipmentType },
+            {
+                $set: { status: shipmentStatus, ...timestamps },
+                $push: {
+                    statusHistory: {
+                        status: shipmentStatus,
+                        updatedAt: new Date(),
+                        updatedBy: 'driver',
+                        notes: `Return/exchange status synchronized from delivery workflow (${status}).`,
+                    },
+                },
+            }
+        );
     }
     notifyReturnUpdate(returnRequest);
 

@@ -1,4 +1,10 @@
-import { getVendorCapabilities, filterVendorMenu, PRODUCT_MENU_TITLES, SERVICE_MENU_TITLES } from '../vendorCapabilities.js';
+import {
+  getVendorCapabilities,
+  getAvailableVendorModes,
+  filterVendorMenu,
+  PRODUCT_MENU_TITLES,
+  SERVICE_MENU_TITLES,
+} from '../vendorCapabilities.js';
 import vendorMenu from '../../config/vendorMenu.json' with { type: 'json' };
 
 console.log('--- STARTING CAPABILITY AUTOMATED TEST ---');
@@ -90,5 +96,24 @@ console.assert(hybridGroupTitles.includes('MANAGEMENT & TOOLS'), 'Hybrid should 
 const hybridTotalItems = hybridGrouped.reduce((acc, g) => acc + g.items.length, 0);
 console.assert(hybridTotalItems === 19, `Hybrid should have 19 items in groups, found ${hybridTotalItems}`);
 console.log('Test 6 (Hybrid Grouping): PASS');
+
+const wholesaleVendor = {
+  vendorCapabilities: { sellsProducts: true, providesServices: false, wholesaleEnabled: true },
+  wholesaleCapability: { status: 'approved' },
+};
+console.assert(
+  JSON.stringify(getAvailableVendorModes(wholesaleVendor)) === JSON.stringify(['b2c', 'wholesale']),
+  'Product + Wholesale vendor should expose B2C and Wholesale modes.'
+);
+const allModesVendor = {
+  vendorCapabilities: { sellsProducts: true, providesServices: true, wholesaleEnabled: true },
+  serviceCapability: { status: 'approved' },
+  wholesaleCapability: { status: 'approved' },
+};
+console.assert(
+  JSON.stringify(getAvailableVendorModes(allModesVendor)) === JSON.stringify(['b2c', 'services', 'wholesale']),
+  'Fully capable vendor should expose B2C, Services, and Wholesale modes.'
+);
+console.log('Test 7 (Wholesale Modes): PASS');
 
 console.log('--- ALL CAPABILITY & GROUPING UNIT TESTS PASSED ---');

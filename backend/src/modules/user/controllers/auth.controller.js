@@ -9,7 +9,11 @@ import Wishlist from '../../../models/Wishlist.model.js';
 import Address from '../../../models/Address.model.js';
 import Notification from '../../../models/Notification.model.js';
 import { createWalletIfMissing } from '../../../services/wallet.service.js';
-import { getWholesaleBuyerForUser, provisionWholesaleBuyerAccount } from '../../../services/wholesale.service.js';
+import {
+    getWholesaleBuyerForUser,
+    provisionWholesaleBuyerAccount,
+    verifyWholesaleVendorCredentials,
+} from '../../../services/wholesale.service.js';
 import { generateTokens } from '../../../utils/generateToken.js';
 import { sendOTP } from '../../../services/otp.service.js';
 import { sendEmail } from '../../../services/email.service.js';
@@ -96,14 +100,23 @@ export const login = asyncHandler(async (req, res) => {
         if (user) await createWalletIfMissing(user._id);
     }
     if (!user) throw new ApiError(401, 'Invalid email or password.');
+
+    // A wholesale vendor and an older customer record can legitimately share an
+    // email while retaining separate password hashes. Authenticate either exact
+    // credential set, but only when the linked vendor is fully wholesale-approved.
+    const userPasswordMatches = await user.comparePassword(password);
+    const wholesaleVendorPasswordMatches = userPasswordMatches
+        ? false
+        : await verifyWholesaleVendorCredentials(normalizedEmail, password);
+    if (!userPasswordMatches && !wholesaleVendorPasswordMatches) {
+        throw new ApiError(401, 'Invalid email or password.');
+    }
+
     if (!user.isActive) throw new ApiError(403, 'Your account has been deactivated.');
     if (!user.isVerified) {
         await sendOTP(user, 'email_verification');
         throw new ApiError(403, 'Email not verified. A new OTP has been sent to your email.');
     }
-
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) throw new ApiError(401, 'Invalid email or password.');
 
     const { accessToken, refreshToken } = generateTokens({ id: user._id, role: 'customer', email: user.email });
     await persistRefreshSession(user, refreshToken);

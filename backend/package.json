@@ -13,6 +13,9 @@
     "test:push": "node tests/integration/testPushNotificationPipeline.js",
     "test:reverse": "node tests/integration/testDelhiveryReverse.js && node tests/integration/testShiprocketReverse.js",
     "test:delivery-routing": "node src/services/deliveryRouting.test.js",
+    "test:wholesale-auth": "node src/services/wholesaleAuth.test.js",
+    "test:exchange-shipment": "node src/services/exchangeShipment.test.js",
+    "test:assignment": "node src/services/assignment.test.js",
     "seed:coupons": "node src/scripts/seedCoupons.js"
   },
   "author": "furqan",

@@ -326,7 +326,7 @@ const MobileProductDetail = () => {
   const [galleryIndex, setGalleryIndex] = useState(0);
 
   const { items, addItem, removeItem } = useCartStore();
-  const { triggerCartAnimation, toggleCart } = useUIStore();
+  const toggleCart = useUIStore((state) => state.toggleCart);
   const {
     addItem: addToWishlist,
     removeItem: removeFromWishlist,
@@ -628,7 +628,6 @@ const MobileProductDetail = () => {
       vendorName: vendor?.storeName || vendor?.name || product.vendorName,
     });
     if (!addedToCart) return;
-    triggerCartAnimation();
   };
 
   const handleRemoveFromCart = () => {

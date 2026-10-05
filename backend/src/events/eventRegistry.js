@@ -1,6 +1,7 @@
 import EventDispatcher from '../services/eventDispatcher.service.js';
 import reverseEngine from '../services/reverseEngine.service.js';
 import { autoAssignExchangeReplacementPartner } from '../services/assignmentService.js';
+import { createExchangeReplacementShipment } from '../services/exchangeShipment.service.js';
 
 export const initializeEventRegistry = () => {
     // ─── Reverse Logistics Flow ───────────────────────────────────────────
@@ -14,9 +15,10 @@ export const initializeEventRegistry = () => {
     // Triggered when an Exchange Replacement is ready
     EventDispatcher.register('REPLACEMENT_READY', async (payload) => {
         const { returnRequestId } = payload;
-        // Temporary placeholder: currently calls the legacy Own Fleet assignment.
-        // In future phases, this will trigger the Exchange Decision Engine.
-        await autoAssignExchangeReplacementPartner(returnRequestId);
+        const result = await createExchangeReplacementShipment(returnRequestId);
+        if (result?.internal) {
+            await autoAssignExchangeReplacementPartner(returnRequestId);
+        }
     });
 
     // Triggered when a reverse shipment receives a webhook update

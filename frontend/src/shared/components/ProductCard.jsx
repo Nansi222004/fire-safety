@@ -1,7 +1,7 @@
 import { FiHeart, FiShoppingBag, FiStar, FiTrash2, FiCheck } from "react-icons/fi";
 import { motion } from "framer-motion";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { useCartStore, useUIStore } from "../store/useStore";
+import { useCartStore } from "../store/useStore";
 import { useWishlistStore } from "../store/wishlistStore";
 import { formatPrice, getPlaceholderImage } from "../utils/helpers";
 import toast from "react-hot-toast";
@@ -25,9 +25,6 @@ const ProductCard = ({
   const isCategoriesRoute = redirectToCheckout || location.pathname.startsWith("/categories");
   const productLink = `/product/${product.id}`;
   const { items, addItem, removeItem } = useCartStore();
-  const triggerCartAnimation = useUIStore(
-    (state) => state.triggerCartAnimation
-  );
   const {
     addItem: addToWishlist,
     removeItem: removeFromWishlist,
@@ -87,8 +84,6 @@ const ProductCard = ({
     });
     if (!addedToCart) return;
 
-    // Trigger cart animations in header and mobile cart bar
-    triggerCartAnimation();
     setIsJustAdded(true);
     setTimeout(() => setIsJustAdded(false), 1200);
 

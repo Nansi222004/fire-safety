@@ -5,6 +5,9 @@ const returnRequestSchema = new mongoose.Schema(
         orderId: { type: mongoose.Schema.Types.ObjectId, ref: 'Order', required: true, index: true },
         userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
         vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor', index: true },
+        originalShipmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Shipment', index: true },
+        reverseShipmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Shipment' },
+        exchangeShipmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Shipment' },
         items: [
             {
                 productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },

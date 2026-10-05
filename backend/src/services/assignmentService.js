@@ -43,11 +43,11 @@ export const manualAssignDeliveryPartner = async ({
         return { success: false, code: 'NOT_INTERNAL_DELIVERY' };
     }
     if (!deliveryBoy) return { success: false, code: 'DELIVERY_PARTNER_UNAVAILABLE' };
-    if (shipment.deliveryBoyId && !allowReassignment) {
-        return { success: false, code: 'ALREADY_ASSIGNED', shipment };
-    }
     if (shipment.deliveryBoyId && String(shipment.deliveryBoyId) === String(deliveryBoyId)) {
         return { success: true, idempotent: true, shipment };
+    }
+    if (shipment.deliveryBoyId && !allowReassignment) {
+        return { success: false, code: 'ALREADY_ASSIGNED', shipment };
     }
 
     const activeAssignments = await Shipment.countDocuments({
@@ -877,6 +877,17 @@ export const autoAssignExchangeReplacementPartner = async (returnRequestId) => {
         returnRequest.deliveryAssignmentStatus = 'assigned';
         returnRequest.status = 'replacement_assigned';
         await returnRequest.save();
+
+        await Shipment.findOneAndUpdate(
+            { returnRequestId: returnRequest._id, type: 'exchange_forward' },
+            {
+                $set: {
+                    deliveryBoyId: selectedRider._id,
+                    deliveryAssignmentStatus: 'assigned',
+                    status: 'ready_for_pickup',
+                },
+            }
+        );
 
         console.log(`[Auto Assign Replacement] Exchange replacement request ${returnRequest._id} assigned to ${selectedRider.name} via ${assignmentMethod}`);
 

@@ -28,7 +28,7 @@ import {
 } from "react-icons/fi";
 import { HiOutlineUserCircle } from "react-icons/hi";
 import { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useUserNotificationStore } from "../../store/userNotificationStore";
 
 const DesktopHeader = ({ onSearch }) => {
@@ -44,6 +44,7 @@ const DesktopHeader = ({ onSearch }) => {
   );
   const toggleCart = useUIStore((state) => state.toggleCart);
   const cartAnimationTrigger = useUIStore((state) => state.cartAnimationTrigger);
+  const shouldReduceMotion = useReducedMotion();
 
   // Micro-interaction animation trigger states
   const [cartBouncing, setCartBouncing] = useState(false);
@@ -52,35 +53,41 @@ const DesktopHeader = ({ onSearch }) => {
   const prevItemCountRef = useRef(itemCount);
   const prevWishlistRef = useRef(wishlistCount);
   const prevUnreadRef = useRef(unreadCount);
+  const previousCartTriggerRef = useRef(cartAnimationTrigger);
 
   // Trigger bounce on cart quantity change or explicit trigger
   useEffect(() => {
-    if (cartAnimationTrigger > 0 || itemCount > prevItemCountRef.current) {
+    const increased = itemCount > prevItemCountRef.current;
+    const explicitlyTriggered = cartAnimationTrigger > previousCartTriggerRef.current;
+    prevItemCountRef.current = itemCount;
+    previousCartTriggerRef.current = cartAnimationTrigger;
+    if (explicitlyTriggered || increased) {
       setCartBouncing(true);
       const timer = setTimeout(() => setCartBouncing(false), 550);
       return () => clearTimeout(timer);
     }
-    prevItemCountRef.current = itemCount;
   }, [cartAnimationTrigger, itemCount]);
 
   // Trigger pop on wishlist change
   useEffect(() => {
-    if (wishlistCount > prevWishlistRef.current) {
+    const increased = wishlistCount > prevWishlistRef.current;
+    prevWishlistRef.current = wishlistCount;
+    if (increased) {
       setWishlistPopping(true);
       const timer = setTimeout(() => setWishlistPopping(false), 500);
       return () => clearTimeout(timer);
     }
-    prevWishlistRef.current = wishlistCount;
   }, [wishlistCount]);
 
   // Trigger subtle wiggle on new notification
   useEffect(() => {
-    if (unreadCount > prevUnreadRef.current) {
+    const increased = unreadCount > prevUnreadRef.current;
+    prevUnreadRef.current = unreadCount;
+    if (increased) {
       setBellWiggling(true);
       const timer = setTimeout(() => setBellWiggling(false), 650);
       return () => clearTimeout(timer);
     }
-    prevUnreadRef.current = unreadCount;
   }, [unreadCount]);
 
   // Category Store
@@ -185,12 +192,22 @@ const DesktopHeader = ({ onSearch }) => {
   const rootCategories = getRootCategories() || [];
 
   return (
-    <header className="hidden md:block sticky top-0 z-[999] bg-white shadow-sm border-b border-gray-100 w-full">
+    <motion.header
+      className="hidden md:block sticky top-0 z-[999] bg-white shadow-sm border-b border-gray-100 w-full"
+      initial={shouldReduceMotion ? false : { opacity: 0, y: -12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: shouldReduceMotion ? 0 : 0.35, ease: [0.16, 1, 0.3, 1] }}
+    >
 
       {/* 2. MAIN HEADER BAR */}
       <div className="w-full bg-white py-4 border-b border-gray-50">
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 flex items-center justify-between gap-3 lg:gap-6 h-16">
           {/* Logo */}
+          <motion.div
+            initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: shouldReduceMotion ? 0 : 0.3, delay: shouldReduceMotion ? 0 : 0.08 }}
+          >
           <Link to="/home" className="flex-shrink-0 flex items-center gap-2">
             {appLogo.src ? (
               <div className="flex items-center gap-2">
@@ -209,6 +226,7 @@ const DesktopHeader = ({ onSearch }) => {
               </span>
             )}
           </Link>
+          </motion.div>
 
           {/* Premium Search Bar */}
           <div className="flex-1 min-w-[220px] md:min-w-[280px] lg:min-w-[340px] max-w-2xl mx-1 sm:mx-2 lg:mx-4">
@@ -516,7 +534,7 @@ const DesktopHeader = ({ onSearch }) => {
 
         </div>
       </div>
-    </header>
+    </motion.header>
   );
 };
 
