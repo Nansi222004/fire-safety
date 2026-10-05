@@ -1249,7 +1249,13 @@ const MobileOrderDetail = () => {
                   </div>
                   <div className="flex justify-between text-lg font-bold text-gray-800 pt-2 border-t border-gray-200">
                     <span>Total</span>
-                    <span className="text-primary-600">{formatPrice(order.total)}</span>
+                    <span className="text-primary-600">
+                      {formatPrice(
+                        (order.paymentMethod === 'cod' || order.paymentMethod === 'cash') && typeof order.total === 'number'
+                          ? Math.round(order.total)
+                          : order.total
+                      )}
+                    </span>
                   </div>
                   {order.walletAmountUsed > 0 && (
                     <>
@@ -1259,7 +1265,16 @@ const MobileOrderDetail = () => {
                       </div>
                       <div className="flex justify-between text-sm font-semibold text-gray-700">
                         <span>Paid via {order.paymentMethod === 'cod' ? 'COD' : order.paymentMethod === 'wallet' ? 'Wallet' : 'Online'}</span>
-                        <span>{formatPrice(Math.max(0, order.total - order.walletAmountUsed))}</span>
+                        <span>
+                          {formatPrice(
+                            Math.max(
+                              0,
+                              ((order.paymentMethod === 'cod' || order.paymentMethod === 'cash') && typeof order.total === 'number'
+                                ? Math.round(order.total)
+                                : order.total) - (order.walletAmountUsed || 0)
+                            )
+                          )}
+                        </span>
                       </div>
                     </>
                   )}

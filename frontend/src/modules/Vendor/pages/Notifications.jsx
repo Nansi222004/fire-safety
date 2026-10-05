@@ -270,7 +270,7 @@ const Notifications = () => {
             else if (inquiryId) navigate(`/vendor/store-builder?inquiryId=${inquiryId}`);
             else if (returnRequestId) navigate(`/vendor/return-requests/${returnRequestId}`);
             else if (documentId) navigate("/vendor/documents");
-            else if (orderId) navigate("/vendor/orders/all-orders");
+            else if (orderId) navigate(`/vendor/orders/${orderId}`);
             else navigate("/vendor/profile");
 
             if (!row.isRead) {

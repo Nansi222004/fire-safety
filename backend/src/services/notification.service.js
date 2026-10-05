@@ -102,7 +102,18 @@ export const createNotification = async (optionsOrRecipientId, ...rest) => {
     // 2. Real-time WebSocket Broadcast (Canonical event: 'new_notification')
     try {
         const room = `${normalizedRecipientType}_${recipientId}`;
-        emitToRoom(room, 'new_notification', notification);
+        // Convert Mongoose document to a plain object for socket emit.
+        // The `data` field is a Mongoose Map — it must be explicitly converted to
+        // a plain object so the frontend can access keys like data.returnRequestId.
+        const notificationPlain = notification.toObject
+            ? notification.toObject({ virtuals: false })
+            : { ...notification };
+        if (notificationPlain.data instanceof Map) {
+            notificationPlain.data = Object.fromEntries(notificationPlain.data);
+        } else if (notificationPlain.data && typeof notificationPlain.data === 'object') {
+            notificationPlain.data = { ...notificationPlain.data };
+        }
+        emitToRoom(room, 'new_notification', notificationPlain);
     } catch (socketErr) {
         console.error('[Notification Service] Socket emit error:', socketErr.message);
     }

@@ -244,12 +244,12 @@ export const updateProfile = asyncHandler(async (req, res) => {
 
     const updatePayload = {
         name: normalizedName,
-        phone: normalizedPhone || undefined,
+        ...(normalizedPhone ? { phone: normalizedPhone } : {}),
     };
 
     const user = await User.findByIdAndUpdate(
         req.user.id,
-        updatePayload,
+        { $set: updatePayload },
         { new: true, runValidators: true }
     );
     if (!user) throw new ApiError(404, 'User not found.');

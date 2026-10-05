@@ -200,6 +200,9 @@ orderSchema.virtual('shipments', {
 // The D1 bug identified in the architecture audit was already resolved in this file.
 
 orderSchema.pre('save', function (next) {
+    if ((this.paymentMethod === 'cod' || this.paymentMethod === 'cash') && typeof this.total === 'number') {
+        this.total = Math.round(this.total);
+    }
     if (this.isModified('status')) {
         const now = new Date();
         if (this.status === 'processing' && !this.processingAt) {

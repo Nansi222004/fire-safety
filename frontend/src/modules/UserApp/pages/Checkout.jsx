@@ -254,7 +254,9 @@ const MobileCheckout = () => {
   }, 0);
 
   const tax = Number(calculatedTax.toFixed(2));
-  const finalTotal = Math.max(0, total + shipping + tax - discount);
+  const isCodPayment = formData.paymentMethod === "cod" || formData.paymentMethod === "cash";
+  const rawFinalTotal = Math.max(0, total + shipping + tax - discount);
+  const finalTotal = isCodPayment ? Math.round(rawFinalTotal) : Number(rawFinalTotal.toFixed(2));
   const taxableAmount = Math.max(0, total - discount);
   const isWalletPayment = formData.paymentMethod === "wallet";
   const walletAmountUsed = isWalletPayment ? finalTotal : 0;

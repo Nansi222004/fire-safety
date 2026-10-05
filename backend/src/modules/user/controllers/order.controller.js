@@ -369,7 +369,7 @@ export const placeOrder = asyncHandler(async (req, res) => {
     });
 
     const tax = financials.tax;
-    const total = financials.finalTotal;
+    const total = normalizedPaymentMethod === 'cod' ? Math.round(financials.finalTotal) : financials.finalTotal;
 
     // 5. Build vendor item groups with dynamic tax snapshot
     const vendorItems = Object.values(vendorMap).map((v) => {
@@ -832,6 +832,9 @@ export const getUserOrders = asyncHandler(async (req, res) => {
     // Attach returnRequests and dynamically compute overall status from Shipments
     const ordersWithReturns = orders.map(order => {
         const orderObj = order.toObject({ virtuals: true });
+        if ((orderObj.paymentMethod === 'cod' || orderObj.paymentMethod === 'cash') && typeof orderObj.total === 'number') {
+            orderObj.total = Math.round(orderObj.total);
+        }
         orderObj.returnRequests = returnMap[String(order._id)] || [];
         
         if (orderObj.shipments && orderObj.shipments.length > 0) {
@@ -870,6 +873,9 @@ export const getOrderDetail = asyncHandler(async (req, res) => {
 
     const returnRequests = await ReturnRequest.find({ orderId: order._id }).populate('vendorId', 'storeName email');
     const orderObject = order.toObject({ virtuals: true });
+    if ((orderObject.paymentMethod === 'cod' || orderObject.paymentMethod === 'cash') && typeof orderObject.total === 'number') {
+        orderObject.total = Math.round(orderObject.total);
+    }
     
     // Mask sensitive bank account number in order detail response
     if (orderObject.bankDetails?.accountNumber) {

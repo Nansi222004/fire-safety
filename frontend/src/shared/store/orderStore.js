@@ -17,9 +17,14 @@ const normalizeVendorGroup = (group) => ({
 
 const normalizeOrder = (order) => {
   const id = order?.id || order?.orderId || order?._id;
+  const isCod = order?.paymentMethod === 'cod' || order?.paymentMethod === 'cash';
+  const total = isCod && typeof order?.total === 'number'
+    ? Math.round(order.total)
+    : order?.total;
   return {
     ...order,
     id,
+    total,
     date: order?.date || order?.createdAt || new Date().toISOString(),
     userId: order?.userId || null,
     items: Array.isArray(order?.items) ? order.items.map(normalizeOrderItem) : [],

@@ -63,7 +63,7 @@ const VendorNotificationWindow = ({ isOpen, onClose, position = "right" }) => {
     }
     const orderId = notification.orderId || data.orderId || data.orderMongoId;
     if (orderId) {
-      return "/vendor/orders/all-orders";
+      return `/vendor/orders/${orderId}`;
     }
     if (data.documentId) {
       return "/vendor/documents";

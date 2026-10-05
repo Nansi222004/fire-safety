@@ -216,7 +216,8 @@ export const initializePayment = asyncHandler(async (req, res) => {
         vendorShippings: shippingByVendor,
     });
 
-    const { finalTotal: total, discountedSubtotal: subtotal, tax } = financials;
+    const { finalTotal: rawTotal, discountedSubtotal: subtotal, tax } = financials;
+    const total = normalizedPaymentMethod === 'cod' ? Math.round(rawTotal) : rawTotal;
 
     // Create populated vendorItems array with full financials, commissions, and item details (names, images)
     const vendorItems = financials.vendorCalculations.map(vc => {
