@@ -12,8 +12,7 @@ import { useWishlistStore } from "../../../../shared/store/wishlistStore";
 import { useUserNotificationStore } from "../../store/userNotificationStore";
 import { useAuthStore } from "../../../../shared/store/authStore";
 import { appLogo } from "../../../../data/logos";
-import { motion } from "framer-motion";
-import { DotLottieReact } from "@lottiefiles/dotlottie-react";
+import { motion, useReducedMotion } from "framer-motion";
 import SearchBar from "../../../../shared/components/SearchBar";
 import MobileCategoryIcons from "../Mobile/MobileCategoryIcons";
 import MobileSidebar from "./MobileSidebar";
@@ -33,7 +32,6 @@ const MobileHeader = ({ onSearch }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showCartAnimation, setShowCartAnimation] = useState(false);
   const [positionsReady, setPositionsReady] = useState(false);
-  const [hasPlayed, setHasPlayed] = useState(false);
   const [animationPositions, setAnimationPositions] = useState({
     startX: 0,
     startY: 0,
@@ -62,6 +60,7 @@ const MobileHeader = ({ onSearch }) => {
   const cartAnimationTrigger = useUIStore(
     (state) => state.cartAnimationTrigger
   );
+  const shouldReduceMotion = useReducedMotion();
   const { user, isAuthenticated, logout } = useAuthStore();
 
   // Header micro-interaction trigger states
@@ -71,35 +70,41 @@ const MobileHeader = ({ onSearch }) => {
   const prevItemCountRef = useRef(itemCount);
   const prevWishlistRef = useRef(wishlistCount);
   const prevUnreadRef = useRef(unreadCount);
+  const previousCartTriggerRef = useRef(cartAnimationTrigger);
 
   // Cart bounce on trigger or count increase
   useEffect(() => {
-    if (cartAnimationTrigger > 0 || itemCount > prevItemCountRef.current) {
+    const increased = itemCount > prevItemCountRef.current;
+    const explicitlyTriggered = cartAnimationTrigger > previousCartTriggerRef.current;
+    prevItemCountRef.current = itemCount;
+    previousCartTriggerRef.current = cartAnimationTrigger;
+    if (explicitlyTriggered || increased) {
       setCartBouncing(true);
       const timer = setTimeout(() => setCartBouncing(false), 550);
       return () => clearTimeout(timer);
     }
-    prevItemCountRef.current = itemCount;
   }, [cartAnimationTrigger, itemCount]);
 
   // Wishlist pop on count increase
   useEffect(() => {
-    if (wishlistCount > prevWishlistRef.current) {
+    const increased = wishlistCount > prevWishlistRef.current;
+    prevWishlistRef.current = wishlistCount;
+    if (increased) {
       setWishlistPopping(true);
       const timer = setTimeout(() => setWishlistPopping(false), 500);
       return () => clearTimeout(timer);
     }
-    prevWishlistRef.current = wishlistCount;
   }, [wishlistCount]);
 
   // Bell wiggle on unread increase
   useEffect(() => {
-    if (unreadCount > prevUnreadRef.current) {
+    const increased = unreadCount > prevUnreadRef.current;
+    prevUnreadRef.current = unreadCount;
+    if (increased) {
       setBellWiggling(true);
       const timer = setTimeout(() => setBellWiggling(false), 650);
       return () => clearTimeout(timer);
     }
-    prevUnreadRef.current = unreadCount;
   }, [unreadCount]);
 
   useEffect(() => {
@@ -259,8 +264,9 @@ const MobileHeader = ({ onSearch }) => {
     }
   }, [isAuthenticated, ensureNotifications]);
 
-  // Calculate animation positions after component mounts
+  // Fly-to-cart feedback is tied to an actual add-to-cart trigger, never page load.
   useEffect(() => {
+    if (shouldReduceMotion || cartAnimationTrigger <= 0) return undefined;
     const calculatePositions = () => {
       if (logoRef.current && cartRef.current) {
         const logoRect = logoRef.current.getBoundingClientRect();
@@ -273,38 +279,24 @@ const MobileHeader = ({ onSearch }) => {
           endY: cartRect.top + cartRect.height / 2,
         };
 
-        // Only set positions if they're valid and animation hasn't played yet
         if (
           positions.startX > 0 &&
           positions.endX > 0 &&
           positions.startY > 0 &&
-          positions.endY > 0 &&
-          !hasPlayed
+          positions.endY > 0
         ) {
           setAnimationPositions(positions);
           setPositionsReady(true);
-          // Start animation once positions are ready
           setShowCartAnimation(true);
-          setHasPlayed(true);
         }
       }
     };
-
-    // Calculate positions after delays to ensure elements are rendered
-    const timer1 = setTimeout(calculatePositions, 100);
-    const timer2 = setTimeout(calculatePositions, 500);
-    const timer3 = setTimeout(calculatePositions, 1000);
-
-    // Recalculate on resize
-    window.addEventListener("resize", calculatePositions);
+    const frame = window.requestAnimationFrame(calculatePositions);
 
     return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-      clearTimeout(timer3);
-      window.removeEventListener("resize", calculatePositions);
+      window.cancelAnimationFrame(frame);
     };
-  }, [hasPlayed]);
+  }, [cartAnimationTrigger, shouldReduceMotion]);
 
   const handleLogout = () => {
     logout();
@@ -321,6 +313,7 @@ const MobileHeader = ({ onSearch }) => {
 
   const animationContent = shouldShowAnimation ? (
     <motion.div
+      key={cartAnimationTrigger}
       className="fixed pointer-events-none"
       style={{
         left: 0,
@@ -344,21 +337,16 @@ const MobileHeader = ({ onSearch }) => {
         opacity: [0, 1, 1, 0.8, 0],
       }}
       transition={{
-        duration: 4,
+        duration: 0.7,
         ease: [0.25, 0.1, 0.25, 1],
-        times: [0, 0.1, 0.7, 0.9, 1],
+        times: [0, 0.15, 0.65, 0.88, 1],
         type: "tween",
       }}
       onAnimationComplete={() => {
         setShowCartAnimation(false);
       }}>
-      <div className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center">
-        <DotLottieReact
-          src="https://lottie.host/083a2680-e854-4006-a50b-674276be82cd/oQMRcuZUkS.lottie"
-          autoplay
-          loop={false}
-          style={{ width: "100%", height: "100%" }}
-        />
+      <div className="w-10 h-10 flex items-center justify-center rounded-full bg-primary-600 text-white shadow-lg">
+        <FiShoppingBag className="text-lg" />
       </div>
     </motion.div>
   ) : null;
@@ -371,12 +359,14 @@ const MobileHeader = ({ onSearch }) => {
         background: headerBackground,
         transition: "background 0.5s ease-in-out",
       }}
-      initial={false}
+      initial={shouldReduceMotion ? false : { opacity: 0, y: -10 }}
       animate={{
+        opacity: 1,
         y: isTopRowVisible ? 0 : -(topRowHeight + 12),
       }}
       transition={{
-        type: "spring",
+        type: shouldReduceMotion ? "tween" : "spring",
+        duration: shouldReduceMotion ? 0 : undefined,
         stiffness: 300,
         damping: 30,
         mass: 0.8,
@@ -481,7 +471,7 @@ const MobileHeader = ({ onSearch }) => {
               whileTap={{ scale: 0.9 }}
               className="relative p-2.5 hover:bg-white/50 rounded-full transition-all duration-300 focus:outline-none"
               animate={
-                cartBouncing || cartAnimationTrigger > 0
+                cartBouncing
                   ? {
                       scale: [1, 0.85, 1.25, 0.95, 1],
                     }

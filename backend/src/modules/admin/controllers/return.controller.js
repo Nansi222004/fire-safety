@@ -29,6 +29,7 @@ import {
     RETURN_TRANSITIONS
 } from '../../../shared/statusTransitions.js';
 import * as exchangeWorkflow from '../../../services/exchangeWorkflow.service.js';
+import { syncReturnRequestShipmentStatus } from '../../../services/returnShipmentSync.service.js';
 
 const enrichReturnItems = (request) => {
     const orderItems = Array.isArray(request?.orderId?.items) ? request.orderId.items : [];
@@ -693,6 +694,7 @@ export const updateReturnRequestStatus = asyncHandler(async (req, res) => {
     if (freshRequest) {
         updatedRequest = freshRequest;
     }
+    await syncReturnRequestShipmentStatus(updatedRequest);
 
     if (status && status !== request.status) {
         if (status === 'approved') {

@@ -3,6 +3,7 @@ import ApiError from '../../../utils/ApiError.js';
 import { ApiResponse } from '../../../utils/ApiResponse.js';
 import Shipment from '../../../models/Shipment.model.js';
 import Order from '../../../models/Order.model.js';
+import ReturnRequest from '../../../models/ReturnRequest.model.js';
 import logisticsEventBus from '../../../events/logisticsEventBus.js';
 import { LOGISTICS_EVENTS } from '../../../events/logisticsEvents.js';
 import EventDispatcher from '../../../services/eventDispatcher.service.js';
@@ -10,10 +11,10 @@ import EventDispatcher from '../../../services/eventDispatcher.service.js';
 // Status Mapping: Shiprocket -> Saara internal Shipment status
 const SHIPROCKET_STATUS_MAP = {
     'NEW': 'pending',
-    'AWB ASSIGNED': 'assigned',
-    'PICKUP SCHEDULED': 'assigned',
-    'OUT FOR PICKUP': 'assigned',
-    'PICKED UP': 'shipped',
+    'AWB ASSIGNED': 'pickup_scheduled',
+    'PICKUP SCHEDULED': 'pickup_scheduled',
+    'OUT FOR PICKUP': 'pickup_scheduled',
+    'PICKED UP': 'picked_up',
     'IN TRANSIT': 'shipped',
     'OUT FOR DELIVERY': 'out_for_delivery',
     'DELIVERED': 'delivered',
@@ -39,7 +40,8 @@ const REVERSE_SHIPROCKET_STATUS_MAP = {
 export const handleShiprocketWebhook = asyncHandler(async (req, res) => {
     // 1. Authenticate webhook token
     const token = req.headers['x-api-key'] || req.query.token;
-    if (process.env.SHIPROCKET_WEBHOOK_TOKEN && token !== process.env.SHIPROCKET_WEBHOOK_TOKEN) {
+    const webhookSecret = process.env.SHIPROCKET_WEBHOOK_SECRET;
+    if (webhookSecret && token !== webhookSecret) {
         throw new ApiError(401, 'Unauthorized webhook access');
     }
 
@@ -51,13 +53,22 @@ export const handleShiprocketWebhook = asyncHandler(async (req, res) => {
         throw new ApiError(400, 'Invalid JSON payload');
     }
 
-    const { awb, current_status, order_id } = payload;
-    if (!awb && !order_id) {
+    const { awb, current_status, order_id, sr_order_id } = payload;
+    if (!awb && !order_id && !sr_order_id) {
         throw new ApiError(400, 'Missing awb or order_id');
     }
 
     // 2. Find Shipment
-    const query = awb ? { awbCode: awb } : { 'providerMetadata.shiprocketOrderId': order_id };
+    const query = awb
+        ? { awbCode: awb }
+        : {
+            $or: [
+                { shipmentNumber: String(order_id || '') },
+                { 'providerMetadata.shiprocketOrderId': sr_order_id || order_id },
+                { 'providerMetadata.shiprocketOrderId': String(sr_order_id || order_id || '') },
+                { providerOrderId: String(sr_order_id || order_id || '') },
+            ],
+        };
     const shipment = await Shipment.findOne(query);
 
     if (!shipment) {
@@ -68,6 +79,7 @@ export const handleShiprocketWebhook = asyncHandler(async (req, res) => {
 
     const rawStatus = (current_status || '').toUpperCase();
     const isReverse = shipment.type === 'reverse';
+    const isExchangeForward = shipment.type === 'exchange_forward';
     const mappedStatus = isReverse ? REVERSE_SHIPROCKET_STATUS_MAP[rawStatus] : SHIPROCKET_STATUS_MAP[rawStatus];
 
     // Persist raw provider information
@@ -144,7 +156,26 @@ export const handleShiprocketWebhook = asyncHandler(async (req, res) => {
             status: shipment.status,
             trackingNumber: shipment.awbCode
         });
-    } else if (!isReverse && isNewlyDelivered) {
+    } else if (isExchangeForward && stateChanged && shipment.returnRequestId) {
+        const exchangeStatus = shipment.status === 'delivered'
+            ? 'completed'
+            : (['shipped', 'in_transit', 'out_for_delivery'].includes(shipment.status)
+                ? 'out_for_delivery'
+                : (shipment.status === 'pickup_scheduled' || shipment.status === 'picked_up'
+                    ? 'replacement_assigned'
+                    : null));
+        if (exchangeStatus) {
+            const allowedCurrentStatuses = exchangeStatus === 'completed'
+                ? ['replacement_assigned', 'out_for_delivery']
+                : (exchangeStatus === 'out_for_delivery'
+                    ? ['replacement_ready', 'replacement_assigned']
+                    : ['replacement_ready']);
+            await ReturnRequest.updateOne(
+                { _id: shipment.returnRequestId, status: { $in: allowedCurrentStatuses } },
+                { $set: { status: exchangeStatus } }
+            );
+        }
+    } else if (shipment.type === 'forward' && isNewlyDelivered) {
         const order = await Order.findById(shipment.orderId).lean();
         logisticsEventBus.emit(LOGISTICS_EVENTS.SHIPMENT_DELIVERED, {
             orderId: shipment.orderId,

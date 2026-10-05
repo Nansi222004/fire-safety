@@ -1,16 +1,15 @@
 /**
- * Reverse Decision Engine
- * 
- * An orchestrator that routes Return Requests through the main Delivery Engine.
- * It builds a delivery context with the Customer as the Origin and the Vendor as the Destination,
- * leverages the core routing logic, and then seamlessly creates the reverse pickup.
+ * Reverse logistics orchestrator.
+ *
+ * The original forward shipment is authoritative for the reverse provider:
+ * Shiprocket forward shipments first use Shiprocket reverse logistics, while
+ * internal deliveries stay in the existing own-fleet return flow. Creation is
+ * claimed atomically on the single reverse Shipment for a ReturnRequest.
  */
-
-import runEngine from './deliveryEngine.service.js';
 import Shipment from '../models/Shipment.model.js';
-import Order from '../models/Order.model.js';
 import ReturnRequest from '../models/ReturnRequest.model.js';
 import Vendor from '../models/Vendor.model.js';
+import Product from '../models/Product.model.js';
 import ownFleetProvider from '../providers/ownFleet.provider.js';
 import shiprocketProvider from '../providers/shiprocket.provider.js';
 import delhiveryProvider from '../providers/delhivery.provider.js';
@@ -21,154 +20,222 @@ const PROVIDER_ADAPTERS = {
     delhivery: delhiveryProvider,
 };
 
+const weightInGrams = (storedWeight) => {
+    const value = Math.max(0, Number(storedWeight) || 0);
+    return value > 0 && value <= 100 ? value * 1000 : value;
+};
+
+const buildPackage = async (returnReq) => {
+    const productIds = (returnReq.items || []).map((item) => item.productId).filter(Boolean);
+    const products = await Product.find({ _id: { $in: productIds } })
+        .select('_id weight dimensions')
+        .lean();
+    const byId = new Map(products.map((product) => [String(product._id), product]));
+    let packageWeight = 0;
+    let packageDimensions = null;
+
+    for (const item of returnReq.items || []) {
+        const product = byId.get(String(item.productId));
+        packageWeight += weightInGrams(product?.weight) * Math.max(1, Number(item.quantity) || 1);
+        if (!packageDimensions && product?.dimensions) packageDimensions = product.dimensions;
+    }
+
+    return {
+        packageWeight: Math.max(1, Math.round(packageWeight || 500)),
+        packageDimensions: packageDimensions || { length: 15, breadth: 12, height: 8 },
+    };
+};
+
+const findOriginalShipment = async (returnReq, order) => {
+    if (returnReq.originalShipmentId) {
+        const linked = await Shipment.findOne({
+            _id: returnReq.originalShipmentId,
+            orderId: order._id,
+            vendorId: returnReq.vendorId,
+            $or: [{ type: 'forward' }, { type: { $exists: false } }],
+        });
+        if (linked) return linked;
+    }
+    return Shipment.findOne({
+        orderId: order._id,
+        vendorId: returnReq.vendorId,
+        $or: [{ type: 'forward' }, { type: { $exists: false } }],
+    })
+        .sort({ createdAt: 1 });
+};
+
 class ReverseEngine {
-    
-    /**
-     * Process a return request by selecting the best logistics provider
-     * and creating a reverse shipment (DTO).
-     * 
-     * @param {string} returnRequestId - ID of the approved ReturnRequest
-     * @returns {Promise<object>} - Result of the reverse pickup creation
-     */
     async processReturn(returnRequestId, options = {}) {
-        const { overrideProviderId, manualAdminId } = options;
+        const { overrideProviderId } = options;
         try {
-            // 1. Load context entities
             const returnReq = await ReturnRequest.findById(returnRequestId).populate('orderId');
             if (!returnReq) throw new Error('ReturnRequest not found');
-
             const order = returnReq.orderId;
             if (!order) throw new Error('Order not found');
 
-            const vendorId = returnReq.vendorId || order.vendorId;
-            const vendor = await Vendor.findById(vendorId);
-            if (!vendor) throw new Error(`Vendor not found for ID ${vendorId}`);
+            const vendor = await Vendor.findById(returnReq.vendorId);
+            if (!vendor) throw new Error(`Vendor not found for ID ${returnReq.vendorId}`);
 
-            // 2. Build reversed context (Customer -> Vendor)
+            const originalShipment = await findOriginalShipment(returnReq, order);
+            let selectedProviderId = overrideProviderId
+                || (PROVIDER_ADAPTERS[originalShipment?.providerId] ? originalShipment.providerId : 'own_fleet');
+            if (!PROVIDER_ADAPTERS[selectedProviderId]) {
+                throw new Error(`Reverse adapter is not available for provider '${selectedProviderId}'.`);
+            }
+
             const customerAddress = order.shippingAddress || {};
-            const vendorWarehouse = (vendor.warehouseAddress && vendor.warehouseAddress.pincode) 
-                ? vendor.warehouseAddress 
+            const vendorWarehouse = vendor.warehouseAddress?.pincode
+                ? vendor.warehouseAddress
                 : (vendor.address || {});
-
+            const packageInfo = await buildPackage(returnReq);
             const context = {
                 origin: {
                     city: customerAddress.city || '',
                     state: customerAddress.state || '',
                     pincode: String(customerAddress.zipCode || customerAddress.pincode || ''),
                     lat: customerAddress.lat,
-                    lng: customerAddress.lng
+                    lng: customerAddress.lng,
                 },
                 destination: {
                     city: vendorWarehouse.city || '',
                     state: vendorWarehouse.state || '',
                     pincode: String(vendorWarehouse.pincode || vendorWarehouse.zipCode || ''),
                     lat: vendorWarehouse.lat || vendorWarehouse.location?.coordinates?.[1],
-                    lng: vendorWarehouse.lng || vendorWarehouse.location?.coordinates?.[0]
+                    lng: vendorWarehouse.lng || vendorWarehouse.location?.coordinates?.[0],
                 },
-                // Assuming single item returns for Phase 5; weight mapping could be expanded
-                packageWeight: 500, // Default reverse package weight
-                paymentMethod: 'online', // Reverse is prepaid/online by merchant
-                customerShippingCharge: 0, 
+                packageWeight: packageInfo.packageWeight,
+                paymentMethod: 'online',
+                customerShippingCharge: 0,
             };
 
-            let selectedProviderId = overrideProviderId;
-
-            // 3. Delegate to Delivery Engine via Strategy Injection (if no manual override)
-            if (!selectedProviderId) {
-                const engineResult = await runEngine(context, {
-                    serviceabilityMethod: 'checkReverseServiceability',
-                    orderId: order._id,
-                    vendorId: vendor._id
-                });
-
-                if (!engineResult.selectedProviderId) {
-                    return {
-                        success: false,
-                        reason: 'NO_SERVICEABLE_PROVIDER',
-                        runId: engineResult.runId
-                    };
+            if (selectedProviderId !== 'own_fleet') {
+                const serviceability = await PROVIDER_ADAPTERS[selectedProviderId].checkReverseServiceability(context);
+                if (!serviceability?.serviceable) {
+                    if (overrideProviderId) {
+                        return { success: false, reason: 'PROVIDER_NOT_SERVICEABLE', error: serviceability?.reason };
+                    }
+                    selectedProviderId = 'own_fleet';
                 }
-                selectedProviderId = engineResult.selectedProviderId;
             }
 
-            // 4. Generate or Update the Shipment Document (with Intent Lock)
-            let shipmentDoc = await Shipment.findOne({ returnRequestId: returnReq._id, type: 'reverse' });
-            
-            if (shipmentDoc) {
-                if (shipmentDoc.status !== 'failed' && shipmentDoc.status !== 'pending') {
-                    throw new Error(`Cannot reassign. Shipment is currently in '${shipmentDoc.status}' state.`);
-                }
-                
-                // Atomic update to 'processing' to prevent concurrent manual reassignments
+            const stableShipmentNumber = `RTO-${String(returnReq._id)}`;
+            let shipmentDoc;
+            try {
                 shipmentDoc = await Shipment.findOneAndUpdate(
-                    { _id: shipmentDoc._id, status: { $in: ['failed', 'pending'] } },
-                    { 
-                        $set: { 
-                            status: 'pending',
+                    { returnRequestId: returnReq._id, type: 'reverse' },
+                    {
+                        $setOnInsert: {
+                            orderId: order._id,
+                            vendorId: vendor._id,
+                            returnRequestId: returnReq._id,
+                            flowKey: `return:${String(returnReq._id)}`,
+                            shipmentNumber: stableShipmentNumber,
+                            type: 'reverse',
                             providerId: selectedProviderId,
-                            shipmentNumber: `RTO-${Date.now()}`, // Regenerate to avoid provider duplicate order errors
-                            errorNotes: null 
-                        }
+                            customerShippingCharge: 0,
+                            status: 'pending',
+                            deliveryMethod: selectedProviderId === 'shiprocket' ? 'SHIPROCKET' : 'INTERNAL',
+                            packageWeight: packageInfo.packageWeight,
+                            packageDimensions: packageInfo.packageDimensions,
+                            externalCreationStatus: 'not_started',
+                        },
                     },
-                    { new: true }
+                    { new: true, upsert: true, setDefaultsOnInsert: true }
                 );
+            } catch (error) {
+                if (error?.code !== 11000) throw error;
+                shipmentDoc = await Shipment.findOne({ returnRequestId: returnReq._id, type: 'reverse' });
+            }
 
-                if (!shipmentDoc) {
-                    throw new Error('Concurrent reassignment detected. Please refresh.');
-                }
-            } else {
-                shipmentDoc = new Shipment({
-                    orderId: order._id,
-                    vendorId: vendor._id,
-                    returnRequestId: returnReq._id, // Link it explicitly
-                    shipmentNumber: `RTO-${Date.now()}`,
-                    providerId: selectedProviderId,
-                    type: 'reverse',
-                    customerShippingCharge: 0,
-                    originAddress: customerAddress,
-                    destinationAddress: vendorWarehouse,
-                    paymentMethod: 'prepaid',
-                    status: 'pending', // Intent lock status
-                    packageWeight: context.packageWeight,
-                    totalWeight: context.packageWeight
+            if (shipmentDoc.externalCreationStatus === 'created' || shipmentDoc.status === 'pickup_scheduled') {
+                return {
+                    success: true,
+                    idempotent: true,
+                    providerId: shipmentDoc.providerId,
+                    shipmentId: shipmentDoc._id,
+                    awb: shipmentDoc.awbCode,
+                };
+            }
+
+            const claimed = await Shipment.findOneAndUpdate(
+                {
+                    _id: shipmentDoc._id,
+                    externalCreationStatus: { $in: ['not_started', 'failed'] },
+                    status: { $in: ['pending', 'failed'] },
+                },
+                {
+                    $set: {
+                        providerId: selectedProviderId,
+                        deliveryMethod: selectedProviderId === 'shiprocket' ? 'SHIPROCKET' : 'INTERNAL',
+                        externalCreationStatus: 'creating',
+                        externalCreationError: '',
+                        status: 'pending',
+                    },
+                },
+                { new: true }
+            );
+            if (!claimed) {
+                const current = await Shipment.findById(shipmentDoc._id);
+                return {
+                    success: current?.externalCreationStatus === 'created',
+                    idempotent: true,
+                    pending: current?.externalCreationStatus === 'creating',
+                    providerId: current?.providerId,
+                    shipmentId: current?._id,
+                    awb: current?.awbCode,
+                };
+            }
+
+            let createResult = await PROVIDER_ADAPTERS[selectedProviderId].createReversePickup(claimed);
+            let fallbackError = '';
+            if (!createResult?.success && selectedProviderId !== 'own_fleet' && !overrideProviderId) {
+                fallbackError = createResult?.error?.message || createResult?.error || 'Courier reverse pickup failed.';
+                selectedProviderId = 'own_fleet';
+                claimed.providerId = selectedProviderId;
+                claimed.deliveryMethod = 'INTERNAL';
+                createResult = await ownFleetProvider.createReversePickup(claimed);
+            }
+
+            if (!createResult?.success) {
+                const errorMessage = createResult?.error?.message || createResult?.error || 'Reverse pickup creation failed.';
+                await Shipment.findByIdAndUpdate(claimed._id, {
+                    $set: { status: 'failed', externalCreationStatus: 'failed', externalCreationError: errorMessage },
                 });
-                await shipmentDoc.save();
+                return { success: false, providerId: selectedProviderId, shipmentId: claimed._id, error: errorMessage };
             }
 
-            // 5. Execute Pickup
-            const adapter = PROVIDER_ADAPTERS[selectedProviderId];
-            if (!adapter) throw new Error('Selected provider adapter not found');
+            const updatedShipment = await Shipment.findByIdAndUpdate(claimed._id, {
+                $set: {
+                    providerId: selectedProviderId,
+                    deliveryMethod: selectedProviderId === 'shiprocket' ? 'SHIPROCKET' : 'INTERNAL',
+                    providerOrderId: createResult.providerMetadata?.shiprocketOrderId,
+                    awbCode: createResult.awbCode,
+                    trackingUrl: createResult.trackingUrl,
+                    courierName: createResult.courierName,
+                    labelUrl: createResult.labelUrl,
+                    providerMetadata: {
+                        ...(createResult.providerMetadata || {}),
+                        originalShipmentId: originalShipment?._id,
+                        originalAwbCode: originalShipment?.awbCode,
+                        ...(fallbackError ? { courierFallbackError: fallbackError } : {}),
+                    },
+                    status: selectedProviderId === 'own_fleet' ? 'pending' : 'pickup_scheduled',
+                    externalCreationStatus: 'created',
+                    externalCreationError: fallbackError,
+                },
+            }, { new: true });
 
-            const createResult = await adapter.createReversePickup(shipmentDoc);
-
-            if (createResult.success) {
-                shipmentDoc.trackingNumber = createResult.awbCode;
-                shipmentDoc.trackingUrl = createResult.trackingUrl;
-                shipmentDoc.providerMetadata = createResult.providerMetadata;
-                shipmentDoc.status = 'pickup_scheduled';
-                await shipmentDoc.save();
-                
-                // Update return request status
-                if (selectedProviderId !== 'own_fleet') {
-                    returnReq.status = 'pickup_assigned';
-                } else if (returnReq.status === 'approved') {
-                    returnReq.status = 'pickup_pending';
-                }
-                await returnReq.save();
-            } else {
-                shipmentDoc.status = 'failed';
-                shipmentDoc.errorNotes = createResult.error?.message;
-                await shipmentDoc.save();
-            }
+            returnReq.reverseShipmentId = updatedShipment._id;
+            if (selectedProviderId !== 'own_fleet') returnReq.status = 'pickup_assigned';
+            await returnReq.save();
 
             return {
-                success: createResult.success,
+                success: true,
                 providerId: selectedProviderId,
-                shipmentId: shipmentDoc._id,
-                awb: createResult.awbCode,
-                error: createResult.error
+                shipmentId: updatedShipment._id,
+                awb: updatedShipment.awbCode,
+                fallback: Boolean(fallbackError),
             };
-
         } catch (error) {
             console.error('[ReverseEngine] Error:', error);
             return { success: false, error: error.message };

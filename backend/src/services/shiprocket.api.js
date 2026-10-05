@@ -46,7 +46,7 @@ import { PROVIDER_ERROR_CODES } from '../providers/providerInterface.js';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const BASE_URL             = 'https://apiv2.shiprocket.in/v1/external';
+const BASE_URL             = (process.env.SHIPROCKET_BASE_URL || 'https://apiv2.shiprocket.in/v1/external').replace(/\/+$/, '');
 const REQUEST_TIMEOUT_MS   = Number(process.env.SHIPROCKET_TIMEOUT_MS) || 8000;
 const TOKEN_VALIDITY_DAYS  = 9;   // Shiprocket tokens last 10 days; we refresh after 9
 const COD_SURCHARGE_RATE   = 0.018;  // 1.8% — Shiprocket standard COD charge

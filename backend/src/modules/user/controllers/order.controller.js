@@ -1183,7 +1183,11 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
     }
 
     // Verify Shipment / Delivery status
-    const shipments = await Shipment.find({ orderId: order._id, vendorId });
+    const shipments = await Shipment.find({
+        orderId: order._id,
+        vendorId,
+        $or: [{ type: 'forward' }, { type: { $exists: false } }],
+    });
     if (shipments.length > 1) {
         throw new ApiError(400, 'Multiple shipments found for this vendor. Please contact support.');
     }
@@ -1265,7 +1269,14 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
         orderId: order._id,
         userId: req.user.id,
         vendorId,
-        status: { $in: ['pending', 'approved', 'pickup_pending', 'pickup_assigned', 'picked_up', 'delivered_to_vendor'] },
+        originalShipmentId: shipments[0]?._id,
+        status: {
+            $in: [
+                'pending', 'approved', 'pickup_pending', 'pickup_assigned', 'picked_up',
+                'delivered_to_vendor', 'replacement_preparing', 'replacement_ready',
+                'replacement_assigned', 'out_for_delivery',
+            ],
+        },
     });
     if (existingOpen) {
         throw new ApiError(409, 'An active return request already exists for this vendor in the selected order.');

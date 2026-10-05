@@ -64,6 +64,8 @@ const shipmentSchema = new mongoose.Schema(
             ref:      'ReturnRequest',
             index:    true,
         },
+        // Stable idempotency key for reverse/exchange shipment creation.
+        flowKey: { type: String, unique: true, sparse: true, index: true },
         vendorId: {
             type:     mongoose.Schema.Types.ObjectId,
             ref:      'Vendor',
@@ -133,6 +135,7 @@ const shipmentSchema = new mongoose.Schema(
             type:    String,
             enum:    [
                 'pending',
+                'processing',
                 'confirmed',
                 'ready_for_pickup',
                 'pickup_scheduled',
@@ -198,6 +201,7 @@ const shipmentSchema = new mongoose.Schema(
             default: 'not_started',
         },
         externalCreationError: { type: String },
+        errorNotes: { type: String },
 
         // ─── OWN FLEET FIELDS ────────────────────────────────────────────
         // All fields below are null/undefined for courier-based shipments.
@@ -277,6 +281,14 @@ const shipmentSchema = new mongoose.Schema(
 
 shipmentSchema.index({ orderId: 1, vendorId: 1 });
 shipmentSchema.index({ returnRequestId: 1, type: 1 });
+shipmentSchema.index(
+    { returnRequestId: 1, type: 1 },
+    {
+        unique: true,
+        partialFilterExpression: { returnRequestId: { $exists: true } },
+        name: 'one_shipment_per_return_flow_type',
+    }
+);
 shipmentSchema.index({ deliveryBoyId: 1, status: 1 });
 shipmentSchema.index({ awbCode: 1 }, { sparse: true }); // sparse — only set for courier shipments
 shipmentSchema.index({ status: 1, deliveredAt: 1 });    // escrow cron query

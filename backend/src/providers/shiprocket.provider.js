@@ -80,6 +80,7 @@ import { createShiprocketClient }              from '../services/shiprocket.api.
 import LogisticsProvider                       from '../models/LogisticsProvider.model.js';
 import Order                                   from '../models/Order.model.js';
 import Vendor                                  from '../models/Vendor.model.js';
+import ReturnRequest                           from '../models/ReturnRequest.model.js';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -157,8 +158,11 @@ class ShiprocketProvider extends BaseProvider {
                 // Default to mock mode if not explicitly set to false
                 if (dbConfig.mockMode === undefined) dbConfig.mockMode = true;
 
-                // Override with .env variable if provided
-                if (process.env.SHIPROCKET_MOCK_MODE !== undefined) {
+                // SHIPROCKET_LIVE is the explicit production switch. It takes
+                // precedence over the legacy inverse SHIPROCKET_MOCK_MODE flag.
+                if (process.env.SHIPROCKET_LIVE !== undefined) {
+                    dbConfig.mockMode = process.env.SHIPROCKET_LIVE.toLowerCase() !== 'true';
+                } else if (process.env.SHIPROCKET_MOCK_MODE !== undefined) {
                     dbConfig.mockMode = process.env.SHIPROCKET_MOCK_MODE === 'true';
                 }
 
@@ -596,17 +600,31 @@ class ShiprocketProvider extends BaseProvider {
             const vendor = await Vendor.findById(shipment.vendorId).lean();
             if (!vendor) throw new Error(`Vendor ${shipment.vendorId} not found`);
 
+            const returnRequest = shipment.returnRequestId
+                ? await ReturnRequest.findById(shipment.returnRequestId).lean()
+                : null;
+
             const isCod = order.paymentMethod === 'cod' || order.paymentMethod === 'cash';
             const vendorGroup = (order.vendorItems || []).find((group) =>
                 String(group.vendorId) === String(shipment.vendorId)
             );
-            const orderItems = (vendorGroup?.items || []).map((item) => ({
+            const originalItems = vendorGroup?.items || [];
+            const replacementByProduct = new Map((returnRequest?.items || []).map((item) => [String(item.productId), item]));
+            const shipmentItems = shipment.type === 'exchange_forward'
+                ? originalItems.filter((item) => replacementByProduct.has(String(item.productId)))
+                : originalItems;
+            const orderItems = shipmentItems.map((item) => ({
                 name: item.name || 'Product',
                 sku: String(item.productId || item.variantKey || 'SKU'),
-                units: Math.max(1, Number(item.quantity) || 1),
-                selling_price: Math.max(0, Number(item.price) || 0),
+                units: shipment.type === 'exchange_forward'
+                    ? Math.max(1, Number(replacementByProduct.get(String(item.productId))?.quantity) || 1)
+                    : Math.max(1, Number(item.quantity) || 1),
+                selling_price: shipment.type === 'exchange_forward'
+                    ? Math.max(0, Number(returnRequest?.exchangeDetails?.newProductPrice) || Number(item.price) || 0)
+                    : Math.max(0, Number(item.price) || 0),
             }));
             const dimensions = shipment.packageDimensions || {};
+            const shipmentSubtotal = orderItems.reduce((sum, item) => sum + item.selling_price * item.units, 0);
 
             // 1. Create Order in Shiprocket
             const createPayload = {
@@ -624,8 +642,10 @@ class ShiprocketProvider extends BaseProvider {
                 billing_phone: order.shippingAddress?.phone || '9999999999',
                 shipping_is_billing: true,
                 order_items: orderItems,
-                payment_method: isCod ? 'COD' : 'Prepaid',
-                sub_total: Math.max(0, Number(vendorGroup?.subtotal) || 0),
+                payment_method: shipment.type === 'exchange_forward' ? 'Prepaid' : (isCod ? 'COD' : 'Prepaid'),
+                sub_total: shipment.type === 'exchange_forward'
+                    ? shipmentSubtotal
+                    : Math.max(0, Number(vendorGroup?.subtotal) || 0),
                 length: Number(dimensions.length),
                 breadth: Number(dimensions.breadth),
                 height: Number(dimensions.height),
@@ -788,9 +808,27 @@ class ShiprocketProvider extends BaseProvider {
             const vendor = await Vendor.findById(shipment.vendorId).lean();
             if (!vendor) throw new Error(`Vendor ${shipment.vendorId} not found`);
 
+            const returnRequest = shipment.returnRequestId
+                ? await ReturnRequest.findById(shipment.returnRequestId).lean()
+                : null;
+
             // For reverse pickups, the customer is the pickup location and vendor is the destination
             const customerAddress = order.shippingAddress;
             const vendorAddress = vendor.warehouseAddress;
+            const returnedItems = (returnRequest?.items || []).map((returnedItem) => {
+                const originalItem = (order.items || []).find((item) =>
+                    String(item.productId) === String(returnedItem.productId)
+                    && String(item.vendorId) === String(shipment.vendorId)
+                );
+                return {
+                    name: returnedItem.name || originalItem?.name || 'Return Item',
+                    sku: String(returnedItem.productId || originalItem?.productId || 'RETURN-SKU'),
+                    units: Math.max(1, Number(returnedItem.quantity) || 1),
+                    selling_price: Math.max(0, Number(originalItem?.price) || 0),
+                };
+            });
+            const dimensions = shipment.packageDimensions || {};
+            const subtotal = returnedItems.reduce((sum, item) => sum + item.selling_price * item.units, 0);
 
             const createPayload = {
                 order_id: shipment.shipmentNumber,
@@ -804,12 +842,12 @@ class ShiprocketProvider extends BaseProvider {
                 pickup_city: customerAddress?.city || 'Unknown',
                 pickup_state: customerAddress?.state || 'Unknown',
                 pickup_country: customerAddress?.country || 'India',
-                pickup_pincode: customerAddress?.zipCode || '000000',
+                pickup_pincode: customerAddress?.zipCode || customerAddress?.pincode || '000000',
                 pickup_email: customerAddress?.email || 'test@example.com',
                 pickup_phone: customerAddress?.phone || '9999999999',
                 
                 // Shipping (Vendor)
-                shipping_customer_name: vendorAddress?.name || vendor.businessName || 'Vendor',
+                shipping_customer_name: vendorAddress?.name || vendor.storeName || vendor.name || 'Vendor',
                 shipping_last_name: '',
                 shipping_address: vendorAddress?.address || 'Unknown',
                 shipping_city: vendorAddress?.city || 'Unknown',
@@ -819,17 +857,14 @@ class ShiprocketProvider extends BaseProvider {
                 shipping_email: vendor.email || 'test@example.com',
                 shipping_phone: vendor.phone || '9999999999',
                 
-                order_items: [{
-                    name: 'Return Items',
-                    sku: 'RETURN-SKU',
-                    units: 1,
-                    selling_price: shipment.customerShippingCharge || 10,
+                order_items: returnedItems.length > 0 ? returnedItems : [{
+                    name: 'Return Item', sku: 'RETURN-SKU', units: 1, selling_price: 0,
                 }],
                 payment_method: 'Prepaid', // Return shipments are always prepaid
-                sub_total: shipment.customerShippingCharge || 10,
-                length: 10,
-                breadth: 10,
-                height: 10,
+                sub_total: subtotal,
+                length: Math.max(1, Number(dimensions.length) || 15),
+                breadth: Math.max(1, Number(dimensions.breadth) || 12),
+                height: Math.max(1, Number(dimensions.height) || 8),
                 weight: (shipment.packageWeight || 500) / 1000,
             };
 

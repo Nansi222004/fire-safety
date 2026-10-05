@@ -77,6 +77,19 @@ export const provisionWholesaleBuyerAccount = async (normalizedEmail, password) 
     }
 };
 
+/**
+ * Verifies the credentials of the approved wholesale vendor linked by email.
+ * This is intentionally narrower than normal vendor login: pending, rejected,
+ * inactive, or unverified vendors can never use it to enter the customer app.
+ */
+export const verifyWholesaleVendorCredentials = async (normalizedEmail, password) => {
+    if (!normalizedEmail || !password) return false;
+    const vendor = await Vendor.findOne({ email: normalizedEmail, isVerified: true, ...WHOLESALE_APPROVED_FILTER })
+        .select('+password');
+    if (!vendor) return false;
+    return vendor.comparePassword(password);
+};
+
 export const isProductWholesaleAvailable = (product) =>
     product?.wholesale?.enabled === true &&
     Number.isFinite(Number(product?.wholesale?.price)) &&
