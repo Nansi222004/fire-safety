@@ -10,26 +10,26 @@ import hoseReelImg from '../../../../assets/Fire Hoses & Hose Reels.webp';
 import smokeAlarmImg from '../../../../assets/Smoke & Fire Alarms.jpg';
 
 const getButtonStyleClasses = (style = "primary", isDarkBg = false) => {
-  const base = "inline-flex items-center justify-center gap-1.5 font-bold py-2 px-5 rounded-xl transition-all duration-300 shadow-md cursor-pointer select-none text-xs active:scale-95 mt-3 self-start whitespace-nowrap";
+  const base = "sf-cta-group inline-flex items-center justify-center gap-1.5 font-bold py-2 px-5 rounded-xl sf-btn-interactive shadow-md cursor-pointer select-none text-xs active:scale-[0.97] mt-3 self-start whitespace-nowrap";
   if (isDarkBg) {
     switch (style) {
       case "secondary":
-        return `${base} bg-slate-800 text-white hover:bg-slate-700 border border-slate-700 hover:scale-[1.02]`;
+        return `${base} bg-slate-800 text-white hover:bg-slate-700 border border-slate-700`;
       case "outline":
-        return `${base} bg-transparent text-white border-2 border-white/80 hover:bg-white/10 hover:scale-[1.02]`;
+        return `${base} bg-transparent text-white border-2 border-white/80 hover:bg-white/10`;
       case "primary":
       default:
-        return `${base} bg-gradient-to-r from-red-600 to-red-700 text-white hover:from-red-700 hover:to-red-800 hover:scale-[1.02] shadow-[0_4px_15px_rgba(227,30,36,0.35)]`;
+        return `${base} bg-gradient-to-r from-red-600 to-red-700 text-white hover:from-red-700 hover:to-red-800 shadow-[0_4px_15px_rgba(227,30,36,0.35)]`;
     }
   } else {
     switch (style) {
       case "secondary":
-        return `${base} bg-slate-100 hover:bg-slate-200 text-slate-800 hover:scale-[1.02]`;
+        return `${base} bg-slate-100 hover:bg-slate-200 text-slate-800`;
       case "outline":
-        return `${base} bg-transparent border-2 border-red-600 text-red-600 hover:bg-red-50 hover:scale-[1.02]`;
+        return `${base} bg-transparent border-2 border-red-600 text-red-600 hover:bg-red-50`;
       case "primary":
       default:
-        return `${base} bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white hover:scale-[1.02] shadow-[0_4px_15px_rgba(227,30,36,0.35)]`;
+        return `${base} bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white shadow-[0_4px_15px_rgba(227,30,36,0.35)]`;
     }
   }
 };
@@ -76,13 +76,13 @@ const CategoryInFocus = ({ banner, items }) => {
         <Link to={displayBanner.link || "#"} onClick={handleBannerClick}>
           <motion.div 
             whileTap={{ scale: 0.98 }}
-            className="relative rounded-2xl md:rounded-3xl overflow-hidden h-48 sm:h-72 md:h-80 lg:h-96 w-full shadow-xl border border-slate-800/80">
+            className="relative rounded-2xl md:rounded-3xl overflow-hidden h-48 sm:h-72 md:h-80 lg:h-96 w-full shadow-xl border border-slate-800/80 group sf-card-lift">
             <picture className="w-full h-full object-cover">
               {displayBanner.mobileImage && <source media="(max-width: 640px)" srcSet={displayBanner.mobileImage} />}
               <img 
                 src={displayBanner.image} 
                 alt={displayBanner.altText || displayBanner.title}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover sf-img-zoom group-hover:scale-[1.03] transition-transform duration-700"
               />
             </picture>
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950/95 via-slate-950/40 to-transparent md:bg-gradient-to-r md:from-slate-950/95 md:via-slate-950/50 md:to-transparent p-5 md:p-8 flex flex-col justify-end">
@@ -91,7 +91,7 @@ const CategoryInFocus = ({ banner, items }) => {
                   {displayBanner.title}
                 </h3>
                 {displayBanner.subtitle && (
-                  <div className="bg-red-500/20 text-red-300 border border-red-500/30 backdrop-blur-md rounded-full px-3 py-1 w-fit mb-2 shadow-sm">
+                  <div className="bg-red-500/20 text-red-300 border border-red-500/30 backdrop-blur-md rounded-full px-3 py-1 w-fit mb-2 shadow-sm animate-deal-pulse">
                     <p className="text-white text-sm sm:text-base font-extrabold">{displayBanner.subtitle}</p>
                   </div>
                 )}
@@ -102,7 +102,8 @@ const CategoryInFocus = ({ banner, items }) => {
                 )}
                 {displayBanner.showButton !== false && (
                   <span className={getButtonStyleClasses(displayBanner.buttonStyle, false)}>
-                    {displayBanner.buttonText || "Shop Now"} &rarr;
+                    <span>{displayBanner.buttonText || "Shop Now"}</span>
+                    <span className="sf-cta-arrow">&rarr;</span>
                   </span>
                 )}
               </div>
@@ -131,14 +132,16 @@ const CategoryInFocus = ({ banner, items }) => {
               <motion.div 
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: index * 0.1 }}
-                className="w-16 h-16 rounded-full overflow-hidden relative shadow-md border-2 border-white ring-2 ring-primary-500/30 group-hover:ring-primary-500/60 group-hover:scale-105 transition-all duration-300">
+                whileHover={{ y: -3 }}
+                whileTap={{ scale: 0.94 }}
+                transition={{ delay: index * 0.05, duration: 0.25 }}
+                className="w-16 h-16 rounded-full overflow-hidden relative shadow-md border-2 border-white ring-2 ring-primary-500/30 group-hover:ring-primary-500/60 group-hover:scale-105 group-hover:shadow-lg transition-all duration-300">
                 {/* Gradient background */}
                 <div className="absolute inset-0 bg-gradient-to-b from-sky-300 to-blue-400 opacity-60" />
                 <img 
                   src={item.image} 
                   alt={item.altText || item.name}
-                  className="w-full h-full object-cover relative z-10 p-1 rounded-full"
+                  className="w-full h-full object-cover relative z-10 p-1 rounded-full group-hover:scale-110 transition-transform duration-300"
                 />
               </motion.div>
               <span className="text-[10px] md:text-xs font-bold text-gray-800 text-center leading-tight group-hover:text-primary-600 transition-colors">

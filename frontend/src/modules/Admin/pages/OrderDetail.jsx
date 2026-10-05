@@ -23,6 +23,7 @@ import { getPlaceholderImage } from '../../../shared/utils/helpers';
 import { getOrderById, updateOrderStatus } from '../services/adminService';
 import { getSocket, joinRoom, leaveRoom } from '../../../shared/utils/socket';
 import toast from 'react-hot-toast';
+import ManualDeliveryAssignment from '../../../shared/components/Delivery/ManualDeliveryAssignment';
 
 const ORDER_PRODUCT_PLACEHOLDER = getPlaceholderImage(100, 100, 'Product');
 
@@ -34,6 +35,7 @@ const OrderDetail = () => {
   const [status, setStatus] = useState('');
 
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     let mounted = true;
@@ -111,7 +113,7 @@ const OrderDetail = () => {
     return () => {
       mounted = false;
     };
-  }, [id, navigate]);
+  }, [id, navigate, refreshKey]);
 
   const handleStatusUpdate = async () => {
     try {
@@ -401,6 +403,12 @@ const OrderDetail = () => {
                           </div>
                         </div>
                       )}
+                      <ManualDeliveryAssignment
+                        shipment={shipment}
+                        orderId={order._id || order.orderId}
+                        actor="admin"
+                        onAssigned={() => setRefreshKey((value) => value + 1)}
+                      />
                     </div>
                   );
                 })}

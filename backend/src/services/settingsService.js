@@ -101,8 +101,24 @@ export const getPaymentSettings = async () => {
 export const getShippingSettings = async () => {
     return getCachedSettings('shipping', {
         defaultShippingRate: 0,
-        freeShippingThreshold: 0
+        freeShippingThreshold: 0,
+        maxShiprocketDistanceKm: 50,
+        maxShiprocketWeightKg: 20,
+        maxAutomaticShiprocketOrderValue: 50000,
     });
+};
+
+export const getDeliveryRoutingSettings = async () => {
+    const shipping = await getShippingSettings();
+    const positive = (value, fallback) => {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+    };
+    return {
+        maxDistanceKm: positive(shipping.maxShiprocketDistanceKm, 50),
+        maxWeightKg: positive(shipping.maxShiprocketWeightKg, 20),
+        maxOrderValue: positive(shipping.maxAutomaticShiprocketOrderValue, 50000),
+    };
 };
 
 /**

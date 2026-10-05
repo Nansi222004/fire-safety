@@ -33,6 +33,18 @@ export const updateSettings = asyncHandler(async (req, res) => {
         if (Number.isNaN(threshold) || threshold < 0) {
             throw new ApiError(400, 'Free shipping threshold must be a non-negative number.');
         }
+        const routingFields = {
+            maxShiprocketDistanceKm: 'Maximum Shiprocket distance',
+            maxShiprocketWeightKg: 'Maximum Shiprocket weight',
+            maxAutomaticShiprocketOrderValue: 'Maximum automatic Shiprocket order value',
+        };
+        for (const [field, label] of Object.entries(routingFields)) {
+            const number = Number(value[field]);
+            if (!Number.isFinite(number) || number <= 0) {
+                throw new ApiError(400, `${label} must be greater than zero.`);
+            }
+            value[field] = number;
+        }
     }
 
     if (key === 'payment') {

@@ -155,6 +155,9 @@ export const getVendorById = (id) =>
 export const updateVendorStatus = (id, status, reason = '') =>
     api.patch(`/admin/vendors/${id}/status`, { status, reason });
 
+export const syncVendorShiprocketPickup = (id) =>
+    api.post(`/admin/vendors/${id}/shiprocket-pickup/sync`);
+
 export const updateCommissionRate = (id, commissionRate) =>
     api.patch(`/admin/vendors/${id}/commission`, { commissionRate });
 

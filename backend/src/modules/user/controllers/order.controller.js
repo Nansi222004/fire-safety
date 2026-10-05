@@ -31,6 +31,7 @@ import AuditLog from '../../../models/AuditLog.model.js';
 import { cancelShipmentDeliveryAssignment } from '../../../services/assignmentService.js';
 import { isCodOnlyMode } from '../../../config/paymentConfig.js';
 import { initializePayment } from './payment.controller.js';
+import { buildOrderRoutingDecisions } from '../../../services/deliveryRouting.service.js';
 
 import {
     encodeVariantKey,
@@ -192,8 +193,14 @@ const resolveOrderItemVariantKey = (product, orderItem) => {
 
 // POST /api/user/orders
 export const placeOrder = asyncHandler(async (req, res) => {
-    const { items, shippingAddress, paymentMethod, couponCode, shippingOption, shippingQuotes } = req.body;
+    const { items, shippingAddress, paymentMethod, couponCode, shippingOption, shippingQuotes, orderType } = req.body;
+    const isWholesaleOrder = orderType === 'b2b';
     const normalizedPaymentMethod = paymentMethod === 'cash' ? 'cod' : paymentMethod;
+
+    // Wholesale validation/pricing has one authoritative implementation.
+    if (isWholesaleOrder) {
+        return initializePayment(req, res);
+    }
 
     // Validate that payment method is enabled
     const isMethodActive = await isPaymentMethodEnabled(normalizedPaymentMethod);
@@ -420,6 +427,13 @@ export const placeOrder = asyncHandler(async (req, res) => {
         };
     });
 
+    const routingDecisions = await buildOrderRoutingDecisions({
+        vendorItems,
+        shippingAddress,
+        paymentMethod: normalizedPaymentMethod,
+        isWholesale: isWholesaleOrder,
+    });
+
     // 6-10. Transactional order creation to avoid partial writes.
     let order = null;
     let idempotentReplay = false;
@@ -468,6 +482,7 @@ export const placeOrder = asyncHandler(async (req, res) => {
             const [createdOrder] = await Order.create([{
                 orderId,
                 userId,
+                orderType: isWholesaleOrder ? 'b2b' : 'b2c',
                 items: financials.items.map(item => ({
                     productId: item.productId,
                     vendorId: item.vendorId,
@@ -651,16 +666,25 @@ export const placeOrder = asyncHandler(async (req, res) => {
             if (!idempotentReplay) {
                 const shipmentDocs = vendorItems.map((vGroup) => {
                     const quote = validatedQuotes[String(vGroup.vendorId)];
+                    const routing = routingDecisions[String(vGroup.vendorId)];
                     return {
                         orderId:                order._id,
                         vendorId:               vGroup.vendorId,
                         vendorName:             vGroup.vendorName,
-                        providerId:             quote ? quote.providerId : 'own_fleet',
+                        providerId:             routing.providerId,
+                        deliveryMethod:         routing.deliveryMethod,
+                        deliveryRoutingReason:  routing.deliveryRoutingReason,
+                        deliveryRoutingDetails: routing.deliveryRoutingDetails,
+                        distance:               routing.distanceKm,
+                        providerPickupLocationId: routing.providerPickupLocationId,
+                        providerMetadata:       routing.providerMetadata,
                         // No quote provided → system automatically defaults to own_fleet. 'AUTO' is correct.
                         selectedBy:             'AUTO',
-                        providerLocked:         !!quote,
+                        providerLocked:         true,
                         customerShippingCharge: Number(vGroup.shipping) || 0,
-                        estimatedDeliveryCost:  quote ? quote.estimatedCost : 0,
+                        estimatedDeliveryCost:  routing.deliveryMethod === 'SHIPROCKET' && quote?.providerId === 'shiprocket'
+                            ? quote.estimatedCost
+                            : 0,
                         status:                 'pending',
                         statusHistory: [{
                             status:    'pending',
@@ -669,9 +693,9 @@ export const placeOrder = asyncHandler(async (req, res) => {
                             notes:     quote ? `Shipment created with provider ${quote.providerId} via quote ${quote.quoteId}` : 'Shipment created at order placement (legacy fallback)',
                         }],
                         // Package — estimated from order items for this vendor
-                        packageWeight: vGroup.items.reduce(
-                            (sum, item) => sum + (500 * (item.quantity || 1)), 0
-                        ) || 500,
+                        packageWeight: routing.packageWeight,
+                        packageDimensions: routing.packageDimensions,
+                        externalCreationStatus: routing.deliveryMethod === 'INTERNAL' ? 'not_applicable' : 'not_started',
                         escrowStatus: 'held',
                         deliveryAssignmentStatus: 'pending',
                         rejectedDeliveryBoys: [],

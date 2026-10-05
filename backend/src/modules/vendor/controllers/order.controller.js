@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import ApiError from '../../../utils/ApiError.js';
 import Order from '../../../models/Order.model.js';
 import Shipment from '../../../models/Shipment.model.js';
+import DeliveryBoy from '../../../models/DeliveryBoy.model.js';
 import Commission from '../../../models/Commission.model.js';
 import Settlement from '../../../models/Settlement.model.js';
 import mongoose from 'mongoose';
@@ -11,12 +12,57 @@ import { createNotification } from '../../../services/notification.service.js';
 import {
     autoAssignDeliveryPartner,
     autoAssignDeliveryPartnerLegacy,
+    manualAssignDeliveryPartner,
 } from '../../../services/assignmentService.js';
 import { notifyOrderUpdate } from '../../../services/socket.service.js';
 import { buildVendorItemsSummary } from '../../../utils/notificationProductFormatter.js';
 import { getDefaultCommissionRate } from '../../../services/settingsService.js';
 import { processCancellationRefund } from '../../../services/cancellationRefundService.js';
 import { ensureDeliveryOtpForShipment } from '../../../services/deliveryOtp.service.js';
+import { createShiprocketShipmentOrFallback } from '../../../services/shiprocketShipment.service.js';
+
+export const getAvailableDeliveryPartners = asyncHandler(async (req, res) => {
+    const partners = await DeliveryBoy.find({
+        isActive: true,
+        applicationStatus: 'approved',
+        status: 'available',
+        isAvailable: true,
+    }).select('name phone email vehicleType vehicleNumber status maxActiveOrders').sort({ name: 1 }).lean();
+    res.status(200).json(new ApiResponse(200, partners, 'Available delivery partners fetched.'));
+});
+
+export const assignDeliveryPartner = asyncHandler(async (req, res) => {
+    if (!mongoose.Types.ObjectId.isValid(req.body.deliveryBoyId)) {
+        throw new ApiError(400, 'A valid delivery partner is required.');
+    }
+    const orderFilter = [{ orderId: req.params.id }];
+    if (mongoose.Types.ObjectId.isValid(req.params.id)) orderFilter.push({ _id: req.params.id });
+    const order = await Order.findOne({
+        $or: orderFilter,
+        'vendorItems.vendorId': req.user.id,
+    }).select('_id');
+    if (!order) throw new ApiError(404, 'Vendor order not found.');
+    const shipment = await Shipment.findOne({
+        _id: req.params.shipmentId,
+        orderId: order._id,
+        vendorId: req.user.id,
+    });
+    if (!shipment) throw new ApiError(404, 'Internal delivery shipment not found.');
+    const result = await manualAssignDeliveryPartner({
+        shipmentId: shipment._id,
+        deliveryBoyId: req.body.deliveryBoyId,
+        actorRole: 'vendor',
+        actorId: req.user.id,
+        allowReassignment: false,
+    });
+    if (!result.success) {
+        const status = ['ALREADY_ASSIGNED', 'ASSIGNMENT_CONFLICT'].includes(result.code) ? 409 : 400;
+        throw new ApiError(status, result.code === 'ALREADY_ASSIGNED'
+            ? 'A delivery partner is already assigned. Ask Admin to use explicit reassignment.'
+            : `Unable to assign delivery partner: ${result.code}`);
+    }
+    res.status(200).json(new ApiResponse(200, result.shipment, 'Delivery partner assigned.'));
+});
 
 const deriveTopLevelOrderStatus = (vendorItems = [], fallback = 'pending') => {
     const statuses = (vendorItems || [])
@@ -337,25 +383,14 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
         if (shipmentForVendor) {
             // New order (Phase 5.1+): use Shipment-primary assignment
             if (shipmentForVendor.providerId === 'shiprocket') {
-                // Fire and forget Shiprocket assignment
-                import('../../../providers/shiprocket.provider.js')
-                    .then(({ default: shiprocketProvider }) => {
-                        shiprocketProvider.createShipment(shipmentForVendor).then(res => {
-                            if (res.success) {
-                                shipmentForVendor.awbCode = res.awbCode;
-                                shipmentForVendor.trackingUrl = res.trackingUrl;
-                                shipmentForVendor.labelUrl = res.labelUrl;
-                                shipmentForVendor.providerOrderId = res.providerMetadata?.shiprocketOrderId;
-                                shipmentForVendor.providerMetadata = res.providerMetadata;
-                                shipmentForVendor.save().catch(e => console.error('Failed to save 3PL shipment info:', e));
-                            } else {
-                                console.error('[3PL] Shiprocket createShipment failed:', res.error);
-                                shipmentForVendor.deliveryAssignmentStatus = 'failed';
-                                shipmentForVendor.save().catch(e => console.error(e));
-                            }
-                        }).catch(err => console.error('[3PL] Shiprocket createShipment exception:', err));
+                // Atomic creation prevents duplicate Shiprocket orders on repeated status requests.
+                // A provider/API failure converts the same Shipment to internal manual delivery.
+                createShiprocketShipmentOrFallback(shipmentForVendor._id)
+                    .then((result) => {
+                        if (!result.success) console.error('[3PL] Shiprocket fallback:', result.error || result.reason);
+                        notifyOrderUpdate(order);
                     })
-                    .catch(err => console.error('Failed to load shiprocket provider:', err));
+                    .catch(err => console.error('[3PL] Shiprocket create/fallback exception:', err));
             } else if (shipmentForVendor.providerId === 'delhivery') {
                 // Fire and forget Delhivery assignment
                 import('../../../providers/delhivery.provider.js')
@@ -377,7 +412,10 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
                     })
                     .catch(err => console.error('Failed to load delhivery provider:', err));
             } else if (shipmentForVendor.providerId === 'own_fleet') {
-                autoAssignDeliveryPartner(shipmentForVendor._id);
+                // Routed internal orders are intentionally manual: Vendor or Admin assigns.
+                if (shipmentForVendor.deliveryMethod !== 'INTERNAL') {
+                    autoAssignDeliveryPartner(shipmentForVendor._id);
+                }
             } else {
                 console.warn(`[Auto Assign] Unknown provider ${shipmentForVendor.providerId} for shipment ${shipmentForVendor._id}.`);
             }

@@ -64,6 +64,44 @@ const MobileHeader = ({ onSearch }) => {
   );
   const { user, isAuthenticated, logout } = useAuthStore();
 
+  // Header micro-interaction trigger states
+  const [cartBouncing, setCartBouncing] = useState(false);
+  const [wishlistPopping, setWishlistPopping] = useState(false);
+  const [bellWiggling, setBellWiggling] = useState(false);
+  const prevItemCountRef = useRef(itemCount);
+  const prevWishlistRef = useRef(wishlistCount);
+  const prevUnreadRef = useRef(unreadCount);
+
+  // Cart bounce on trigger or count increase
+  useEffect(() => {
+    if (cartAnimationTrigger > 0 || itemCount > prevItemCountRef.current) {
+      setCartBouncing(true);
+      const timer = setTimeout(() => setCartBouncing(false), 550);
+      return () => clearTimeout(timer);
+    }
+    prevItemCountRef.current = itemCount;
+  }, [cartAnimationTrigger, itemCount]);
+
+  // Wishlist pop on count increase
+  useEffect(() => {
+    if (wishlistCount > prevWishlistRef.current) {
+      setWishlistPopping(true);
+      const timer = setTimeout(() => setWishlistPopping(false), 500);
+      return () => clearTimeout(timer);
+    }
+    prevWishlistRef.current = wishlistCount;
+  }, [wishlistCount]);
+
+  // Bell wiggle on unread increase
+  useEffect(() => {
+    if (unreadCount > prevUnreadRef.current) {
+      setBellWiggling(true);
+      const timer = setTimeout(() => setBellWiggling(false), 650);
+      return () => clearTimeout(timer);
+    }
+    prevUnreadRef.current = unreadCount;
+  }, [unreadCount]);
+
   useEffect(() => {
     if (isAuthenticated) {
       ensureWishlist();
@@ -364,12 +402,14 @@ const MobileHeader = ({ onSearch }) => {
           {/* Menu and Logo */}
           <div className="flex items-center gap-2 flex-shrink-0 overflow-visible relative z-[10001]">
             {/* Hamburger Menu */}
-            <button
+            <motion.button
+              whileTap={{ scale: 0.92 }}
               onClick={() => setIsSidebarOpen(true)}
-              className="p-2 -ml-2 hover:bg-white/50 rounded-full transition-all duration-300"
+              className="p-2 -ml-2 hover:bg-white/50 active:bg-white/70 rounded-full transition-colors duration-200"
+              aria-label="Open Navigation Menu"
             >
               <FiMenu className="text-2xl text-gray-700" />
-            </button>
+            </motion.button>
 
             <Link
               to="/home"
@@ -411,67 +451,81 @@ const MobileHeader = ({ onSearch }) => {
           {/* Right Side Actions */}
           <div className="flex items-center gap-1 sm:gap-2">
             {/* Wishlist Button */}
-            <Link
-              to="/wishlist"
-              className="relative p-2.5 hover:bg-white/50 rounded-full transition-all duration-300"
-            >
-              <FiHeart className="text-xl text-gray-700" />
-              {wishlistCount > 0 && (
-                <motion.span
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
-                  style={{ backgroundColor: "#ffc101" }}
-                >
-                  {wishlistCount > 9 ? "9+" : wishlistCount}
-                </motion.span>
-              )}
-            </Link>
+            <motion.div whileTap={{ scale: 0.9 }}>
+              <Link
+                to="/wishlist"
+                className="relative p-2.5 hover:bg-white/50 rounded-full transition-all duration-300 block"
+                title="Wishlist"
+              >
+                <FiHeart className={`text-xl text-gray-700 transition-all duration-200 ${wishlistPopping ? 'animate-heart-pop text-red-500' : ''}`} />
+                {wishlistCount > 0 && (
+                  <motion.span
+                    key={wishlistCount}
+                    initial={{ scale: 0.7 }}
+                    animate={{ scale: [0.7, 1.25, 1] }}
+                    transition={{ duration: 0.35, ease: "easeOut" }}
+                    className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold shadow-sm"
+                    style={{ backgroundColor: "#E31E24" }}
+                  >
+                    {wishlistCount > 9 ? "9+" : wishlistCount}
+                  </motion.span>
+                )}
+              </Link>
+            </motion.div>
 
             {/* Cart Button */}
             <motion.button
               ref={cartRef}
               data-cart-icon
               onClick={toggleCart}
-              className="relative p-2.5 hover:bg-white/50 rounded-full transition-all duration-300"
+              whileTap={{ scale: 0.9 }}
+              className="relative p-2.5 hover:bg-white/50 rounded-full transition-all duration-300 focus:outline-none"
               animate={
-                cartAnimationTrigger > 0
+                cartBouncing || cartAnimationTrigger > 0
                   ? {
-                      scale: [1, 1.2, 1],
+                      scale: [1, 0.85, 1.25, 0.95, 1],
                     }
                   : {}
               }
-              transition={{ duration: 0.5, ease: "easeOut" }}>
-              <FiShoppingBag className="text-xl text-gray-700" />
+              transition={{ duration: 0.5, ease: "easeOut" }}
+              title="Shopping Cart"
+            >
+              <FiShoppingBag className={`text-xl text-gray-700 transition-colors ${cartBouncing ? 'text-primary-600' : ''}`} />
               {itemCount > 0 && (
                 <motion.span
                   key={itemCount}
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
-                  style={{ backgroundColor: "#ffc101" }}>
+                  initial={{ scale: 0.7 }}
+                  animate={{ scale: [0.7, 1.25, 1] }}
+                  transition={{ duration: 0.35, ease: "easeOut" }}
+                  className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold shadow-sm"
+                  style={{ backgroundColor: "#E31E24" }}>
                   {itemCount > 9 ? "9+" : itemCount}
                 </motion.span>
               )}
             </motion.button>
 
             {/* Notification Button */}
-            <Link
-              to="/notifications"
-              className="relative p-2.5 hover:bg-white/50 rounded-full transition-all duration-300"
-            >
-              <FiBell className="text-xl text-gray-700" />
-              {unreadCount > 0 && (
-                <motion.span
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
-                  style={{ backgroundColor: "#ffc101" }}
-                >
-                  {unreadCount > 9 ? "9+" : unreadCount}
-                </motion.span>
-              )}
-            </Link>
+            <motion.div whileTap={{ scale: 0.9 }}>
+              <Link
+                to="/notifications"
+                className="relative p-2.5 hover:bg-white/50 rounded-full transition-all duration-300 block"
+                title="Notifications"
+              >
+                <FiBell className={`text-xl text-gray-700 transition-all duration-200 ${bellWiggling ? 'animate-bell-wiggle text-red-500' : ''}`} />
+                {unreadCount > 0 && (
+                  <motion.span
+                    key={unreadCount}
+                    initial={{ scale: 0.7 }}
+                    animate={{ scale: [0.7, 1.2, 1] }}
+                    transition={{ duration: 0.35, ease: "easeOut" }}
+                    className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold shadow-sm"
+                    style={{ backgroundColor: "#E31E24" }}
+                  >
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </motion.span>
+                )}
+              </Link>
+            </motion.div>
           </div>
         </motion.div>
 

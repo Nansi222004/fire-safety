@@ -33,20 +33,21 @@ const MobileBottomNav = () => {
   const iconVariants = {
     inactive: {
       scale: 1,
-      color: "#878787",
+      color: "#64748b",
     },
     active: {
       scale: 1.1,
       color: "#E31E24", // Fire Red Primary Color
       transition: {
-        duration: 0.3,
-        ease: "easeOut",
+        type: "spring",
+        stiffness: 400,
+        damping: 25,
       },
     },
   };
 
   const navContent = (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-l border-r border-accent-200/30 z-[9999] safe-area-bottom shadow-[0_-2px_10px_rgba(0,0,0,0.05)] md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 z-[9999] safe-area-bottom shadow-[0_-4px_20px_rgba(0,0,0,0.06)] md:hidden">
       <div className="flex items-center justify-around h-14 px-1">
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -64,9 +65,9 @@ const MobileBottomNav = () => {
                 {active && (
                   <motion.div
                     layoutId="activeTab"
-                    className="absolute inset-0 bg-primary-50 rounded-full"
+                    className="absolute inset-1 bg-red-50/80 rounded-2xl border border-red-100/60 shadow-[0_0_12px_rgba(227,30,36,0.08)]"
                     initial={false}
-                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                    transition={{ type: "spring", stiffness: 450, damping: 30 }}
                   />
                 )}
 
@@ -87,14 +88,23 @@ const MobileBottomNav = () => {
                   />
                 </motion.div>
 
+                {/* Active bottom micro-dot */}
+                {active && (
+                  <motion.div
+                    layoutId="activeDot"
+                    className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-[#E31E24] shadow-[0_0_6px_rgba(227,30,36,0.6)] z-20"
+                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                  />
+                )}
+
                 {/* Badge */}
                 {item.badge && (
                   <motion.span
                     key={item.badge}
-                    initial={{ scale: 0, rotate: -180 }}
-                    animate={{ scale: 1, rotate: 0 }}
-                    className="absolute -top-0.5 -right-0.5 w-5 h-5 rounded-full border-2 border-white shadow-md z-20 flex items-center justify-center"
-                    style={{ backgroundColor: "#ffc101" }}>
+                    initial={{ scale: 0.7 }}
+                    animate={{ scale: [0.7, 1.25, 1] }}
+                    transition={{ duration: 0.3 }}
+                    className="absolute -top-0.5 -right-0.5 w-5 h-5 rounded-full border-2 border-white shadow-md z-20 flex items-center justify-center bg-[#E31E24]">
                     <span className="text-[8px] font-bold text-white">
                       {item.badge > 9 ? "9+" : item.badge}
                     </span>

@@ -43,6 +43,45 @@ const DesktopHeader = ({ onSearch }) => {
     (state) => state.ensureHydrated,
   );
   const toggleCart = useUIStore((state) => state.toggleCart);
+  const cartAnimationTrigger = useUIStore((state) => state.cartAnimationTrigger);
+
+  // Micro-interaction animation trigger states
+  const [cartBouncing, setCartBouncing] = useState(false);
+  const [wishlistPopping, setWishlistPopping] = useState(false);
+  const [bellWiggling, setBellWiggling] = useState(false);
+  const prevItemCountRef = useRef(itemCount);
+  const prevWishlistRef = useRef(wishlistCount);
+  const prevUnreadRef = useRef(unreadCount);
+
+  // Trigger bounce on cart quantity change or explicit trigger
+  useEffect(() => {
+    if (cartAnimationTrigger > 0 || itemCount > prevItemCountRef.current) {
+      setCartBouncing(true);
+      const timer = setTimeout(() => setCartBouncing(false), 550);
+      return () => clearTimeout(timer);
+    }
+    prevItemCountRef.current = itemCount;
+  }, [cartAnimationTrigger, itemCount]);
+
+  // Trigger pop on wishlist change
+  useEffect(() => {
+    if (wishlistCount > prevWishlistRef.current) {
+      setWishlistPopping(true);
+      const timer = setTimeout(() => setWishlistPopping(false), 500);
+      return () => clearTimeout(timer);
+    }
+    prevWishlistRef.current = wishlistCount;
+  }, [wishlistCount]);
+
+  // Trigger subtle wiggle on new notification
+  useEffect(() => {
+    if (unreadCount > prevUnreadRef.current) {
+      setBellWiggling(true);
+      const timer = setTimeout(() => setBellWiggling(false), 650);
+      return () => clearTimeout(timer);
+    }
+    prevUnreadRef.current = unreadCount;
+  }, [unreadCount]);
 
   // Category Store
   const { categories, initialize, getRootCategories } = useCategoryStore();
@@ -175,7 +214,7 @@ const DesktopHeader = ({ onSearch }) => {
           <div className="flex-1 min-w-[220px] md:min-w-[280px] lg:min-w-[340px] max-w-2xl mx-1 sm:mx-2 lg:mx-4">
             <form
               onSubmit={handleSearchSubmit}
-              className="relative flex items-center w-full bg-gray-50 rounded-full pl-4 pr-1 py-1 border border-gray-200 focus-within:border-primary-500 focus-within:bg-white focus-within:shadow-md transition-all duration-300"
+              className="relative flex items-center w-full bg-gray-50 rounded-full pl-4 pr-1 py-1 border border-gray-200 focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/20 focus-within:bg-white focus-within:shadow-md transition-all duration-300"
             >
               <input
                 type="text"
@@ -190,11 +229,11 @@ const DesktopHeader = ({ onSearch }) => {
                 type="button"
                 onClick={isListening ? stopListening : startListening}
                 disabled={!isSupported && !isListening}
-                className={`p-2 rounded-full transition-all shrink-0 ml-1 ${isListening
-                  ? 'bg-red-50 text-red-500 animate-pulse'
+                className={`p-2 rounded-full transition-all duration-200 shrink-0 ml-1 active:scale-95 ${isListening
+                  ? 'bg-red-50 text-red-500 animate-pulse scale-105'
                   : !isSupported
                     ? 'text-gray-300 cursor-not-allowed'
-                    : 'text-gray-400 hover:text-primary-600 hover:bg-primary-50 cursor-pointer'
+                    : 'text-gray-400 hover:text-primary-600 hover:bg-primary-50 hover:scale-105 cursor-pointer'
                   }`}
                 title={!isSupported ? "Voice search is not supported in your browser" : "Voice Search"}
               >
@@ -204,7 +243,7 @@ const DesktopHeader = ({ onSearch }) => {
               {/* Search Button */}
               <button
                 type="submit"
-                className="bg-primary-600 hover:bg-primary-700 text-white p-2 rounded-full transition-all shrink-0 ml-1.5 cursor-pointer"
+                className="bg-primary-600 hover:bg-primary-700 text-white p-2 rounded-full transition-all duration-200 shrink-0 ml-1.5 cursor-pointer hover:scale-105 active:scale-95 shadow-sm hover:shadow-md hover:shadow-primary-600/30"
                 title="Search"
               >
                 <FiSearch className="text-base lg:text-lg" />
@@ -217,18 +256,21 @@ const DesktopHeader = ({ onSearch }) => {
             {/* Wishlist */}
             <Link
               to="/wishlist"
-              className="flex items-center gap-1.5 text-gray-600 hover:text-primary-600 transition-colors shrink-0"
+              className="group flex items-center gap-1.5 text-gray-600 hover:text-primary-600 transition-colors shrink-0"
               title="Wishlist"
             >
               <div className="relative p-1">
-                <FiHeart className="text-xl lg:text-2xl" />
+                <FiHeart className={`text-xl lg:text-2xl transition-all duration-200 group-hover:scale-110 ${wishlistPopping ? 'animate-heart-pop text-red-500 fill-red-500' : ''}`} />
                 {wishlistCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
-                    {wishlistCount}
+                  <span
+                    key={wishlistCount}
+                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center animate-badge-pop shadow-sm"
+                  >
+                    {wishlistCount > 9 ? "9+" : wishlistCount}
                   </span>
                 )}
               </div>
-              <span className="text-xs lg:text-sm font-semibold tracking-wide hidden 2xl:inline">
+              <span className="text-xs lg:text-sm font-semibold tracking-wide hidden 2xl:inline group-hover:text-primary-600 transition-colors">
                 Wishlist
               </span>
             </Link>
@@ -236,18 +278,22 @@ const DesktopHeader = ({ onSearch }) => {
             {/* Cart */}
             <button
               onClick={toggleCart}
-              className="flex items-center gap-1.5 text-gray-600 hover:text-primary-600 transition-colors focus:outline-none shrink-0"
+              data-cart-icon
+              className="group flex items-center gap-1.5 text-gray-600 hover:text-primary-600 transition-colors focus:outline-none shrink-0"
               title="Cart"
             >
               <div className="relative p-1">
-                <FiShoppingBag className="text-xl lg:text-2xl" />
+                <FiShoppingBag className={`text-xl lg:text-2xl transition-all duration-200 group-hover:scale-110 ${cartBouncing ? 'animate-cart-bounce text-primary-600' : ''}`} />
                 {itemCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary-600 text-white text-[9px] font-bold flex items-center justify-center">
-                    {itemCount}
+                  <span
+                    key={itemCount}
+                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary-600 text-white text-[9px] font-bold flex items-center justify-center animate-badge-pop shadow-sm"
+                  >
+                    {itemCount > 9 ? "9+" : itemCount}
                   </span>
                 )}
               </div>
-              <span className="text-xs lg:text-sm font-semibold tracking-wide hidden 2xl:inline">
+              <span className="text-xs lg:text-sm font-semibold tracking-wide hidden 2xl:inline group-hover:text-primary-600 transition-colors">
                 Cart
               </span>
             </button>
@@ -255,18 +301,21 @@ const DesktopHeader = ({ onSearch }) => {
             {/* Notifications */}
             <Link
               to={isAuthenticated ? "/notifications" : "/login"}
-              className="flex items-center gap-1.5 text-gray-600 hover:text-primary-600 transition-colors shrink-0"
+              className="group flex items-center gap-1.5 text-gray-600 hover:text-primary-600 transition-colors shrink-0"
               title="Notifications"
             >
               <div className="relative p-1">
-                <FiBell className="text-xl lg:text-2xl" />
+                <FiBell className={`text-xl lg:text-2xl transition-all duration-200 group-hover:rotate-12 ${bellWiggling ? 'animate-bell-wiggle text-red-500' : ''}`} />
                 {isAuthenticated && unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
-                    {unreadCount}
+                  <span
+                    key={unreadCount}
+                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center animate-badge-pop shadow-sm"
+                  >
+                    {unreadCount > 9 ? "9+" : unreadCount}
                   </span>
                 )}
               </div>
-              <span className="text-xs lg:text-sm font-semibold tracking-wide hidden 2xl:inline">
+              <span className="text-xs lg:text-sm font-semibold tracking-wide hidden 2xl:inline group-hover:text-primary-600 transition-colors">
                 Notifications
               </span>
             </Link>
@@ -274,10 +323,10 @@ const DesktopHeader = ({ onSearch }) => {
             {/* Become a Vendor Button */}
             <Link
               to="/vendor/register"
-              className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 border border-primary-600 text-primary-600 hover:bg-primary-600 hover:text-white rounded-full text-xs font-bold transition-all shadow-sm shrink-0"
+              className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 border border-primary-600 text-primary-600 hover:bg-primary-600 hover:text-white rounded-full text-xs font-bold transition-all duration-200 shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98] shrink-0"
               title="Register as a Seller / Vendor"
             >
-              <FiBriefcase className="text-sm" />
+              <FiBriefcase className="text-sm transition-transform duration-200 group-hover:scale-110" />
               <span>Become a Seller</span>
             </Link>
 

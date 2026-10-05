@@ -8,6 +8,7 @@ import MobileCartBar from './MobileCartBar';
 import CartDrawer from '../../../../shared/components/Cart/CartDrawer';
 import useMobileHeaderHeight from '../../hooks/useMobileHeaderHeight';
 import ErrorBoundary from '../../../../shared/components/ErrorBoundary/ErrorBoundary';
+import "../../customer-animations.css";
 
 const MobileLayout = ({ children, showBottomNav = true, showCartBar = true, showHeader = true, onSearch }) => {
   const location = useLocation();

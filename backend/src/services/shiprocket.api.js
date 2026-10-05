@@ -172,6 +172,9 @@ const generateMockTokenResponse = (email) => ({
     updated_at: new Date().toISOString(),
 });
 
+// Process-local registry used only in mock mode. Live mode always uses Shiprocket.
+const mockPickupLocations = new Map();
+
 // ─── Shiprocket API Client ─────────────────────────────────────────────────────
 
 class ShiprocketApiClient {
@@ -355,6 +358,39 @@ class ShiprocketApiClient {
      * @param {boolean}       isCod            - true for Cash on Delivery orders
      * @returns {Promise<{ success, data: { couriers, serviceable }, error }>}
      */
+    async getPickupLocations() {
+        if (this._mockMode) {
+            return {
+                success: true,
+                data: { shipping_address: Array.from(mockPickupLocations.values()) },
+                error: null,
+            };
+        }
+        return this._httpRequest('GET', '/settings/company/pickup');
+    }
+
+    async addPickupLocation(payload) {
+        if (this._mockMode) {
+            const key = String(payload?.pickup_location || '').trim();
+            if (!key) {
+                return {
+                    success: false,
+                    data: null,
+                    error: { code: PROVIDER_ERROR_CODES.API_ERROR, message: 'pickup_location is required' },
+                };
+            }
+            if (!mockPickupLocations.has(key)) {
+                mockPickupLocations.set(key, {
+                    id: `MOCK_PICKUP_${mockPickupLocations.size + 1}`,
+                    ...payload,
+                });
+            }
+            const address = mockPickupLocations.get(key);
+            return { success: true, data: { pickup_id: address.id, address }, error: null };
+        }
+        return this._httpRequest('POST', '/settings/company/addpickup', payload);
+    }
+
     async checkServiceability(pickupPincode, deliveryPincode, weightGrams, isCod) {
         console.log(
             `[shiprocket.api] checkServiceability:`,

@@ -1,0 +1,208 @@
+/* ==========================================================================
+   SafeFire Customer / UserApp Micro-Interactions & Animation Styles
+   GPU-accelerated, lightweight, accessibility-respecting styles.
+   ========================================================================== */
+
+/* Cart Bounce Animation */
+@keyframes sf-cart-bounce {
+  0% { transform: scale(1); }
+  25% { transform: scale(0.86); }
+  50% { transform: scale(1.22); }
+  75% { transform: scale(0.94); }
+  100% { transform: scale(1); }
+}
+
+/* Badge Scale Pop */
+@keyframes sf-badge-pop {
+  0% { transform: scale(0.65); opacity: 0.5; }
+  50% { transform: scale(1.28); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Wishlist Heart Pop */
+@keyframes sf-heart-pop {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.35) rotate(-6deg); }
+  65% { transform: scale(0.92) rotate(4deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+/* Subtle Bell Wiggle */
+@keyframes sf-bell-wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  15% { transform: rotate(-14deg); }
+  30% { transform: rotate(12deg); }
+  45% { transform: rotate(-8deg); }
+  60% { transform: rotate(6deg); }
+  75% { transform: rotate(-2deg); }
+}
+
+/* Subtle Safety Shield Glow */
+@keyframes sf-shield-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(227, 30, 36, 0);
+  }
+  50% {
+    box-shadow: 0 0 16px 2px rgba(227, 30, 36, 0.22);
+  }
+}
+
+/* Gentle Soft Pulse for Safety / Deal Badges */
+@keyframes sf-deal-pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(227, 30, 36, 0.15);
+  }
+  50% {
+    transform: scale(1.025);
+    box-shadow: 0 0 10px 2px rgba(227, 30, 36, 0.25);
+  }
+}
+
+/* Slow Floating Parallax for Featured Graphics */
+@keyframes sf-float-gentle {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+/* Shimmer Skeleton Wave */
+@keyframes sf-shimmer-wave {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Scale Up Pop (Checkmark feedback) */
+@keyframes sf-scale-up {
+  0% { transform: scale(0.4); opacity: 0; }
+  60% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Classes */
+.animate-scale-up {
+  animation: sf-scale-up 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.animate-cart-bounce {
+  animation: sf-cart-bounce 0.55s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.animate-badge-pop {
+  animation: sf-badge-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.animate-heart-pop {
+  animation: sf-heart-pop 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.animate-bell-wiggle {
+  animation: sf-bell-wiggle 0.65s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+  transform-origin: top center;
+}
+
+.animate-shield-glow {
+  animation: sf-shield-glow 3s infinite ease-in-out;
+}
+
+.animate-deal-pulse {
+  animation: sf-deal-pulse 2.8s infinite ease-in-out;
+}
+
+.animate-float-gentle {
+  animation: sf-float-gentle 4.5s infinite ease-in-out;
+}
+
+/* Customer Button Micro-Interactions */
+.sf-btn-interactive {
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 0.2s ease,
+              border-color 0.2s ease;
+  will-change: transform;
+}
+
+.sf-btn-interactive:hover {
+  transform: translateY(-2px);
+}
+
+.sf-btn-interactive:active {
+  transform: scale(0.97) translateY(0);
+}
+
+/* CTA Arrow Glide */
+.sf-cta-group:hover .sf-cta-arrow {
+  transform: translateX(5px);
+}
+
+.sf-cta-arrow {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-block;
+  will-change: transform;
+}
+
+/* Card Hover Elevation */
+.sf-card-lift {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.3s ease;
+  will-change: transform;
+}
+
+.sf-card-lift:hover {
+  transform: translateY(-4px);
+}
+
+/* Smooth Image Scale */
+.sf-img-zoom {
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+.sf-card-lift:hover .sf-img-zoom {
+  transform: scale(1.03);
+}
+
+/* Trust Card Highlight */
+.sf-trust-card {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 0.25s ease;
+}
+
+.sf-trust-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.06);
+}
+
+/* Respect Prefers-Reduced-Motion */
+@media (prefers-reduced-motion: reduce) {
+  .animate-cart-bounce,
+  .animate-badge-pop,
+  .animate-heart-pop,
+  .animate-scale-up,
+  .animate-bell-wiggle,
+  .animate-shield-glow,
+  .animate-deal-pulse,
+  .animate-float-gentle,
+  .sf-card-lift,
+  .sf-card-lift:hover,
+  .sf-btn-interactive,
+  .sf-btn-interactive:hover,
+  .sf-btn-interactive:active,
+  .sf-cta-arrow,
+  .sf-cta-group:hover .sf-cta-arrow,
+  .sf-img-zoom,
+  .sf-trust-card:hover {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}

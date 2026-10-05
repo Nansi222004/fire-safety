@@ -21,6 +21,80 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
     return R * c; // Distance in km
 };
 
+export const manualAssignDeliveryPartner = async ({
+    shipmentId,
+    deliveryBoyId,
+    actorRole,
+    actorId,
+    allowReassignment = false,
+}) => {
+    const [shipment, deliveryBoy] = await Promise.all([
+        Shipment.findById(shipmentId),
+        DeliveryBoy.findOne({
+            _id: deliveryBoyId,
+            isActive: true,
+            applicationStatus: 'approved',
+            status: 'available',
+            isAvailable: true,
+        }),
+    ]);
+    if (!shipment) return { success: false, code: 'SHIPMENT_NOT_FOUND' };
+    if (shipment.deliveryMethod !== 'INTERNAL' || shipment.providerId !== 'own_fleet') {
+        return { success: false, code: 'NOT_INTERNAL_DELIVERY' };
+    }
+    if (!deliveryBoy) return { success: false, code: 'DELIVERY_PARTNER_UNAVAILABLE' };
+    if (shipment.deliveryBoyId && !allowReassignment) {
+        return { success: false, code: 'ALREADY_ASSIGNED', shipment };
+    }
+    if (shipment.deliveryBoyId && String(shipment.deliveryBoyId) === String(deliveryBoyId)) {
+        return { success: true, idempotent: true, shipment };
+    }
+
+    const activeAssignments = await Shipment.countDocuments({
+        deliveryBoyId: deliveryBoy._id,
+        status: { $nin: ['delivered', 'cancelled', 'returned', 'failed'] },
+    });
+    if (activeAssignments >= (Number(deliveryBoy.maxActiveOrders) || 3)) {
+        return { success: false, code: 'DELIVERY_PARTNER_AT_CAPACITY' };
+    }
+
+    const filter = { _id: shipment._id, deliveryMethod: 'INTERNAL', providerId: 'own_fleet' };
+    if (!allowReassignment) filter.deliveryBoyId = { $in: [null, undefined] };
+    else filter.deliveryBoyId = shipment.deliveryBoyId;
+
+    const now = new Date();
+    const updated = await Shipment.findOneAndUpdate(filter, {
+        $set: {
+            deliveryBoyId: deliveryBoy._id,
+            deliveryAssignmentStatus: 'manual_override',
+            assignedBy: { role: actorRole, actorId, assignedAt: now },
+        },
+        $push: {
+            assignmentHistory: {
+                deliveryBoyId: deliveryBoy._id,
+                role: actorRole,
+                actorId,
+                action: shipment.deliveryBoyId ? 'reassigned' : 'assigned',
+                assignedAt: now,
+            },
+        },
+    }, { new: true }).populate('deliveryBoyId', 'name phone email vehicleType vehicleNumber status');
+
+    if (!updated) return { success: false, code: 'ASSIGNMENT_CONFLICT' };
+
+    const order = await Order.findById(updated.orderId);
+    await createNotification({
+        recipientId: deliveryBoy._id,
+        recipientType: 'delivery',
+        title: 'Delivery assigned manually',
+        message: `You have been assigned order ${order?.orderId || updated.orderId}.`,
+        type: 'order',
+        data: { orderId: String(order?._id || updated.orderId), shipmentId: String(updated._id) },
+    });
+    if (order) notifyOrderUpdate(order);
+    return { success: true, shipment: updated };
+};
+
 // ───────────────────────────────────────────────────────────────────────────────
 // Phase 5.2: Shipment-Primary Auto-Assignment
 //

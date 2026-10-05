@@ -84,8 +84,8 @@ const ServicesPage = () => {
               <div className="absolute bottom-0 left-0 w-48 h-48 bg-[#E31E24]/10 rounded-full blur-2xl pointer-events-none" />
 
               <div className="max-w-xl space-y-3 relative z-10">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-500/20 border border-red-500/30 rounded-full text-red-400 text-[11px] font-bold uppercase tracking-wider">
-                  <FiShield className="text-xs" />
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-500/20 border border-red-500/30 rounded-full text-red-400 text-[11px] font-bold uppercase tracking-wider transition-all duration-300 hover:bg-red-500/25">
+                  <FiShield className="text-xs animate-shield-glow" />
                   <span>FIRE SAFETY SERVICES</span>
                 </div>
 
@@ -100,13 +100,13 @@ const ServicesPage = () => {
 
                 <div className="pt-2 flex flex-wrap gap-3 w-full">
                   <div className="relative flex-1 min-w-0 w-full sm:w-auto">
-                    <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm" />
+                    <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm transition-colors duration-200" />
                     <input
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Search for refilling, inspection, AMC..."
-                      className="w-full pl-9 pr-4 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-xs sm:text-sm text-white placeholder-slate-400 focus:outline-none focus:border-[#E31E24]"
+                      className="w-full pl-9 pr-4 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-xs sm:text-sm text-white placeholder-slate-400 focus:outline-none focus:border-[#E31E24] focus:ring-2 focus:ring-red-500/20 transition-all duration-300"
                     />
                   </div>
                 </div>
@@ -119,29 +119,33 @@ const ServicesPage = () => {
                 className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none w-full max-w-full min-w-0"
                 style={{ WebkitOverflowScrolling: 'touch' }}
               >
-                <button
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  whileHover={{ y: -1 }}
                   onClick={() => setSelectedCategory("all")}
                   className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex-shrink-0 ${
                     selectedCategory === "all"
-                      ? "bg-slate-900 text-white shadow-sm"
-                      : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                      ? "bg-slate-900 text-white shadow-sm ring-2 ring-slate-900/20"
+                      : "bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200"
                   }`}
                 >
                   All Services
-                </button>
+                </motion.button>
                 {categories.map((cat) => (
-                  <button
+                  <motion.button
                     key={cat._id || cat.id}
+                    whileTap={{ scale: 0.95 }}
+                    whileHover={{ y: -1 }}
                     onClick={() => setSelectedCategory(cat._id || cat.id)}
                     className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 flex-shrink-0 ${
                       selectedCategory === (cat._id || cat.id)
-                        ? "bg-[#E31E24] text-white shadow-sm"
-                        : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                        ? "bg-[#E31E24] text-white shadow-sm ring-2 ring-red-500/20"
+                        : "bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200"
                     }`}
                   >
                     <FiLayers className="text-xs" />
                     <span>{cat.name}</span>
-                  </button>
+                  </motion.button>
                 ))}
               </div>
             )}
@@ -160,9 +164,25 @@ const ServicesPage = () => {
               </div>
 
               {isLoading ? (
-                <div className="text-center py-16">
-                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-[#E31E24] border-t-transparent mb-3"></div>
-                  <p className="text-slate-500 text-xs font-medium">Loading fire safety services...</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 w-full min-w-0">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm animate-pulse space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="w-10 h-10 bg-slate-200 rounded-xl" />
+                        <div className="w-20 h-5 bg-slate-100 rounded-full" />
+                      </div>
+                      <div className="space-y-2">
+                        <div className="h-4 bg-slate-200 rounded w-3/4" />
+                        <div className="h-3 bg-slate-100 rounded w-full" />
+                        <div className="h-3 bg-slate-100 rounded w-2/3" />
+                      </div>
+                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                        <div className="h-3 bg-slate-200 rounded w-16" />
+                        <div className="h-3 bg-slate-200 rounded w-12" />
+                      </div>
+                      <div className="h-9 bg-slate-200 rounded-xl w-full" />
+                    </div>
+                  ))}
                 </div>
               ) : services.length === 0 ? (
                 <div className="text-center py-16 px-4 bg-white rounded-2xl border border-slate-200 shadow-sm space-y-3">
@@ -174,12 +194,14 @@ const ServicesPage = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 w-full min-w-0">
-                  {services.map((service) => (
+                  {services.map((service, index) => (
                     <motion.div
                       key={service._id || service.id}
-                      initial={{ opacity: 0, y: 10 }}
+                      initial={{ opacity: 0, y: 15 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm hover:shadow-md hover:border-slate-300 transition-all flex flex-col justify-between min-w-0"
+                      transition={{ duration: 0.35, delay: Math.min(index * 0.05, 0.3) }}
+                      whileHover={{ y: -4 }}
+                      className="group bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm hover:shadow-lg hover:border-slate-300 transition-all duration-300 flex flex-col justify-between min-w-0"
                     >
                       <div>
                         {/* Header */}
@@ -188,10 +210,10 @@ const ServicesPage = () => {
                             <img
                               src={service.image}
                               alt={service.name}
-                              className="w-10 h-10 object-cover rounded-xl border border-slate-200"
+                              className="w-10 h-10 object-cover rounded-xl border border-slate-200 group-hover:scale-105 transition-transform duration-300"
                             />
                           ) : (
-                            <div className="w-10 h-10 bg-red-50 text-[#E31E24] rounded-xl flex items-center justify-center font-bold text-base border border-red-100">
+                            <div className="w-10 h-10 bg-red-50 text-[#E31E24] rounded-xl flex items-center justify-center font-bold text-base border border-red-100 group-hover:scale-105 transition-transform duration-300">
                               <FiTool />
                             </div>
                           )}
@@ -215,14 +237,15 @@ const ServicesPage = () => {
                           <span className="font-bold text-slate-900 uppercase">{service.pricingType || "FIXED"}</span>
                         </div>
 
-                        <button
+                        <motion.button
                           type="button"
+                          whileTap={{ scale: 0.97 }}
                           onClick={() => setActiveBookingService(service)}
-                          className="w-full py-2.5 bg-[#E31E24] hover:bg-[#c6151b] text-white font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm shadow-[#E31E24]/20 active:scale-98"
+                          className="w-full py-2.5 bg-[#E31E24] hover:bg-[#c6151b] text-white font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm shadow-[#E31E24]/20 group/btn"
                         >
                           <span>Book Service</span>
-                          <FiArrowRight className="text-xs" />
-                        </button>
+                          <FiArrowRight className="text-xs group-hover/btn:translate-x-1 transition-transform duration-200" />
+                        </motion.button>
                       </div>
                     </motion.div>
                   ))}

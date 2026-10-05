@@ -91,6 +91,20 @@ const shipmentSchema = new mongoose.Schema(
             default: 'AUTO',
         },
         providerOverrideHistory: { type: [providerOverrideSchema], default: [] },
+        deliveryMethod: {
+            type: String,
+            enum: ['SHIPROCKET', 'INTERNAL'],
+            index: true,
+        },
+        deliveryRoutingReason: {
+            type: String,
+            enum: [
+                'WHOLESALE', 'HIGH_VALUE', 'OVERWEIGHT', 'LONG_DISTANCE',
+                'DISTANCE_UNAVAILABLE', 'SHIPROCKET_UNSERVICEABLE',
+                'SHIPROCKET_PICKUP_UNAVAILABLE', 'SHIPROCKET_CREATION_FAILED',
+            ],
+        },
+        deliveryRoutingDetails: { type: String },
 
         // ─── Financial (all immutable or controlled) ─────────────────────
         // customerShippingCharge: IMMUTABLE after order creation.
@@ -178,6 +192,12 @@ const shipmentSchema = new mongoose.Schema(
         // Provider-specific metadata blob.
         // e.g., { shiprocketOrderId, shiprocketShipmentId, channelOrderId, ... }
         providerMetadata: { type: mongoose.Schema.Types.Mixed },
+        externalCreationStatus: {
+            type: String,
+            enum: ['not_started', 'creating', 'created', 'failed', 'not_applicable'],
+            default: 'not_started',
+        },
+        externalCreationError: { type: String },
 
         // ─── OWN FLEET FIELDS ────────────────────────────────────────────
         // All fields below are null/undefined for courier-based shipments.
@@ -194,6 +214,18 @@ const shipmentSchema = new mongoose.Schema(
         rejectedDeliveryBoys: [{ type: mongoose.Schema.Types.ObjectId, ref: 'DeliveryBoy' }],
         deliveryPriority: { type: Number },
         deliverySequence: { type: Number },
+        assignedBy: {
+            role: { type: String, enum: ['admin', 'vendor', 'system'] },
+            actorId: { type: mongoose.Schema.Types.ObjectId },
+            assignedAt: { type: Date },
+        },
+        assignmentHistory: [{
+            deliveryBoyId: { type: mongoose.Schema.Types.ObjectId, ref: 'DeliveryBoy' },
+            role: { type: String, enum: ['admin', 'vendor', 'system'] },
+            actorId: { type: mongoose.Schema.Types.ObjectId },
+            action: { type: String, enum: ['assigned', 'reassigned'] },
+            assignedAt: { type: Date, default: Date.now },
+        }],
 
         // Delivery OTP (customer-facing — verified at doorstep)
         deliveryOtpHash:       { type: String, select: false },

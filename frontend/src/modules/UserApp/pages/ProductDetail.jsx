@@ -628,6 +628,7 @@ const MobileProductDetail = () => {
       vendorName: vendor?.storeName || vendor?.name || product.vendorName,
     });
     if (!addedToCart) return;
+    triggerCartAnimation();
   };
 
   const handleRemoveFromCart = () => {
@@ -817,12 +818,13 @@ const MobileProductDetail = () => {
                 >
                   <FiShare2 className="text-2xl text-gray-500" />
                 </button>
-                <button
+                <motion.button
+                  whileTap={{ scale: 0.85 }}
                   onClick={handleFavorite}
-                  className="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-lg pointer-events-auto"
+                  className="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-lg pointer-events-auto transition-transform hover:scale-105"
                 >
-                  <FiHeart className={`text-2xl ${isFavorite ? "text-red-500 fill-current" : "text-gray-500"}`} />
-                </button>
+                  <FiHeart className={`text-2xl transition-transform ${isFavorite ? "text-red-500 fill-current animate-heart-pop" : "text-gray-500"}`} />
+                </motion.button>
               </div>
             </div>
 
@@ -981,29 +983,33 @@ const MobileProductDetail = () => {
 
                   {/* Inline Buy/Cart Actions for Desktop only */}
                   <div className="hidden lg:flex items-center gap-4 pt-4 border-t border-slate-100">
-                    <button
+                    <motion.button
+                      whileHover={{ scale: 1.01, y: -1 }}
+                      whileTap={{ scale: 0.96 }}
                       onClick={isInCart ? toggleCart : handleAddToCart}
                       disabled={product.stock === "out_of_stock"}
-                      className={`flex-1 h-12 rounded-2xl font-bold text-sm tracking-wide flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-95 shadow-md ${
+                      className={`flex-1 h-12 rounded-2xl font-bold text-sm tracking-wide flex items-center justify-center gap-2 transition-all shadow-md ${
                         product.stock === "out_of_stock"
                           ? "bg-slate-200 text-slate-400 cursor-not-allowed"
-                          : "bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white shadow-primary-500/20"
+                          : "bg-[#E31E24] hover:bg-[#c6151b] text-white shadow-[#E31E24]/20"
                       }`}
                     >
                       <FiShoppingBag className="text-base" />
                       {isInCart ? "Go to Cart" : "Add to Cart"}
-                    </button>
-                    <button
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.01, y: -1 }}
+                      whileTap={{ scale: 0.96 }}
                       onClick={handleBuyNow}
                       disabled={product.stock === "out_of_stock"}
-                      className={`flex-1 h-12 rounded-2xl font-bold text-sm tracking-wide flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-95 shadow-md ${
+                      className={`flex-1 h-12 rounded-2xl font-bold text-sm tracking-wide flex items-center justify-center gap-2 transition-all shadow-md ${
                         product.stock === "out_of_stock"
                           ? "bg-slate-100 text-slate-300 cursor-not-allowed"
                           : "bg-slate-900 hover:bg-slate-950 text-white"
                       }`}
                     >
                       Buy Now
-                    </button>
+                    </motion.button>
                   </div>
                 </div>
               </div>
@@ -1345,26 +1351,28 @@ const MobileProductDetail = () => {
       {/* Fixed Action Bar (Flipkart Style) - Outside PageTransition to avoid transform conflicts */}
       <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 p-2.5 z-[9999] shadow-[0_-8px_20px_rgba(0,0,0,0.12)] lg:hidden">
         <div className="flex items-center gap-2.5 w-full max-w-7xl mx-auto px-1">
-          <button
+          <motion.button
+            whileTap={{ scale: 0.96 }}
             onClick={isInCart ? toggleCart : handleAddToCart}
             disabled={product.stock === "out_of_stock"}
-            className={`flex-1 h-12 rounded-xl font-bold text-sm tracking-wide flex items-center justify-center gap-2 transition-all active:scale-95 ${product.stock === "out_of_stock"
+            className={`flex-1 h-12 rounded-xl font-bold text-sm tracking-wide flex items-center justify-center gap-2 transition-all ${product.stock === "out_of_stock"
               ? "bg-slate-200 text-slate-400 cursor-not-allowed"
-              : "bg-gradient-to-r from-primary-600 to-primary-700 text-white shadow-md shadow-primary-500/20"
+              : "bg-[#E31E24] active:bg-[#c6151b] text-white shadow-md shadow-[#E31E24]/20"
               }`}
           >
             {isInCart ? "Go to Cart" : "Add to Cart"}
-          </button>
-          <button
+          </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.96 }}
             onClick={handleBuyNow}
             disabled={product.stock === "out_of_stock"}
-            className={`flex-1 h-12 rounded-xl font-bold text-sm tracking-wide flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md ${product.stock === "out_of_stock"
+            className={`flex-1 h-12 rounded-xl font-bold text-sm tracking-wide flex items-center justify-center gap-2 transition-all shadow-md ${product.stock === "out_of_stock"
               ? "bg-slate-100 text-slate-300 cursor-not-allowed"
-              : "bg-slate-900 text-white"
+              : "bg-slate-900 active:bg-slate-950 text-white"
               }`}
           >
             Buy Now
-          </button>
+          </motion.button>
         </div>
       </div>
     </>

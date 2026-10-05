@@ -10,6 +10,11 @@ const PaymentShippingSettings = () => {
   const { settings, updateSettings, initialize } = useSettingsStore();
   const [paymentData, setPaymentData] = useState({});
   const [shippingData, setShippingData] = useState({});
+  const routingDefaults = {
+    maxShiprocketDistanceKm: 50,
+    maxShiprocketWeightKg: 20,
+    maxAutomaticShiprocketOrderValue: 50000,
+  };
   const [activeSection, setActiveSection] = useState('payment');
   const [companyPaymentData, setCompanyPaymentData] = useState({
     upiId: '',
@@ -23,7 +28,7 @@ const PaymentShippingSettings = () => {
     initialize();
     if (settings) {
       if (settings.payment) setPaymentData(settings.payment);
-      if (settings.shipping) setShippingData(settings.shipping);
+      if (settings.shipping) setShippingData({ ...routingDefaults, ...settings.shipping });
     }
 
     // Load company payment settings from database
@@ -44,7 +49,7 @@ const PaymentShippingSettings = () => {
   useEffect(() => {
     if (settings) {
       if (settings.payment) setPaymentData(settings.payment);
-      if (settings.shipping) setShippingData(settings.shipping);
+      if (settings.shipping) setShippingData({ ...routingDefaults, ...settings.shipping });
     }
   }, [settings]);
 
@@ -358,6 +363,32 @@ const PaymentShippingSettings = () => {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                   <p className="text-xs text-gray-500 mt-1">Default shipping cost</p>
+                </div>
+              </div>
+
+              <div className="border-t border-gray-200 pt-6">
+                <h3 className="text-lg font-bold text-gray-800 mb-1">Shiprocket Routing Limits</h3>
+                <p className="text-xs text-gray-500 mb-4">Orders above any limit use SafeFire Internal Delivery and manual assignment.</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+                  {[
+                    ['maxShiprocketDistanceKm', 'Maximum Distance (km)', 50],
+                    ['maxShiprocketWeightKg', 'Maximum Weight (kg)', 20],
+                    ['maxAutomaticShiprocketOrderValue', 'Maximum Order Value (₹)', 50000],
+                  ].map(([name, label, fallback]) => (
+                    <div key={name}>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">{label}</label>
+                      <input
+                        type="number"
+                        name={name}
+                        value={shippingData[name] ?? fallback}
+                        onChange={handleShippingChange}
+                        min="0.01"
+                        step="0.01"
+                        required
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      />
+                    </div>
+                  ))}
                 </div>
               </div>
 

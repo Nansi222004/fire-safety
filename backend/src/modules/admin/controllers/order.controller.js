@@ -20,9 +20,46 @@ import AuditLog from '../../../models/AuditLog.model.js';
 import VendorWalletTransaction from '../../../models/VendorWalletTransaction.model.js';
 import PaymentAttempt from '../../../models/PaymentAttempt.model.js';
 import { processRazorpayRefund } from '../../../services/payment.service.js';
-import { cancelShipmentDeliveryAssignment } from '../../../services/assignmentService.js';
+import { cancelShipmentDeliveryAssignment, manualAssignDeliveryPartner } from '../../../services/assignmentService.js';
 import { processCancellationRefund } from '../../../services/cancellationRefundService.js';
 import { ensureDeliveryOtpForShipment } from '../../../services/deliveryOtp.service.js';
+
+export const getAvailableDeliveryPartners = asyncHandler(async (req, res) => {
+    const partners = await DeliveryBoy.find({
+        isActive: true,
+        isAvailable: true,
+        applicationStatus: 'approved',
+        status: 'available',
+    }).select('name phone email vehicleType vehicleNumber status maxActiveOrders').sort({ name: 1 }).lean();
+    res.status(200).json(new ApiResponse(200, partners, 'Available delivery partners fetched.'));
+});
+
+export const assignDeliveryPartner = asyncHandler(async (req, res) => {
+    if (!mongoose.Types.ObjectId.isValid(req.body.deliveryBoyId)) {
+        throw new ApiError(400, 'A valid delivery partner is required.');
+    }
+    const orderFilter = [{ orderId: req.params.id }];
+    if (mongoose.Types.ObjectId.isValid(req.params.id)) orderFilter.push({ _id: req.params.id });
+    const order = await Order.findOne({ $or: orderFilter, isDeleted: { $ne: true } }).select('_id');
+    if (!order) throw new ApiError(404, 'Order not found.');
+    const shipment = await Shipment.findOne({ _id: req.params.shipmentId, orderId: order._id });
+    if (!shipment) throw new ApiError(404, 'Internal delivery shipment not found.');
+    const result = await manualAssignDeliveryPartner({
+        shipmentId: shipment._id,
+        deliveryBoyId: req.body.deliveryBoyId,
+        actorRole: 'admin',
+        actorId: req.user.id,
+        allowReassignment: req.body.reassign === true,
+    });
+    if (!result.success) {
+        const status = ['ALREADY_ASSIGNED', 'ASSIGNMENT_CONFLICT'].includes(result.code) ? 409 : 400;
+        throw new ApiError(status, result.code === 'ALREADY_ASSIGNED'
+            ? 'A delivery partner is already assigned. Set reassign=true to explicitly change it.'
+            : `Unable to assign delivery partner: ${result.code}`);
+    }
+    res.status(200).json(new ApiResponse(200, result.shipment,
+        req.body.reassign === true ? 'Delivery partner reassigned.' : 'Delivery partner assigned.'));
+});
 
 // GET /api/admin/orders
 export const getAllOrders = asyncHandler(async (req, res) => {

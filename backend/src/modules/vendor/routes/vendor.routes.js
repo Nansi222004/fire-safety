@@ -107,6 +107,7 @@ router.post('/auth/refresh', validate(refreshTokenSchema), authController.refres
 router.post('/auth/logout', validate(logoutSchema), authController.logout);
 router.get('/auth/profile', ...vendorAuth, authController.getProfile);
 router.put('/auth/profile', ...vendorAuth, authController.updateProfile);
+router.post('/shiprocket/pickup-location/sync', ...vendorAuth, authController.syncShiprocketPickup);
 router.put('/auth/bank-details', ...vendorAuth, authController.updateBankDetails);
 router.delete('/auth/account', ...vendorAuth, authController.deleteAccount);
 
@@ -135,8 +136,10 @@ router.post('/category-requests', ...vendorAuth, categoryController.requestVendo
 router.put('/category-requests/:id/resubmit', ...vendorAuth, categoryController.resubmitVendorCategoryRequest);
 
 // Orders
+router.get('/delivery-partners/available', ...vendorAuth, orderController.getAvailableDeliveryPartners);
 router.get('/orders', ...vendorAuth, orderController.getVendorOrders);
 router.get('/orders/:id', ...vendorAuth, orderController.getVendorOrderById);
+router.post('/orders/:id/shipments/:shipmentId/assign-delivery', ...vendorAuth, orderController.assignDeliveryPartner);
 router.patch('/orders/:id/status', ...vendorAuth, orderController.updateOrderStatus);
 router.post('/orders/:id/verify-pickup', ...vendorAuth, orderController.verifyPickup);
 

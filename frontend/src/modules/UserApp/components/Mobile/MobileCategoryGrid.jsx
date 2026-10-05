@@ -54,9 +54,10 @@ const MobileCategoryGrid = () => {
         </h2>
         <Link
           to="/categories"
-          className="text-xs lg:text-sm font-bold text-primary-600 hover:text-primary-700 transition-colors uppercase tracking-wider"
+          className="sf-cta-group text-xs lg:text-sm font-bold text-primary-600 hover:text-primary-700 transition-colors uppercase tracking-wider flex items-center gap-1"
         >
-          View All &rarr;
+          <span>View All</span>
+          <span className="sf-cta-arrow">&rarr;</span>
         </Link>
       </div>
 
@@ -69,7 +70,9 @@ const MobileCategoryGrid = () => {
               key={category.id}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: index * 0.04 }}
+              whileHover={{ y: -3 }}
+              whileTap={{ scale: 0.94 }}
+              transition={{ delay: index * 0.04, duration: 0.25 }}
               className="flex-shrink-0"
             >
               <Link
@@ -80,7 +83,7 @@ const MobileCategoryGrid = () => {
                   <LazyImage
                     src={category.image}
                     alt={category.name}
-                    className="w-full h-full object-contain pointer-events-none select-none"
+                    className="w-full h-full object-contain pointer-events-none select-none group-hover:scale-110 transition-transform duration-300"
                     onError={(e) => {
                       e.target.src =
                         "https://via.placeholder.com/80x80?text=" + encodeURIComponent(category.name);
@@ -99,7 +102,9 @@ const MobileCategoryGrid = () => {
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: displayCategories.length * 0.04 }}
+          whileHover={{ y: -3 }}
+          whileTap={{ scale: 0.94 }}
+          transition={{ delay: displayCategories.length * 0.04, duration: 0.25 }}
           className="flex-shrink-0"
         >
           <Link
@@ -107,7 +112,7 @@ const MobileCategoryGrid = () => {
             className="flex flex-col items-center w-20 group"
           >
             <div className="w-20 h-20 rounded-full overflow-hidden flex items-center justify-center border border-slate-200/80 bg-slate-50 shadow-sm group-hover:scale-105 group-hover:border-primary-500/50 group-hover:ring-2 group-hover:ring-primary-500/30 group-hover:shadow-md transition-all duration-300">
-              <FiGrid className="text-2xl text-primary-600 group-hover:scale-110 transition-transform" />
+              <FiGrid className="text-2xl text-primary-600 group-hover:scale-115 group-hover:rotate-6 transition-transform duration-300" />
             </div>
             <span className="text-xs md:text-sm font-bold text-gray-800 text-center mt-3 group-hover:text-primary-600 transition-colors">
               More

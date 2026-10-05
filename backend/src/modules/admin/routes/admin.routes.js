@@ -118,8 +118,10 @@ router.get('/analytics/inventory-stats',...adminAuth, analyticsController.getInv
 
 // ─── Orders ───────────────────────────────────────────────────────────────────
 router.get('/orders', ...adminAuth, orderController.getAllOrders);
+router.get('/orders/delivery-partners/available', ...adminAuth, orderController.getAvailableDeliveryPartners);
 router.get('/orders/:id', ...adminAuth, orderController.getOrderById);
 router.patch('/orders/:id/status', ...adminAuth, audit('UPDATE_ORDER_STATUS', 'Order'), orderController.updateOrderStatus);
+router.post('/orders/:id/shipments/:shipmentId/assign-delivery', ...adminAuth, audit('ASSIGN_DELIVERY_PARTNER', 'Shipment'), orderController.assignDeliveryPartner);
 router.patch('/orders/:id/items/:vendorItemId/cancel', ...adminAuth, audit('ADMIN_CANCEL_ORDER_ITEM', 'Order'), orderController.adminOverrideCancelVendorItem);
 
 router.delete('/orders/:id', ...adminAuth, audit('DELETE_ORDER', 'Order'), orderController.deleteOrder);
@@ -182,6 +184,7 @@ router.get('/vendors/pending', ...adminAuth, (req, res, next) => { req.query.sta
 router.get('/vendors/:id', ...adminAuth, validate(vendorIdParamSchema, 'params'), vendorController.getVendorDetail);
 router.get('/vendors/:id/commissions', ...adminAuth, validate(vendorIdParamSchema, 'params'), validate(vendorCommissionsQuerySchema, 'query'), vendorController.getVendorCommissions);
 router.patch('/vendors/:id/status', ...adminAuth, audit('UPDATE_VENDOR_STATUS', 'Vendor'), validate(vendorIdParamSchema, 'params'), validate(vendorStatusUpdateSchema), vendorController.updateVendorStatus);
+router.post('/vendors/:id/shiprocket-pickup/sync', ...adminAuth, validate(vendorIdParamSchema, 'params'), vendorController.syncShiprocketPickup);
 router.patch('/vendors/:id/commission', ...adminAuth, audit('UPDATE_VENDOR_COMMISSION', 'Vendor'), validate(vendorIdParamSchema, 'params'), validate(vendorCommissionUpdateSchema), vendorController.updateCommissionRate);
 router.get('/vendors/:id/documents', ...adminAuth, validate(vendorIdParamSchema, 'params'), vendorController.getVendorDocuments);
 router.patch('/vendors/:id/documents/:docId/status', ...adminAuth, validate(vendorDocParamsSchema, 'params'), vendorController.updateVendorDocumentStatus);

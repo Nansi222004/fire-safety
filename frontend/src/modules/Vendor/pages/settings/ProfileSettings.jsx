@@ -10,7 +10,7 @@ import { getVendorCapabilities } from '../../utils/vendorCapabilities';
 
 const ProfileSettings = () => {
   const navigate = useNavigate();
-  const { vendor, updateProfile, logout } = useVendorAuthStore();
+  const { vendor, updateProfile, logout, syncVendor } = useVendorAuthStore();
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -19,6 +19,21 @@ const ProfileSettings = () => {
     confirmPassword: '',
   });
   const [activeSection, setActiveSection] = useState('profile');
+  const [isSyncingPickup, setIsSyncingPickup] = useState(false);
+
+  const handlePickupSync = async () => {
+    setIsSyncingPickup(true);
+    try {
+      await api.post('/vendor/shiprocket/pickup-location/sync');
+      const profileResponse = await api.get('/vendor/auth/profile');
+      syncVendor(profileResponse?.data ?? profileResponse);
+      toast.success('Shiprocket pickup synchronization completed');
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message || 'Pickup synchronization failed');
+    } finally {
+      setIsSyncingPickup(false);
+    }
+  };
 
   // Capability Toggle Confirmation Modal State
   const [pendingDisableCap, setPendingDisableCap] = useState(null); // 'sellsProducts' | 'providesServices'
@@ -212,6 +227,28 @@ const ProfileSettings = () => {
                     {((vendor?.commissionRate !== undefined && vendor?.commissionRate !== null ? (vendor.commissionRate <= 1 ? vendor.commissionRate * 100 : vendor.commissionRate) : 10)).toFixed(1)}%
                   </span>
                 </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="font-bold text-slate-900">Shiprocket Pickup Location</h3>
+                  <p className="text-xs sm:text-sm text-slate-600">
+                    Status: <span className="font-semibold uppercase">{vendor.shiprocketPickupSync?.status || 'pending'}</span>
+                  </p>
+                  {vendor.shiprocketPickupSync?.lastError && (
+                    <p className="mt-1 text-xs text-red-600">{vendor.shiprocketPickupSync.lastError}</p>
+                  )}
+                </div>
+                {vendor.status === 'approved' && (
+                  <button
+                    type="button"
+                    onClick={handlePickupSync}
+                    disabled={isSyncingPickup}
+                    className="rounded-xl bg-slate-800 px-4 py-2 text-xs font-bold text-white disabled:opacity-50"
+                  >
+                    {isSyncingPickup ? 'Synchronizing…' : 'Retry / Sync Pickup'}
+                  </button>
+                )}
               </div>
 
               <form onSubmit={handleProfileSubmit} className="space-y-6">

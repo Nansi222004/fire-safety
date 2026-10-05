@@ -17,6 +17,7 @@ import CategoryInFocus from "../components/Mobile/CategoryInFocus";
 import DealsSection from "../components/Mobile/DealsSection";
 import TrustBar from "../components/Mobile/TrustBar";
 import LazyImage from "../../../shared/components/LazyImage";
+import { ScrollReveal } from "../components/ScrollReveal";
 import heroBanner1 from "../../../assets/banners/hero_slide_1.png";
 import heroBanner2 from "../../../assets/banners/hero_slide_2.png";
 import {
@@ -227,26 +228,26 @@ const isSafeInternalPath = (target) => String(target || "").startsWith("/");
 
 const getButtonStyleClasses = (style = "primary", isDarkBg = false) => {
   const base =
-    "inline-flex items-center justify-center gap-2 font-black py-2.5 px-6 md:py-3.5 md:px-8 rounded-xl transition-all duration-300 shadow-md cursor-pointer select-none text-[10px] md:text-sm active:scale-95 whitespace-nowrap";
+    "sf-cta-group inline-flex items-center justify-center gap-2 font-black py-2.5 px-6 md:py-3.5 md:px-8 rounded-xl sf-btn-interactive select-none text-[10px] md:text-sm active:scale-[0.97] whitespace-nowrap cursor-pointer";
   if (isDarkBg) {
     switch (style) {
       case "secondary":
-        return `${base} bg-slate-800 text-white hover:bg-slate-700 border border-slate-700 hover:scale-[1.02] shadow-[0_4px_15px_rgba(0,0,0,0.3)]`;
+        return `${base} bg-slate-800 text-white hover:bg-slate-700 border border-slate-700 shadow-[0_4px_15px_rgba(0,0,0,0.3)] hover:shadow-lg`;
       case "outline":
-        return `${base} bg-transparent text-white border-2 border-white/80 hover:bg-white/10 hover:scale-[1.02]`;
+        return `${base} bg-transparent text-white border-2 border-white/80 hover:bg-white/10 hover:border-white`;
       case "primary":
       default:
-        return `${base} bg-gradient-to-r from-primary-500 to-primary-600 text-white hover:from-primary-600 hover:to-primary-700 hover:scale-[1.02] shadow-[0_4px_20px_rgba(227,30,36,0.35)]`;
+        return `${base} bg-gradient-to-r from-primary-500 to-primary-600 text-white hover:from-primary-600 hover:to-primary-700 shadow-[0_4px_20px_rgba(227,30,36,0.35)] hover:shadow-[0_6px_25px_rgba(227,30,36,0.5)]`;
     }
   } else {
     switch (style) {
       case "secondary":
-        return `${base} bg-slate-100 hover:bg-slate-200 text-slate-800 hover:scale-[1.02] border border-slate-200/80`;
+        return `${base} bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200/80 shadow-sm`;
       case "outline":
-        return `${base} bg-transparent border-2 border-primary-600 text-primary-600 hover:bg-primary-50 hover:scale-[1.02]`;
+        return `${base} bg-transparent border-2 border-primary-600 text-primary-600 hover:bg-primary-50`;
       case "primary":
       default:
-        return `${base} bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white hover:scale-[1.02] shadow-[0_4px_20px_rgba(227,30,36,0.35)]`;
+        return `${base} bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white shadow-[0_4px_20px_rgba(227,30,36,0.35)] hover:shadow-[0_6px_25px_rgba(227,30,36,0.5)]`;
     }
   }
 };
@@ -836,299 +837,317 @@ const MobileHome = () => {
           ) : (
             <>
           {/* Hero Banner */}
-          <div className="px-2 sm:px-3 pb-4 pt-2">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div
-                className="relative w-full h-48 sm:h-56 md:h-80 lg:h-[400px] xl:h-[450px] rounded-2xl md:rounded-3xl overflow-hidden lg:col-span-2 border border-slate-800/80"
-                data-carousel
-                onTouchStart={onTouchStart}
-                onTouchMove={onTouchMove}
-                onTouchEnd={onTouchEnd}
-                style={{ touchAction: "pan-y", userSelect: "none" }}
-              >
-                {/* Slider Container - All slides in a row */}
-                <motion.div
-                  className="flex h-full"
-                  style={{
-                    width: `${slides.length * 100}%`,
-                    height: "100%",
-                  }}
-                  animate={{
-                    x:
-                      dragOffset !== 0
-                        ? `calc(-${
-                            currentSlide * (100 / slides.length)
-                          }% - ${dragOffset}px)`
-                        : `-${currentSlide * (100 / slides.length)}%`,
-                  }}
-                  transition={{
-                    duration: dragOffset !== 0 ? 0 : 0.6,
-                    ease: [0.25, 0.46, 0.45, 0.94], // Smooth easing
-                    type: "tween",
-                  }}
+          <ScrollReveal y={15} duration={0.6}>
+            <div className="px-2 sm:px-3 pb-4 pt-2">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div
+                  className="relative w-full h-48 sm:h-56 md:h-80 lg:h-[400px] xl:h-[450px] rounded-2xl md:rounded-3xl overflow-hidden lg:col-span-2 border border-slate-800/80"
+                  data-carousel
+                  onTouchStart={onTouchStart}
+                  onTouchMove={onTouchMove}
+                  onTouchEnd={onTouchEnd}
+                  style={{ touchAction: "pan-y", userSelect: "none" }}
                 >
-                  {slides.map((slide, index) => (
-                    <div
-                      key={index}
-                      className="flex-shrink-0 relative animate-fadeIn"
-                      onClick={() => handleSlideClick(slide)}
-                      style={{
-                        width: `${100 / slides.length}%`,
-                        height: "100%",
-                        cursor: slide?.link ? "pointer" : "default",
-                      }}
-                    >
-                      <picture className="w-full h-full pointer-events-none select-none">
-                        {slide.mobileImage && (
-                          <source
-                            media="(max-width: 640px)"
-                            srcSet={slide.mobileImage}
-                          />
-                        )}
-                        <img
-                          src={slide.image}
-                          alt={slide.altText || `Slide ${index + 1}`}
-                          className="w-full h-full object-cover pointer-events-none select-none"
-                          draggable={false}
-                          onError={(e) => {
-                            e.target.src = index % 2 === 0 ? heroBanner1 : heroBanner2;
-                          }}
-                        />
-                      </picture>
-
-                      {/* Text & Button overlays on the left */}
-                      {slide.hasOverlay !== false && (
-                        <>
-                          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent md:bg-gradient-to-r md:from-slate-950/90 md:via-slate-950/50 md:to-transparent z-10 pointer-events-none" />
-                          <div className="absolute inset-y-0 left-0 pl-4 sm:pl-6 md:pl-16 pr-2 flex flex-col justify-center text-left z-20 max-w-[62%] sm:max-w-[60%] pointer-events-auto">
-                            <div className="space-y-1 sm:space-y-2 md:space-y-4">
-                              {slide.subtitle && (
-                                <span className="inline-block bg-primary-500/15 text-primary-300 border border-primary-500/30 backdrop-blur-md px-2.5 py-0.5 md:px-3.5 md:py-1 rounded-full text-[8px] sm:text-[9px] md:text-xs font-extrabold tracking-wider uppercase select-none">
-                                  {slide.subtitle}
-                                </span>
-                              )}
-                              <h2 className="text-white text-sm sm:text-lg md:text-3xl lg:text-4xl xl:text-5xl font-black leading-tight tracking-tight drop-shadow-md">
-                                {slide.title || "Shop Smart. Live Better."}
-                              </h2>
-                              <p className="text-slate-200 text-[9px] sm:text-[10px] md:text-sm lg:text-base font-medium leading-relaxed max-w-sm line-clamp-2 md:line-clamp-none drop-shadow">
-                                {slide.description ||
-                                  "Discover the best products at unbeatable prices."}
-                              </p>
-                            </div>
-
-                            {/* Action button */}
-                            {slide.showButton !== false && (
-                              <div className="pt-2 sm:pt-3 md:pt-6">
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation(); // Avoid triggering parent click
-                                    handleSlideClick(slide);
-                                  }}
-                                  className={getButtonStyleClasses(
-                                    slide.buttonStyle,
-                                    true,
-                                  )}
-                                >
-                                  <span>{slide.buttonText || "Shop Safety"}</span>
-                                  <span>&rarr;</span>
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                  </motion.div>
-                  {/* Clean Slide Dots Indicator - Positioned cleanly in bottom right */}
-                  <div className="absolute bottom-3 right-4 flex items-center gap-1.5 z-30 pointer-events-none bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10">
-                    {slides.map((_, index) => (
-                      <button
+                  {/* Slider Container - All slides in a row */}
+                  <motion.div
+                    className="flex h-full"
+                    style={{
+                      width: `${slides.length * 100}%`,
+                      height: "100%",
+                    }}
+                    animate={{
+                      x:
+                        dragOffset !== 0
+                          ? `calc(-${
+                              currentSlide * (100 / slides.length)
+                            }% - ${dragOffset}px)`
+                          : `-${currentSlide * (100 / slides.length)}%`,
+                    }}
+                    transition={{
+                      duration: dragOffset !== 0 ? 0 : 0.6,
+                      ease: [0.25, 0.46, 0.45, 0.94], // Smooth easing
+                      type: "tween",
+                    }}
+                  >
+                    {slides.map((slide, index) => (
+                      <div
                         key={index}
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setCurrentSlide(index);
-                          setAutoSlidePaused(true);
-                          setTimeout(() => setAutoSlidePaused(false), 2000);
+                        className="flex-shrink-0 relative animate-fadeIn"
+                        onClick={() => handleSlideClick(slide)}
+                        style={{
+                          width: `${100 / slides.length}%`,
+                          height: "100%",
+                          cursor: slide?.link ? "pointer" : "default",
                         }}
-                        className={`h-1.5 rounded-full transition-all duration-300 pointer-events-auto ${
-                          index === currentSlide
-                            ? "bg-red-500 w-5 shadow-[0_0_8px_rgba(227,30,36,0.8)]"
-                            : "bg-white/50 hover:bg-white/80 w-1.5"
-                        }`}
-                      />
+                      >
+                        <picture className="w-full h-full pointer-events-none select-none">
+                          {slide.mobileImage && (
+                            <source
+                              media="(max-width: 640px)"
+                              srcSet={slide.mobileImage}
+                            />
+                          )}
+                          <img
+                            src={slide.image}
+                            alt={slide.altText || `Slide ${index + 1}`}
+                            className="w-full h-full object-cover pointer-events-none select-none sf-img-zoom"
+                            draggable={false}
+                            onError={(e) => {
+                              e.target.src = index % 2 === 0 ? heroBanner1 : heroBanner2;
+                            }}
+                          />
+                        </picture>
+
+                        {/* Text & Button overlays on the left */}
+                        {slide.hasOverlay !== false && (
+                          <>
+                            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent md:bg-gradient-to-r md:from-slate-950/90 md:via-slate-950/50 md:to-transparent z-10 pointer-events-none" />
+                            <div className="absolute inset-y-0 left-0 pl-4 sm:pl-6 md:pl-16 pr-2 flex flex-col justify-center text-left z-20 max-w-[62%] sm:max-w-[60%] pointer-events-auto">
+                              <div className="space-y-1 sm:space-y-2 md:space-y-4">
+                                {slide.subtitle && (
+                                  <span className="inline-block bg-primary-500/15 text-primary-300 border border-primary-500/30 backdrop-blur-md px-2.5 py-0.5 md:px-3.5 md:py-1 rounded-full text-[8px] sm:text-[9px] md:text-xs font-extrabold tracking-wider uppercase select-none animate-badge-pop">
+                                    {slide.subtitle}
+                                  </span>
+                                )}
+                                <h2 className="text-white text-sm sm:text-lg md:text-3xl lg:text-4xl xl:text-5xl font-black leading-tight tracking-tight drop-shadow-md">
+                                  {slide.title || "Shop Smart. Live Better."}
+                                </h2>
+                                <p className="text-slate-200 text-[9px] sm:text-[10px] md:text-sm lg:text-base font-medium leading-relaxed max-w-sm line-clamp-2 md:line-clamp-none drop-shadow">
+                                  {slide.description ||
+                                    "Discover the best products at unbeatable prices."}
+                                </p>
+                              </div>
+
+                              {/* Action button */}
+                              {slide.showButton !== false && (
+                                <div className="pt-2 sm:pt-3 md:pt-6">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation(); // Avoid triggering parent click
+                                      handleSlideClick(slide);
+                                    }}
+                                    className={getButtonStyleClasses(
+                                      slide.buttonStyle,
+                                      true,
+                                    )}
+                                  >
+                                    <span>{slide.buttonText || "Shop Safety"}</span>
+                                    <span className="sf-cta-arrow">&rarr;</span>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </>
+                        )}
+                      </div>
                     ))}
-                  </div>
-                </div>
-
-              {/* Side Banner for Large Screens (Luxury Collection) */}
-              <div
-                onClick={() => handleBannerNavigation(sideBanner)}
-                className="hidden lg:flex lg:col-span-1 h-[400px] xl:h-[450px] rounded-3xl overflow-hidden relative bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-950 p-8 border border-slate-800/90 cursor-pointer group"
-              >
-                {/* Ambient glowing backlight behind watch */}
-                <div className="absolute -right-10 -bottom-10 w-56 h-56 bg-primary-500/10 rounded-full blur-3xl group-hover:bg-primary-500/20 transition-all duration-700 pointer-events-none" />
-
-                {/* Text and Actions (Left side) */}
-                <div className="flex-1 flex flex-col justify-between z-20 text-left h-full max-w-[60%]">
-                  <div className="space-y-4">
-                    <span className="inline-block bg-amber-500/10 text-amber-400 border border-amber-500/20 px-3 py-1 rounded-full text-xs font-black tracking-widest uppercase">
-                      {sideBanner?.subtitle || "PREMIUM COLLECTION"}
-                    </span>
-                    <h3 className="text-white text-3xl font-black leading-tight tracking-tight drop-shadow-sm">
-                      {sideBanner?.title || "Luxury that Defines You"}
-                    </h3>
-                    <p className="text-slate-300 text-sm font-medium leading-relaxed">
-                      {sideBanner?.description ||
-                        "Exclusive watches for every occasion."}
-                    </p>
+                    </motion.div>
+                    {/* Clean Slide Dots Indicator - Positioned cleanly in bottom right */}
+                    <div className="absolute bottom-3 right-4 flex items-center gap-1.5 z-30 pointer-events-none bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10">
+                      {slides.map((_, index) => (
+                        <button
+                          key={index}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCurrentSlide(index);
+                            setAutoSlidePaused(true);
+                            setTimeout(() => setAutoSlidePaused(false), 2000);
+                          }}
+                          className={`h-1.5 rounded-full transition-all duration-300 pointer-events-auto ${
+                            index === currentSlide
+                              ? "bg-red-500 w-5 shadow-[0_0_8px_rgba(227,30,36,0.8)]"
+                              : "bg-white/50 hover:bg-white/80 w-1.5"
+                          }`}
+                        />
+                      ))}
+                    </div>
                   </div>
 
-                  {sideBanner?.showButton !== false && (
-                    <button
-                      type="button"
-                      className={`${getButtonStyleClasses(
-                        sideBanner?.buttonStyle,
-                        true,
-                      )} self-start`}
-                    >
-                      <span>{sideBanner?.buttonText || "Explore Now"}</span>
-                      <span>&rarr;</span>
-                    </button>
-                  )}
-                </div>
+                {/* Side Banner for Large Screens (Luxury Collection) */}
+                <div
+                  onClick={() => handleBannerNavigation(sideBanner)}
+                  className="hidden lg:flex lg:col-span-1 h-[400px] xl:h-[450px] rounded-3xl overflow-hidden relative bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-950 p-8 border border-slate-800/90 cursor-pointer group sf-card-lift"
+                >
+                  {/* Ambient glowing backlight behind product */}
+                  <div className="absolute -right-10 -bottom-10 w-56 h-56 bg-primary-500/10 rounded-full blur-3xl group-hover:bg-primary-500/25 transition-all duration-700 pointer-events-none" />
 
-                {/* Fire Extinguisher Image (Right side, absolute and offset) */}
-                <div className="absolute right-0 bottom-0 top-0 w-[55%] flex items-center justify-end z-10 select-none overflow-hidden">
-                  <picture className="h-[110%] w-auto object-contain translate-x-[12%] group-hover:scale-105 group-hover:translate-x-[8%] transition-transform duration-700 pointer-events-none select-none">
-                    {sideBanner?.mobileImage && (
-                      <source
-                        media="(max-width: 640px)"
-                        srcSet={sideBanner.mobileImage}
-                      />
+                  {/* Text and Actions (Left side) */}
+                  <div className="flex-1 flex flex-col justify-between z-20 text-left h-full max-w-[60%]">
+                    <div className="space-y-4">
+                      <span className="inline-block bg-amber-500/10 text-amber-400 border border-amber-500/20 px-3 py-1 rounded-full text-xs font-black tracking-widest uppercase">
+                        {sideBanner?.subtitle || "PREMIUM COLLECTION"}
+                      </span>
+                      <h3 className="text-white text-3xl font-black leading-tight tracking-tight drop-shadow-sm">
+                        {sideBanner?.title || "Luxury that Defines You"}
+                      </h3>
+                      <p className="text-slate-300 text-sm font-medium leading-relaxed">
+                        {sideBanner?.description ||
+                          "Exclusive watches for every occasion."}
+                      </p>
+                    </div>
+
+                    {sideBanner?.showButton !== false && (
+                      <button
+                        type="button"
+                        className={`${getButtonStyleClasses(
+                          sideBanner?.buttonStyle,
+                          true,
+                        )} self-start`}
+                      >
+                        <span>{sideBanner?.buttonText || "Explore Now"}</span>
+                        <span className="sf-cta-arrow">&rarr;</span>
+                      </button>
                     )}
-                    <img
-                      src={sideBanner?.image || "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=600&q=80"}
-                      alt={sideBanner?.altText || "Fire Extinguisher"}
-                      className="h-full w-auto object-contain pointer-events-none select-none rounded-2xl"
-                      draggable={false}
-                      onError={(e) => {
-                        e.target.src =
-                          "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=600&q=80";
-                      }}
-                    />
-                  </picture>
+                  </div>
+
+                  {/* Fire Extinguisher Image (Right side, absolute and offset) */}
+                  <div className="absolute right-0 bottom-0 top-0 w-[55%] flex items-center justify-end z-10 select-none overflow-hidden">
+                    <picture className="h-[110%] w-auto object-contain translate-x-[12%] group-hover:scale-105 group-hover:translate-x-[7%] transition-transform duration-700 pointer-events-none select-none animate-float-gentle">
+                      {sideBanner?.mobileImage && (
+                        <source
+                          media="(max-width: 640px)"
+                          srcSet={sideBanner.mobileImage}
+                        />
+                      )}
+                      <img
+                        src={sideBanner?.image || "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=600&q=80"}
+                        alt={sideBanner?.altText || "Fire Extinguisher"}
+                        className="h-full w-auto object-contain pointer-events-none select-none rounded-2xl"
+                        draggable={false}
+                        onError={(e) => {
+                          e.target.src =
+                            "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=600&q=80";
+                        }}
+                      />
+                    </picture>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          </ScrollReveal>
 
           {/* Categories */}
-          <MobileCategoryGrid />
+          <ScrollReveal y={20} duration={0.5} delay={0.03}>
+            <MobileCategoryGrid />
+          </ScrollReveal>
 
           {/* Animated Banner */}
-          <AnimatedBanner banners={promoBanners} />
+          <ScrollReveal y={20} duration={0.5} delay={0.03}>
+            <AnimatedBanner banners={promoBanners} />
+          </ScrollReveal>
 
           {/* Featured Products */}
-          <div className="py-4 bg-white mb-2 px-4 overflow-hidden w-full max-w-full">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl lg:text-2xl font-black text-gray-900 tracking-tight">
-                Featured Products
-              </h2>
-              <Link
-                to="/search"
-                className="text-xs lg:text-sm font-bold text-primary-600 hover:text-primary-700 transition-colors uppercase tracking-wider"
-              >
-                See All &rarr;
-              </Link>
-            </div>
-            <div className="flex gap-4 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
-              {computedMostPopular.slice(0, 6).map((product, index) => (
-                <motion.div
-                  key={product.id}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="min-w-[170px] w-[170px] flex-shrink-0"
+          <ScrollReveal y={20} duration={0.5} delay={0.03}>
+            <div className="py-4 bg-white mb-2 px-4 overflow-hidden w-full max-w-full">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl lg:text-2xl font-black text-gray-900 tracking-tight">
+                  Featured Products
+                </h2>
+                <Link
+                  to="/search"
+                  className="sf-cta-group text-xs lg:text-sm font-bold text-primary-600 hover:text-primary-700 transition-colors uppercase tracking-wider flex items-center gap-1"
                 >
-                  <ProductCard product={product} />
-                </motion.div>
-              ))}
+                  <span>See All</span>
+                  <span className="sf-cta-arrow">&rarr;</span>
+                </Link>
+              </div>
+              <div className="flex gap-4 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+                {computedMostPopular.slice(0, 6).map((product, index) => (
+                  <motion.div
+                    key={product.id}
+                    initial={{ opacity: 0, x: 15 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: index * 0.05, duration: 0.35 }}
+                    className="min-w-[170px] w-[170px] flex-shrink-0"
+                  >
+                    <ProductCard product={product} />
+                  </motion.div>
+                ))}
+              </div>
             </div>
-          </div>
+          </ScrollReveal>
 
           {/* Category In Focus */}
-          <CategoryInFocus
-            banner={categoryFocusBanner}
-            items={categoryFocusItems}
-          />
+          <ScrollReveal y={20} duration={0.5} delay={0.03}>
+            <CategoryInFocus
+              banner={categoryFocusBanner}
+              items={categoryFocusItems}
+            />
+          </ScrollReveal>
 
           {/* Deals Section */}
-          <DealsSection items={dealItems} />
+          <ScrollReveal y={20} duration={0.5} delay={0.03}>
+            <DealsSection items={dealItems} />
+          </ScrollReveal>
 
           {/* Dynamic sections registry map */}
-          <div className="space-y-4 px-4 md:px-0">
-            <Suspense fallback={
-              <div className="py-12 flex justify-center items-center">
-                <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-              </div>
-            }>
-              {combinedSections
-                .filter((section) => !['best_sellers', 'seasonal_collection', 'promotional_banner'].includes(section.type))
-                .map((section) => {
-                const Component = SECTION_COMPONENTS[section.type];
-                if (!Component) {
-                  return null;
-                }
+          <ScrollReveal y={20} duration={0.5} delay={0.03}>
+            <div className="space-y-4 px-4 md:px-0">
+              <Suspense fallback={
+                <div className="py-12 flex justify-center items-center">
+                  <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              }>
+                {combinedSections
+                  .filter((section) => !['best_sellers', 'seasonal_collection', 'promotional_banner'].includes(section.type))
+                  .map((section) => {
+                  const Component = SECTION_COMPONENTS[section.type];
+                  if (!Component) {
+                    return null;
+                  }
 
-                const hasData = Array.isArray(section.data) ? section.data.length > 0 : !!section.data;
-                if (!hasData) {
-                  return null;
-                }
+                  const hasData = Array.isArray(section.data) ? section.data.length > 0 : !!section.data;
+                  if (!hasData) {
+                    return null;
+                  }
 
-                // Honor minimumProducts display condition
-                if (Array.isArray(section.data) && section.data.length < (section.minimumProducts || 0)) {
-                  return null;
-                }
+                  // Honor minimumProducts display condition
+                  if (Array.isArray(section.data) && section.data.length < (section.minimumProducts || 0)) {
+                    return null;
+                  }
 
-                // Render best_sellers, recently_viewed, top_rated by passing products
-                if (['best_sellers', 'recently_viewed', 'top_rated'].includes(section.type)) {
-                  return <Component key={section.type} products={section.data} title={section.title} subtitle={section.subtitle} />;
-                }
+                  // Render best_sellers, recently_viewed, top_rated by passing products
+                  if (['best_sellers', 'recently_viewed', 'top_rated'].includes(section.type)) {
+                    return <Component key={section.type} products={section.data} title={section.title} subtitle={section.subtitle} />;
+                  }
 
-                return (
-                  <Component
-                    key={section.type}
-                    data={section.data}
-                    layout={section.layout}
-                    title={section.title}
-                    subtitle={section.subtitle}
-                    banner={section.banner}
-                    mobileBanner={section.mobileBanner}
-                    bannerTitle={section.bannerTitle}
-                    bannerSubtitle={section.bannerSubtitle}
-                    ctaText={section.ctaText}
-                    ctaLink={section.ctaLink}
-                    backgroundColor={section.backgroundColor}
-                    gradient={section.gradient}
-                    bannerBgColor={section.bannerBgColor}
-                    bannerBgGradient={section.bannerBgGradient}
-                    textColor={section.textColor}
-                    buttonColor={section.buttonColor}
-                    overlayOpacity={section.overlayOpacity}
-                    countdownDate={section.countdownDate}
-                    categories={section.categories}
-                    vendors={section.vendors}
-                  />
-                );
-              })}
-            </Suspense>
-          </div>
+                  return (
+                    <Component
+                      key={section.type}
+                      data={section.data}
+                      layout={section.layout}
+                      title={section.title}
+                      subtitle={section.subtitle}
+                      banner={section.banner}
+                      mobileBanner={section.mobileBanner}
+                      bannerTitle={section.bannerTitle}
+                      bannerSubtitle={section.bannerSubtitle}
+                      ctaText={section.ctaText}
+                      ctaLink={section.ctaLink}
+                      backgroundColor={section.backgroundColor}
+                      gradient={section.gradient}
+                      bannerBgColor={section.bannerBgColor}
+                      bannerBgGradient={section.bannerBgGradient}
+                      textColor={section.textColor}
+                      buttonColor={section.buttonColor}
+                      overlayOpacity={section.overlayOpacity}
+                      countdownDate={section.countdownDate}
+                      categories={section.categories}
+                      vendors={section.vendors}
+                    />
+                  );
+                })}
+              </Suspense>
+            </div>
+          </ScrollReveal>
 
           {/* Trust Bar */}
-          <TrustBar />
+          <ScrollReveal y={15} duration={0.5} delay={0.03}>
+            <TrustBar />
+          </ScrollReveal>
 
 
           {/* Bottom Spacing */}

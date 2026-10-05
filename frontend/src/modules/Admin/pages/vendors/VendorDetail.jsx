@@ -24,6 +24,7 @@ import {
   getVendorDocuments,
   updateVendorDocumentStatus,
   bulkUpdateVendorDocumentStatus,
+  syncVendorShiprocketPickup,
 } from "../../services/adminService";
 import Badge from "../../../../shared/components/Badge";
 import DataTable from "../../components/DataTable";
@@ -45,6 +46,7 @@ const VendorDetail = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const [isEditingCommission, setIsEditingCommission] = useState(false);
   const [commissionRate, setCommissionRate] = useState("");
+  const [isSyncingPickup, setIsSyncingPickup] = useState(false);
   const [activeDocFilter, setActiveDocFilter] = useState("all");
   const [checkedDocIds, setCheckedDocIds] = useState([]);
   const [previewDoc, setPreviewDoc] = useState(null);
@@ -342,6 +344,27 @@ const VendorDetail = () => {
     }
   };
 
+  const handlePickupSync = async () => {
+    setIsSyncingPickup(true);
+    try {
+      const response = await syncVendorShiprocketPickup(vendor.id);
+      const result = response?.data ?? response;
+      setVendor((current) => ({
+        ...current,
+        shiprocketPickupSync: {
+          ...current.shiprocketPickupSync,
+          status: result?.success ? 'synced' : (result?.reason === 'UPDATE_REQUIRED' ? 'update_required' : 'failed'),
+          lastError: result?.error || (result?.reason === 'UPDATE_REQUIRED' ? 'Address update requires Shiprocket review.' : ''),
+        },
+      }));
+      toast.success(result?.success ? 'Shiprocket pickup synchronized' : 'Pickup sync status recorded');
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message || 'Pickup synchronization failed');
+    } finally {
+      setIsSyncingPickup(false);
+    }
+  };
+
   if (!vendor) {
     return (
       <div className="text-center py-12">
@@ -519,6 +542,16 @@ const VendorDetail = () => {
                 <span className="text-green-600 font-bold text-sm px-2 flex items-center justify-center sm:justify-start gap-1">
                   Approved ✓
                 </span>
+                <span className="text-xs text-slate-600 px-2">
+                  Pickup: <strong className="uppercase">{vendor.shiprocketPickupSync?.status || 'pending'}</strong>
+                </span>
+                <button
+                  onClick={handlePickupSync}
+                  disabled={isSyncingPickup}
+                  className="flex items-center justify-center gap-1.5 px-3.5 py-2 min-h-[44px] bg-slate-700 hover:bg-slate-800 text-white rounded-lg transition-colors text-sm font-semibold shadow-sm w-full sm:w-auto disabled:opacity-50"
+                >
+                  {isSyncingPickup ? 'Syncing Pickup…' : 'Sync Shiprocket Pickup'}
+                </button>
                 <button
                   onClick={() => setVendorActionModal({ isOpen: true, action: "suspend", reason: "" })}
                   className="flex items-center justify-center gap-1.5 px-3.5 py-2 min-h-[44px] bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors text-sm font-semibold shadow-sm w-full sm:w-auto cursor-pointer"

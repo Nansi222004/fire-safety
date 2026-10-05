@@ -1,4 +1,4 @@
-import { FiHeart, FiShoppingBag, FiStar, FiTrash2 } from "react-icons/fi";
+import { FiHeart, FiShoppingBag, FiStar, FiTrash2, FiCheck } from "react-icons/fi";
 import { motion } from "framer-motion";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useCartStore, useUIStore } from "../store/useStore";
@@ -39,6 +39,8 @@ const ProductCard = ({
     (item) => item.id === product.id && hasNoVariant(item)
   );
   const [isAdding, setIsAdding] = useState(false);
+  const [isJustAdded, setIsJustAdded] = useState(false);
+  const [justFavorited, setJustFavorited] = useState(false);
   const [showLongPressMenu, setShowLongPressMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [showFlyingItem, setShowFlyingItem] = useState(false);
@@ -84,6 +86,11 @@ const ProductCard = ({
       vendorName: product.vendorName,
     });
     if (!addedToCart) return;
+
+    // Trigger cart animations in header and mobile cart bar
+    triggerCartAnimation();
+    setIsJustAdded(true);
+    setTimeout(() => setIsJustAdded(false), 1200);
 
     const isLargeScreen = window.innerWidth >= 1024;
     if (!isLargeScreen) {
@@ -165,6 +172,9 @@ const ProductCard = ({
 
   const handleFavorite = (e) => {
     e.stopPropagation();
+    setJustFavorited(true);
+    setTimeout(() => setJustFavorited(false), 500);
+
     if (isFavorite) {
       removeFromWishlist(product.id);
       toast.success("Removed from wishlist");
@@ -184,22 +194,28 @@ const ProductCard = ({
   return (
     <>
       <motion.div
+        whileHover={{ y: -4 }}
+        transition={{ duration: 0.25, ease: "easeOut" }}
         style={{ willChange: "transform", transform: "translateZ(0)" }}
-        className="bg-white rounded-2xl overflow-hidden group cursor-pointer h-full flex flex-col hover:shadow-lg transition-all duration-300 border border-slate-200/80 shadow-sm"
+        className="bg-white rounded-2xl overflow-hidden group cursor-pointer h-full flex flex-col hover:shadow-xl hover:border-slate-300 transition-all duration-300 border border-slate-200/80 shadow-sm"
         {...longPressHandlers}>
         <div className="relative">
           {/* Favorite Icon */}
           <div className="absolute top-2 right-2 z-10">
-            <button
+            <motion.button
+              type="button"
               onClick={handleFavorite}
-              className="p-1.5 bg-white/90 backdrop-blur-md rounded-full shadow-sm border border-slate-100 transition-all duration-300 group/heart hover:bg-white hover:scale-110">
+              whileHover={{ scale: 1.15 }}
+              whileTap={{ scale: 0.85 }}
+              className="p-1.5 bg-white/90 backdrop-blur-md rounded-full shadow-sm border border-slate-100 transition-all duration-200 group/heart hover:bg-white"
+              aria-label={isFavorite ? "Remove from wishlist" : "Add to wishlist"}>
               <FiHeart
-                className={`text-sm transition-colors duration-300 ${isFavorite
+                className={`text-sm transition-all duration-200 ${isFavorite
                   ? "text-red-500 fill-red-500"
-                  : "text-gray-500 group-heart:text-red-400"
-                  }`}
+                  : "text-gray-500 group-hover/heart:text-red-400"
+                  } ${justFavorited ? "animate-heart-pop text-red-500 fill-red-500" : ""}`}
               />
-            </button>
+            </motion.button>
           </div>
 
           {/* Product Image */}
@@ -212,7 +228,7 @@ const ProductCard = ({
               <LazyImage
                 src={product.image}
                 alt={product.name}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+                className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500 ease-out"
                 style={{ willChange: "transform", transform: "translateZ(0)" }}
                 onError={(e) => {
                   e.target.src = getPlaceholderImage(300, 300, "Product Image");
@@ -301,13 +317,26 @@ const ProductCard = ({
                 type="button"
                 onClick={handleAddToCart}
                 disabled={product.stock === "out_of_stock" || isAdding}
-                whileTap={{ scale: 0.95 }}
-                className={`w-full py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 ${product.stock === "out_of_stock"
+                whileTap={{ scale: 0.96 }}
+                whileHover={{ scale: 1.01 }}
+                className={`w-full py-2.5 rounded-xl font-bold text-xs transition-all duration-200 flex items-center justify-center gap-2 ${
+                  product.stock === "out_of_stock"
                     ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                    : "bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white shadow-md shadow-primary-500/20 active:scale-95"
-                  }`}>
-                <FiShoppingBag className="text-sm" />
-                <span>{isAdding ? "Adding..." : "Add"}</span>
+                    : isJustAdded
+                    ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
+                    : "bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white shadow-md shadow-primary-500/20"
+                }`}>
+                {isJustAdded ? (
+                  <>
+                    <FiCheck className="text-sm" />
+                    <span>Added!</span>
+                  </>
+                ) : (
+                  <>
+                    <FiShoppingBag className="text-sm" />
+                    <span>{isAdding ? "Adding..." : "Add"}</span>
+                  </>
+                )}
               </motion.button>
             )}
           </div>

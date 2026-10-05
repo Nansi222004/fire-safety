@@ -1,4 +1,4 @@
-import { FiHeart, FiShoppingBag, FiStar, FiTrash2 } from "react-icons/fi";
+import { FiHeart, FiShoppingBag, FiStar, FiTrash2, FiCheck } from "react-icons/fi";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useCartStore, useUIStore } from "../../../../shared/store/useStore";
@@ -33,6 +33,8 @@ const MobileProductCard = ({ product }) => {
   const isInCart = items.some(
     (item) => item.id === product.id && hasNoVariant(item)
   );
+  const [isJustAdded, setIsJustAdded] = useState(false);
+  const [justFavorited, setJustFavorited] = useState(false);
   const [showLongPressMenu, setShowLongPressMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [showFlyingItem, setShowFlyingItem] = useState(false);
@@ -71,6 +73,11 @@ const MobileProductCard = ({ product }) => {
       vendorName: product.vendorName,
     });
     if (!addedToCart) return;
+
+    // Trigger cart animations in header and mobile cart bar
+    triggerCartAnimation();
+    setIsJustAdded(true);
+    setTimeout(() => setIsJustAdded(false), 1200);
 
     const isLargeScreen = window.innerWidth >= 1024;
     if (!isLargeScreen) {
@@ -119,6 +126,9 @@ const MobileProductCard = ({ product }) => {
       e.preventDefault();
       e.stopPropagation();
     }
+    setJustFavorited(true);
+    setTimeout(() => setJustFavorited(false), 500);
+
     if (isFavorite) {
       removeFromWishlist(product.id);
       toast.success("Removed from wishlist");
@@ -174,15 +184,17 @@ const MobileProductCard = ({ product }) => {
     <>
       <motion.div
         whileTap={{ scale: 0.98 }}
-        className="glass-card rounded-2xl overflow-hidden mb-4"
+        whileHover={{ y: -3 }}
+        transition={{ duration: 0.2 }}
+        className="glass-card rounded-2xl overflow-hidden mb-4 border border-slate-200/80 shadow-sm hover:shadow-md transition-all duration-300"
         {...longPressHandlers}>
         <div className="flex gap-4 p-4">
           {/* Product Image */}
-          <Link to={`/product/${product.id}`} className="w-24 h-24 flex-shrink-0 rounded-xl overflow-hidden bg-gray-100 block">
+          <Link to={`/product/${product.id}`} className="w-24 h-24 flex-shrink-0 rounded-xl overflow-hidden bg-gray-100 block group">
             <LazyImage
               src={product.image}
               alt={product.name}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
               onError={(e) => {
                 e.target.src = getPlaceholderImage(200, 200, "Product");
               }}
@@ -193,19 +205,22 @@ const MobileProductCard = ({ product }) => {
           <div className="flex-1 min-w-0 flex flex-col">
             <div className="flex items-start justify-between gap-2 mb-1">
               <Link to={`/product/${product.id}`} className="flex-1">
-                <h3 className="font-bold text-gray-800 text-sm line-clamp-2">
+                <h3 className="font-bold text-gray-800 text-sm line-clamp-2 hover:text-primary-600 transition-colors">
                   {product.name}
                 </h3>
               </Link>
-              <button
+              <motion.button
                 type="button"
                 onClick={handleFavorite}
-                className="flex-shrink-0 p-1.5 hover:bg-gray-100 rounded-full transition-colors">
+                whileTap={{ scale: 0.85 }}
+                whileHover={{ scale: 1.15 }}
+                className="flex-shrink-0 p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+                aria-label={isFavorite ? "Remove from wishlist" : "Add to wishlist"}>
                 <FiHeart
-                  className={`text-lg ${isFavorite ? "text-red-500 fill-red-500" : "text-gray-400"
-                    }`}
+                  className={`text-lg transition-all duration-200 ${isFavorite ? "text-red-500 fill-red-500" : "text-gray-400 hover:text-red-400"
+                    } ${justFavorited ? "animate-heart-pop text-red-500 fill-red-500" : ""}`}
                 />
-              </button>
+              </motion.button>
             </div>
 
             <p className="text-xs text-gray-500 mb-2">{product.unit}</p>
@@ -270,17 +285,29 @@ const MobileProductCard = ({ product }) => {
                 type="button"
                 onClick={handleAddToCart}
                 disabled={product.stock === "out_of_stock"}
-                whileTap={{ scale: 0.95 }}
+                whileTap={{ scale: 0.96 }}
+                whileHover={{ scale: 1.01 }}
                 className={`w-full py-3 rounded-xl font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2 ${product.stock === "out_of_stock"
                   ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                  : isJustAdded
+                  ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
                   : "gradient-green text-white hover:shadow-glow-green"
                   }`}>
-                <FiShoppingBag className="text-base" />
-                <span>
-                  {product.stock === "out_of_stock"
-                    ? "Out of Stock"
-                    : "Add to Cart"}
-                </span>
+                {isJustAdded ? (
+                  <>
+                    <FiCheck className="text-base" />
+                    <span>Added!</span>
+                  </>
+                ) : (
+                  <>
+                    <FiShoppingBag className="text-base" />
+                    <span>
+                      {product.stock === "out_of_stock"
+                        ? "Out of Stock"
+                        : "Add to Cart"}
+                    </span>
+                  </>
+                )}
               </motion.button>
             )}
           </div>

@@ -16,6 +16,7 @@ import Badge from '../../../../shared/components/Badge';
 import AnimatedSelect from '../../../Admin/components/AnimatedSelect';
 import toast from 'react-hot-toast';
 import { recordSelfAction, cancelSelfAction } from '../../../../shared/utils/selfActionTracker';
+import ManualDeliveryAssignment from '../../../../shared/components/Delivery/ManualDeliveryAssignment';
 
 const OrderDetail = () => {
     const { id } = useParams();
@@ -27,6 +28,7 @@ const OrderDetail = () => {
     const [updatingStatus, setUpdatingStatus] = useState(false);
     const [pickupOtp, setPickupOtp] = useState('');
     const [verifyingOtp, setVerifyingOtp] = useState(false);
+    const [refreshKey, setRefreshKey] = useState(0);
 
     const handleVerifyPickup = async (e, shipmentIdOrOrderId) => {
         e.preventDefault();
@@ -128,7 +130,7 @@ const OrderDetail = () => {
         return () => {
             mounted = false;
         };
-    }, [id, vendorId]);
+    }, [id, vendorId, refreshKey]);
 
     const handleStatusChange = async (newStatus) => {
         if (!order) return;
@@ -487,6 +489,13 @@ const OrderDetail = () => {
                                                     </div>
                                                 )}
                                             </div>
+
+                                            <ManualDeliveryAssignment
+                                                shipment={shipment}
+                                                orderId={order._id || order.orderId}
+                                                actor="vendor"
+                                                onAssigned={() => setRefreshKey((value) => value + 1)}
+                                            />
 
                                             {/* Pickup OTP */}
                                             {currentStatus === 'ready_for_pickup' && assignmentStatus === 'accepted' && (

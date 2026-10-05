@@ -1,6 +1,7 @@
+import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FiShoppingBag, FiHeart, FiTrash2 } from "react-icons/fi";
+import { FiShoppingBag, FiHeart, FiTrash2, FiCheck } from "react-icons/fi";
 import { useCartStore, useUIStore } from "../../../../shared/store/useStore";
 import { useWishlistStore } from "../../../../shared/store/wishlistStore";
 import { formatPrice } from "../../../../shared/utils/helpers";
@@ -27,6 +28,8 @@ const ProductListItem = ({ product, index, isFlashSale = false }) => {
   const isInCart = items.some(
     (item) => item.id === product.id && hasNoVariant(item)
   );
+
+  const [justAdded, setJustAdded] = useState(false);
 
   const handleAddToCart = async (e) => {
     if (e) {
@@ -57,7 +60,9 @@ const ProductListItem = ({ product, index, isFlashSale = false }) => {
       vendorName: product.vendorName,
     });
     if (!addedToCart) return;
+    setJustAdded(true);
     triggerCartAnimation();
+    setTimeout(() => setJustAdded(false), 1200);
   };
 
   const handleRemoveFromCart = (e) => {
@@ -127,16 +132,17 @@ const ProductListItem = ({ product, index, isFlashSale = false }) => {
                 {product.name}
               </h3>
             </Link>
-            <button
+            <motion.button
+              whileTap={{ scale: 0.85 }}
               onClick={handleFavorite}
               className={`flex-shrink-0 p-2 rounded-full border transition-all ${isFavorite
                 ? "bg-red-50 border-red-100 text-red-500 shadow-sm"
                 : "bg-white border-slate-100 text-slate-400 hover:bg-slate-50"
                 }`}>
               <FiHeart
-                className={`text-sm ${isFavorite ? "fill-current scale-110" : ""}`}
+                className={`text-sm ${isFavorite ? "fill-current scale-110 animate-heart-pop" : "transition-transform group-hover:scale-110"}`}
               />
-            </button>
+            </motion.button>
           </div>
 
           <div className="flex items-center gap-2 mb-1">
@@ -179,25 +185,39 @@ const ProductListItem = ({ product, index, isFlashSale = false }) => {
             </div>
 
             {isInCart ? (
-              <button
+              <motion.button
                 type="button"
+                whileTap={{ scale: 0.95 }}
                 onClick={handleRemoveFromCart}
-                className="px-4 py-2 rounded-xl font-bold text-xs md:text-sm flex items-center gap-2 bg-rose-50 text-rose-600 border border-rose-100 transition-all shadow-sm active:scale-95">
+                className="px-4 py-2 rounded-xl font-bold text-xs md:text-sm flex items-center gap-2 bg-rose-50 text-rose-600 border border-rose-100 transition-all shadow-sm">
                 <FiTrash2 className="text-xs md:text-base" />
                 <span>Remove</span>
-              </button>
+              </motion.button>
             ) : (
-              <button
+              <motion.button
                 type="button"
+                whileTap={{ scale: 0.96 }}
                 onClick={handleAddToCart}
-                className={`px-4 py-2 rounded-xl font-bold text-xs md:text-sm flex items-center gap-2 transition-all shadow-sm active:scale-95 whitespace-nowrap ${isFlashSale
-                  ? "bg-gradient-to-r from-red-500 to-orange-500 text-white hover:shadow-red-200"
-                  : "bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white shadow-md shadow-primary-500/20"
-                  }`}>
-                <FiShoppingBag className="text-xs md:text-base" />
-                <span className="hidden sm:inline">Add to Cart</span>
-                <span className="sm:hidden">Add</span>
-              </button>
+                className={`px-4 py-2 rounded-xl font-bold text-xs md:text-sm flex items-center gap-2 transition-all shadow-sm whitespace-nowrap ${
+                  justAdded
+                    ? "bg-emerald-600 text-white shadow-emerald-200"
+                    : isFlashSale
+                    ? "bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white shadow-md shadow-red-500/20"
+                    : "bg-[#E31E24] hover:bg-[#c6151b] text-white shadow-md shadow-[#E31E24]/20"
+                }`}>
+                {justAdded ? (
+                  <>
+                    <FiCheck className="text-xs md:text-base animate-scale-up" />
+                    <span>Added!</span>
+                  </>
+                ) : (
+                  <>
+                    <FiShoppingBag className="text-xs md:text-base" />
+                    <span className="hidden sm:inline">Add to Cart</span>
+                    <span className="sm:hidden">Add</span>
+                  </>
+                )}
+              </motion.button>
             )}
           </div>
         </div>

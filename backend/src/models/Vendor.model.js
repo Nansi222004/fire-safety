@@ -106,6 +106,19 @@ const vendorSchema = new mongoose.Schema(
             isVerified: { type: Boolean, default: false }, // admin-verified
             verifiedAt: { type: Date },
         },
+        shiprocketPickupSync: {
+            status: {
+                type: String,
+                enum: ['pending', 'synced', 'failed', 'update_required'],
+                default: 'pending',
+            },
+            pickupLocation: { type: String },
+            remoteId: { type: String },
+            addressHash: { type: String },
+            lastAttemptAt: { type: Date },
+            lastSyncedAt: { type: Date },
+            lastError: { type: String },
+        },
         bankDetails: {
             accountName: { type: String, select: false },
             accountNumber: { type: String, select: false },

@@ -215,6 +215,16 @@ class ShiprocketProvider extends BaseProvider {
         this._apiClient      = null;
     }
 
+    async getPickupLocations() {
+        await this._loadConfig();
+        return this._apiClient.getPickupLocations();
+    }
+
+    async addPickupLocation(payload) {
+        await this._loadConfig();
+        return this._apiClient.addPickupLocation(payload);
+    }
+
     // ─── Courier Selection ─────────────────────────────────────────────────────
 
     /**
@@ -587,12 +597,22 @@ class ShiprocketProvider extends BaseProvider {
             if (!vendor) throw new Error(`Vendor ${shipment.vendorId} not found`);
 
             const isCod = order.paymentMethod === 'cod' || order.paymentMethod === 'cash';
+            const vendorGroup = (order.vendorItems || []).find((group) =>
+                String(group.vendorId) === String(shipment.vendorId)
+            );
+            const orderItems = (vendorGroup?.items || []).map((item) => ({
+                name: item.name || 'Product',
+                sku: String(item.productId || item.variantKey || 'SKU'),
+                units: Math.max(1, Number(item.quantity) || 1),
+                selling_price: Math.max(0, Number(item.price) || 0),
+            }));
+            const dimensions = shipment.packageDimensions || {};
 
             // 1. Create Order in Shiprocket
             const createPayload = {
                 order_id: shipment.shipmentNumber,
                 order_date: new Date().toISOString(),
-                pickup_location: vendor.warehouseAddress?.city || 'Default',
+                pickup_location: shipment.providerPickupLocationId,
                 billing_customer_name: order.shippingAddress?.name || 'Customer',
                 billing_last_name: '',
                 billing_address: order.shippingAddress?.address || 'Unknown',
@@ -603,17 +623,12 @@ class ShiprocketProvider extends BaseProvider {
                 billing_email: order.shippingAddress?.email || 'test@example.com',
                 billing_phone: order.shippingAddress?.phone || '9999999999',
                 shipping_is_billing: true,
-                order_items: [{
-                    name: 'Products',
-                    sku: 'SKU',
-                    units: 1,
-                    selling_price: shipment.customerShippingCharge || 10,
-                }],
+                order_items: orderItems,
                 payment_method: isCod ? 'COD' : 'Prepaid',
-                sub_total: shipment.customerShippingCharge || 10,
-                length: 10,
-                breadth: 10,
-                height: 10,
+                sub_total: Math.max(0, Number(vendorGroup?.subtotal) || 0),
+                length: Number(dimensions.length),
+                breadth: Number(dimensions.breadth),
+                height: Number(dimensions.height),
                 weight: (shipment.packageWeight || 500) / 1000,
             };
 

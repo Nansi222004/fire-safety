@@ -6,6 +6,7 @@ import Commission from '../../../models/Commission.model.js';
 import VendorDocument from '../../../models/VendorDocument.model.js';
 import { sendEmail } from '../../../services/email.service.js';
 import { createNotification } from '../../../services/notification.service.js';
+import { queueVendorShiprocketPickupSync, syncVendorShiprocketPickup } from '../../../services/shiprocketPickup.service.js';
 
 const escapeRegex = (value = '') => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -149,6 +150,10 @@ export const updateVendorStatus = asyncHandler(async (req, res) => {
 
     await vendor.save();
 
+    if (status === 'approved') {
+        queueVendorShiprocketPickupSync(vendor._id);
+    }
+
     // 5. Tailored Notification Messages
     let vendorMessage = '';
     if (status === 'approved') {
@@ -189,6 +194,14 @@ export const updateVendorStatus = asyncHandler(async (req, res) => {
     }
 
     res.status(200).json(new ApiResponse(200, toApiVendor(vendor), `Vendor ${status} successfully.`));
+});
+
+export const syncShiprocketPickup = asyncHandler(async (req, res) => {
+    const result = await syncVendorShiprocketPickup(req.params.id);
+    const responseStatus = result.success ? 200 : 202;
+    res.status(responseStatus).json(new ApiResponse(responseStatus, result, result.success
+        ? 'Shiprocket pickup location synchronized.'
+        : 'Pickup synchronization recorded for retry/review.'));
 });
 
 // PATCH /api/admin/vendors/:id/commission

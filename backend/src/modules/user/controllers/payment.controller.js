@@ -31,6 +31,7 @@ import { generateTrackingNumber } from '../../../utils/generateTrackingNumber.js
 import { isCodOnlyMode } from '../../../config/paymentConfig.js';
 import { findMatchingVariantKey, encodeVariantKey } from '../../../utils/variantKeyHelper.js';
 import { assertWholesaleBuyer, resolveWholesaleLine } from '../../../services/wholesale.service.js';
+import { buildOrderRoutingDecisions } from '../../../services/deliveryRouting.service.js';
 
 // ─── POST /api/user/payment/initialize ────────────────────────────────────────
 // Creates DB order (payment_pending) + Razorpay order. No stock deducted yet.
@@ -311,6 +312,14 @@ export const initializePayment = asyncHandler(async (req, res) => {
         }
     }
 
+    // Authoritative fulfillment choice. Client quotes may affect price, never routing.
+    const routingDecisions = await buildOrderRoutingDecisions({
+        vendorItems,
+        shippingAddress,
+        paymentMethod: normalizedPaymentMethod,
+        isWholesale: isWholesaleOrder,
+    });
+
     // ─── COD: Create order immediately with stock deduction ───────────────────
     if (normalizedPaymentMethod === 'cod') {
         const session = await mongoose.startSession();
@@ -426,7 +435,8 @@ export const initializePayment = asyncHandler(async (req, res) => {
 
                 // Phase 5.1 Parity: Create Shipments for COD order
                 const shipmentDocs = vendorItems.map((vGroup) => {
-                    let providerId = 'own_fleet';
+                    const routing = routingDecisions[String(vGroup.vendorId)];
+                    let providerId = routing.providerId;
                     let quoteId = null;
                     let estCost = 0;
                     let notes = 'Shipment created at order placement (COD fallback)';
@@ -434,9 +444,10 @@ export const initializePayment = asyncHandler(async (req, res) => {
                     const vQuoteReq = shippingQuotes ? shippingQuotes[String(vGroup.vendorId)] : null;
                     if (vQuoteReq && vQuoteReq.quoteId && validQuotes[vQuoteReq.quoteId]) {
                         const dbQuote = validQuotes[vQuoteReq.quoteId];
-                        providerId = dbQuote.providerId || 'own_fleet';
                         quoteId = dbQuote._id;
-                        estCost = dbQuote.estimatedCost || 0;
+                        estCost = routing.deliveryMethod === 'SHIPROCKET' && dbQuote.providerId === 'shiprocket'
+                            ? (dbQuote.estimatedCost || 0)
+                            : 0;
                         notes = `Shipment created with provider ${providerId} via quote ${dbQuote.quoteId}`;
                     }
 
@@ -445,9 +456,15 @@ export const initializePayment = asyncHandler(async (req, res) => {
                         vendorId:               vGroup.vendorId,
                         vendorName:             vGroup.vendorName,
                         providerId:             providerId,
+                        deliveryMethod:         routing.deliveryMethod,
+                        deliveryRoutingReason:  routing.deliveryRoutingReason,
+                        deliveryRoutingDetails: routing.deliveryRoutingDetails,
+                        distance:               routing.distanceKm,
+                        providerPickupLocationId: routing.providerPickupLocationId,
+                        providerMetadata:       routing.providerMetadata,
                         shippingQuoteId:        quoteId,
                         selectedBy:             'AUTO',
-                        providerLocked:         false,
+                        providerLocked:         true,
                         customerShippingCharge: Number(vGroup.shipping) || 0,
                         estimatedDeliveryCost:  estCost,
                         status:                 'pending',
@@ -457,9 +474,9 @@ export const initializePayment = asyncHandler(async (req, res) => {
                             updatedBy: 'system',
                             notes:     notes,
                         }],
-                        packageWeight: vGroup.items.reduce(
-                            (sum, item) => sum + (500 * (item.quantity || 1)), 0
-                        ) || 500,
+                        packageWeight: routing.packageWeight,
+                        packageDimensions: routing.packageDimensions,
+                        externalCreationStatus: routing.deliveryMethod === 'INTERNAL' ? 'not_applicable' : 'not_started',
                         escrowStatus: 'held',
                         deliveryAssignmentStatus: 'pending',
                         rejectedDeliveryBoys: [],
@@ -784,7 +801,8 @@ export const initializePayment = asyncHandler(async (req, res) => {
 
             // Phase 5.1 Parity: Create Shipments for prepaid order
             const shipmentDocs = vendorItems.map((vGroup) => {
-                let providerId = 'own_fleet';
+                const routing = routingDecisions[String(vGroup.vendorId)];
+                let providerId = routing.providerId;
                 let quoteId = null;
                 let estCost = 0;
                 let notes = 'Shipment created at order placement (Prepaid fallback)';
@@ -792,9 +810,10 @@ export const initializePayment = asyncHandler(async (req, res) => {
                 const vQuoteReq = shippingQuotes ? shippingQuotes[String(vGroup.vendorId)] : null;
                 if (vQuoteReq && vQuoteReq.quoteId && validQuotes[vQuoteReq.quoteId]) {
                     const dbQuote = validQuotes[vQuoteReq.quoteId];
-                    providerId = dbQuote.providerId || 'own_fleet';
                     quoteId = dbQuote._id;
-                    estCost = dbQuote.estimatedCost || 0;
+                    estCost = routing.deliveryMethod === 'SHIPROCKET' && dbQuote.providerId === 'shiprocket'
+                        ? (dbQuote.estimatedCost || 0)
+                        : 0;
                     notes = `Shipment created with provider ${providerId} via quote ${dbQuote.quoteId}`;
                 }
 
@@ -803,9 +822,15 @@ export const initializePayment = asyncHandler(async (req, res) => {
                     vendorId:               vGroup.vendorId,
                     vendorName:             vGroup.vendorName,
                     providerId:             providerId,
+                    deliveryMethod:         routing.deliveryMethod,
+                    deliveryRoutingReason:  routing.deliveryRoutingReason,
+                    deliveryRoutingDetails: routing.deliveryRoutingDetails,
+                    distance:               routing.distanceKm,
+                    providerPickupLocationId: routing.providerPickupLocationId,
+                    providerMetadata:       routing.providerMetadata,
                     shippingQuoteId:        quoteId,
                     selectedBy:             'AUTO',
-                    providerLocked:         false,
+                    providerLocked:         true,
                     customerShippingCharge: Number(vGroup.shipping) || 0,
                     estimatedDeliveryCost:  estCost,
                     status:                 'pending',
@@ -815,9 +840,9 @@ export const initializePayment = asyncHandler(async (req, res) => {
                         updatedBy: 'system',
                         notes:     notes,
                     }],
-                    packageWeight: vGroup.items.reduce(
-                        (sum, item) => sum + (500 * (item.quantity || 1)), 0
-                    ) || 500,
+                    packageWeight: routing.packageWeight,
+                    packageDimensions: routing.packageDimensions,
+                    externalCreationStatus: routing.deliveryMethod === 'INTERNAL' ? 'not_applicable' : 'not_started',
                     escrowStatus: 'held',
                     deliveryAssignmentStatus: 'pending',
                     rejectedDeliveryBoys: [],

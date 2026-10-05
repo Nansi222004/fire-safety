@@ -19,6 +19,7 @@ import {
     rotateRefreshSession,
 } from '../../../services/refreshToken.service.js';
 import { isVendorApprovalRequired } from '../../../services/settingsService.js';
+import { queueVendorShiprocketPickupSync, syncVendorShiprocketPickup } from '../../../services/shiprocketPickup.service.js';
 
 import VendorDocument from '../../../models/VendorDocument.model.js';
 import { cleanupLocalFiles, uploadLocalFileToCloudinaryAndCleanupWithType } from '../../../services/upload.service.js';
@@ -131,6 +132,15 @@ export const register = asyncHandler(async (req, res) => {
         storeName: String(storeName || '').trim(),
         storeDescription: String(storeDescription || '').trim(),
         address: { street, city, state, zipCode, country },
+        warehouseAddress: {
+            warehouseName: String(storeName || '').trim(),
+            contactPerson: String(name || '').trim(),
+            contactNumber: String(phone || '').trim(),
+            address: street,
+            city,
+            state,
+            pincode: zipCode,
+        },
         documents: {
             businessLicense: licenseUrl,
             identity: identityUrl,
@@ -217,6 +227,10 @@ export const verifyOTP = asyncHandler(async (req, res) => {
     }
 
     await vendor.save();
+
+    if (vendor.status === 'approved') {
+        queueVendorShiprocketPickupSync(vendor._id);
+    }
 
     const msg = approvalRequired
         ? 'Email verified. Awaiting admin approval.'
@@ -437,7 +451,31 @@ export const updateProfile = asyncHandler(async (req, res) => {
     }
 
     const vendor = await Vendor.findByIdAndUpdate(req.user.id, updates, { new: true, runValidators: true }).select('-password -otp -otpExpiry +bankDetails.accountName +bankDetails.accountNumber +bankDetails.bankName +bankDetails.ifscCode +upiId +paypalEmail');
+    if (updates.address) {
+        vendor.warehouseAddress = {
+            ...(vendor.warehouseAddress?.toObject?.() || vendor.warehouseAddress || {}),
+            warehouseName: vendor.storeName,
+            contactPerson: vendor.name,
+            contactNumber: vendor.phone,
+            address: updates.address.street,
+            city: updates.address.city,
+            state: updates.address.state,
+            pincode: updates.address.zipCode,
+        };
+        await vendor.save();
+    }
+    if (updates.address && vendor.status === 'approved') {
+        queueVendorShiprocketPickupSync(vendor._id);
+    }
     res.status(200).json(new ApiResponse(200, vendor, 'Profile updated.'));
+});
+
+export const syncShiprocketPickup = asyncHandler(async (req, res) => {
+    const result = await syncVendorShiprocketPickup(req.user.id);
+    const responseStatus = result.success ? 200 : 202;
+    res.status(responseStatus).json(new ApiResponse(responseStatus, result, result.success
+        ? 'Shiprocket pickup location synchronized.'
+        : 'Pickup synchronization recorded for retry/review.'));
 });
 
 // PUT /api/vendor/auth/bank-details

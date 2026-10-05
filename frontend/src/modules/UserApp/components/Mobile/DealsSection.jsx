@@ -9,15 +9,15 @@ import abcExtinguisherImg from '../../../../assets/ABC Fire Extinguishers.webp';
 import co2ExtinguisherImg from '../../../../assets/CO₂ Fire Extinguishers.webp';
 
 const getButtonStyleClasses = (style = "primary") => {
-  const base = "inline-flex items-center justify-center gap-1 font-bold py-1.5 px-3.5 rounded-xl transition-all duration-300 shadow-sm cursor-pointer select-none text-[10px] active:scale-95 mt-2 self-start whitespace-nowrap";
+  const base = "sf-cta-group inline-flex items-center justify-center gap-1 font-bold py-1.5 px-3.5 rounded-xl sf-btn-interactive shadow-sm cursor-pointer select-none text-[10px] active:scale-[0.97] mt-2 self-start whitespace-nowrap";
   switch (style) {
     case "secondary":
-      return `${base} bg-slate-800 hover:bg-slate-700 text-white hover:scale-[1.02]`;
+      return `${base} bg-slate-800 hover:bg-slate-700 text-white`;
     case "outline":
-      return `${base} bg-transparent border border-red-500 text-red-400 hover:bg-red-500/10 hover:scale-[1.02]`;
+      return `${base} bg-transparent border border-red-500 text-red-400 hover:bg-red-500/10`;
     case "primary":
     default:
-      return `${base} bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white shadow-sm shadow-red-600/30 hover:scale-[1.02]`;
+      return `${base} bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white shadow-sm shadow-red-600/30`;
   }
 };
 
@@ -104,10 +104,10 @@ const DealsSection = ({ items }) => {
         </div>
         <Link 
           to="/offers" 
-          className="text-xs md:text-sm text-red-400 font-extrabold uppercase tracking-wider hover:text-red-300 transition-colors flex items-center gap-1 bg-red-500/10 border border-red-500/20 px-3 py-1.5 rounded-full"
+          className="sf-cta-group text-xs md:text-sm text-red-400 font-extrabold uppercase tracking-wider hover:text-red-300 transition-all duration-200 flex items-center gap-1.5 bg-red-500/10 border border-red-500/20 px-3.5 py-1.5 rounded-full hover:bg-red-500/20 hover:scale-105 active:scale-95"
         >
           <span>View All</span>
-          <span>&rarr;</span>
+          <span className="sf-cta-arrow">&rarr;</span>
         </Link>
       </div>
 
@@ -117,7 +117,7 @@ const DealsSection = ({ items }) => {
             key={index}
             to={deal.link || "/search"}
             onClick={(e) => handleDealClick(deal, e)}
-            className="min-w-[160px] w-[160px] md:min-w-[230px] md:w-[230px] flex-shrink-0 flex flex-col bg-slate-900/90 border border-slate-800 rounded-2xl overflow-hidden shadow-md hover:shadow-2xl hover:border-red-500/60 hover:-translate-y-1 transition-all duration-300 group"
+            className="min-w-[160px] w-[160px] md:min-w-[230px] md:w-[230px] flex-shrink-0 flex flex-col bg-slate-900/90 border border-slate-800 rounded-2xl overflow-hidden shadow-md hover:shadow-2xl hover:border-red-500/60 sf-card-lift transition-all duration-300 group"
           >
             <div className="w-full h-36 md:h-44 overflow-hidden bg-slate-950/60 relative select-none">
               <picture className="w-full h-full object-cover">
@@ -125,14 +125,14 @@ const DealsSection = ({ items }) => {
                 <img 
                   src={deal.image || (index % 2 === 0 ? heroBanner1 : heroBanner2)} 
                   alt={deal.altText || deal.brand || "Safety Deal"}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 pointer-events-none select-none"
+                  className="w-full h-full object-cover sf-img-zoom group-hover:scale-[1.03] transition-transform duration-500 pointer-events-none select-none"
                   loading="lazy"
                   onError={(e) => {
                     e.target.src = index % 2 === 0 ? heroBanner1 : heroBanner2;
                   }}
                 />
               </picture>
-              <div className="absolute top-2 left-2 bg-red-600 text-white font-black text-[9px] px-2 py-0.5 rounded-full shadow-sm">
+              <div className="absolute top-2 left-2 bg-red-600 text-white font-black text-[9px] px-2.5 py-0.5 rounded-full shadow-sm animate-deal-pulse">
                 DEAL
               </div>
             </div>
@@ -152,7 +152,8 @@ const DealsSection = ({ items }) => {
                 </p>
                 {deal.showButton !== false && (
                   <span className={getButtonStyleClasses(deal.buttonStyle)}>
-                    {deal.buttonText || "Shop Deal"}
+                    <span>{deal.buttonText || "Shop Deal"}</span>
+                    <span className="sf-cta-arrow">&rarr;</span>
                   </span>
                 )}
               </div>

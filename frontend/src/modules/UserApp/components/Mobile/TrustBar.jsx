@@ -37,12 +37,21 @@ const TrustBar = () => {
     <div className="py-6 px-4">
       <div className="bg-white rounded-3xl p-5 md:p-6 border border-gray-100 shadow-sm grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-8">
         {trustItems.map((item, index) => (
-          <div key={index} className="flex items-center gap-2.5 md:gap-4 px-1 last:border-r-0 lg:border-r border-gray-100/80">
-            <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center shrink-0 ${item.bg}`}>
-              <item.icon className={`text-lg md:text-xl lg:text-2xl ${item.color}`} />
+          <div
+            key={index}
+            className="group flex items-center gap-2.5 md:gap-4 px-1 last:border-r-0 lg:border-r border-gray-100/80 hover:-translate-y-0.5 transition-all duration-300 cursor-default"
+          >
+            <div
+              className={`w-10 h-10 md:w-12 md:h-12 rounded-2xl flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-105 group-hover:shadow-sm ${item.bg}`}
+            >
+              <item.icon
+                className={`text-lg md:text-xl lg:text-2xl transition-transform duration-300 ${item.color} ${
+                  item.icon === FiShield ? "animate-shield-glow" : ""
+                }`}
+              />
             </div>
             <div className="text-left">
-              <p className="text-xs md:text-sm lg:text-base font-black text-gray-800 leading-tight">
+              <p className="text-xs md:text-sm lg:text-base font-black text-gray-800 leading-tight group-hover:text-red-600 transition-colors duration-200">
                 {item.title}
               </p>
               <p className="text-[10px] md:text-xs text-gray-500 font-semibold mt-0.5 leading-tight">

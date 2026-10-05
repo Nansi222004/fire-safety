@@ -12,6 +12,7 @@
     "test:e2e": "node tests/verification/verifyE2E.js",
     "test:push": "node tests/integration/testPushNotificationPipeline.js",
     "test:reverse": "node tests/integration/testDelhiveryReverse.js && node tests/integration/testShiprocketReverse.js",
+    "test:delivery-routing": "node src/services/deliveryRouting.test.js",
     "seed:coupons": "node src/scripts/seedCoupons.js"
   },
   "author": "furqan",
