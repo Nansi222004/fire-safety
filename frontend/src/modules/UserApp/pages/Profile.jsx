@@ -304,6 +304,14 @@ const MobileProfile = () => {
           iconBg: 'bg-primary-50',
           link: '/orders',
         },
+        {
+          label: 'My Fire Safety',
+          description: 'Monitored equipment status, inspections & alerts',
+          icon: FiShield,
+          iconColor: 'text-[#E31E24]',
+          iconBg: 'bg-red-50',
+          link: '/my-fire-safety',
+        },
         ...(hasWholesaleAccess
           ? [{
               label: 'Wholesale / B2B',

@@ -13,6 +13,7 @@ import userRoutes from './modules/user/routes/user.routes.js';
 import adminRoutes from './modules/admin/routes/admin.routes.js';
 import vendorRoutes from './modules/vendor/routes/vendor.routes.js';
 import deliveryRoutes from './modules/delivery/routes/delivery.routes.js';
+import workerRoutes from './modules/worker/routes/worker.routes.js';
 import webhookRouter from './modules/user/routes/webhook.routes.js';
 import paymentRouter from './modules/user/routes/payment.routes.js';
 import fcmTokenRoutes from './routes/fcmToken.routes.js';
@@ -130,6 +131,7 @@ app.use('/api/user/payment', paymentRouter);         // Payment: initialize, ret
 app.use('/api/admin', adminRoutes);                  // Admin: auth, vendors, orders, catalog, analytics
 app.use('/api/vendor', vendorRoutes);                // Vendor: auth, products, orders, earnings
 app.use('/api/delivery', deliveryRoutes);            // Delivery: auth, orders
+app.use('/api/worker', workerRoutes);                // Fire safety inspector: auth, assigned tasks, reports
 
 // ─── Error Handling ──────────────────────────────────────────────────────────
 app.use(notFound);

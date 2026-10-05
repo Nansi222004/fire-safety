@@ -10,6 +10,7 @@ import * as cartController from '../controllers/cart.controller.js';
 import * as supportController from '../controllers/support.controller.js';
 import * as recentlyViewedController from '../controllers/recentlyViewed.controller.js';
 import * as wholesaleController from '../controllers/wholesale.controller.js';
+import * as fireSafetyController from '../controllers/fireSafety.controller.js';
 import { authenticate } from '../../../middlewares/authenticate.js';
 import { authorize, enforceAccountStatus } from '../../../middlewares/authorize.js';
 import { authLimiter, otpLimiter, otpVerifyLimiter } from '../../../middlewares/rateLimiter.js';
@@ -116,6 +117,12 @@ router.post('/wallet/pay', ...customerAuth, walletController.payWithWallet);
 router.get('/wholesale/access', ...customerAuth, wholesaleController.getWholesaleAccess);
 router.get('/wholesale/products', ...customerAuth, wholesaleController.getWholesaleCatalog);
 router.get('/wholesale/products/:id', ...customerAuth, wholesaleController.getWholesaleProduct);
+
+// My Fire Safety (protected; every query scoped to the logged-in customer)
+router.get('/fire-safety/equipment', ...customerAuth, fireSafetyController.getMyEquipment);
+router.get('/fire-safety/equipment/:id', ...customerAuth, fireSafetyController.getMyEquipmentDetail);
+router.get('/fire-safety/issues/:id', ...customerAuth, fireSafetyController.getMyIssue);
+router.post('/fire-safety/issues/:id/contact', ...customerAuth, fireSafetyController.contactSafeFire);
 
 // Recently Viewed routes (protected)
 router.get('/recently-viewed', ...customerAuth, recentlyViewedController.getRecentlyViewed);

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import * as authController from '../controllers/auth.controller.js';
 import * as vendorController from '../controllers/vendor.controller.js';
 import * as adminWholesaleController from '../controllers/adminWholesale.controller.js';
+import * as fireSafetyController from '../controllers/fireSafety.controller.js';
 import * as orderController from '../controllers/order.controller.js';
 import * as catalogController from '../controllers/catalog.controller.js';
 import * as customerController from '../controllers/customer.controller.js';
@@ -200,6 +201,31 @@ router.post('/service-partner-applications/:id/reject', ...adminAuth, audit('REJ
 router.get('/wholesale/applications', ...adminAuth, adminWholesaleController.listWholesaleApplications);
 router.post('/wholesale/applications/:id/approve', ...adminAuth, audit('APPROVE_WHOLESALE_CAPABILITY', 'Vendor'), validate(vendorIdParamSchema, 'params'), adminWholesaleController.approveWholesale);
 router.post('/wholesale/applications/:id/reject', ...adminAuth, audit('REJECT_WHOLESALE_CAPABILITY', 'Vendor'), validate(vendorIdParamSchema, 'params'), adminWholesaleController.rejectWholesale);
+
+// ─── Fire Safety Inspection & Equipment Monitoring ───────────────────────────
+router.get('/fire-safety/workers', ...adminAuth, fireSafetyController.listWorkers);
+router.post('/fire-safety/workers', ...adminAuth, audit('CREATE_WORKER', 'Worker'), fireSafetyController.createWorker);
+router.get('/fire-safety/workers/:id', ...adminAuth, fireSafetyController.getWorker);
+router.patch('/fire-safety/workers/:id', ...adminAuth, audit('UPDATE_WORKER', 'Worker'), fireSafetyController.updateWorker);
+router.post('/fire-safety/workers/:id/reset-password', ...adminAuth, audit('RESET_WORKER_PASSWORD', 'Worker'), fireSafetyController.resetWorkerPassword);
+router.get('/fire-safety/customers', ...adminAuth, fireSafetyController.searchCustomers);
+router.get('/fire-safety/customers/:userId/addresses', ...adminAuth, fireSafetyController.getCustomerAddresses);
+router.get('/fire-safety/equipment', ...adminAuth, fireSafetyController.listEquipment);
+router.post('/fire-safety/equipment', ...adminAuth, fireSafetyController.createEquipment);
+router.get('/fire-safety/equipment/:id', ...adminAuth, fireSafetyController.getEquipment);
+router.patch('/fire-safety/equipment/:id', ...adminAuth, fireSafetyController.updateEquipment);
+router.get('/fire-safety/tasks', ...adminAuth, fireSafetyController.listTasks);
+router.post('/fire-safety/tasks', ...adminAuth, fireSafetyController.createTask);
+router.get('/fire-safety/tasks/:id', ...adminAuth, fireSafetyController.getTask);
+router.patch('/fire-safety/tasks/:id', ...adminAuth, fireSafetyController.updateTask);
+router.get('/fire-safety/reports', ...adminAuth, fireSafetyController.listReports);
+router.get('/fire-safety/reports/:id', ...adminAuth, fireSafetyController.getReport);
+router.patch('/fire-safety/reports/:id/review', ...adminAuth, fireSafetyController.reviewReport);
+router.get('/fire-safety/issues', ...adminAuth, fireSafetyController.listIssues);
+router.post('/fire-safety/issues', ...adminAuth, fireSafetyController.createIssue);
+router.get('/fire-safety/issues/:id', ...adminAuth, fireSafetyController.getIssue);
+router.patch('/fire-safety/issues/:id', ...adminAuth, fireSafetyController.updateIssue);
+router.post('/fire-safety/issues/:id/notify', ...adminAuth, audit('NOTIFY_FIRE_SAFETY_ISSUE', 'InspectionIssue'), fireSafetyController.notifyCustomer);
 
 // ─── Customers ────────────────────────────────────────────────────────────────
 router.get('/customers', ...adminAuth, validate(customerListQuerySchema, 'query'), customerController.getAllCustomers);
