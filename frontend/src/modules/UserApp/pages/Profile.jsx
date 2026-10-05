@@ -57,6 +57,15 @@ const MobileProfile = () => {
   const [giftCardBalance, setGiftCardBalance] = useState(null);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
+
+  // Wholesale/B2B entry is shown only when the backend confirms B2B access for this account
+  const [hasWholesaleAccess, setHasWholesaleAccess] = useState(user?.wholesaleAccess === true);
+  useEffect(() => {
+    if (!user) return;
+    api.get('/user/wholesale/access')
+      .then((data) => setHasWholesaleAccess(data?.wholesaleAccess === true))
+      .catch(() => {});
+  }, [user?.id]);
   
   // Coupons State
   const [availableCoupons, setAvailableCoupons] = useState([]);
@@ -295,6 +304,16 @@ const MobileProfile = () => {
           iconBg: 'bg-primary-50',
           link: '/orders',
         },
+        ...(hasWholesaleAccess
+          ? [{
+              label: 'Wholesale / B2B',
+              description: 'Bulk buying with wholesale pricing & MOQ',
+              icon: FiPackage,
+              iconColor: 'text-sky-600',
+              iconBg: 'bg-sky-50',
+              link: '/wholesale',
+            }]
+          : []),
         {
           label: 'My Service Bookings',
           description: 'Track technician visits, refill status & service bookings',

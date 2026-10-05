@@ -102,9 +102,26 @@ export const register = asyncHandler(async (req, res) => {
     const sellsProducts = vendorCapabilities?.sellsProducts !== undefined ? Boolean(vendorCapabilities.sellsProducts) : true;
     const providesServices = vendorCapabilities?.providesServices !== undefined ? Boolean(vendorCapabilities.providesServices) : false;
 
-    if (!sellsProducts && !providesServices) {
-        throw new ApiError(400, 'At least one capability (Fire Safety Products or Fire Safety Services) must be selected.');
+    // Wholesale/B2B: registration can only REQUEST the capability. It is enabled
+    // (vendorCapabilities.wholesaleEnabled = true) exclusively by admin approval.
+    const requestWholesale = req.body.requestWholesale === true || req.body.requestWholesale === 'true';
+
+    if (!sellsProducts && !providesServices && !requestWholesale) {
+        throw new ApiError(400, 'At least one capability (Fire Safety Products, Fire Safety Services or Wholesale/B2B) must be selected.');
     }
+    const wholesaleDetails = req.body.wholesaleDetails || {};
+    const wholesaleCapability = requestWholesale
+        ? {
+            status: 'pending',
+            businessDetails: {
+                businessType: String(wholesaleDetails.businessType || '').trim(),
+                gstNumber: String(wholesaleDetails.gstNumber || '').trim().toUpperCase(),
+                expectedMonthlyVolume: String(wholesaleDetails.expectedMonthlyVolume || '').trim(),
+                description: String(wholesaleDetails.description || '').trim(),
+            },
+            appliedAt: new Date(),
+        }
+        : { status: 'none' };
 
     const vendor = await Vendor.create({
         name: String(name || '').trim(),
@@ -118,8 +135,10 @@ export const register = asyncHandler(async (req, res) => {
             businessLicense: licenseUrl,
             identity: identityUrl,
         },
-        vendorCapabilities: { sellsProducts: true, providesServices: false },
+        // A wholesale-only registration (products unticked) does not become a B2C seller.
+        vendorCapabilities: { sellsProducts: requestWholesale ? sellsProducts : true, providesServices: false },
         serviceCapability: { status: 'none' },
+        wholesaleCapability,
         status: 'pending'
     });
 
@@ -323,6 +342,7 @@ export const login = asyncHandler(async (req, res) => {
             storeLogo: vendor.storeLogo,
             vendorCapabilities: vendor.vendorCapabilities || { sellsProducts: true, providesServices: false },
             serviceCapability: vendor.serviceCapability || { status: 'none' },
+            wholesaleCapability: { status: vendor.wholesaleCapability?.status || 'none' },
         }
     }, 'Login successful.'));
 });
@@ -407,8 +427,10 @@ export const updateProfile = asyncHandler(async (req, res) => {
         const newCaps = {
             sellsProducts: updates.vendorCapabilities.sellsProducts !== undefined ? Boolean(updates.vendorCapabilities.sellsProducts) : existingCaps.sellsProducts,
             providesServices: requestedProvidesServices,
+            // Wholesale is admin-controlled: always preserve the stored value, never accept it from the client.
+            wholesaleEnabled: existingCaps.wholesaleEnabled === true,
         };
-        if (!newCaps.sellsProducts && !newCaps.providesServices) {
+        if (!newCaps.sellsProducts && !newCaps.providesServices && !newCaps.wholesaleEnabled) {
             throw new ApiError(400, 'At least one capability must remain enabled.');
         }
         updates.vendorCapabilities = newCaps;

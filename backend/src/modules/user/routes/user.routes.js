@@ -9,6 +9,7 @@ import * as notificationController from '../controllers/notification.controller.
 import * as cartController from '../controllers/cart.controller.js';
 import * as supportController from '../controllers/support.controller.js';
 import * as recentlyViewedController from '../controllers/recentlyViewed.controller.js';
+import * as wholesaleController from '../controllers/wholesale.controller.js';
 import { authenticate } from '../../../middlewares/authenticate.js';
 import { authorize, enforceAccountStatus } from '../../../middlewares/authorize.js';
 import { authLimiter, otpLimiter, otpVerifyLimiter } from '../../../middlewares/rateLimiter.js';
@@ -110,6 +111,11 @@ router.post('/support/tickets/:id/messages', ...customerAuth, supportController.
 router.get('/wallet', ...customerAuth, walletController.getCustomerWallet);
 router.get('/wallet/transactions', ...customerAuth, walletController.getCustomerWalletTransactions);
 router.post('/wallet/pay', ...customerAuth, walletController.payWithWallet);
+
+// Wholesale / B2B routes (protected; B2B eligibility enforced in controller)
+router.get('/wholesale/access', ...customerAuth, wholesaleController.getWholesaleAccess);
+router.get('/wholesale/products', ...customerAuth, wholesaleController.getWholesaleCatalog);
+router.get('/wholesale/products/:id', ...customerAuth, wholesaleController.getWholesaleProduct);
 
 // Recently Viewed routes (protected)
 router.get('/recently-viewed', ...customerAuth, recentlyViewedController.getRecentlyViewed);

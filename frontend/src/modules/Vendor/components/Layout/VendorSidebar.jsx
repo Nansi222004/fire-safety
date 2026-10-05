@@ -33,14 +33,53 @@ import {
   FiTool,
   FiShield,
   FiTrash2,
+  FiBriefcase,
 } from "react-icons/fi";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
+import { useVendorModeStore } from "../../store/vendorModeStore";
 import vendorMenu from "../../config/vendorMenu.json";
+import api from "../../../../shared/utils/api";
 import {
   getVendorCapabilities,
   filterVendorMenu,
   getGroupedVendorMenu,
+  getAvailableVendorModes,
+  resolveVendorMode,
+  VENDOR_MODES,
+  VENDOR_MODE_LABELS,
 } from "../../utils/vendorCapabilities";
+
+const MODE_ICONS = {
+  [VENDOR_MODES.B2C]: FiShoppingBag,
+  [VENDOR_MODES.SERVICES]: FiTool,
+  [VENDOR_MODES.WHOLESALE]: FiBriefcase,
+};
+
+// Landing page when a vendor switches workspace
+const MODE_HOME_ROUTES = {
+  [VENDOR_MODES.B2C]: "/vendor/dashboard",
+  [VENDOR_MODES.SERVICES]: "/vendor/services/available",
+  [VENDOR_MODES.WHOLESALE]: "/vendor/wholesale/products",
+};
+
+const PRODUCT_ROUTE_PREFIXES = [
+  "/vendor/products",
+  "/vendor/brand-requests",
+  "/vendor/category-requests",
+  "/vendor/orders",
+  "/vendor/return-requests",
+  "/vendor/product-reviews",
+  "/vendor/stock-management",
+  "/vendor/inventory-reports",
+];
+
+// Keeps the selected workspace in sync when a vendor lands on a page directly (e.g. via a notification link)
+const getModeForPath = (pathname) => {
+  if (pathname.startsWith("/vendor/wholesale")) return VENDOR_MODES.WHOLESALE;
+  if (pathname.startsWith("/vendor/services")) return VENDOR_MODES.SERVICES;
+  if (PRODUCT_ROUTE_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return VENDOR_MODES.B2C;
+  return null;
+};
 
 // Icon mapping for menu items
 const iconMap = {
@@ -67,6 +106,7 @@ const iconMap = {
   Settings: FiSettings,
   Profile: FiUser,
   "Privacy Policy": FiShield,
+  Wholesale: FiBriefcase,
 };
 
 // Helper function to convert child name to route path
@@ -82,6 +122,12 @@ const getChildRoute = (parentRoute, childName) => {
       "Service Bookings": "/vendor/services/service-bookings",
       "Request New Service": "/vendor/services/request-new",
       "My Requests": "/vendor/services/my-requests",
+    },
+    "/vendor/wholesale": {
+      "Wholesale Products": "/vendor/wholesale/products",
+      "Add Wholesale Product": "/vendor/wholesale/add-product",
+      "Wholesale Pricing": "/vendor/wholesale/pricing",
+      "Wholesale Orders": "/vendor/wholesale/orders",
     },
     "/vendor/orders": {
       "All Orders": "/vendor/orders/all-orders",
@@ -104,7 +150,8 @@ const getChildRoute = (parentRoute, childName) => {
 const VendorSidebar = ({ isOpen, onClose, isCollapsed }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { vendor, deleteAccount } = useVendorAuthStore();
+  const { vendor, deleteAccount, syncVendor } = useVendorAuthStore();
+  const { mode: preferredMode, setMode } = useVendorModeStore();
 
   // Delete Account Confirmation State (Mobile View)
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -126,15 +173,63 @@ const VendorSidebar = ({ isOpen, onClose, isCollapsed }) => {
       setIsDeletingAccount(false);
     }
   };
-  const { sellsProducts, providesServices, isServiceOnly, isHybrid, badgeText } =
+  const { sellsProducts, providesServices, isServiceOnly, isHybrid, badgeText, wholesaleEnabled, isWholesalePending } =
     getVendorCapabilities(vendor);
-  const filteredMenu = filterVendorMenu(vendorMenu, vendor);
+  const availableModes = getAvailableVendorModes(vendor);
+  const activeMode = resolveVendorMode(vendor, preferredMode);
+  const filteredMenu = filterVendorMenu(vendorMenu, vendor, activeMode);
   const groupedMenu = getGroupedVendorMenu(filteredMenu, vendor);
 
   const [expandedItems, setExpandedItems] = useState({});
   const [isMobile, setIsMobile] = useState(false);
 
   const vendorId = vendor?.id || vendor?._id;
+
+  // Refresh wholesale capability (admin approval may happen after login).
+  // Only wholesale fields are merged — product/service capability data is left untouched.
+  useEffect(() => {
+    if (!vendorId) return;
+    let cancelled = false;
+    api
+      .get("/vendor/wholesale/application")
+      .then((data) => {
+        if (cancelled || !data) return;
+        const current = useVendorAuthStore.getState().vendor;
+        if (!current) return;
+        const nextEnabled = data.vendorCapabilities?.wholesaleEnabled === true;
+        const nextStatus = data.wholesaleCapability?.status || "none";
+        if (
+          current.vendorCapabilities?.wholesaleEnabled === nextEnabled &&
+          current.wholesaleCapability?.status === nextStatus
+        ) {
+          return;
+        }
+        syncVendor({
+          ...current,
+          vendorCapabilities: { ...(current.vendorCapabilities || {}), wholesaleEnabled: nextEnabled },
+          wholesaleCapability: { ...(current.wholesaleCapability || {}), status: nextStatus },
+        });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [vendorId, syncVendor]);
+
+  // Sync the selected workspace with the current page
+  useEffect(() => {
+    const pathMode = getModeForPath(location.pathname);
+    if (pathMode && pathMode !== activeMode && availableModes.includes(pathMode)) {
+      setMode(pathMode);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+
+  const handleModeChange = (nextMode) => {
+    if (nextMode === activeMode) return;
+    setMode(nextMode);
+    navigate(MODE_HOME_ROUTES[nextMode] || "/vendor/dashboard");
+  };
 
   // Reset expanded state whenever the logged-in vendor identity changes or logs out
   useEffect(() => {
@@ -165,9 +260,13 @@ const VendorSidebar = ({ isOpen, onClose, isCollapsed }) => {
         delete next.Services;
         changed = true;
       }
+      if (activeMode !== VENDOR_MODES.WHOLESALE && next.Wholesale) {
+        delete next.Wholesale;
+        changed = true;
+      }
       return changed ? next : prev;
     });
-  }, [sellsProducts, providesServices]);
+  }, [sellsProducts, providesServices, activeMode]);
 
   // Check if mobile on mount and resize
   useEffect(() => {
@@ -438,6 +537,52 @@ const VendorSidebar = ({ isOpen, onClose, isCollapsed }) => {
             <FiX className="text-lg" />
           </button>
         </div>
+
+        {/* Workspace / Mode Switcher — only approved capabilities are shown */}
+        {availableModes.length > 0 && (
+          <div
+            role="tablist"
+            aria-label="Dashboard mode"
+            className="mt-3 flex items-center gap-1 p-1 rounded-xl bg-slate-800/80 border border-slate-700/80">
+            {availableModes.map((modeKey) => {
+              const ModeIcon = MODE_ICONS[modeKey] || FiPackage;
+              const isActiveMode = modeKey === activeMode;
+              return (
+                <button
+                  key={modeKey}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActiveMode}
+                  onClick={() => handleModeChange(modeKey)}
+                  className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-[11px] font-bold tracking-tight transition-all duration-150 ${
+                    isActiveMode
+                      ? modeKey === VENDOR_MODES.SERVICES
+                        ? "bg-orange-500/25 text-orange-200 shadow-sm"
+                        : modeKey === VENDOR_MODES.WHOLESALE
+                        ? "bg-sky-500/25 text-sky-200 shadow-sm"
+                        : "bg-primary-500/25 text-red-200 shadow-sm"
+                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/50"
+                  }`}>
+                  <ModeIcon className="text-xs flex-shrink-0" />
+                  <span className="truncate">{VENDOR_MODE_LABELS[modeKey]}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Wholesale onboarding entry point for vendors without the capability */}
+        {!wholesaleEnabled && (
+          <button
+            type="button"
+            onClick={() => handleMenuItemClick("/vendor/wholesale/apply")}
+            className="mt-2 w-full flex items-center justify-center gap-1.5 text-[11px] font-semibold text-slate-400 hover:text-sky-300 transition-colors">
+            <FiBriefcase className="text-xs" />
+            <span>
+              {isWholesalePending ? "Wholesale / B2B application under review" : "Sell wholesale? Apply for B2B"}
+            </span>
+          </button>
+        )}
       </div>
 
       {/* Navigation Menu with Streamlined Category Sections */}

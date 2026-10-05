@@ -53,6 +53,7 @@ router.get('/products/best-sellers', asyncHandler(async (req, res) => {
     let bestSellersRaw = await Product.find({
         _id: { $in: bestSellerIds },
         isActive: true,
+        ...B2C_VISIBLE,
         stock: { $ne: 'out_of_stock' }
     })
     .populate('categoryId', 'name')
@@ -61,7 +62,7 @@ router.get('/products/best-sellers', asyncHandler(async (req, res) => {
     .lean();
 
     if (bestSellersRaw.length < 4) {
-        bestSellersRaw = await Product.find({ isActive: true, stock: { $ne: 'out_of_stock' } })
+        bestSellersRaw = await Product.find({ isActive: true, ...B2C_VISIBLE, stock: { $ne: 'out_of_stock' } })
             .sort({ reviewCount: -1 })
             .limit(10)
             .populate('categoryId', 'name')
@@ -75,7 +76,7 @@ router.get('/products/best-sellers', asyncHandler(async (req, res) => {
 
 // GET /api/products/top-rated
 router.get('/products/top-rated', asyncHandler(async (req, res) => {
-    const topRatedRaw = await Product.find({ isActive: true })
+    const topRatedRaw = await Product.find({ isActive: true, ...B2C_VISIBLE })
         .sort({ rating: -1, reviewCount: -1 })
         .limit(15)
         .populate('categoryId', 'name')
@@ -90,7 +91,9 @@ const detailCache = cacheResponse({ ttlSeconds: 60, maxEntries: 1000 });
 const catalogCache = cacheResponse({ ttlSeconds: 300, maxEntries: 200 });
 const marketingCache = cacheResponse({ ttlSeconds: 120, maxEntries: 300 });
 
-const PRODUCT_LIST_SELECT = '-faqs -relatedProducts -__v';
+const PRODUCT_LIST_SELECT = '-faqs -relatedProducts -__v -wholesale';
+// Wholesale-only (B2B) products are never part of the public B2C catalog.
+const B2C_VISIBLE = { b2cAvailable: { $ne: false } };
 const EXCLUSIVE_SALE_CAMPAIGN_TYPES = ['flash_sale', 'daily_deal', 'special_offer', 'festival'];
 
 const toPublicVendor = (vendorDoc) => {
@@ -236,7 +239,7 @@ const listProducts = asyncHandler(async (req, res) => {
     const numericPage = Math.max(Number(page) || 1, 1);
     const numericLimit = Math.min(Math.max(Number(limit) || 12, 1), 100);
     const skip = (numericPage - 1) * numericLimit;
-    const filter = { isActive: true };
+    const filter = { isActive: true, ...B2C_VISIBLE };
 
     if (category) {
         const rawTokens = Array.isArray(category) ? category.map(String) : String(category).split(',');
@@ -459,7 +462,7 @@ const getShopProducts = asyncHandler(async (req, res) => {
     const numericLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
     const skip = (numericPage - 1) * numericLimit;
 
-    const filter = { isActive: true };
+    const filter = { isActive: true, ...B2C_VISIBLE };
 
     // Search Query
     const searchQuery = String(search || q || '').replace(/\s+/g, ' ').trim();
@@ -643,7 +646,7 @@ router.get('/search/autocomplete', cacheResponse({ ttlSeconds: 300, maxEntries: 
     const safeRegex = new RegExp(`^${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
     
     const [products, categories] = await Promise.all([
-        Product.find({ name: safeRegex, isActive: true })
+        Product.find({ name: safeRegex, isActive: true, ...B2C_VISIBLE })
             .select('name image price slug')
             .limit(8)
             .lean(),
@@ -677,7 +680,7 @@ router.get('/flash-sale', marketingCache, asyncHandler(async (req, res) => {
     if (!flashSaleProductIds.length) {
         return res.status(200).json(new ApiResponse(200, [], 'Flash sale products.'));
     }
-    const products = await Product.find({ isActive: true, _id: { $in: flashSaleProductIds } })
+    const products = await Product.find({ isActive: true, ...B2C_VISIBLE, _id: { $in: flashSaleProductIds } })
         .select(PRODUCT_LIST_SELECT)
         .sort({ createdAt: -1 })
         .limit(20)
@@ -691,7 +694,7 @@ router.get('/new-arrivals', listCache, asyncHandler(async (req, res) => {
     const numericPage = Math.max(Number(page) || 1, 1);
     const numericLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
     const skip = (numericPage - 1) * numericLimit;
-    const filter = { isActive: true, isNewArrival: true };
+    const filter = { isActive: true, ...B2C_VISIBLE, isNewArrival: true };
 
     const searchQuery = String(search || q || '').trim();
     if (searchQuery) filter.$text = { $search: searchQuery };
@@ -737,7 +740,7 @@ router.get('/new-arrivals', listCache, asyncHandler(async (req, res) => {
 // GET /api/products/popular
 router.get('/popular', marketingCache, asyncHandler(async (req, res) => {
     const activeSaleProductIds = await getActiveSaleProductIds();
-    const filter = { isActive: true };
+    const filter = { isActive: true, ...B2C_VISIBLE };
     if (activeSaleProductIds.length) {
         filter._id = { $nin: activeSaleProductIds };
     }
@@ -754,7 +757,7 @@ router.get('/similar/:id', detailCache, asyncHandler(async (req, res) => {
     const product = await Product.findById(req.params.id).select('_id categoryId').lean();
     if (!product) throw new ApiError(404, 'Product not found.');
     const activeSaleProductIds = await getActiveSaleProductIds();
-    const similarFilter = { isActive: true, _id: { $ne: product._id }, categoryId: product.categoryId };
+    const similarFilter = { isActive: true, ...B2C_VISIBLE, _id: { $ne: product._id }, categoryId: product.categoryId };
     if (activeSaleProductIds.length) {
         similarFilter._id = { $nin: [String(product._id), ...activeSaleProductIds] };
     }
@@ -783,6 +786,9 @@ const getProductDetail = asyncHandler(async (req, res) => {
 
     const product = await query.lean();
     if (!product) throw new ApiError(404, 'Product not found.');
+    // Wholesale-only products and wholesale pricing are not part of the public B2C catalog.
+    if (product.b2cAvailable === false) throw new ApiError(404, 'Product not found.');
+    delete product.wholesale;
     res.status(200).json(new ApiResponse(200, product, 'Product detail.'));
 });
 
@@ -1011,7 +1017,7 @@ router.get('/vendors/:id/products', listCache, asyncHandler(async (req, res) => 
     }).select('_id').lean();
     if (!vendor) throw new ApiError(404, 'Vendor not found.');
     const activeSaleProductIds = await getActiveSaleProductIds();
-    const filter = { isActive: true, vendorId: req.params.id };
+    const filter = { isActive: true, ...B2C_VISIBLE, vendorId: req.params.id };
     if (activeSaleProductIds.length) {
         filter._id = { $nin: activeSaleProductIds };
     }
@@ -1265,7 +1271,7 @@ router.get('/campaigns', marketingCache, asyncHandler(async (req, res) => {
 router.get('/campaigns/:slug', detailCache, asyncHandler(async (req, res) => {
     const campaign = await Campaign.findOne({ slug: req.params.slug, isActive: true }).lean();
     if (!campaign) throw new ApiError(404, 'Campaign not found.');
-    const products = await Product.find({ _id: { $in: campaign.productIds || [] }, isActive: true }).select(PRODUCT_LIST_SELECT).lean();
+    const products = await Product.find({ _id: { $in: campaign.productIds || [] }, isActive: true, ...B2C_VISIBLE }).select(PRODUCT_LIST_SELECT).lean();
     res.status(200).json(new ApiResponse(200, { ...campaign, products }, 'Campaign details.'));
 }));
 
@@ -1431,13 +1437,13 @@ router.get('/vendors/:id/products', listCache, asyncHandler(async (req, res) => 
     const skip = (numericPage - 1) * numericLimit;
 
     const [products, total] = await Promise.all([
-        Product.find({ vendorId: req.params.id, isActive: true })
+        Product.find({ vendorId: req.params.id, isActive: true, ...B2C_VISIBLE })
             .select(PRODUCT_LIST_SELECT)
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(numericLimit)
             .lean(),
-        Product.countDocuments({ vendorId: req.params.id, isActive: true })
+        Product.countDocuments({ vendorId: req.params.id, isActive: true, ...B2C_VISIBLE })
     ]);
 
     res.status(200).json(new ApiResponse(200, { products, total, page: numericPage, pages: Math.ceil(total / numericLimit) }, 'Vendor products fetched.'));

@@ -48,6 +48,15 @@ const productSchema = new mongoose.Schema(
         isFeatured: { type: Boolean, default: false, index: true },
         isActive: { type: Boolean, default: true, index: true },
         isVisible: { type: Boolean, default: true },
+        // ─── Sales channels (B2C / B2B) ───────────────────────────────────
+        // b2cAvailable: missing/true → normal retail product (existing behaviour).
+        // wholesale.enabled: product is purchasable by approved wholesale buyers.
+        b2cAvailable: { type: Boolean, default: true, index: true },
+        wholesale: {
+            enabled: { type: Boolean, default: false, index: true },
+            price: { type: Number, min: 0 },
+            moq: { type: Number, min: 1, default: 1 },
+        },
         codAllowed: { type: Boolean, default: true },
         returnable: { type: Boolean, default: true },
         cancelable: { type: Boolean, default: true },

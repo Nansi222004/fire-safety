@@ -9,6 +9,7 @@ import Wishlist from '../../../models/Wishlist.model.js';
 import Address from '../../../models/Address.model.js';
 import Notification from '../../../models/Notification.model.js';
 import { createWalletIfMissing } from '../../../services/wallet.service.js';
+import { getWholesaleBuyerForUser, provisionWholesaleBuyerAccount } from '../../../services/wholesale.service.js';
 import { generateTokens } from '../../../utils/generateToken.js';
 import { sendOTP } from '../../../services/otp.service.js';
 import { sendEmail } from '../../../services/email.service.js';
@@ -64,6 +65,9 @@ export const verifyOTP = asyncHandler(async (req, res) => {
     const { email, otp } = req.body;
     const normalizedEmail = String(email || '').trim().toLowerCase();
 
+    const user = await User.findOne({ email: normalizedEmail }).select('+otp +otpExpiry');
+    if (!user) throw new ApiError(404, 'User not found.');
+
     const isTestOtp = process.env.NODE_ENV !== 'production' && otp === '123456';
     if (!isTestOtp) {
         if (user.otp !== otp) throw new ApiError(400, 'Invalid OTP.');
@@ -85,7 +89,12 @@ export const login = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
     const normalizedEmail = String(email || '').trim().toLowerCase();
 
-    const user = await User.findOne({ email: normalizedEmail }).select('+password');
+    let user = await User.findOne({ email: normalizedEmail }).select('+password');
+    if (!user) {
+        // Approved Wholesale/B2B vendors may sign in with their vendor credentials.
+        user = await provisionWholesaleBuyerAccount(normalizedEmail, password);
+        if (user) await createWalletIfMissing(user._id);
+    }
     if (!user) throw new ApiError(401, 'Invalid email or password.');
     if (!user.isActive) throw new ApiError(403, 'Your account has been deactivated.');
     if (!user.isVerified) {
@@ -98,7 +107,8 @@ export const login = asyncHandler(async (req, res) => {
 
     const { accessToken, refreshToken } = generateTokens({ id: user._id, role: 'customer', email: user.email });
     await persistRefreshSession(user, refreshToken);
-    res.status(200).json(new ApiResponse(200, { accessToken, refreshToken, user: { id: user._id, name: user.name, email: user.email, avatar: user.avatar } }, 'Login successful.'));
+    const wholesaleAccess = Boolean(await getWholesaleBuyerForUser(user._id));
+    res.status(200).json(new ApiResponse(200, { accessToken, refreshToken, user: { id: user._id, name: user.name, email: user.email, avatar: user.avatar, wholesaleAccess } }, 'Login successful.'));
 });
 
 // POST /api/user/auth/refresh

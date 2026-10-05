@@ -55,7 +55,7 @@ const VendorDashboard = () => {
   const [myServicesCount, setMyServicesCount] = useState(0);
 
   const vendorId = vendor?.id || vendor?._id;
-  const { sellsProducts, providesServices, serviceStatus, isServiceApproved, isServicePending, isServiceRejected, isServiceOnly, isProductOnly, isHybrid, badgeText } = getVendorCapabilities(vendor);
+  const { sellsProducts, providesServices, serviceStatus, isServiceApproved, isServicePending, isServiceRejected, isServiceOnly, isProductOnly, isHybrid, badgeText, wholesaleEnabled, isWholesalePending, isWholesaleRejected } = getVendorCapabilities(vendor);
   const isServicesOnly = isServiceOnly;
   const caps = { sellsProducts, providesServices };
 
@@ -312,6 +312,46 @@ const VendorDashboard = () => {
     </div>
   );
 
+  // Wholesale / B2B capability card — independent of Products and Services
+  const wholesaleCard = (
+    <div
+      key="wholesale-cap"
+      className={`rounded-2xl sm:rounded-3xl p-4 sm:p-6 border transition-all ${
+        wholesaleEnabled ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-50 border-slate-200/60 opacity-80'
+      }`}>
+      <div className="flex items-start sm:items-center justify-between gap-2 mb-3 sm:mb-4">
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center text-lg sm:text-xl font-bold flex-shrink-0 ${
+            wholesaleEnabled ? 'bg-sky-50 text-sky-600 border border-sky-100' : 'bg-slate-200 text-slate-500'
+          }`}>
+            📦
+          </div>
+          <div>
+            <h3 className="font-bold text-slate-900 text-sm sm:text-base">{wholesaleEnabled ? 'WHOLESALE / B2B' : 'Sell Wholesale (B2B)'}</h3>
+            <p className="text-[11px] sm:text-xs text-slate-500">Bulk sales to approved business buyers with wholesale pricing &amp; MOQ</p>
+          </div>
+        </div>
+        <span className={`px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold flex items-center gap-1 flex-shrink-0 ${
+          wholesaleEnabled ? 'bg-emerald-100 text-emerald-800' : isWholesalePending ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-600'
+        }`}>
+          {wholesaleEnabled ? <><FiCheckCircle /> ACTIVE</> : isWholesalePending ? 'UNDER REVIEW' : <><FiSlash /> NOT ENABLED</>}
+        </span>
+      </div>
+      <div className="pt-2.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+        <span className="text-[11px] sm:text-xs text-slate-500 truncate">
+          {wholesaleEnabled ? 'Wholesale workspace active' : isWholesalePending ? 'Application under admin review' : isWholesaleRejected ? 'Application reviewed — you can reapply' : 'Admin approval required'}
+        </span>
+        <button
+          onClick={() => navigate(wholesaleEnabled ? "/vendor/wholesale/products" : "/vendor/wholesale/apply")}
+          className={`px-3.5 py-1.5 sm:px-4 sm:py-2 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer flex-shrink-0 ${
+            wholesaleEnabled ? 'bg-slate-900 hover:bg-slate-800' : isWholesalePending ? 'bg-amber-600 hover:bg-amber-700' : 'bg-sky-600 hover:bg-sky-700'
+          }`}>
+          {wholesaleEnabled ? 'Manage Wholesale' : isWholesalePending ? 'View Application' : 'Apply Now'} <FiArrowRight />
+        </button>
+      </div>
+    </div>
+  );
+
   const servicesCard = (
     <div
       key="services-cap"
@@ -497,7 +537,11 @@ const VendorDashboard = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4">
-          {isServicesOnly ? [servicesCard, productsCard] : [productsCard, servicesCard]}
+          {(() => {
+            const cards = isServicesOnly ? [servicesCard, productsCard] : [productsCard, servicesCard];
+            // A wholesale-only vendor sees their active workspace first
+            return wholesaleEnabled && !caps.sellsProducts && !caps.providesServices ? [wholesaleCard, ...cards] : [...cards, wholesaleCard];
+          })()}
         </div>
       </div>
 

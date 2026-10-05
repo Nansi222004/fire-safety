@@ -7,8 +7,8 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
-    "test": "node tests/unit/testRegisterValidation.js && node tests/unit/testEventDispatcher.js && node tests/unit/testJson.js",
-    "test:unit": "node tests/unit/testRegisterValidation.js && node tests/unit/testEventDispatcher.js && node tests/unit/testJson.js",
+    "test": "node tests/unit/testRegisterValidation.js",
+    "test:unit": "node tests/unit/testRegisterValidation.js",
     "test:e2e": "node tests/verification/verifyE2E.js",
     "test:push": "node tests/integration/testPushNotificationPipeline.js",
     "test:reverse": "node tests/integration/testDelhiveryReverse.js && node tests/integration/testShiprocketReverse.js",

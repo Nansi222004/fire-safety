@@ -48,6 +48,9 @@ const VendorProtectedRoute = ({ children, requiredCapability = null }) => {
     if ((req === 'services' || req === 'providesservices') && !providesServices) {
       return <CapabilityAccessRequired requiredCapability="services" />;
     }
+    if (req === 'wholesale' && !getVendorCapabilities(vendor).wholesaleEnabled) {
+      return <Navigate to="/vendor/wholesale/apply" replace />;
+    }
   }
 
   return children;

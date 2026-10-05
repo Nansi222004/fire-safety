@@ -41,7 +41,27 @@ const vendorSchema = new mongoose.Schema(
         },
         vendorCapabilities: {
             sellsProducts: { type: Boolean, default: true },
-            providesServices: { type: Boolean, default: false }
+            providesServices: { type: Boolean, default: false },
+            // Wholesale / B2B — independent capability, only set true by admin approval.
+            wholesaleEnabled: { type: Boolean, default: false },
+        },
+        wholesaleCapability: {
+            status: {
+                type: String,
+                enum: ['none', 'pending', 'approved', 'rejected'],
+                default: 'none',
+                index: true,
+            },
+            businessDetails: {
+                businessType: { type: String, trim: true, default: '' },
+                gstNumber: { type: String, trim: true, default: '' },
+                expectedMonthlyVolume: { type: String, trim: true, default: '' },
+                description: { type: String, trim: true, default: '' },
+            },
+            appliedAt: { type: Date, default: null },
+            reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin', default: null },
+            reviewedAt: { type: Date, default: null },
+            rejectionReason: { type: String, default: null },
         },
         serviceCapability: {
             status: {

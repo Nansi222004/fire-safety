@@ -162,6 +162,15 @@ const ManageVendors = () => {
                 🛠️ Services
               </span>
             )}
+            {caps.wholesaleEnabled ? (
+              <span className="px-2 py-0.5 rounded-md bg-sky-50 text-sky-700 font-bold w-fit">
+                📦 Wholesale
+              </span>
+            ) : row.wholesaleCapability?.status === 'pending' ? (
+              <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 font-bold w-fit">
+                📦 Wholesale (pending)
+              </span>
+            ) : null}
           </div>
         );
       },

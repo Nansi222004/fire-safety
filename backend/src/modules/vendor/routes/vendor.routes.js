@@ -19,6 +19,7 @@ import * as vendorServiceController from '../controllers/vendorService.controlle
 import * as serviceRequestController from '../controllers/serviceRequest.controller.js';
 import * as vendorBookingController from '../controllers/vendorBooking.controller.js';
 import * as servicePartnerAppController from '../controllers/servicePartnerApplication.controller.js';
+import * as wholesaleController from '../controllers/wholesale.controller.js';
 import {
     vendorServiceIdParamSchema,
     enableServiceParamSchema,
@@ -56,6 +57,7 @@ const router = Router();
 const vendorAuth = [authenticate, authorize('vendor'), enforceAccountStatus];
 const productCapAuth = [...vendorAuth, requireVendorCapability('products')];
 const serviceCapAuth = [...vendorAuth, requireVendorCapability('services')];
+const wholesaleCapAuth = [...vendorAuth, requireVendorCapability('wholesale')];
 
 // Auth
 router.post(
@@ -78,6 +80,14 @@ router.post(
         if (typeof req.body.vendorCapabilities === 'string') {
             try {
                 req.body.vendorCapabilities = JSON.parse(req.body.vendorCapabilities);
+            } catch (e) {
+                // Ignore parse error, will fail validation cleanly
+            }
+        }
+        // Parse req.body.wholesaleDetails if passed as string in multipart form data
+        if (typeof req.body.wholesaleDetails === 'string') {
+            try {
+                req.body.wholesaleDetails = JSON.parse(req.body.wholesaleDetails);
             } catch (e) {
                 // Ignore parse error, will fail validation cleanly
             }
@@ -206,5 +216,13 @@ router.patch('/service-bookings/:id/notes', ...serviceCapAuth, vendorBookingCont
 router.post('/service-partner-applications', ...vendorAuth, servicePartnerAppController.submitApplication);
 router.get('/service-partner-applications/current', ...vendorAuth, servicePartnerAppController.getCurrentApplication);
 router.put('/service-partner-applications/resubmit', ...vendorAuth, servicePartnerAppController.resubmitApplication);
+
+// Wholesale / B2B (independent capability — admin approval required)
+router.get('/wholesale/application', ...vendorAuth, wholesaleController.getWholesaleApplication);
+router.post('/wholesale/application', ...vendorAuth, wholesaleController.applyForWholesale);
+router.get('/wholesale/products', ...wholesaleCapAuth, wholesaleController.getWholesaleProducts);
+router.post('/wholesale/products', ...wholesaleCapAuth, wholesaleController.createWholesaleProduct);
+router.patch('/wholesale/products/:id', ...wholesaleCapAuth, validate(productIdParamSchema, 'params'), wholesaleController.updateWholesalePricing);
+router.get('/wholesale/orders', ...wholesaleCapAuth, (req, res, next) => { req.query.orderType = 'b2b'; next(); }, orderController.getVendorOrders);
 
 export default router;

@@ -69,6 +69,8 @@ const orderSchema = new mongoose.Schema(
         orderId: { type: String, required: true, unique: true, index: true },
         userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true, default: null },
         guestInfo: { name: String, email: String, phone: String },
+        // B2C (retail) vs B2B (wholesale). Existing orders without the field are B2C.
+        orderType: { type: String, enum: ['b2c', 'b2b'], default: 'b2c', index: true },
         items: [orderItemSchema],
         vendorItems: [vendorItemGroupSchema],
         shippingAddress: {
