@@ -87,6 +87,7 @@ import {
     vendorListQuerySchema,
     vendorIdParamSchema,
     vendorStatusUpdateSchema,
+    vendorUpdateSchema,
     vendorCommissionUpdateSchema,
     vendorCommissionsQuerySchema,
     vendorDocParamsSchema,
@@ -182,6 +183,8 @@ router.post('/brand-requests/:id/convert-to-global', ...adminAuth, validate(bran
 router.get('/vendors', ...adminAuth, validate(vendorListQuerySchema, 'query'), vendorController.getAllVendors);
 router.get('/vendors/pending', ...adminAuth, (req, res, next) => { req.query.status = 'pending'; next(); }, validate(vendorListQuerySchema, 'query'), vendorController.getAllVendors);
 router.get('/vendors/:id', ...adminAuth, validate(vendorIdParamSchema, 'params'), vendorController.getVendorDetail);
+router.patch('/vendors/:id', ...adminAuth, audit('UPDATE_VENDOR', 'Vendor'), validate(vendorIdParamSchema, 'params'), validate(vendorUpdateSchema), vendorController.updateVendor);
+router.delete('/vendors/:id', ...adminAuth, audit('DELETE_VENDOR', 'Vendor'), validate(vendorIdParamSchema, 'params'), vendorController.deleteVendor);
 router.get('/vendors/:id/commissions', ...adminAuth, validate(vendorIdParamSchema, 'params'), validate(vendorCommissionsQuerySchema, 'query'), vendorController.getVendorCommissions);
 router.patch('/vendors/:id/status', ...adminAuth, audit('UPDATE_VENDOR_STATUS', 'Vendor'), validate(vendorIdParamSchema, 'params'), validate(vendorStatusUpdateSchema), vendorController.updateVendorStatus);
 router.post('/vendors/:id/shiprocket-pickup/sync', ...adminAuth, validate(vendorIdParamSchema, 'params'), vendorController.syncShiprocketPickup);

@@ -7,6 +7,8 @@ import {
   FiCheckCircle,
   FiXCircle,
   FiDollarSign,
+  FiTrash2,
+  FiRefreshCw,
 } from "react-icons/fi";
 import { motion } from "framer-motion";
 import DataTable from "../../components/DataTable";
@@ -21,7 +23,7 @@ import toast from "react-hot-toast";
 
 const ManageVendors = () => {
   const navigate = useNavigate();
-  const { vendors, initialize, updateVendorStatus, updateCommissionRate } =
+  const { vendors, initialize, updateVendorStatus, updateCommissionRate, updateVendor, deleteVendor } =
     useVendorStore();
   const [orders, setOrders] = useState([]);
 
@@ -29,12 +31,13 @@ const ManageVendors = () => {
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [actionModal, setActionModal] = useState({
     isOpen: false,
-    type: null, // 'approve', 'suspend', 'commission'
+    type: null,
     vendorId: null,
     vendorName: null,
   });
   const [commissionRate, setCommissionRate] = useState("");
   const [statusReason, setStatusReason] = useState("");
+  const [editForm, setEditForm] = useState({ name: "", storeName: "", phone: "", storeDescription: "" });
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -227,16 +230,34 @@ const ManageVendors = () => {
       key: "actions",
       label: "Actions",
       sortable: false,
+      sticky: true,
       render: (_, row) => (
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-[230px] items-center justify-end gap-1">
           <button
             onClick={(e) => {
               e.stopPropagation();
               navigate(`/admin/vendors/${row.id}`);
             }}
             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            aria-label={`View ${row.storeName || row.name}`}
             title="View Details">
             <FiEye />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditForm({
+                name: row.name || "",
+                storeName: row.storeName || "",
+                phone: row.phone || "",
+                storeDescription: row.storeDescription || "",
+              });
+              setActionModal({ isOpen: true, type: "edit", vendorId: row.id, vendorName: row.storeName || row.name });
+            }}
+            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+            aria-label={`Edit ${row.storeName || row.name}`}
+            title="Edit Vendor">
+            <FiEdit />
           </button>
           {row.status === "pending" && (
             <button
@@ -250,8 +271,21 @@ const ManageVendors = () => {
                 });
               }}
               className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+              aria-label={`Approve ${row.storeName || row.name}`}
               title="Approve Vendor">
               <FiCheckCircle />
+            </button>
+          )}
+          {row.status === "pending" && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setActionModal({ isOpen: true, type: "reject", vendorId: row.id, vendorName: row.storeName || row.name });
+              }}
+              className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+              aria-label={`Reject ${row.storeName || row.name}`}
+              title="Reject Vendor">
+              <FiXCircle />
             </button>
           )}
           {row.status === "approved" && (
@@ -266,8 +300,21 @@ const ManageVendors = () => {
                 });
               }}
               className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              aria-label={`Suspend ${row.storeName || row.name}`}
               title="Suspend Vendor">
               <FiXCircle />
+            </button>
+          )}
+          {row.status === "suspended" && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setActionModal({ isOpen: true, type: "activate", vendorId: row.id, vendorName: row.storeName || row.name });
+              }}
+              className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+              aria-label={`Activate ${row.storeName || row.name}`}
+              title="Activate Vendor">
+              <FiRefreshCw />
             </button>
           )}
           <button
@@ -285,8 +332,19 @@ const ManageVendors = () => {
               });
             }}
             className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+            aria-label={`Update commission for ${row.storeName || row.name}`}
             title="Update Commission Rate">
             <FiDollarSign />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setActionModal({ isOpen: true, type: "delete", vendorId: row.id, vendorName: row.storeName || row.name });
+            }}
+            className="p-2 text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+            aria-label={`Delete ${row.storeName || row.name}`}
+            title="Delete Vendor">
+            <FiTrash2 />
           </button>
         </div>
       ),
@@ -307,6 +365,10 @@ const ManageVendors = () => {
   };
 
   const handleSuspend = async () => {
+    if (statusReason.trim().length < 10) {
+      toast.error("Suspension reason must be at least 10 characters.");
+      return;
+    }
     const success = await updateVendorStatus(
       actionModal.vendorId,
       "suspended",
@@ -322,6 +384,34 @@ const ManageVendors = () => {
     if (success) {
       toast.success("Vendor suspended successfully");
     }
+  };
+
+  const handleReject = async () => {
+    if (statusReason.trim().length < 10) {
+      toast.error("Rejection reason must be at least 10 characters.");
+      return;
+    }
+    const success = await updateVendorStatus(actionModal.vendorId, "rejected", statusReason.trim());
+    if (success) toast.success("Vendor rejected successfully");
+    else toast.error("Failed to reject vendor");
+  };
+
+  const handleActivate = async () => {
+    const success = await updateVendorStatus(actionModal.vendorId, "approved");
+    if (success) toast.success("Vendor activated successfully");
+    else toast.error("Failed to activate vendor");
+  };
+
+  const handleEdit = async () => {
+    const result = await updateVendor(actionModal.vendorId, editForm);
+    if (result.success) toast.success("Vendor updated successfully");
+    else toast.error(result.message || "Failed to update vendor");
+  };
+
+  const handleDelete = async () => {
+    const result = await deleteVendor(actionModal.vendorId);
+    if (result.success) toast.success("Vendor deleted successfully");
+    else toast.error(result.message || "Vendor has related records and cannot be deleted. Suspend it instead.");
   };
 
   const handleCommissionUpdate = async () => {
@@ -365,7 +455,7 @@ const ManageVendors = () => {
           customContent: (
             <div className="mt-4">
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Suspension Reason (optional)
+                Suspension Reason (required)
               </label>
               <textarea
                 value={statusReason}
@@ -376,6 +466,74 @@ const ManageVendors = () => {
               />
             </div>
           ),
+        };
+      case "reject":
+        return {
+          title: "Reject Vendor?",
+          message: `Reject "${actionModal.vendorName}" and prevent account activation?`,
+          confirmText: "Reject",
+          onConfirm: handleReject,
+          type: "danger",
+          customContent: (
+            <textarea
+              value={statusReason}
+              onChange={(e) => setStatusReason(e.target.value)}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+              placeholder="Rejection reason (minimum 10 characters)"
+            />
+          ),
+        };
+      case "activate":
+        return {
+          title: "Activate Vendor?",
+          message: `Reactivate "${actionModal.vendorName}"?`,
+          confirmText: "Activate",
+          onConfirm: handleActivate,
+          type: "info",
+        };
+      case "edit":
+        return {
+          title: "Edit Vendor",
+          message: `Update profile details for "${actionModal.vendorName}". Status and capabilities use their dedicated actions.`,
+          confirmText: "Save",
+          onConfirm: handleEdit,
+          type: "info",
+          customContent: (
+            <div className="grid gap-3">
+              {[
+                ["name", "Contact Name"],
+                ["storeName", "Business Name"],
+                ["phone", "Phone"],
+              ].map(([field, label]) => (
+                <label key={field} className="text-sm font-semibold text-gray-700">
+                  {label}
+                  <input
+                    value={editForm[field]}
+                    onChange={(e) => setEditForm((current) => ({ ...current, [field]: e.target.value }))}
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg font-normal"
+                  />
+                </label>
+              ))}
+              <label className="text-sm font-semibold text-gray-700">
+                Description
+                <textarea
+                  value={editForm.storeDescription}
+                  onChange={(e) => setEditForm((current) => ({ ...current, storeDescription: e.target.value }))}
+                  rows={3}
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg font-normal"
+                />
+              </label>
+            </div>
+          ),
+        };
+      case "delete":
+        return {
+          title: "Delete Vendor?",
+          message: `Delete "${actionModal.vendorName}"? Deletion is allowed only when no products, orders, shipments, service, payout, or wallet history exists.`,
+          confirmText: "Delete",
+          onConfirm: handleDelete,
+          type: "danger",
         };
       case "commission":
         return {

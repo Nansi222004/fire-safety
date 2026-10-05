@@ -37,13 +37,26 @@ const REVERSE_SHIPROCKET_STATUS_MAP = {
     'UNDELIVERED': 'failed'
 };
 
+export const mapShiprocketWebhookStatus = (shipmentType, providerStatus) => {
+    const rawStatus = String(providerStatus || '').toUpperCase();
+    return shipmentType === 'reverse'
+        ? REVERSE_SHIPROCKET_STATUS_MAP[rawStatus]
+        : SHIPROCKET_STATUS_MAP[rawStatus];
+};
+
+export const authenticateShiprocketWebhook = (token, expectedSecret = process.env.SHIPROCKET_WEBHOOK_SECRET) => {
+    if (!expectedSecret) {
+        throw new ApiError(503, 'Shiprocket webhook authentication is not configured');
+    }
+    if (token !== expectedSecret) {
+        throw new ApiError(401, 'Unauthorized webhook access');
+    }
+};
+
 export const handleShiprocketWebhook = asyncHandler(async (req, res) => {
     // 1. Authenticate webhook token
     const token = req.headers['x-api-key'] || req.query.token;
-    const webhookSecret = process.env.SHIPROCKET_WEBHOOK_SECRET;
-    if (webhookSecret && token !== webhookSecret) {
-        throw new ApiError(401, 'Unauthorized webhook access');
-    }
+    authenticateShiprocketWebhook(token);
 
     let payload;
     try {
@@ -80,7 +93,7 @@ export const handleShiprocketWebhook = asyncHandler(async (req, res) => {
     const rawStatus = (current_status || '').toUpperCase();
     const isReverse = shipment.type === 'reverse';
     const isExchangeForward = shipment.type === 'exchange_forward';
-    const mappedStatus = isReverse ? REVERSE_SHIPROCKET_STATUS_MAP[rawStatus] : SHIPROCKET_STATUS_MAP[rawStatus];
+    const mappedStatus = mapShiprocketWebhookStatus(shipment.type, rawStatus);
 
     // Persist raw provider information
     const newHistoryEntry = {

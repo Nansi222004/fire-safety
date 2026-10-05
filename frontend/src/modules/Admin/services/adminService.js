@@ -152,6 +152,12 @@ export const getAllVendors = (params = {}) =>
 export const getVendorById = (id) =>
     api.get(`/admin/vendors/${id}`);
 
+export const updateVendor = (id, data) =>
+    api.patch(`/admin/vendors/${id}`, data);
+
+export const deleteVendor = (id) =>
+    api.delete(`/admin/vendors/${id}`);
+
 export const updateVendorStatus = (id, status, reason = '') =>
     api.patch(`/admin/vendors/${id}/status`, { status, reason });
 

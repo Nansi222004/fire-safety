@@ -3,6 +3,8 @@ import {
   getAllVendors,
   getVendorById,
   updateVendorStatus as updateVendorStatusApi,
+  updateVendor as updateVendorApi,
+  deleteVendor as deleteVendorApi,
   updateCommissionRate as updateCommissionRateApi,
 } from "../services/adminService";
 
@@ -98,6 +100,42 @@ export const useVendorStore = create((set, get) => ({
       return true;
     } catch {
       return false;
+    }
+  },
+
+  updateVendor: async (id, updates) => {
+    try {
+      const response = await updateVendorApi(id, updates);
+      const vendor = normalizeVendor(response?.data ?? response);
+      if (!vendor) return { success: false };
+      set((state) => ({
+        vendors: state.vendors.map((item) =>
+          String(item.id || item._id) === String(id) ? { ...item, ...vendor } : item
+        ),
+        selectedVendor:
+          state.selectedVendor && String(state.selectedVendor.id || state.selectedVendor._id) === String(id)
+            ? { ...state.selectedVendor, ...vendor }
+            : state.selectedVendor,
+      }));
+      return { success: true, vendor };
+    } catch (error) {
+      return { success: false, message: error?.message || 'Failed to update vendor.' };
+    }
+  },
+
+  deleteVendor: async (id) => {
+    try {
+      await deleteVendorApi(id);
+      set((state) => ({
+        vendors: state.vendors.filter((item) => String(item.id || item._id) !== String(id)),
+        selectedVendor:
+          state.selectedVendor && String(state.selectedVendor.id || state.selectedVendor._id) === String(id)
+            ? null
+            : state.selectedVendor,
+      }));
+      return { success: true };
+    } catch (error) {
+      return { success: false, message: error?.message || 'Vendor could not be deleted.' };
     }
   },
 
