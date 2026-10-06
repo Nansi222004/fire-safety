@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiSearch,
@@ -20,6 +21,8 @@ import Badge from '../../../../shared/components/Badge';
 import ConfirmModal from '../../components/ConfirmModal';
 
 const AdminServicePartnerApplications = () => {
+  const [searchParams] = useSearchParams();
+  const notificationApplicationId = searchParams.get('applicationId');
   const [applications, setApplications] = useState([]);
   const [stats, setStats] = useState({ pending: 0, under_review: 0, approved: 0, rejected: 0 });
   const [loading, setLoading] = useState(true);
@@ -46,7 +49,7 @@ const AdminServicePartnerApplications = () => {
       if (searchQuery.trim()) params.search = searchQuery.trim();
 
       const res = await api.get('/admin/service-partner-applications', { params });
-      const data = res?.data?.data || res?.data || {};
+      const data = res?.data?.data ?? res?.data ?? res ?? {};
       setApplications(Array.isArray(data.applications) ? data.applications : []);
       if (data.stats) setStats(data.stats);
     } catch (err) {
@@ -60,18 +63,22 @@ const AdminServicePartnerApplications = () => {
     fetchApplications();
   }, [fetchApplications]);
 
-  const handleOpenDetail = async (appId) => {
+  const handleOpenDetail = useCallback(async (appId) => {
     setDetailLoading(true);
     try {
       const res = await api.get(`/admin/service-partner-applications/${appId}`);
-      const data = res?.data?.data || res?.data;
+      const data = res?.data?.data ?? res?.data ?? res;
       setSelectedApp(data);
     } catch (err) {
       toast.error(err.message || 'Failed to load application details.');
     } finally {
       setDetailLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (notificationApplicationId) handleOpenDetail(notificationApplicationId);
+  }, [notificationApplicationId, handleOpenDetail]);
 
   const handleApprove = async () => {
     if (!approveModal.app) return;

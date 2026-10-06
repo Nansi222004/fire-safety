@@ -106,7 +106,7 @@ const ProfileSettings = () => {
         vendorCapabilities: updatedCaps,
       });
 
-      const updatedVendor = res.data?.data || res.data;
+      const updatedVendor = res?.data?.data ?? res?.data ?? res;
       if (typeof updateProfile === 'function') {
         updateProfile(updatedVendor);
       }

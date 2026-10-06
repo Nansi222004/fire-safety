@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { FiBell, FiCheck, FiChevronDown } from "react-icons/fi";
 import { useNotificationStore } from "../../store/notificationStore";
 import { formatDateTime } from "../../utils/adminHelpers";
+import { getAdminNotificationDestination } from "../../utils/notificationNavigation";
 
 const AllNotifications = () => {
   const navigate = useNavigate();
@@ -24,18 +25,8 @@ const AllNotifications = () => {
 
   const handleNotificationClick = (notification) => {
     markAsRead(notification._id);
-    const orderId = notification.orderId || notification.data?.orderId;
-    const withdrawalId = notification.withdrawalId || notification.data?.withdrawalId;
-    const deliveryBoyId = notification.deliveryBoyId || notification.data?.deliveryBoyId;
-    const titleLower = String(notification.title || '').toLowerCase();
-
-    if (withdrawalId || titleLower.includes('payout') || titleLower.includes('withdrawal')) {
-      navigate('/admin/delivery/payout-requests');
-    } else if (orderId) {
-      navigate('/admin/orders');
-    } else if (deliveryBoyId || titleLower.includes('delivery') || titleLower.includes('driver')) {
-      navigate('/admin/delivery/delivery-boys');
-    }
+    const destination = getAdminNotificationDestination(notification);
+    if (destination) navigate(destination);
   };
 
   return (

@@ -3,10 +3,7 @@ import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
 import Vendor from '../../../models/Vendor.model.js';
 import Product from '../../../models/Product.model.js';
-import Category from '../../../models/Category.model.js';
-import Brand from '../../../models/Brand.model.js';
 import Admin from '../../../models/Admin.model.js';
-import { slugify } from '../../../utils/slugify.js';
 import { createNotification } from '../../../services/notification.service.js';
 
 const deriveStockStatus = (stockQuantity = 0, lowStockThreshold = 10) => {
@@ -131,87 +128,27 @@ export const getWholesaleProducts = asyncHandler(async (req, res) => {
     }, 'Wholesale products fetched.'));
 });
 
-/**
- * @desc    Create a wholesale product (B2B only, or B2C + B2B for product sellers)
- * @route   POST /api/vendor/wholesale/products
- */
-export const createWholesaleProduct = asyncHandler(async (req, res) => {
-    const sellsProducts = req.vendorCapabilities?.sellsProducts === true;
-    const {
-        name,
-        description = '',
-        categoryId,
-        brandId,
-        unit = 'Piece',
-        images = [],
-        taxRate = 18,
-        hsnCode = '',
-        channel = 'b2b',
-    } = req.body;
-
-    const trimmedName = String(name || '').trim();
-    if (trimmedName.length < 2) throw new ApiError(400, 'Product name is required.');
-    if (!categoryId) throw new ApiError(400, 'Category is required.');
-
-    const category = await Category.findById(categoryId);
-    if (!category) throw new ApiError(404, 'Category not found.');
-    if (!category.isActive) throw new ApiError(400, 'Selected category is inactive.');
-
-    if (brandId) {
-        const brand = await Brand.findById(brandId);
-        if (!brand) throw new ApiError(404, 'Brand not found.');
-        if (!brand.isActive) throw new ApiError(400, 'Selected brand is inactive.');
-        if (brand.visibility === 'private' && String(brand.ownerVendorId) !== String(req.user.id)) {
-            throw new ApiError(403, 'You do not have permission to use this private brand.');
-        }
-    }
-
-    const wholesalePrice = toNonNegative(req.body.wholesalePrice);
-    if (wholesalePrice === null) throw new ApiError(400, 'A valid wholesale price is required.');
-    const moq = toPositiveInt(req.body.moq);
-    if (moq === null) throw new ApiError(400, 'MOQ must be a whole number of at least 1.');
-
-    const sellRetail = channel === 'both';
-    if (sellRetail && !sellsProducts) {
-        throw new ApiError(403, 'Retail (B2C) availability requires the Product Seller capability.');
-    }
-    let retailPrice = wholesalePrice;
-    if (sellRetail) {
-        retailPrice = toNonNegative(req.body.retailPrice);
-        if (retailPrice === null) throw new ApiError(400, 'A valid retail price is required for B2C availability.');
-    }
-
-    const stockQuantity = toNonNegative(req.body.stockQuantity);
-    if (stockQuantity === null) throw new ApiError(400, 'Invalid stock quantity.');
-    const lowStockThreshold = toNonNegative(req.body.lowStockThreshold ?? 10) ?? 10;
-
-    const cleanImages = (Array.isArray(images) ? images : [])
-        .map((img) => String(img || '').trim())
-        .filter(Boolean)
-        .slice(0, 8);
-
-    const product = await Product.create({
-        name: trimmedName,
-        slug: `${slugify(trimmedName)}-${Date.now()}`,
-        description: String(description || '').trim(),
-        vendorId: req.user.id,
-        categoryId,
-        ...(brandId ? { brandId } : {}),
-        unit: String(unit || 'Piece').trim(),
-        images: cleanImages,
-        image: cleanImages[0] || undefined,
-        price: retailPrice,
-        taxRate: toNonNegative(taxRate) ?? 18,
-        hsnCode: String(hsnCode || '').trim(),
-        stockQuantity,
-        lowStockThreshold,
-        stock: deriveStockStatus(stockQuantity, lowStockThreshold),
-        b2cAvailable: sellRetail,
-        wholesale: { enabled: true, price: wholesalePrice, moq },
-    });
-
-    res.status(201).json(new ApiResponse(201, product, 'Wholesale product created.'));
-});
+// Backward-compatible adapter for older clients. Product creation itself is
+// handled exclusively by the canonical product controller.
+export const mapLegacyWholesaleCreate = (req, _res, next) => {
+    const channel = req.body.channel === 'both' ? 'both' : 'b2b';
+    const images = Array.isArray(req.body.images) ? req.body.images : [];
+    req.body = {
+        ...req.body,
+        price: channel === 'both' ? req.body.retailPrice : req.body.wholesalePrice,
+        originalPrice: req.body.originalPrice ?? null,
+        image: req.body.image || images[0] || '',
+        b2cAvailable: channel === 'both',
+        wholesale: {
+            enabled: true,
+            price: req.body.wholesalePrice,
+            moq: req.body.moq,
+        },
+        weight: req.body.weight ?? 500,
+        dimensions: req.body.dimensions || { length: 15, breadth: 12, height: 8 },
+    };
+    next();
+};
 
 /**
  * @desc    Update wholesale pricing / MOQ / channel availability for a vendor product

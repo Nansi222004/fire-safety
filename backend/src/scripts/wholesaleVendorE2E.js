@@ -163,7 +163,7 @@ try {
     const category = categoryList.find((item) => item.isActive !== false);
     if (!category) throw new Error('No active category is available for the Wholesale product test.');
 
-    const createdProduct = await request('/vendor/wholesale/products', {
+    const createdProduct = await request('/vendor/products', {
         method: 'POST',
         token: vendorToken,
         expected: [201],
@@ -171,12 +171,14 @@ try {
             name: `SafeFire Wholesale E2E Product ${stamp}`,
             description: 'Temporary product for Wholesale price and MOQ verification.',
             categoryId: category._id || category.id,
-            channel: 'both',
-            retailPrice: 5000,
-            wholesalePrice: 4200,
-            moq: 10,
+            price: 5000,
+            originalPrice: 6000,
+            b2cAvailable: true,
+            wholesale: { enabled: true, price: 4200, moq: 10 },
             stockQuantity: 100,
             lowStockThreshold: 10,
+            weight: 1000,
+            dimensions: { length: 30, breadth: 20, height: 15 },
         },
     });
     productId = createdProduct.data._id;

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { formatDateTime } from '../../utils/adminHelpers';
 import { useNavigate } from 'react-router-dom';
 import { useNotificationStore } from '../../store/notificationStore';
+import { getAdminNotificationDestination } from '../../utils/notificationNavigation';
 
 const NotificationWindow = ({ isOpen, onClose, position = 'right' }) => {
   const navigate = useNavigate();
@@ -33,19 +34,9 @@ const NotificationWindow = ({ isOpen, onClose, position = 'right' }) => {
 
   const handleNotificationClick = (notification) => {
     markAsRead(notification._id);
-    const orderId = notification.orderId || notification.data?.orderId;
-    const withdrawalId = notification.withdrawalId || notification.data?.withdrawalId;
-    const deliveryBoyId = notification.deliveryBoyId || notification.data?.deliveryBoyId;
-    const titleLower = String(notification.title || '').toLowerCase();
-
-    if (withdrawalId || titleLower.includes('payout') || titleLower.includes('withdrawal')) {
-      navigate('/admin/delivery/payout-requests');
-      onClose();
-    } else if (orderId) {
-      navigate('/admin/orders');
-      onClose();
-    } else if (deliveryBoyId || titleLower.includes('delivery') || titleLower.includes('driver')) {
-      navigate('/admin/delivery/delivery-boys');
+    const destination = getAdminNotificationDestination(notification);
+    if (destination) {
+      navigate(destination);
       onClose();
     }
   };

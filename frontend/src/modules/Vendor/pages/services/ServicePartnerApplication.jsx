@@ -66,12 +66,14 @@ const ServicePartnerApplication = () => {
           api.get('/service-categories/all'),
         ]);
 
-        if (catRes.status === 'fulfilled' && catRes.value?.data?.data) {
-          if (isMounted) setCategories(catRes.value.data.data);
+        if (catRes.status === 'fulfilled') {
+          const categoryData = catRes.value?.data?.data ?? catRes.value?.data ?? catRes.value;
+          if (isMounted) setCategories(Array.isArray(categoryData) ? categoryData : []);
         }
 
-        if (appRes.status === 'fulfilled' && appRes.value?.data?.data) {
-          const appData = appRes.value.data.data.application;
+        if (appRes.status === 'fulfilled') {
+          const applicationPayload = appRes.value?.data?.data ?? appRes.value?.data ?? appRes.value;
+          const appData = applicationPayload?.application;
           if (isMounted && appData) {
             setCurrentApp(appData);
             // Pre-fill form if rejected or reviewing
@@ -232,7 +234,7 @@ const ServicePartnerApplication = () => {
         toast.success('Service Partner application submitted successfully!');
       }
 
-      const appData = res?.data?.data;
+      const appData = res?.data?.data ?? res?.data ?? res;
       if (appData) {
         setCurrentApp(appData);
       }
@@ -240,8 +242,9 @@ const ServicePartnerApplication = () => {
       // Refresh vendor profile in store
       try {
         const profRes = await api.get('/vendor/auth/profile');
-        if (profRes?.data?.data && typeof updateProfile === 'function') {
-          updateProfile(profRes.data.data);
+        const profile = profRes?.data?.data ?? profRes?.data ?? profRes;
+        if (profile && typeof updateProfile === 'function') {
+          updateProfile(profile);
         }
       } catch {
         // profile reload best effort

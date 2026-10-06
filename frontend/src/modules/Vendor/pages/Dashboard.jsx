@@ -55,9 +55,25 @@ const VendorDashboard = () => {
   const [myServicesCount, setMyServicesCount] = useState(0);
 
   const vendorId = vendor?.id || vendor?._id;
-  const { sellsProducts, providesServices, serviceStatus, isServiceApproved, isServicePending, isServiceRejected, isServiceOnly, isProductOnly, isHybrid, badgeText, wholesaleEnabled, isWholesalePending, isWholesaleRejected } = getVendorCapabilities(vendor);
+  const { sellsProducts, providesServices, serviceStatus, isServiceApproved, isServiceRequested, isServicePending, isServiceRejected, isServiceOnly, isProductOnly, isHybrid, badgeText, wholesaleEnabled, isWholesalePending, isWholesaleRejected } = getVendorCapabilities(vendor);
   const isServicesOnly = isServiceOnly;
   const caps = { sellsProducts, providesServices };
+
+  const handleEnableCapability = async (capability) => {
+    if (capability !== 'sellsProducts') return;
+    try {
+      const updatedVendor = await api.put('/vendor/auth/profile', {
+        vendorCapabilities: {
+          ...(vendor?.vendorCapabilities || {}),
+          sellsProducts: true,
+        },
+      });
+      if (typeof updateProfile === 'function') updateProfile(updatedVendor);
+      toast.success('Product capability enabled successfully.');
+    } catch (err) {
+      toast.error(err.message || 'Failed to enable product capability.');
+    }
+  };
 
   useEffect(() => {
     if (!vendorId) return;
@@ -358,7 +374,7 @@ const VendorDashboard = () => {
       className={`rounded-2xl sm:rounded-3xl p-4 sm:p-6 border transition-all ${
         caps.providesServices
           ? 'bg-white border-slate-200 shadow-sm'
-          : isServicePending
+          : isServiceRequested || isServicePending
           ? 'bg-amber-50/60 border-amber-200 shadow-sm'
           : isServiceRejected
           ? 'bg-rose-50/60 border-rose-200 shadow-sm'
@@ -369,7 +385,7 @@ const VendorDashboard = () => {
           <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center text-lg sm:text-xl font-bold flex-shrink-0 ${
             caps.providesServices
               ? 'bg-orange-50 text-[#FF6A00] border border-orange-100'
-              : isServicePending
+              : isServiceRequested || isServicePending
               ? 'bg-amber-100 text-amber-700 border border-amber-200'
               : isServiceRejected
               ? 'bg-rose-100 text-rose-700 border border-rose-200'
@@ -381,7 +397,7 @@ const VendorDashboard = () => {
             <h3 className="font-bold text-slate-900 text-sm sm:text-base">
               {caps.providesServices
                 ? 'FIRE SAFETY SERVICES'
-                : isServicePending
+                : isServiceRequested || isServicePending
                 ? 'FIRE SAFETY SERVICES'
                 : isServiceRejected
                 ? 'FIRE SAFETY SERVICES'
@@ -390,6 +406,8 @@ const VendorDashboard = () => {
             <p className="text-[11px] sm:text-xs text-slate-600 mt-0.5">
               {caps.providesServices
                 ? 'You are an approved SafeFire Service Partner.'
+                : isServiceRequested
+                ? 'Services were requested during registration. Complete the application for admin review.'
                 : isServicePending
                 ? 'Your Service Partner application is being reviewed by the SafeFire team.'
                 : isServiceRejected
@@ -408,7 +426,7 @@ const VendorDashboard = () => {
         <span className={`px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold flex items-center gap-1 flex-shrink-0 ${
           caps.providesServices
             ? 'bg-emerald-100 text-emerald-800'
-            : isServicePending
+            : isServiceRequested || isServicePending
             ? 'bg-amber-100 text-amber-800'
             : isServiceRejected
             ? 'bg-rose-100 text-rose-800'
@@ -416,6 +434,8 @@ const VendorDashboard = () => {
         }`}>
           {caps.providesServices ? (
             <><FiCheckCircle /> ACTIVE</>
+          ) : isServiceRequested ? (
+            <><FiClock /> REQUESTED</>
           ) : isServicePending ? (
             <><FiClock /> UNDER REVIEW</>
           ) : isServiceRejected ? (
@@ -430,6 +450,8 @@ const VendorDashboard = () => {
         <span className="text-[11px] sm:text-xs text-slate-500 truncate">
           {caps.providesServices
             ? `${myServicesCount} active services configured`
+            : isServiceRequested
+            ? 'Selected at registration — application details required'
             : isServicePending
             ? 'Application submitted & pending Admin decision'
             : isServiceRejected
@@ -452,6 +474,13 @@ const VendorDashboard = () => {
               Set Up Services <FiArrowRight />
             </button>
           )
+        ) : isServiceRequested ? (
+          <button
+            onClick={() => navigate("/vendor/services/apply")}
+            className="px-3.5 py-1.5 sm:px-4 sm:py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm flex-shrink-0"
+          >
+            Complete Application <FiArrowRight />
+          </button>
         ) : isServicePending ? (
           <button
             onClick={() => navigate("/vendor/services/apply")}

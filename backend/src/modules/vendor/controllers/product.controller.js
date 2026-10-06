@@ -5,6 +5,7 @@ import Product from '../../../models/Product.model.js';
 import Brand from '../../../models/Brand.model.js';
 import Category from '../../../models/Category.model.js';
 import { slugify } from '../../../utils/slugify.js';
+import { resolveProductSalesChannels } from '../../../services/productChannel.service.js';
 
 const deriveStockStatus = (stockQuantity = 0, lowStockThreshold = 10) => {
     if (stockQuantity <= 0) return 'out_of_stock';
@@ -259,6 +260,13 @@ export const createProduct = asyncHandler(async (req, res) => {
         throw new ApiError(400, 'Invalid product price.');
     }
 
+    const salesChannels = resolveProductSalesChannels({
+        body: rest,
+        vendorCapabilities: req.vendorCapabilities,
+        wholesaleCapability: req.wholesaleCapability,
+    });
+    const canonicalPrice = salesChannels.b2cAvailable ? price : salesChannels.wholesale.price;
+
     if (!rest.categoryId) {
         throw new ApiError(400, 'Category ID is required.');
     }
@@ -287,7 +295,9 @@ export const createProduct = asyncHandler(async (req, res) => {
         slug,
         vendorId: req.user.id,
         ...rest,
-        price,
+        price: canonicalPrice,
+        b2cAvailable: salesChannels.b2cAvailable,
+        wholesale: salesChannels.wholesale,
         variants: normalizedVariants,
         faqs: sanitizeFaqs(rest.faqs),
         stockQuantity: finalStockQuantity,
@@ -301,6 +311,13 @@ export const createProduct = asyncHandler(async (req, res) => {
 export const updateProduct = asyncHandler(async (req, res) => {
     const product = await Product.findOne({ _id: req.params.id, vendorId: req.user.id });
     if (!product) throw new ApiError(404, 'Product not found or access denied.');
+
+    const salesChannels = resolveProductSalesChannels({
+        body: req.body,
+        currentProduct: product,
+        vendorCapabilities: req.vendorCapabilities,
+        wholesaleCapability: req.wholesaleCapability,
+    });
 
     if (req.body.categoryId !== undefined) {
         if (!req.body.categoryId) {
@@ -321,6 +338,8 @@ export const updateProduct = asyncHandler(async (req, res) => {
     }
 
     Object.assign(product, req.body);
+    product.b2cAvailable = salesChannels.b2cAvailable;
+    product.wholesale = salesChannels.wholesale;
     if (Object.prototype.hasOwnProperty.call(req.body, 'faqs')) {
         product.faqs = sanitizeFaqs(req.body.faqs);
     }
@@ -343,6 +362,9 @@ export const updateProduct = asyncHandler(async (req, res) => {
             throw new ApiError(400, 'Invalid product price.');
         }
         product.price = price;
+    }
+    if (!salesChannels.b2cAvailable) {
+        product.price = salesChannels.wholesale.price;
     }
     if (Object.prototype.hasOwnProperty.call(req.body, 'variants')) {
         product.variants = normalizeVariantsPayload(req.body.variants, product.price);

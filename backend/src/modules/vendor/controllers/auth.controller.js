@@ -145,9 +145,12 @@ export const register = asyncHandler(async (req, res) => {
             businessLicense: licenseUrl,
             identity: identityUrl,
         },
-        // A wholesale-only registration (products unticked) does not become a B2C seller.
-        vendorCapabilities: { sellsProducts: requestWholesale ? sellsProducts : true, providesServices: false },
-        serviceCapability: { status: 'none' },
+        // Capability selections are independent. Service selection records intent only;
+        // provider access remains disabled until the existing application is approved.
+        vendorCapabilities: { sellsProducts, providesServices: false },
+        serviceCapability: providesServices
+            ? { status: 'pending', applicationId: null, appliedAt: null }
+            : { status: 'none' },
         wholesaleCapability,
         status: 'pending'
     });

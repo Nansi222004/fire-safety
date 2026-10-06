@@ -611,9 +611,6 @@ export const applyForWholesale = (data) =>
 export const getWholesaleProducts = (params = {}) =>
     api.get('/vendor/wholesale/products', { params });
 
-export const createWholesaleProduct = (data) =>
-    api.post('/vendor/wholesale/products', data);
-
 export const updateWholesalePricing = (id, data) =>
     api.patch(`/vendor/wholesale/products/${id}`, data);
 

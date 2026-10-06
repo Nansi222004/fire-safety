@@ -215,7 +215,6 @@ import VendorServiceBookings from "./modules/Vendor/pages/services/VendorService
 import ServicePartnerApplication from "./modules/Vendor/pages/services/ServicePartnerApplication";
 import VendorWholesaleApplication from "./modules/Vendor/pages/wholesale/WholesaleApplication";
 import VendorWholesaleProducts from "./modules/Vendor/pages/wholesale/WholesaleProducts";
-import VendorAddWholesaleProduct from "./modules/Vendor/pages/wholesale/AddWholesaleProduct";
 import VendorWholesalePricing from "./modules/Vendor/pages/wholesale/WholesalePricing";
 import VendorWholesaleOrders from "./modules/Vendor/pages/wholesale/WholesaleOrders";
 import VendorOrders from "./modules/Vendor/pages/Orders";
@@ -923,8 +922,8 @@ const AppRoutes = () => {
         {/* Products Capability Routes */}
         <Route path="products" element={<VendorProtectedRoute requiredCapability="products"><VendorProducts /></VendorProtectedRoute>} />
         <Route path="products/manage-products" element={<VendorProtectedRoute requiredCapability="products"><VendorManageProducts /></VendorProtectedRoute>} />
-        <Route path="products/add-product" element={<VendorProtectedRoute requiredCapability="products"><VendorAddProduct /></VendorProtectedRoute>} />
-        <Route path="products/:id" element={<VendorProtectedRoute requiredCapability="products"><VendorProductForm /></VendorProtectedRoute>} />
+        <Route path="products/add-product" element={<VendorProtectedRoute requiredCapability="productsOrWholesale"><VendorAddProduct /></VendorProtectedRoute>} />
+        <Route path="products/:id" element={<VendorProtectedRoute requiredCapability="productsOrWholesale"><VendorProductForm /></VendorProtectedRoute>} />
         <Route path="brand-requests" element={<VendorProtectedRoute requiredCapability="products"><VendorBrandRequests /></VendorProtectedRoute>} />
         <Route path="category-requests" element={<VendorProtectedRoute requiredCapability="products"><VendorCategoryRequests /></VendorProtectedRoute>} />
         <Route path="stock-management" element={<VendorProtectedRoute requiredCapability="products"><VendorStockManagement /></VendorProtectedRoute>} />
@@ -944,7 +943,7 @@ const AppRoutes = () => {
         <Route path="wholesale/apply" element={<VendorWholesaleApplication />} />
         <Route path="wholesale" element={<Navigate to="/vendor/wholesale/products" replace />} />
         <Route path="wholesale/products" element={<VendorProtectedRoute requiredCapability="wholesale"><VendorWholesaleProducts /></VendorProtectedRoute>} />
-        <Route path="wholesale/add-product" element={<VendorProtectedRoute requiredCapability="wholesale"><VendorAddWholesaleProduct /></VendorProtectedRoute>} />
+        <Route path="wholesale/add-product" element={<VendorProtectedRoute requiredCapability="wholesale"><Navigate to="/vendor/products/add-product?channel=b2b&from=wholesale" replace /></VendorProtectedRoute>} />
         <Route path="wholesale/pricing" element={<VendorProtectedRoute requiredCapability="wholesale"><VendorWholesalePricing /></VendorProtectedRoute>} />
         <Route path="wholesale/orders" element={<VendorProtectedRoute requiredCapability="wholesale"><VendorWholesaleOrders /></VendorProtectedRoute>} />
         <Route path="wholesale/orders/:id" element={<VendorProtectedRoute requiredCapability="wholesale"><VendorOrderDetail /></VendorProtectedRoute>} />
