@@ -62,7 +62,7 @@ const productBaseSchema = {
     relatedProducts: Joi.array().items(objectId).optional(),
     faqs: Joi.array().items(faqSchema).optional(),
     variants: variantSchema,
-    weight: Joi.number().min(1).optional(),
+    weight: Joi.number().positive().optional(),
     dimensions: Joi.object({
         length: Joi.number().min(1).required(),
         breadth: Joi.number().min(1).required(),
@@ -75,7 +75,7 @@ export const createProductSchema = Joi.object({
     name: productBaseSchema.name.required(),
     price: productBaseSchema.price.required(),
     categoryId: productBaseSchema.categoryId.required(),
-    weight: Joi.number().min(1).required(),
+    weight: Joi.number().positive().required(),
     dimensions: Joi.object({
         length: Joi.number().min(1).required(),
         breadth: Joi.number().min(1).required(),

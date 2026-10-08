@@ -676,7 +676,6 @@ export const placeOrder = asyncHandler(async (req, res) => {
                         allowedDeliveryMethods: routing.allowedDeliveryMethods,
                         deliveryRoutingReason:  routing.deliveryRoutingReason,
                         deliveryRoutingDetails: routing.deliveryRoutingDetails,
-                        distance:               routing.distanceKm,
                         providerPickupLocationId: routing.providerPickupLocationId,
                         providerMetadata:       routing.providerMetadata,
                         // No quote provided → system automatically defaults to own_fleet. 'AUTO' is correct.

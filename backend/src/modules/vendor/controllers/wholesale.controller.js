@@ -144,7 +144,7 @@ export const mapLegacyWholesaleCreate = (req, _res, next) => {
             price: req.body.wholesalePrice,
             moq: req.body.moq,
         },
-        weight: req.body.weight ?? 500,
+        weight: req.body.weight ?? 0.5,
         dimensions: req.body.dimensions || { length: 15, breadth: 12, height: 8 },
     };
     next();

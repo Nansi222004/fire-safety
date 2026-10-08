@@ -9,7 +9,7 @@ const capabilitiesSchema = new mongoose.Schema(
         supportsHyperlocal:     { type: Boolean, default: false }, // same-city, <50km
         supportsInterstate:     { type: Boolean, default: false }, // cross-city/state
         supportsInternational:  { type: Boolean, default: false },
-        maxWeightGrams:         { type: Number, default: 50000 }, // 50kg default cap
+        maxWeightKg:            { type: Number, default: 50 },
         maxDistanceKm:          { type: Number, default: 0 },     // 0 = unlimited
         supportedPincodeRegex:  { type: String },                 // optional regex filter
     },

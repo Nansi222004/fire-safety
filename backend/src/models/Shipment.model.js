@@ -140,7 +140,7 @@ const shipmentSchema = new mongoose.Schema(
         shippingProfit: { type: Number, default: null },
 
         // ─── Package ─────────────────────────────────────────────────────
-        packageWeight:      { type: Number, default: 500 }, // grams
+        packageWeight:      { type: Number, default: 0.5 }, // kg
         packageDimensions:  { type: packageDimensionsSchema, default: () => ({}) },
         packageDescription: { type: String },
 

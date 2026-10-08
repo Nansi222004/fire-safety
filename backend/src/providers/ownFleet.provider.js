@@ -137,7 +137,7 @@ class OwnFleetProvider extends BaseProvider {
             `[${PROVIDER_ID}] Starting ${method}:`,
             `origin=${context?.origin?.pincode}`,
             `dest=${context?.destination?.pincode}`,
-            `weight=${context?.packageWeight}g`,
+            `weight=${context?.packageWeight}kg`,
             `payment=${context?.paymentMethod}`
         );
 

@@ -76,7 +76,6 @@ export const createExchangeReplacementShipment = async (returnRequestId) => {
                     deliveryMethod: routing.deliveryMethod,
                     deliveryRoutingReason: routing.deliveryRoutingReason,
                     deliveryRoutingDetails: routing.deliveryRoutingDetails,
-                    distance: routing.distanceKm,
                     providerPickupLocationId: routing.providerPickupLocationId,
                     providerMetadata: routing.providerMetadata,
                     packageWeight: routing.packageWeight,

@@ -322,7 +322,7 @@ class ShiprocketProvider extends BaseProvider {
             `[${PROVIDER_ID}] Starting ${method}:`,
             `origin=${context?.origin?.pincode}`,
             `dest=${context?.destination?.pincode}`,
-            `weight=${context?.packageWeight}g`,
+            `weight=${context?.packageWeight}kg`,
             `payment=${context?.paymentMethod}`
         );
 
@@ -348,7 +348,7 @@ class ShiprocketProvider extends BaseProvider {
             const result = await this._apiClient.checkServiceability(
                 context.origin.pincode,
                 context.destination.pincode,
-                context.packageWeight || 500,
+                context.packageWeight || 0.5,
                 isCod
             );
 
@@ -419,7 +419,7 @@ class ShiprocketProvider extends BaseProvider {
             `[${PROVIDER_ID}] Starting ${method}:`,
             `origin=${context?.origin?.pincode}`,
             `dest=${context?.destination?.pincode}`,
-            `weight=${context?.packageWeight}g`,
+            `weight=${context?.packageWeight}kg`,
             `payment=${context?.paymentMethod}`
         );
 
@@ -433,7 +433,7 @@ class ShiprocketProvider extends BaseProvider {
             const result = await this._apiClient.checkServiceability(
                 context.origin?.pincode,
                 context.destination?.pincode,
-                context.packageWeight || 500,
+                context.packageWeight || 0.5,
                 isCod
             );
 
@@ -651,7 +651,7 @@ class ShiprocketProvider extends BaseProvider {
                 length: Number(dimensions.length),
                 breadth: Number(dimensions.breadth),
                 height: Number(dimensions.height),
-                weight: (shipment.packageWeight || 500) / 1000,
+                weight: shipment.packageWeight || 0.5,
             };
 
             const createRes = await this._apiClient.createOrder(createPayload);
@@ -746,7 +746,7 @@ class ShiprocketProvider extends BaseProvider {
             `[${PROVIDER_ID}] Starting ${method}:`,
             `origin=${context?.origin?.pincode}`,
             `dest=${context?.destination?.pincode}`,
-            `weight=${context?.packageWeight}g`
+            `weight=${context?.packageWeight}kg`
         );
 
         try {
@@ -765,7 +765,7 @@ class ShiprocketProvider extends BaseProvider {
             const result = await this._apiClient.checkServiceability(
                 context.origin.pincode,
                 context.destination.pincode,
-                context.packageWeight || 500,
+                context.packageWeight || 0.5,
                 isCod
             );
 
@@ -867,7 +867,7 @@ class ShiprocketProvider extends BaseProvider {
                 length: Math.max(1, Number(dimensions.length) || 15),
                 breadth: Math.max(1, Number(dimensions.breadth) || 12),
                 height: Math.max(1, Number(dimensions.height) || 8),
-                weight: (shipment.packageWeight || 500) / 1000,
+                weight: shipment.packageWeight || 0.5,
             };
 
             const createRes = await this._apiClient.createReturnOrder(createPayload);

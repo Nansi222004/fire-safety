@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import {
     DELIVERY_METHODS,
     ROUTING_REASONS,
+    calculatePackageWeightKg,
     evaluateDeliveryRouting,
+    productWeightKg,
 } from './deliveryRouting.service.js';
 import { ShiprocketApiClient } from './shiprocket.api.js';
 
@@ -10,6 +12,19 @@ import { ShiprocketApiClient } from './shiprocket.api.js';
 const settings = { maxWeightKg: 20 };
 const route = (overrides = {}) => evaluateDeliveryRouting({ isWholesale: false, weightKg: 5, settings, ...overrides });
 const BOTH = [DELIVERY_METHODS.SHIPROCKET, DELIVERY_METHODS.INTERNAL];
+
+assert.equal(productWeightKg({ weight: 1 }), 1, '1 means 1 kg');
+assert.equal(productWeightKg({ weight: 5 }), 5, '5 means 5 kg');
+assert.equal(productWeightKg({ weight: 20.01 }), 20.01, 'decimal kilograms are preserved');
+const products = new Map([
+    ['a', { weight: 5 }],
+    ['b', { weight: 3 }],
+]);
+assert.equal(calculatePackageWeightKg([{ productId: 'a', quantity: 2 }], products), 10, 'weight multiplies by quantity');
+assert.equal(calculatePackageWeightKg([
+    { productId: 'a', quantity: 2 },
+    { productId: 'b', quantity: 4 },
+], products), 22, 'multi-item weights are summed in kg');
 
 let result = route();
 assert.equal(result.deliveryMethod, null, 'normal B2C waits for vendor choice');
@@ -27,6 +42,9 @@ assert.deepEqual(result.allowedDeliveryMethods, [DELIVERY_METHODS.INTERNAL]);
 
 assert.deepEqual(route({ weightKg: 20 }).allowedDeliveryMethods, BOTH, 'exactly at the limit stays Shiprocket-eligible');
 assert.equal(route({ weightKg: 20.01 }).deliveryRoutingReason, ROUTING_REASONS.OVERWEIGHT, 'just over the limit → manual');
+assert.deepEqual(route({ weightKg: 1 }).allowedDeliveryMethods, BOTH, '1 kg is eligible');
+assert.deepEqual(route({ weightKg: 5 }).allowedDeliveryMethods, BOTH, '5 kg is eligible');
+assert.equal(route({ weightKg: 22 }).deliveryRoutingReason, ROUTING_REASONS.OVERWEIGHT, '22 kg multi-item order → manual');
 assert.deepEqual(route({ settings: { maxWeightKg: 40 }, weightKg: 35 }).allowedDeliveryMethods, BOTH, 'configurable weight limit');
 
 // Inputs that used to force INTERNAL (distance / value) no longer exist in routing.

@@ -1407,20 +1407,21 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-1">
-                          Weight (g) <span className="text-red-500">*</span>
+                          Weight (kg) <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="number"
-                          min="1"
+                          min="0.001"
+                          step="0.001"
                           required
                           value={formData.weight}
                           onChange={(e) =>
                             setFormData({ ...formData, weight: e.target.value })
                           }
                           className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                          placeholder="e.g. 500"
+                          placeholder="e.g. 5"
                         />
-                        <p className="text-[10px] text-gray-500 mt-1">Package weight in grams.</p>
+                        <p className="text-[10px] text-gray-500 mt-1">Package weight in kilograms.</p>
                       </div>
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-1">

@@ -72,7 +72,7 @@ class DelhiveryProvider extends BaseProvider {
                     ss: 'Delivered', // standard status
                     d_pin: destination.pincode,
                     o_pin: origin.pincode,
-                    cgm: packageWeight // weight in grams
+                    cgm: Math.round(packageWeight * 1000) // Delhivery boundary: kg → grams
                 }
             });
 
@@ -141,7 +141,7 @@ class DelhiveryProvider extends BaseProvider {
                         products_desc: "E-commerce Goods",
                         cod_amount: shipment.paymentMethod === 'cod' || shipment.paymentMethod === 'cash' ? shipment.codAmount : 0,
                         name_info: shipment.shippingAddress.fullName,
-                        weight: shipment.totalWeight / 1000 // Convert grams to kg
+                        weight: shipment.totalWeight || shipment.packageWeight || 0.5
                     }],
                     pickup_location: {
                         name: shipment.vendorId.toString(),
@@ -314,7 +314,7 @@ class DelhiveryProvider extends BaseProvider {
                         products_desc: "Return Shipment",
                         cod_amount: 0,
                         name_info: customerAddress.fullName || customerAddress.name,
-                        weight: (shipment.totalWeight || shipment.packageWeight || 500) / 1000 // Convert grams to kg
+                        weight: shipment.totalWeight || shipment.packageWeight || 0.5
                     }],
                     // Vendor Registered Warehouse (Where to return the package)
                     pickup_location: {

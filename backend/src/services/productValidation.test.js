@@ -6,7 +6,7 @@ const base = {
     price: 5000,
     categoryId: '507f1f77bcf86cd799439011',
     stockQuantity: 200,
-    weight: 1000,
+    weight: 1,
     dimensions: { length: 30, breadth: 20, height: 15 },
 };
 

@@ -26,13 +26,17 @@ export const ROUTING_REASONS = Object.freeze({
 /** providerId placeholder for shipments whose delivery method the vendor has not chosen yet. */
 export const PENDING_SELECTION_PROVIDER = 'pending_selection';
 
-const GRAMS_PER_KG = 1000;
-
-/** Product.weight is canonical GRAMS (see Product model). Missing/invalid → model default (500 g). */
-export const productWeightGrams = (product) => {
-    const grams = Number(product?.weight);
-    return Number.isFinite(grams) && grams > 0 ? grams : 500;
+/** Product.weight is canonical kilograms (see Product model). Missing/invalid → model default (0.5 kg). */
+export const productWeightKg = (product) => {
+    const kilograms = Number(product?.weight);
+    return Number.isFinite(kilograms) && kilograms > 0 ? kilograms : 0.5;
 };
+
+/** Pure package-weight aggregation used by routing and unit tests. */
+export const calculatePackageWeightKg = (items, productsById) => Number((items || []).reduce((sum, item) => {
+    const product = productsById.get(String(item.productId));
+    return sum + productWeightKg(product) * Math.max(1, Number(item.quantity) || 1);
+}, 0).toFixed(3));
 
 /**
  * Pure routing decision for one vendor shipment.
@@ -106,11 +110,7 @@ export const buildOrderRoutingDecisions = async ({
 
     for (const group of vendorItems || []) {
         const vendorId = String(group.vendorId);
-        const weightGrams = (group.items || []).reduce((sum, item) => {
-            const product = productsById.get(String(item.productId));
-            return sum + productWeightGrams(product) * Math.max(1, Number(item.quantity) || 1);
-        }, 0);
-        const weightKg = weightGrams / GRAMS_PER_KG;
+        const weightKg = calculatePackageWeightKg(group.items, productsById);
 
         let routing = evaluateDeliveryRouting({ isWholesale, weightKg, settings });
 
@@ -136,7 +136,7 @@ export const buildOrderRoutingDecisions = async ({
         decisions[vendorId] = {
             ...routing,
             weightKg,
-            packageWeight: Math.max(1, Math.round(weightGrams)), // grams (existing Shipment unit)
+            packageWeight: Math.max(0.001, Number(weightKg.toFixed(3))), // kg
             packageDimensions: productsById.get(String(group.items?.[0]?.productId))?.dimensions,
         };
     }

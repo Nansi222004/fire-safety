@@ -20,14 +20,6 @@ import {
   buildVariantPayload,
 } from "../../utils/variantHelpers";
 
-// Product weight is stored in GRAMS (backend canonical unit); vendors enter kilograms.
-const kgToGrams = (kg) => Math.max(1, Math.round((parseFloat(kg) || 0) * 1000));
-const gramsToKg = (grams) => {
-  const value = Number(grams);
-  return Number.isFinite(value) && value > 0 ? String(Number((value / 1000).toFixed(3))) : "1";
-};
-
-
 const AddProduct = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -531,7 +523,7 @@ const AddProduct = () => {
       categoryId: finalCategoryId,
       subcategoryId: (formData.subcategoryId && String(formData.subcategoryId).trim()) ? formData.subcategoryId : null,
       brandId: formData.brandId ?? null,
-      weight: kgToGrams(formData.weight), // vendor enters kg; API stores grams
+      weight: parseFloat(formData.weight),
       dimensions: {
         length: parseFloat(formData.dimensions.length) || 10,
         breadth: parseFloat(formData.dimensions.breadth) || 10,
@@ -890,7 +882,7 @@ const AddProduct = () => {
             <span>📦</span> Package & Shipping Specifications
           </h2>
           <p className="text-xs text-gray-500 mb-3">
-            Required for shipping rate calculations. Weight and dimensions must be at least 1.
+            Required for shipping rate calculations. Weight is stored in kilograms.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
             <div>

@@ -41,7 +41,7 @@
  *     lat?:      number,
  *     lng?:      number,
  *   },
- *   packageWeight:      number,   // grams
+ *   packageWeight:      number,   // kilograms (SafeFire canonical unit)
  *   packageDimensions?: { length: number, breadth: number, height: number },
  *   paymentMethod:      'cod' | 'online' | 'wallet',
  *   customerShippingCharge: number,  // what the customer pays (already decided)

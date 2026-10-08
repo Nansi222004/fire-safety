@@ -451,7 +451,8 @@ const DeliveryOrderDetail = () => {
           transition={{ delay: 0.4 }}
           className="space-y-3 pt-4"
         >
-          {order.status === 'pending' && order.deliveryAssignmentStatus === 'assigned' && (
+          {['pending', 'processing', 'ready_for_pickup', 'confirmed'].includes(order.status)
+            && ['assigned', 'manual_override'].includes(order.deliveryAssignmentStatus) && (
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={handleRejectOrder}

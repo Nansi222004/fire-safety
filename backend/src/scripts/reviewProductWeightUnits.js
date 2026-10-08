@@ -1,17 +1,20 @@
 /**
- * Product weight unit review / migration (SAFE, opt-in).
+ * Product weight unit review / explicit correction tool.
  *
- * Canonical unit: Product.weight is stored in GRAMS. The Admin product form always used grams,
- * but the Vendor product forms used to send kilograms unconverted (e.g. "5" for 5 kg). Those legacy
- * values cannot be distinguished from grams reliably, so nothing is converted automatically.
+ * Canonical unit: Product.weight is kilograms. This tool never infers or
+ * automatically converts a product. Corrections must name the product id,
+ * its expected current value, and the reviewed replacement value.
  *
  * Usage (from backend/):
- *   node src/scripts/reviewProductWeightUnits.js                    # dry run: list suspicious products
- *   node src/scripts/reviewProductWeightUnits.js --below=100         # change the review threshold (grams)
- *   node src/scripts/reviewProductWeightUnits.js --apply --ids=ID1,ID2
- *        # multiply ONLY the listed products by 1000 (kg → g) after you have confirmed them
+ *   node src/scripts/reviewProductWeightUnits.js
+ *   node src/scripts/reviewProductWeightUnits.js --apply \
+ *     --corrections=PRODUCT_ID:EXPECTED_CURRENT_KG:REPLACEMENT_KG,...
  *
- * The threshold is only a review hint for humans; delivery routing never guesses units.
+ * Example for a record known to contain the legacy value 500 grams:
+ *   --corrections=64...abc:500:0.5
+ *
+ * The expected-current check makes the operation fail closed if a product was
+ * edited after review. Routing never guesses units.
  */
 import 'dotenv/config';
 import mongoose from 'mongoose';
@@ -21,30 +24,55 @@ const args = Object.fromEntries(process.argv.slice(2).map((arg) => {
     const [k, v = 'true'] = arg.replace(/^--/, '').split('=');
     return [k, v];
 }));
-const below = Number(args.below) || 100;
 const apply = args.apply === 'true';
-const ids = String(args.ids || '').split(',').map((id) => id.trim()).filter(Boolean);
+
+const parseCorrections = (value) => String(value || '')
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+        const [id, expectedRaw, replacementRaw] = entry.split(':');
+        const expected = Number(expectedRaw);
+        const replacement = Number(replacementRaw);
+        if (!mongoose.isValidObjectId(id) || !Number.isFinite(expected) || !(replacement > 0)) {
+            throw new Error(`Invalid correction "${entry}". Expected PRODUCT_ID:CURRENT_VALUE:KG_VALUE.`);
+        }
+        return { id, expected, replacement };
+    });
 
 await mongoose.connect(process.env.MONGO_URI);
 try {
     if (apply) {
-        if (!ids.length) throw new Error('--apply requires --ids=<comma separated product ids> that you have reviewed.');
-        const invalid = ids.filter((id) => !mongoose.isValidObjectId(id));
-        if (invalid.length) throw new Error(`Invalid product ids: ${invalid.join(', ')}`);
-        const products = await Product.find({ _id: { $in: ids } }).select('name weight').lean();
-        for (const product of products) {
-            const grams = Math.round(Number(product.weight) * 1000);
-            await Product.updateOne({ _id: product._id }, { $set: { weight: grams } });
-            console.log(`Converted ${product._id} "${product.name}": ${product.weight} → ${grams} g`);
+        const corrections = parseCorrections(args.corrections);
+        if (!corrections.length) throw new Error('--apply requires --corrections=PRODUCT_ID:CURRENT_VALUE:KG_VALUE,...');
+
+        const reviewed = [];
+        for (const correction of corrections) {
+            const product = await Product.findById(correction.id).select('name weight');
+            if (!product) throw new Error(`Product ${correction.id} no longer exists.`);
+            if (Number(product.weight) !== correction.expected) {
+                throw new Error(`Product ${correction.id} changed after review: expected ${correction.expected}, found ${product.weight}. No corrections were applied.`);
+            }
+            reviewed.push({ product, correction });
         }
-        console.log(`Done. ${products.length} product(s) updated.`);
+
+        const changed = [];
+        for (const { product, correction } of reviewed) {
+            product.weight = correction.replacement;
+            await product.save();
+            changed.push({ id: product._id, name: product.name, from: correction.expected, to: correction.replacement });
+        }
+        for (const item of changed) {
+            console.log(`Corrected ${item.id} "${item.name}": ${item.from} → ${item.to} kg`);
+        }
+        console.log(`Done. ${changed.length} explicitly reviewed product(s) updated.`);
     } else {
-        const suspicious = await Product.find({ weight: { $lt: below } }).select('name weight vendorId updatedAt').sort({ updatedAt: -1 }).lean();
-        console.log(`Products with weight < ${below} g (possibly entered in kg by the old vendor form): ${suspicious.length}`);
-        for (const p of suspicious) {
-            console.log(`  ${p._id}  weight=${p.weight}  "${p.name}"  vendor=${p.vendorId}  updated=${p.updatedAt?.toISOString?.().slice(0, 10)}`);
+        const products = await Product.find({}).select('name weight unit vendorId updatedAt').sort({ weight: 1, name: 1 }).lean();
+        console.log(`Product weight review (canonical target: kg). ${products.length} product(s):`);
+        for (const product of products) {
+            console.log(`  ${product._id}  weight=${product.weight}  unit=${product.unit || '-'}  "${product.name}"  vendor=${product.vendorId}  updated=${product.updatedAt?.toISOString?.().slice(0, 10)}`);
         }
-        console.log('\nDry run only. Review the list, then run with --apply --ids=... for the products that are really in kg.');
+        console.log('\nDry run only. Apply only an explicit, reviewed PRODUCT_ID:CURRENT_VALUE:KG_VALUE correction list.');
     }
 } finally {
     await mongoose.disconnect();

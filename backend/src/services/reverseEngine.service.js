@@ -20,11 +20,6 @@ const PROVIDER_ADAPTERS = {
     delhivery: delhiveryProvider,
 };
 
-const weightInGrams = (storedWeight) => {
-    const value = Math.max(0, Number(storedWeight) || 0);
-    return value > 0 && value <= 100 ? value * 1000 : value;
-};
-
 const buildPackage = async (returnReq) => {
     const productIds = (returnReq.items || []).map((item) => item.productId).filter(Boolean);
     const products = await Product.find({ _id: { $in: productIds } })
@@ -36,12 +31,12 @@ const buildPackage = async (returnReq) => {
 
     for (const item of returnReq.items || []) {
         const product = byId.get(String(item.productId));
-        packageWeight += weightInGrams(product?.weight) * Math.max(1, Number(item.quantity) || 1);
+        packageWeight += (Math.max(0, Number(product?.weight) || 0.5)) * Math.max(1, Number(item.quantity) || 1);
         if (!packageDimensions && product?.dimensions) packageDimensions = product.dimensions;
     }
 
     return {
-        packageWeight: Math.max(1, Math.round(packageWeight || 500)),
+        packageWeight: Math.max(0.001, Number((packageWeight || 0.5).toFixed(3))),
         packageDimensions: packageDimensions || { length: 15, breadth: 12, height: 8 },
     };
 };

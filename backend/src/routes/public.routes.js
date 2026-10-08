@@ -1157,22 +1157,22 @@ router.post('/shipping/estimate', asyncHandler(async (req, res) => {
                 lng:     shippingAddress?.lng      || null,
             };
 
-            // Estimate total package weight from items for THIS vendor
-            // Fallback to 500g per item if not specified
+            // Estimate total package weight (kg) from items for THIS vendor.
+            // Fallback to 0.5 kg per item if not specified.
             // Wait, items in vGroup aren't tracked? vendorGroups only has subtotal etc.
-            // We need to compute totalWeightGrams from original items array mapped to this vendor
+            // Compute total kilograms from original items mapped to this vendor.
             const vItems = items.filter(item => {
                 const p = productMap.get(String(item.productId));
                 return p && String(p.vendorId._id) === String(vGroup.vendorId);
             });
-            const totalWeightGrams = vItems.reduce((sum, item) => sum + (Number(item.weight) || 500) * (Number(item.quantity) || 1), 0);
+            const totalWeightKg = vItems.reduce((sum, item) => sum + (Number(item.weight) || 0.5) * (Number(item.quantity) || 1), 0);
             
             const customerCharge = shippingResult.shippingByVendor[vGroup.vendorId] || 0;
 
             const engineContext = {
                 origin:                 originContext,
                 destination:            destContext,
-                packageWeight:          totalWeightGrams,
+                packageWeight:          totalWeightKg,
                 paymentMethod:          paymentMethod || 'online',
                 customerShippingCharge: customerCharge, 
             };

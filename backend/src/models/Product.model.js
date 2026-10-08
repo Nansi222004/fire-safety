@@ -62,10 +62,9 @@ const productSchema = new mongoose.Schema(
         cancelable: { type: Boolean, default: true },
 
         // ─── Logistics / Shipping ─────────────────────────────────────────
-        // Required by courier providers (Shiprocket, Delhivery, etc.) for rate
-        // calculation and shipment creation. Defaults ensure backward compatibility
-        // for existing products — vendors should update these for accuracy.
-        weight: { type: Number, default: 500, min: 1 }, // grams
+        // SafeFire's canonical weight unit is kilograms. Provider-specific unit
+        // conversion belongs only in the external provider adapter.
+        weight: { type: Number, default: 0.5, min: 0.001 }, // kg
         dimensions: {
             length:  { type: Number, default: 15, min: 1 }, // cm
             breadth: { type: Number, default: 12, min: 1 }, // cm

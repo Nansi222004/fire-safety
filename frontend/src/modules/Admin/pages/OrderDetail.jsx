@@ -135,7 +135,18 @@ const OrderDetail = () => {
     );
   }
 
-  const statusOptions = ['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'returned'];
+  const canMarkShipped = (order.shipments || []).length > 0 && order.shipments.every((shipment) => {
+    if (['cancelled', 'returned', 'failed'].includes(shipment.status)) return true;
+    const isInternal = shipment.deliveryMethod === 'INTERNAL' || shipment.providerId === 'own_fleet';
+    if (isInternal) {
+      return shipment.deliveryAssignmentStatus === 'accepted'
+        && shipment.deliveryBoyId?.isActive === true
+        && shipment.deliveryBoyId?.applicationStatus === 'approved';
+    }
+    return ['picked_up', 'shipped', 'in_transit', 'out_for_delivery', 'delivered'].includes(shipment.status);
+  });
+  const statusOptions = ['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'returned']
+    .filter((option) => option !== 'shipped' || order.status === 'shipped' || canMarkShipped);
 
   // Handle items - could be a number or an array
   const itemsCount = Array.isArray(order.items) ? order.items.length : (typeof order.items === 'number' ? order.items : 0);

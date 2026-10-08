@@ -177,7 +177,7 @@ try {
             wholesale: { enabled: true, price: 4200, moq: 10 },
             stockQuantity: 100,
             lowStockThreshold: 10,
-            weight: 1000,
+            weight: 1,
             dimensions: { length: 30, breadth: 20, height: 15 },
         },
     });

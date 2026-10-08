@@ -112,7 +112,7 @@ const checkCapabilities = (provider, context) => {
     }
 
     // Weight limit
-    if (cap.maxWeightGrams > 0 && context.packageWeight > cap.maxWeightGrams) {
+    if (cap.maxWeightKg > 0 && context.packageWeight > cap.maxWeightKg) {
         return { passes: false, reason: 'WEIGHT_EXCEEDED' };
     }
 
@@ -256,7 +256,7 @@ const runEngine = async (context, options = {}) => {
     const runTriggeredAt = new Date(engineStart);
     const logger = (msg) => console.log(`[DeliveryEngine] ${msg}`);
 
-    logger(`Engine triggered. origin=${context.origin?.pincode} dest=${context.destination?.pincode} weight=${context.packageWeight}g payment=${context.paymentMethod}`);
+    logger(`Engine triggered. origin=${context.origin?.pincode} dest=${context.destination?.pincode} weight=${context.packageWeight}kg payment=${context.paymentMethod}`);
 
     // ── 0. Load Global Weights ─────────────────────────────────────────────
     let globalWeights = DEFAULT_WEIGHTS;

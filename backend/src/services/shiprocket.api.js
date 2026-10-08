@@ -61,11 +61,11 @@ const COD_SURCHARGE_RATE   = 0.018;  // 1.8% — Shiprocket standard COD charge
  *
  * @param {string} pickupPincode
  * @param {string} deliveryPincode
- * @param {number} weightGrams
+ * @param {number} weightKg
  * @param {boolean} isCod
  */
-const generateMockRateResponse = (pickupPincode, deliveryPincode, weightGrams, isCod) => {
-    const weightKg = (weightGrams / 1000).toFixed(2);
+const generateMockRateResponse = (pickupPincode, deliveryPincode, weightKg, isCod) => {
+    const normalizedWeightKg = Math.max(0.001, Number(weightKg) || 0.5);
 
     // Simulate non-serviceable pincodes (edge cases for testing)
     const UNSERVICEABLE_PINCODES = ['999999', '000000'];
@@ -93,12 +93,12 @@ const generateMockRateResponse = (pickupPincode, deliveryPincode, weightGrams, i
             courier_company_id:    5,
             courier_name:          'Delhivery Surface',
             courier_type:          2,   // 2 = surface
-            rate:                  parseFloat((baseRateSurface * zoneMultiplier * Math.max(1, weightGrams / 500)).toFixed(2)),
+            rate:                  parseFloat((baseRateSurface * zoneMultiplier * Math.max(1, normalizedWeightKg / 0.5)).toFixed(2)),
             etd:                   isSameCity ? '1 Days' : isSameState ? '3 Days' : '5 Days',
             estimated_delivery_days: isSameCity ? 1 : isSameState ? 3 : 5,
             cod:                   isCod ? 1 : 0,
             cod_charges:           isCod ? parseFloat((baseRateSurface * zoneMultiplier * 0.018).toFixed(2)) : 0,
-            freight_charge:        parseFloat((baseRateSurface * zoneMultiplier * Math.max(1, weightGrams / 500)).toFixed(2)),
+            freight_charge:        parseFloat((baseRateSurface * zoneMultiplier * Math.max(1, normalizedWeightKg / 0.5)).toFixed(2)),
             min_weight:            0.5,
             is_surface:            1,
             is_return:             1,
@@ -109,12 +109,12 @@ const generateMockRateResponse = (pickupPincode, deliveryPincode, weightGrams, i
             courier_company_id:    1,
             courier_name:          'DTDC Air',
             courier_type:          1,   // 1 = air
-            rate:                  parseFloat((baseRatePerKg * zoneMultiplier * Math.max(1, weightGrams / 500)).toFixed(2)),
+            rate:                  parseFloat((baseRatePerKg * zoneMultiplier * Math.max(1, normalizedWeightKg / 0.5)).toFixed(2)),
             etd:                   isSameCity ? '1 Days' : isSameState ? '2 Days' : '3 Days',
             estimated_delivery_days: isSameCity ? 1 : isSameState ? 2 : 3,
             cod:                   isCod ? 1 : 0,
             cod_charges:           isCod ? parseFloat((baseRatePerKg * zoneMultiplier * 0.018).toFixed(2)) : 0,
-            freight_charge:        parseFloat((baseRatePerKg * zoneMultiplier * Math.max(1, weightGrams / 500)).toFixed(2)),
+            freight_charge:        parseFloat((baseRatePerKg * zoneMultiplier * Math.max(1, normalizedWeightKg / 0.5)).toFixed(2)),
             min_weight:            0.5,
             is_surface:            0,
             is_return:             1,
@@ -125,12 +125,12 @@ const generateMockRateResponse = (pickupPincode, deliveryPincode, weightGrams, i
             courier_company_id:    2,
             courier_name:          'Blue Dart Express',
             courier_type:          1,
-            rate:                  parseFloat((baseRatePerKg * zoneMultiplier * 1.3 * Math.max(1, weightGrams / 500)).toFixed(2)),
+            rate:                  parseFloat((baseRatePerKg * zoneMultiplier * 1.3 * Math.max(1, normalizedWeightKg / 0.5)).toFixed(2)),
             etd:                   isSameCity ? '1 Days' : isSameState ? '1 Days' : '2 Days',
             estimated_delivery_days: isSameCity ? 1 : isSameState ? 1 : 2,
             cod:                   0,   // Blue Dart doesn't always support COD
             cod_charges:           0,
-            freight_charge:        parseFloat((baseRatePerKg * zoneMultiplier * 1.3 * Math.max(1, weightGrams / 500)).toFixed(2)),
+            freight_charge:        parseFloat((baseRatePerKg * zoneMultiplier * 1.3 * Math.max(1, normalizedWeightKg / 0.5)).toFixed(2)),
             min_weight:            0.5,
             is_surface:            0,
             is_return:             0,
@@ -151,7 +151,7 @@ const generateMockRateResponse = (pickupPincode, deliveryPincode, weightGrams, i
         delivery_codes:   availableCouriers.map(c => ({
             courier_data: {
                 ...c,
-                weight:   weightKg,
+                weight:   normalizedWeightKg.toFixed(2),
                 surface_max_weight: '100',
             },
         })),
@@ -354,7 +354,7 @@ class ShiprocketApiClient {
      *
      * @param {string|number} pickupPincode
      * @param {string|number} deliveryPincode
-     * @param {number}        weightGrams      - Package weight in grams
+     * @param {number}        weightKg         - Package weight in kilograms
      * @param {boolean}       isCod            - true for Cash on Delivery orders
      * @returns {Promise<{ success, data: { couriers, serviceable }, error }>}
      */
@@ -391,12 +391,12 @@ class ShiprocketApiClient {
         return this._httpRequest('POST', '/settings/company/addpickup', payload);
     }
 
-    async checkServiceability(pickupPincode, deliveryPincode, weightGrams, isCod) {
+    async checkServiceability(pickupPincode, deliveryPincode, weightKg, isCod) {
         console.log(
             `[shiprocket.api] checkServiceability:`,
             `pickup=${pickupPincode}`,
             `delivery=${deliveryPincode}`,
-            `weight=${weightGrams}g`,
+            `weight=${weightKg}kg`,
             `cod=${isCod}`,
             `mode=${this._mockMode ? 'MOCK' : 'LIVE'}`
         );
@@ -407,7 +407,7 @@ class ShiprocketApiClient {
                 // Ensure token is "issued" (for test traceability)
                 await this._getToken();
 
-                const mockResp = generateMockRateResponse(pickupPincode, deliveryPincode, weightGrams, isCod);
+                const mockResp = generateMockRateResponse(pickupPincode, deliveryPincode, weightKg, isCod);
 
                 if (!mockResp.serviceable || !mockResp.delivery_codes?.length) {
                     return {
@@ -426,12 +426,11 @@ class ShiprocketApiClient {
             }
 
             // ── Live Mode ──────────────────────────────────────────────────────
-            const weightKg = (weightGrams / 1000).toFixed(2);
             const result = await this._httpRequest('GET', '/courier/serviceability/', null, {
                 params: {
                     pickup_postcode:   String(pickupPincode),
                     delivery_postcode: String(deliveryPincode),
-                    weight:            weightKg,
+                    weight:            Number(weightKg).toFixed(3),
                     cod:               isCod ? 1 : 0,
                 },
             });

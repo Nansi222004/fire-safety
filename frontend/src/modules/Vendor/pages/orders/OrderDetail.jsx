@@ -93,9 +93,10 @@ const OrderDetail = () => {
             }
         };
 
-        if (!order) {
-            fetchOrder(true);
-        }
+        // Initial load and explicit child-action refreshes use the same source of truth.
+        // Without this fetch, delivery-method/assignment callbacks incremented refreshKey
+        // but the page kept rendering stale shipment props until a full browser reload.
+        fetchOrder(!order);
 
         const token = localStorage.getItem('vendor-token') || localStorage.getItem('token');
         if (token) {

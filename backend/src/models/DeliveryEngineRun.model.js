@@ -94,7 +94,7 @@ const deliveryEngineRunSchema = new mongoose.Schema(
         // Context at time of run
         origin:      { type: locationSchema },
         destination: { type: locationSchema },
-        packageWeight:     { type: Number }, // grams
+        packageWeight:     { type: Number }, // kg
         packageDimensions: { type: packageDimensionsSchema },
         paymentMethod:     { type: String, enum: ['cod', 'online', 'wallet'] },
 

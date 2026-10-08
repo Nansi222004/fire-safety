@@ -267,7 +267,7 @@ try {
             wholesale: { enabled: true, price: 4200, moq: 10 },
             stockQuantity: 200,
             lowStockThreshold: 10,
-            weight: 1000,
+            weight: 1,
             dimensions: { length: 30, breadth: 20, height: 15 },
             image: 'https://example.com/safefire-e2e-extinguisher-main.jpg',
             images: [
@@ -342,7 +342,7 @@ try {
             wholesale: { enabled: true, price: 3900, moq: 5 },
             stockQuantity: 50,
             lowStockThreshold: 10,
-            weight: 1000,
+            weight: 1,
             dimensions: { length: 30, breadth: 20, height: 15 },
         },
     });

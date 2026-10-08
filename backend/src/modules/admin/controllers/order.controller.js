@@ -175,7 +175,7 @@ export const getOrderById = asyncHandler(async (req, res) => {
         .populate('userId', 'name email phone')
         .populate({
             path: 'shipments',
-            populate: { path: 'deliveryBoyId', select: 'name phone email vehicleType vehicleNumber' }
+            populate: { path: 'deliveryBoyId', select: 'name phone email vehicleType vehicleNumber isActive applicationStatus' }
         })
         .populate('items.productId', 'name images price')
         .lean();
@@ -291,6 +291,35 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     }
 
     const previousStatus = currentDynamicStatus;
+
+    if (nextStatus === 'shipped' && shipments.length === 0) {
+        throw new ApiError(409, 'An order cannot be marked shipped before its shipment is created.');
+    }
+
+    if (nextStatus === 'shipped') {
+        for (const shipment of shipments) {
+            if (['cancelled', 'returned', 'failed'].includes(shipment.status)) continue;
+            const isInternal = shipment.deliveryMethod === 'INTERNAL' || shipment.providerId === 'own_fleet';
+            if (isInternal) {
+                if (!shipment.deliveryBoyId) {
+                    throw new ApiError(409, `Assign a delivery partner to shipment #${shipment.shipmentNumber || shipment._id} before marking the order shipped.`);
+                }
+                if (shipment.deliveryAssignmentStatus !== 'accepted') {
+                    throw new ApiError(409, `The delivery partner for shipment #${shipment.shipmentNumber || shipment._id} has not accepted the assignment.`);
+                }
+                const rider = await DeliveryBoy.findOne({
+                    _id: shipment.deliveryBoyId,
+                    isActive: true,
+                    applicationStatus: 'approved',
+                }).select('_id').lean();
+                if (!rider) {
+                    throw new ApiError(409, `The delivery partner for shipment #${shipment.shipmentNumber || shipment._id} is not active and approved.`);
+                }
+            } else if (!['picked_up', 'shipped', 'in_transit', 'out_for_delivery', 'delivered'].includes(shipment.status)) {
+                throw new ApiError(409, `Shipment #${shipment.shipmentNumber || shipment._id} has not entered transit. Update it through its provider lifecycle.`);
+            }
+        }
+    }
 
     const allowedTransitions = {
         pending:          ['processing', 'cancelled'],

@@ -53,7 +53,7 @@ const connectDB = async () => {
                     supportsReversePickup: true,
                     supportsHyperlocal: true,
                     supportsInterstate: true,
-                    maxWeightGrams: 50000,
+                    maxWeightKg: 50,
                     maxDistanceKm: 0,
                 },
                 scoringWeights: {
