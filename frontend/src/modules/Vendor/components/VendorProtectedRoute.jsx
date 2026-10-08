@@ -40,15 +40,18 @@ const VendorProtectedRoute = ({ children, requiredCapability = null }) => {
 
   // Authoritative Capability Route Guard
   if (requiredCapability) {
-    const { sellsProducts, providesServices } = getVendorCapabilities(vendor);
+    const { sellsProducts, providesServices, wholesaleEnabled } = getVendorCapabilities(vendor);
     const req = String(requiredCapability).toLowerCase();
     if ((req === 'products' || req === 'sellsproducts') && !sellsProducts) {
+      return <CapabilityAccessRequired requiredCapability="products" />;
+    }
+    if (req === 'productsorwholesale' && !sellsProducts && !wholesaleEnabled) {
       return <CapabilityAccessRequired requiredCapability="products" />;
     }
     if ((req === 'services' || req === 'providesservices') && !providesServices) {
       return <CapabilityAccessRequired requiredCapability="services" />;
     }
-    if (req === 'wholesale' && !getVendorCapabilities(vendor).wholesaleEnabled) {
+    if (req === 'wholesale' && !wholesaleEnabled) {
       return <Navigate to="/vendor/wholesale/apply" replace />;
     }
   }

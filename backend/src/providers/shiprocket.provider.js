@@ -158,10 +158,12 @@ class ShiprocketProvider extends BaseProvider {
                 // Default to mock mode if not explicitly set to false
                 if (dbConfig.mockMode === undefined) dbConfig.mockMode = true;
 
-                // SHIPROCKET_LIVE is the explicit production switch. It takes
-                // precedence over the legacy inverse SHIPROCKET_MOCK_MODE flag.
-                if (process.env.SHIPROCKET_LIVE !== undefined) {
-                    dbConfig.mockMode = process.env.SHIPROCKET_LIVE.toLowerCase() !== 'true';
+                // LIVE_SHIPROCKET is the explicit production switch. The older
+                // SHIPROCKET_LIVE name remains a fallback for existing deployments.
+                // Both are inverse to mockMode; live calls require an explicit true.
+                const liveSwitch = process.env.LIVE_SHIPROCKET ?? process.env.SHIPROCKET_LIVE;
+                if (liveSwitch !== undefined) {
+                    dbConfig.mockMode = String(liveSwitch).toLowerCase() !== 'true';
                 } else if (process.env.SHIPROCKET_MOCK_MODE !== undefined) {
                     dbConfig.mockMode = process.env.SHIPROCKET_MOCK_MODE === 'true';
                 }

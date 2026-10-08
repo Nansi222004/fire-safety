@@ -56,6 +56,7 @@ import { uploadSingle, uploadMultiple, uploadDocumentSingle, uploadVendorRegistr
 const router = Router();
 const vendorAuth = [authenticate, authorize('vendor'), enforceAccountStatus];
 const productCapAuth = [...vendorAuth, requireVendorCapability('products')];
+const productOrWholesaleAuth = [...vendorAuth, requireVendorCapability('productsOrWholesale')];
 const serviceCapAuth = [...vendorAuth, requireVendorCapability('services')];
 const wholesaleCapAuth = [...vendorAuth, requireVendorCapability('wholesale')];
 
@@ -118,10 +119,10 @@ router.put('/service-partner-applications/resubmit', ...vendorAuth, servicePartn
 
 // Products
 router.get('/products', ...productCapAuth, productController.getVendorProducts);
-router.get('/products/:id', ...productCapAuth, validate(productIdParamSchema, 'params'), productController.getVendorProductById);
-router.post('/products', ...productCapAuth, validate(createProductSchema), productController.createProduct);
-router.put('/products/:id', ...productCapAuth, validate(productIdParamSchema, 'params'), validate(updateProductSchema), productController.updateProduct);
-router.delete('/products/:id', ...productCapAuth, validate(productIdParamSchema, 'params'), productController.deleteProduct);
+router.get('/products/:id', ...productOrWholesaleAuth, validate(productIdParamSchema, 'params'), productController.getVendorProductById);
+router.post('/products', ...productOrWholesaleAuth, validate(createProductSchema), productController.createProduct);
+router.put('/products/:id', ...productOrWholesaleAuth, validate(productIdParamSchema, 'params'), validate(updateProductSchema), productController.updateProduct);
+router.delete('/products/:id', ...productOrWholesaleAuth, validate(productIdParamSchema, 'params'), productController.deleteProduct);
 router.patch('/stock/:productId', ...productCapAuth, productController.updateStock);
 
 // Brands
@@ -224,7 +225,13 @@ router.put('/service-partner-applications/resubmit', ...vendorAuth, servicePartn
 router.get('/wholesale/application', ...vendorAuth, wholesaleController.getWholesaleApplication);
 router.post('/wholesale/application', ...vendorAuth, wholesaleController.applyForWholesale);
 router.get('/wholesale/products', ...wholesaleCapAuth, wholesaleController.getWholesaleProducts);
-router.post('/wholesale/products', ...wholesaleCapAuth, wholesaleController.createWholesaleProduct);
+router.post(
+    '/wholesale/products',
+    ...wholesaleCapAuth,
+    wholesaleController.mapLegacyWholesaleCreate,
+    validate(createProductSchema),
+    productController.createProduct
+);
 router.patch('/wholesale/products/:id', ...wholesaleCapAuth, validate(productIdParamSchema, 'params'), wholesaleController.updateWholesalePricing);
 router.get('/wholesale/orders', ...wholesaleCapAuth, (req, res, next) => { req.query.orderType = 'b2b'; next(); }, orderController.getVendorOrders);
 

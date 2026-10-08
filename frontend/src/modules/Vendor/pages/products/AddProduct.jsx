@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { FiSave, FiUpload, FiX } from "react-icons/fi";
 import { motion } from "framer-motion";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
@@ -10,7 +10,9 @@ import { uploadVendorImage, uploadVendorImages } from "../../services/vendorServ
 import CategorySelector from "../../../Admin/components/CategorySelector";
 import AnimatedSelect from "../../../Admin/components/AnimatedSelect";
 import BrandSelector from "../../components/BrandSelector";
+import ProductSalesChannels from "../../components/ProductSalesChannels";
 import toast from "react-hot-toast";
+import { getVendorCapabilities } from "../../utils/vendorCapabilities";
 import {
   parseVariantAxis,
   buildVariantCombinations,
@@ -20,18 +22,26 @@ import {
 
 const AddProduct = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { vendor } = useVendorAuthStore();
   const { addProduct, isSaving } = useVendorProductStore();
   const { initialize: initCategories } = useCategoryStore();
   const { brands, initialize: initBrands } = useBrandStore();
 
-  const vendorId = vendor?.id;
+  const vendorId = vendor?.id || vendor?._id;
+  const vendorCapabilities = getVendorCapabilities(vendor);
+  const canSellB2c = vendorCapabilities.sellsProducts;
+  const canUseWholesale = vendorCapabilities.wholesaleEnabled;
+  const openedFromWholesale = searchParams.get("from") === "wholesale" || searchParams.get("channel") === "b2b";
 
   const [formData, setFormData] = useState({
     name: "",
     unit: "",
     price: "",
     originalPrice: "",
+    salesChannel: "b2c",
+    b2cAvailable: true,
+    wholesale: { enabled: false, price: "", moq: "1" },
     image: "",
     images: [],
     categoryId: null,
@@ -104,6 +114,17 @@ const AddProduct = () => {
       navigate("/vendor/login");
     }
   }, [vendorId, navigate]);
+
+  useEffect(() => {
+    if (canUseWholesale && (openedFromWholesale || !canSellB2c)) {
+      setFormData((previous) => ({
+        ...previous,
+        salesChannel: "b2b",
+        b2cAvailable: false,
+        wholesale: { ...(previous.wholesale || {}), enabled: true },
+      }));
+    }
+  }, [canUseWholesale, canSellB2c, openedFromWholesale]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -378,8 +399,22 @@ const AddProduct = () => {
       errors.name = "Product name is required (at least 2 characters)";
     }
 
-    if (formData.price === "" || isNaN(parseFloat(formData.price)) || parseFloat(formData.price) < 0) {
+    const includesB2c = formData.salesChannel !== "b2b";
+    const includesWholesale = formData.salesChannel !== "b2c";
+
+    if (includesB2c && (formData.price === "" || isNaN(parseFloat(formData.price)) || parseFloat(formData.price) < 0)) {
       errors.price = "Valid non-negative price is required";
+    }
+    if (includesWholesale) {
+      if (!canUseWholesale) {
+        errors.salesChannel = "Approved Wholesale/B2B capability is required";
+      }
+      if (formData.wholesale?.price === "" || !Number.isFinite(Number(formData.wholesale?.price)) || Number(formData.wholesale.price) <= 0) {
+        errors["wholesale.price"] = "Wholesale price must be greater than 0";
+      }
+      if (!Number.isInteger(Number(formData.wholesale?.moq)) || Number(formData.wholesale.moq) < 1) {
+        errors["wholesale.moq"] = "MOQ must be a whole number of at least 1";
+      }
     }
 
     if (
@@ -444,7 +479,10 @@ const AddProduct = () => {
       ? formData.categoryId
       : null;
 
-    const parsedPrice = parseFloat(formData.price);
+    const includesB2c = formData.salesChannel !== "b2b";
+    const includesWholesale = formData.salesChannel !== "b2c";
+    const parsedWholesalePrice = includesWholesale ? Number(formData.wholesale.price) : null;
+    const parsedPrice = includesB2c ? parseFloat(formData.price) : parsedWholesalePrice;
     const parsedOriginalPrice = formData.originalPrice
       ? parseFloat(formData.originalPrice)
       : null;
@@ -466,10 +504,16 @@ const AddProduct = () => {
       return;
     }
 
+    const { salesChannel: _salesChannel, ...productFields } = formData;
     const payload = {
-      ...formData,
+      ...productFields,
       price: parsedPrice,
-      originalPrice: parsedOriginalPrice,
+      originalPrice: includesB2c ? parsedOriginalPrice : null,
+      b2cAvailable: includesB2c,
+      wholesale: {
+        enabled: includesWholesale,
+        ...(includesWholesale ? { price: parsedWholesalePrice, moq: Number(formData.wholesale.moq) } : {}),
+      },
       stockQuantity: parsedStockQuantity,
       totalAllowedQuantity: parsedTotalAllowedQuantity,
       minimumOrderQuantity: parsedMinimumOrderQuantity,
@@ -497,7 +541,7 @@ const AddProduct = () => {
     try {
       const result = await addProduct(payload);
       if (result) {
-        navigate("/vendor/products/manage-products");
+        navigate(openedFromWholesale ? "/vendor/wholesale/products" : "/vendor/products/manage-products");
       }
     } catch (err) {
       if (err?.response?.data?.errors && Array.isArray(err.response.data.errors)) {
@@ -616,7 +660,7 @@ const AddProduct = () => {
         <div>
           <h2 className="text-base font-bold text-gray-800 mb-2">Pricing</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
+            {formData.salesChannel !== "b2b" && <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
                 Price <span className="text-red-500">*</span>
               </label>
@@ -625,7 +669,7 @@ const AddProduct = () => {
                 name="price"
                 value={formData.price}
                 onChange={handleChange}
-                required
+                required={formData.salesChannel !== "b2b"}
                 min="0"
                 step="0.01"
                 className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 text-sm ${
@@ -640,9 +684,9 @@ const AddProduct = () => {
                   <span>⚠️</span> {fieldErrors.price}
                 </p>
               )}
-            </div>
+            </div>}
 
-            <div>
+            {formData.salesChannel !== "b2b" && <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
                 Original Price (for discount)
               </label>
@@ -656,9 +700,17 @@ const AddProduct = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
                 placeholder="0.00"
               />
-            </div>
+            </div>}
           </div>
         </div>
+
+        <ProductSalesChannels
+          formData={formData}
+          setFormData={setFormData}
+          canSellB2c={canSellB2c}
+          canUseWholesale={canUseWholesale}
+          fieldErrors={fieldErrors}
+        />
 
         {/* Product Media */}
         <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-xl p-3 sm:p-4 border-2 border-primary-200 shadow-lg">
@@ -1316,7 +1368,7 @@ const AddProduct = () => {
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-3 border-t border-gray-200">
           <button
             type="button"
-            onClick={() => navigate("/vendor/products/manage-products")}
+            onClick={() => navigate(openedFromWholesale ? "/vendor/wholesale/products" : "/vendor/products/manage-products")}
             className="w-full sm:w-auto px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-semibold text-sm">
             Cancel
           </button>

@@ -51,7 +51,10 @@ export const getVendorCapabilities = (vendor) => {
   const caps = vendor?.vendorCapabilities || {};
   const serviceStatus = vendor?.serviceCapability?.status || (caps.providesServices === true ? 'approved' : 'none');
   const isServiceApproved = serviceStatus === 'approved';
-  const isServicePending = serviceStatus === 'pending' || serviceStatus === 'under_review';
+  const hasServiceApplication = Boolean(vendor?.serviceCapability?.applicationId);
+  // Registration can request Services, but only a completed application is under review.
+  const isServiceRequested = serviceStatus === 'pending' && !hasServiceApplication;
+  const isServicePending = (serviceStatus === 'pending' || serviceStatus === 'under_review') && hasServiceApplication;
   const isServiceRejected = serviceStatus === 'rejected';
 
   // Strict boolean evaluation: services capability requires both approved status AND providesServices flag
@@ -88,6 +91,8 @@ export const getVendorCapabilities = (vendor) => {
     providesServices,
     serviceStatus,
     isServiceApproved,
+    hasServiceApplication,
+    isServiceRequested,
     isServicePending,
     isServiceRejected,
     isServiceOnly,

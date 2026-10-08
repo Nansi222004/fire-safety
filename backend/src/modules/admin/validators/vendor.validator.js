@@ -18,6 +18,13 @@ export const vendorStatusUpdateSchema = Joi.object({
     reason: Joi.string().trim().allow('').max(500).optional(),
 });
 
+export const vendorUpdateSchema = Joi.object({
+    name: Joi.string().trim().min(2).max(50).optional(),
+    storeName: Joi.string().trim().min(2).max(100).optional(),
+    phone: Joi.string().trim().min(7).max(20).optional(),
+    storeDescription: Joi.string().trim().max(500).allow('').optional(),
+}).min(1);
+
 export const vendorCommissionUpdateSchema = Joi.object({
     commissionRate: Joi.number().min(0).max(100).required(),
 });

@@ -4,6 +4,16 @@ import ApiError from '../../../utils/ApiError.js';
 import Vendor from '../../../models/Vendor.model.js';
 import Commission from '../../../models/Commission.model.js';
 import VendorDocument from '../../../models/VendorDocument.model.js';
+import Notification from '../../../models/Notification.model.js';
+import Product from '../../../models/Product.model.js';
+import Order from '../../../models/Order.model.js';
+import Shipment from '../../../models/Shipment.model.js';
+import ReturnRequest from '../../../models/ReturnRequest.model.js';
+import Settlement from '../../../models/Settlement.model.js';
+import Withdrawal from '../../../models/Withdrawal.model.js';
+import VendorWalletTransaction from '../../../models/VendorWalletTransaction.model.js';
+import VendorService from '../../../models/VendorService.model.js';
+import ServiceBooking from '../../../models/ServiceBooking.model.js';
 import { sendEmail } from '../../../services/email.service.js';
 import { createNotification } from '../../../services/notification.service.js';
 import { queueVendorShiprocketPickupSync, syncVendorShiprocketPickup } from '../../../services/shiprocketPickup.service.js';
@@ -194,6 +204,65 @@ export const updateVendorStatus = asyncHandler(async (req, res) => {
     }
 
     res.status(200).json(new ApiResponse(200, toApiVendor(vendor), `Vendor ${status} successfully.`));
+});
+
+// PATCH /api/admin/vendors/:id
+// Email and capability/status fields intentionally use their dedicated flows.
+export const updateVendor = asyncHandler(async (req, res) => {
+    const allowedFields = ['name', 'storeName', 'phone', 'storeDescription'];
+    const updates = {};
+    allowedFields.forEach((field) => {
+        if (req.body[field] !== undefined) updates[field] = String(req.body[field]).trim();
+    });
+
+    const vendor = await Vendor.findByIdAndUpdate(req.params.id, { $set: updates }, {
+        new: true,
+        runValidators: true,
+    });
+    if (!vendor) throw new ApiError(404, 'Vendor not found.');
+
+    res.status(200).json(new ApiResponse(200, toApiVendor(vendor), 'Vendor updated successfully.'));
+});
+
+// DELETE /api/admin/vendors/:id
+// Hard deletion is allowed only for an unused account. Historical commerce,
+// logistics, service and wallet records are never cascaded or removed.
+export const deleteVendor = asyncHandler(async (req, res) => {
+    const vendor = await Vendor.findById(req.params.id).select('_id email storeName');
+    if (!vendor) throw new ApiError(404, 'Vendor not found.');
+
+    const dependencyChecks = await Promise.all([
+        Product.exists({ vendorId: vendor._id }),
+        Order.exists({ $or: [{ 'vendorItems.vendorId': vendor._id }, { 'items.vendorId': vendor._id }] }),
+        Shipment.exists({ vendorId: vendor._id }),
+        ReturnRequest.exists({ vendorId: vendor._id }),
+        Commission.exists({ vendorId: vendor._id }),
+        Settlement.exists({ vendorId: vendor._id }),
+        Withdrawal.exists({ vendorId: vendor._id }),
+        VendorWalletTransaction.exists({ vendorId: vendor._id }),
+        VendorService.exists({ vendorId: vendor._id }),
+        ServiceBooking.exists({ vendorId: vendor._id }),
+    ]);
+    const dependencyNames = [
+        'products', 'orders', 'shipments', 'returns', 'commissions',
+        'settlements', 'withdrawals', 'wallet transactions', 'services', 'service bookings',
+    ];
+    const foundDependencies = dependencyNames.filter((_, index) => Boolean(dependencyChecks[index]));
+
+    if (foundDependencies.length) {
+        throw new ApiError(
+            409,
+            `Vendor has historical or business records (${foundDependencies.join(', ')}) and cannot be deleted. Suspend the vendor instead.`
+        );
+    }
+
+    await Promise.all([
+        VendorDocument.deleteMany({ vendorId: vendor._id }),
+        Notification.deleteMany({ recipientId: vendor._id, recipientType: 'vendor' }),
+    ]);
+    await Vendor.deleteOne({ _id: vendor._id });
+
+    res.status(200).json(new ApiResponse(200, { id: String(vendor._id) }, 'Vendor deleted successfully.'));
 });
 
 export const syncShiprocketPickup = asyncHandler(async (req, res) => {

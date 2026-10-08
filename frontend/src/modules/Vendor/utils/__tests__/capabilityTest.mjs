@@ -48,6 +48,26 @@ console.assert(productTitles.has('Orders') === true, 'Product vendor MUST have O
 console.assert(productTitles.has('Services') === false, 'Product vendor MUST NOT have Services menu');
 console.log('Test 2 (Product-only): PASS');
 
+// Registration selection is a request, not provider authorization.
+const serviceRequestedVendor = {
+  vendorCapabilities: { sellsProducts: true, providesServices: false },
+  serviceCapability: { status: 'pending', applicationId: null },
+};
+const requestedCaps = getVendorCapabilities(serviceRequestedVendor);
+console.assert(requestedCaps.isServiceRequested === true, 'Registration service selection should remain REQUESTED.');
+console.assert(requestedCaps.isServicePending === false, 'A request without an application must not be shown as under review.');
+console.assert(requestedCaps.providesServices === false, 'A service request must not grant provider access.');
+console.assert(getAvailableVendorModes(serviceRequestedVendor).includes('services') === false, 'Requested Services must not unlock service mode.');
+
+const serviceApplicationVendor = {
+  vendorCapabilities: { sellsProducts: true, providesServices: false },
+  serviceCapability: { status: 'pending', applicationId: 'application-id' },
+};
+const applicationCaps = getVendorCapabilities(serviceApplicationVendor);
+console.assert(applicationCaps.isServiceRequested === false, 'Submitted application must not remain registration-only REQUESTED.');
+console.assert(applicationCaps.isServicePending === true, 'Submitted application should be under review.');
+console.log('Test 2b (Service request vs submitted application): PASS');
+
 // Test 3: Hybrid Vendor
 const hybridVendor = {
   storeName: 'Shield Fire Solutions mto396jt',

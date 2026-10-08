@@ -125,13 +125,15 @@ const DataTable = ({
 
       {/* Desktop Table View - Hide on mobile, show on desktop */}
       <div className="hidden md:block overflow-x-auto scrollbar-admin">
-        <table className="w-full">
+        <table className="w-full min-w-max">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               {columns.map((column) => (
                 <th
                   key={column.key}
                   className={`px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider ${
+                    column.sticky ? 'sticky right-0 z-20 bg-gray-50 shadow-[-6px_0_8px_-8px_rgba(0,0,0,0.35)]' : ''
+                  } ${
                     sortable && column.sortable !== false
                       ? 'cursor-pointer hover:bg-gray-100'
                       : ''
@@ -193,7 +195,9 @@ const DataTable = ({
                     return (
                       <td
                         key={column.key}
-                        className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-700"
+                        className={`px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-700 ${
+                          column.sticky ? 'sticky right-0 z-10 bg-white shadow-[-6px_0_8px_-8px_rgba(0,0,0,0.35)]' : ''
+                        }`}
                       >
                         {displayValue}
                       </td>

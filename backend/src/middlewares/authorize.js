@@ -109,6 +109,17 @@ export const requireVendorCapability = (capability) =>
                 if (caps.sellsProducts !== true) {
                     return next(new ApiError(403, 'Product seller capability is required to perform this action.'));
                 }
+            } else if (targetCap === 'productsorwholesale') {
+                let wholesaleStatus = req.wholesaleCapability?.status;
+                if (!wholesaleStatus) {
+                    const vendor = await Vendor.findById(req.user.id).select('wholesaleCapability.status').lean();
+                    wholesaleStatus = vendor?.wholesaleCapability?.status || 'none';
+                }
+                const hasProductAccess = caps.sellsProducts === true;
+                const hasWholesaleAccess = caps.wholesaleEnabled === true && wholesaleStatus === 'approved';
+                if (!hasProductAccess && !hasWholesaleAccess) {
+                    return next(new ApiError(403, 'Product Seller or approved Wholesale/B2B capability is required.'));
+                }
             } else if (targetCap === 'services' || targetCap === 'providesservices') {
                 if (caps.providesServices !== true) {
                     return next(new ApiError(403, 'Service provider capability is required to perform this action.'));

@@ -66,6 +66,12 @@ export const createProductSchema = Joi.object({
         breadth: Joi.number().min(1).required(),
         height: Joi.number().min(1).required(),
     }).required(),
+    b2cAvailable: Joi.boolean().default(true),
+    wholesale: Joi.object({
+        enabled: Joi.boolean().default(false),
+        price: Joi.number().greater(0).optional(),
+        moq: Joi.number().integer().min(1).default(1),
+    }).optional(),
 }).unknown(true);
 
 export const updateProductSchema = Joi.object({
@@ -131,6 +137,12 @@ export const updateProductSchema = Joi.object({
         length: Joi.number().min(1).required(),
         breadth: Joi.number().min(1).required(),
         height: Joi.number().min(1).required(),
+    }).optional(),
+    b2cAvailable: Joi.boolean().optional(),
+    wholesale: Joi.object({
+        enabled: Joi.boolean().optional(),
+        price: Joi.number().greater(0).optional(),
+        moq: Joi.number().integer().min(1).optional(),
     }).optional(),
 }).unknown(true);
 
