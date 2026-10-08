@@ -469,3 +469,113 @@ svg {
 .range-thumb::-moz-range-track {
   background: transparent;
 }
+
+/* ==========================================================================
+   User panel — button micro-interactions (scoped to .sf-user-ui = user routes only)
+   Uses the individual `scale` / `translate` properties instead of `transform` so it
+   composes with Framer Motion buttons (which animate `transform` inline).
+   Opt out on any element with data-no-anim.
+   ========================================================================== */
+.sf-user-ui {
+  --sf-brand: 227 30 36;          /* #E31E24 — SafeFire red */
+  --sf-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* 1. Every button: smooth, soft press + elegant focus ring */
+.sf-user-ui :is(button, [role="button"], a[class*="rounded"][class*="bg-"]):not([data-no-anim]):not(:disabled) {
+  transition-property: scale, translate, box-shadow, filter, background-color, border-color, color, opacity;
+  transition-duration: 220ms;
+  transition-timing-function: var(--sf-ease);
+}
+.sf-user-ui :is(button, [role="button"], a[class*="rounded"][class*="bg-"]):not([data-no-anim]):not(:disabled):active {
+  scale: 0.95;
+  transition-duration: 90ms;
+}
+.sf-user-ui :is(button, [role="button"], a):not([data-no-anim]):focus-visible {
+  outline: 2px solid rgb(var(--sf-brand) / 0.55);
+  outline-offset: 2px;
+}
+
+/* 2. Filled brand (red) call-to-action buttons: lift, warm glow and a one-time light sheen */
+.sf-user-ui :is(button, a):is(
+    [class*="bg-[#E31E24]"], [class*="bg-[#e31e24]"],
+    [class*="bg-primary-500"], [class*="bg-primary-600"], [class*="bg-primary-700"],
+    [class*="from-[#E31E24]"], [class*="from-primary-"]
+  ):not([data-no-anim]):not(:disabled) {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.sf-user-ui :is(button, a):is(
+    [class*="bg-[#E31E24]"], [class*="bg-[#e31e24]"],
+    [class*="bg-primary-500"], [class*="bg-primary-600"], [class*="bg-primary-700"],
+    [class*="from-[#E31E24]"], [class*="from-primary-"]
+  ):not([data-no-anim]):not(:disabled)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 25%, rgb(255 255 255 / 0.5) 50%, transparent 75%);
+  translate: -130% 0;
+  transition: translate 850ms var(--sf-ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .sf-user-ui :is(button, a):is(
+      [class*="bg-[#E31E24]"], [class*="bg-[#e31e24]"],
+      [class*="bg-primary-500"], [class*="bg-primary-600"], [class*="bg-primary-700"],
+      [class*="from-[#E31E24]"], [class*="from-primary-"]
+    ):not([data-no-anim]):not(:disabled):hover {
+    translate: 0 -3px;
+    scale: 1.02;
+    box-shadow: 0 14px 28px -10px rgb(var(--sf-brand) / 0.7), 0 4px 10px -4px rgb(var(--sf-brand) / 0.45);
+    filter: saturate(1.12) brightness(1.04);
+  }
+  .sf-user-ui :is(button, a):is(
+      [class*="bg-[#E31E24]"], [class*="bg-[#e31e24]"],
+      [class*="bg-primary-500"], [class*="bg-primary-600"], [class*="bg-primary-700"],
+      [class*="from-[#E31E24]"], [class*="from-primary-"]
+    ):not([data-no-anim]):not(:disabled):hover::after {
+    translate: 130% 0;
+  }
+
+  /* 3. Outline / white / light buttons: gentle lift with a neutral shadow */
+  .sf-user-ui button:is([class*="border"][class*="bg-white"], [class*="bg-slate-100"], [class*="bg-gray-100"], [class*="bg-red-50"]):not([data-no-anim]):not(:disabled):hover {
+    translate: 0 -2px;
+    box-shadow: 0 12px 22px -12px rgb(15 23 42 / 0.4);
+  }
+}
+
+/* Pressed state wins over hover lift */
+.sf-user-ui :is(button, a):not([data-no-anim]):not(:disabled):active {
+  translate: 0 0;
+}
+
+/* Tap ripple (added by shared/utils/buttonRipple.js) — clipped by its own layer, so badges are never cut off */
+.sf-ripple-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+}
+.sf-ripple {
+  position: absolute;
+  border-radius: 9999px;
+  background: rgb(var(--sf-brand) / 0.18);
+  scale: 0;
+  opacity: 1;
+  animation: sf-ripple 620ms var(--sf-ease) forwards;
+}
+.sf-ripple.sf-ripple--light { background: rgb(255 255 255 / 0.45); }
+@keyframes sf-ripple {
+  to { scale: 1; opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sf-ripple { display: none; }
+  .sf-user-ui :is(button, a)::after { display: none; }
+  .sf-user-ui :is(button, [role="button"], a):active { scale: 1; }
+}
