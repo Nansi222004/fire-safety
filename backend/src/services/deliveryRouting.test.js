@@ -6,47 +6,33 @@ import {
 } from './deliveryRouting.service.js';
 import { ShiprocketApiClient } from './shiprocket.api.js';
 
-const settings = { maxDistanceKm: 50, maxWeightKg: 20, maxOrderValue: 50000 };
-const base = {
-    isWholesale: false,
-    orderValue: 10000,
-    weightKg: 5,
-    origin: { pincode: '110001' },
-    destination: { pincode: '110002' },
-    pickupLocation: 'safefire_vendor_1',
-    paymentMethod: 'cod',
-    settings,
-    distanceCalculator: async () => 35,
-    serviceabilityChecker: async () => ({ serviceable: true }),
-};
+// Routing depends ONLY on wholesale + weight. Distance and order value are not inputs.
+const settings = { maxWeightKg: 20 };
+const route = (overrides = {}) => evaluateDeliveryRouting({ isWholesale: false, weightKg: 5, settings, ...overrides });
+const BOTH = [DELIVERY_METHODS.SHIPROCKET, DELIVERY_METHODS.INTERNAL];
 
-const route = (overrides = {}) => evaluateDeliveryRouting({ ...base, ...overrides });
+let result = route();
+assert.equal(result.deliveryMethod, null, 'normal B2C waits for vendor choice');
+assert.deepEqual(result.allowedDeliveryMethods, BOTH, 'normal B2C: Shiprocket + Manual');
+assert.equal(result.deliveryRoutingReason, null);
 
-assert.equal((await route()).deliveryMethod, DELIVERY_METHODS.SHIPROCKET, 'normal local B2C');
+result = route({ isWholesale: true, weightKg: 1 });
+assert.equal(result.deliveryMethod, DELIVERY_METHODS.INTERNAL, 'wholesale → manual');
+assert.deepEqual(result.allowedDeliveryMethods, [DELIVERY_METHODS.INTERNAL]);
+assert.equal(result.deliveryRoutingReason, ROUTING_REASONS.WHOLESALE);
 
-let result = await route({ distanceCalculator: async () => 80 });
-assert.equal(result.deliveryRoutingReason, ROUTING_REASONS.LONG_DISTANCE, 'long distance');
+result = route({ weightKg: 25 });
+assert.equal(result.deliveryRoutingReason, ROUTING_REASONS.OVERWEIGHT, 'overweight → manual');
+assert.deepEqual(result.allowedDeliveryMethods, [DELIVERY_METHODS.INTERNAL]);
 
-result = await route({ isWholesale: true, orderValue: 999999, weightKg: 999 });
-assert.equal(result.deliveryRoutingReason, ROUTING_REASONS.WHOLESALE, 'wholesale has first priority');
+assert.deepEqual(route({ weightKg: 20 }).allowedDeliveryMethods, BOTH, 'exactly at the limit stays Shiprocket-eligible');
+assert.equal(route({ weightKg: 20.01 }).deliveryRoutingReason, ROUTING_REASONS.OVERWEIGHT, 'just over the limit → manual');
+assert.deepEqual(route({ settings: { maxWeightKg: 40 }, weightKg: 35 }).allowedDeliveryMethods, BOTH, 'configurable weight limit');
 
-result = await route({ orderValue: 50001, weightKg: 999 });
-assert.equal(result.deliveryRoutingReason, ROUTING_REASONS.HIGH_VALUE, 'value precedes weight');
-
-result = await route({ weightKg: 20.01, distanceCalculator: async () => 999 });
-assert.equal(result.deliveryRoutingReason, ROUTING_REASONS.OVERWEIGHT, 'weight precedes distance');
-
-result = await route({ serviceabilityChecker: async () => ({ serviceable: false, reason: 'No courier' }) });
-assert.equal(result.deliveryRoutingReason, ROUTING_REASONS.SHIPROCKET_UNSERVICEABLE, 'serviceability fallback');
-
-result = await route({ settings: { ...settings, maxDistanceKm: 100 }, distanceCalculator: async () => 80 });
-assert.equal(result.deliveryMethod, DELIVERY_METHODS.SHIPROCKET, 'dynamic distance threshold');
-
-result = await route({ settings: { ...settings, maxWeightKg: 40 }, weightKg: 35 });
-assert.equal(result.deliveryMethod, DELIVERY_METHODS.SHIPROCKET, 'dynamic weight threshold');
-
-result = await route({ settings: { ...settings, maxOrderValue: 100000 }, orderValue: 75000 });
-assert.equal(result.deliveryMethod, DELIVERY_METHODS.SHIPROCKET, 'dynamic value threshold');
+// Inputs that used to force INTERNAL (distance / value) no longer exist in routing.
+result = route({ orderValue: 999999, distanceKm: 9999, origin: {}, destination: {} });
+assert.deepEqual(result.allowedDeliveryMethods, BOTH, 'distance / order value have no influence');
+assert.ok(!['LONG_DISTANCE', 'DISTANCE_UNAVAILABLE', 'HIGH_VALUE'].includes(result.deliveryRoutingReason));
 
 const client = new ShiprocketApiClient({ mockMode: true });
 const pickup = {

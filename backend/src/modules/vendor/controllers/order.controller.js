@@ -13,6 +13,9 @@ import {
     autoAssignDeliveryPartner,
     autoAssignDeliveryPartnerLegacy,
     manualAssignDeliveryPartner,
+    listEligiblePartnersForShipment,
+    toPartnerOption,
+    ASSIGNMENT_ERROR_MESSAGES,
 } from '../../../services/assignmentService.js';
 import { notifyOrderUpdate } from '../../../services/socket.service.js';
 import { buildVendorItemsSummary } from '../../../utils/notificationProductFormatter.js';
@@ -20,15 +23,17 @@ import { getDefaultCommissionRate } from '../../../services/settingsService.js';
 import { processCancellationRefund } from '../../../services/cancellationRefundService.js';
 import { ensureDeliveryOtpForShipment } from '../../../services/deliveryOtp.service.js';
 import { createShiprocketShipmentOrFallback } from '../../../services/shiprocketShipment.service.js';
+import { resolveShiprocketPickupLocation } from '../../../services/deliveryRouting.service.js';
+import Vendor from '../../../models/Vendor.model.js';
 
+// GET /api/vendor/delivery-partners/available?shipmentId=  (shipment must belong to the vendor)
 export const getAvailableDeliveryPartners = asyncHandler(async (req, res) => {
-    const partners = await DeliveryBoy.find({
-        isActive: true,
-        applicationStatus: 'approved',
-        status: 'available',
-        isAvailable: true,
-    }).select('name phone email vehicleType vehicleNumber status maxActiveOrders').sort({ name: 1 }).lean();
-    res.status(200).json(new ApiResponse(200, partners, 'Available delivery partners fetched.'));
+    const { partners, blocker } = await listEligiblePartnersForShipment({
+        shipmentId: mongoose.Types.ObjectId.isValid(req.query.shipmentId) ? req.query.shipmentId : null,
+        vendorId: req.user.id,
+    });
+    res.status(200).json(new ApiResponse(200, partners.map(toPartnerOption),
+        blocker ? ASSIGNMENT_ERROR_MESSAGES[blocker] || blocker : 'Eligible delivery partners fetched.'));
 });
 
 export const assignDeliveryPartner = asyncHandler(async (req, res) => {
@@ -59,9 +64,109 @@ export const assignDeliveryPartner = asyncHandler(async (req, res) => {
         const status = ['ALREADY_ASSIGNED', 'ASSIGNMENT_CONFLICT'].includes(result.code) ? 409 : 400;
         throw new ApiError(status, result.code === 'ALREADY_ASSIGNED'
             ? 'A delivery partner is already assigned. Ask Admin to use explicit reassignment.'
-            : `Unable to assign delivery partner: ${result.code}`);
+            : ASSIGNMENT_ERROR_MESSAGES[result.code] || `Unable to assign delivery partner: ${result.code}`);
     }
     res.status(200).json(new ApiResponse(200, result.shipment, 'Delivery partner assigned.'));
+});
+
+// ─── Delivery method (Shiprocket vs Manual) ───────────────────────────────────
+
+const LOCKED_SHIPMENT_STATUSES = ['ready_for_pickup', 'pickup_scheduled', 'picked_up', 'shipped', 'in_transit',
+    'out_for_delivery', 'delivered', 'cancelled', 'return_initiated', 'returned', 'failed'];
+
+/** New shipments must have a delivery method chosen before they can be handed over. */
+const assertShipmentReadyForTransition = (shipment, nextStatus) => {
+    if (!shipment) return;
+    const awaitingChoice = Array.isArray(shipment.allowedDeliveryMethods)
+        && shipment.allowedDeliveryMethods.length > 0
+        && !shipment.deliveryMethod;
+    if (awaitingChoice) {
+        throw new ApiError(409, `Choose a delivery method (Shiprocket or Manual Delivery) before marking the order ${nextStatus.replace(/_/g, ' ')}.`);
+    }
+};
+
+/** An INTERNAL shipment may only be shipped once a valid partner has accepted it. */
+const assertInternalShipmentHasActiveRider = async (shipment) => {
+    if (!shipment || shipment.deliveryMethod !== 'INTERNAL') return;
+    if (!shipment.deliveryBoyId) {
+        throw new ApiError(409, 'Assign a delivery partner before marking this Manual Delivery order as shipped.');
+    }
+    if (shipment.deliveryAssignmentStatus !== 'accepted') {
+        throw new ApiError(409, 'The assigned delivery partner has not accepted this delivery yet.');
+    }
+    const rider = await DeliveryBoy.findOne({ _id: shipment.deliveryBoyId, isActive: true, applicationStatus: 'approved' }).select('_id').lean();
+    if (!rider) throw new ApiError(409, 'The assigned delivery partner is no longer active. Reassign the delivery.');
+};
+
+// PATCH /api/vendor/orders/:id/shipments/:shipmentId/delivery-method  { method: 'SHIPROCKET' | 'INTERNAL' }
+export const selectDeliveryMethod = asyncHandler(async (req, res) => {
+    const method = String(req.body?.method || '').toUpperCase();
+    if (!['SHIPROCKET', 'INTERNAL'].includes(method)) {
+        throw new ApiError(400, 'Delivery method must be SHIPROCKET or INTERNAL.');
+    }
+    if (!mongoose.Types.ObjectId.isValid(req.params.shipmentId)) throw new ApiError(400, 'Invalid shipment.');
+
+    const orderFilter = [{ orderId: req.params.id }];
+    if (mongoose.Types.ObjectId.isValid(req.params.id)) orderFilter.push({ _id: req.params.id });
+    const order = await Order.findOne({ $or: orderFilter, 'vendorItems.vendorId': req.user.id, isDeleted: { $ne: true } });
+    if (!order) throw new ApiError(404, 'Vendor order not found.');
+    // Ownership first: a vendor can only ever touch its own shipment.
+    const shipment = await Shipment.findOne({ _id: req.params.shipmentId, orderId: order._id, vendorId: req.user.id });
+    if (!shipment) throw new ApiError(404, 'Shipment not found.');
+    const vendorItem = order.vendorItems.find((vi) => String(vi.vendorId) === String(req.user.id));
+    if (vendorItem?.status !== 'processing') {
+        throw new ApiError(409, 'Accept the order first. The delivery method can be chosen while the order is processing.');
+    }
+    if (LOCKED_SHIPMENT_STATUSES.includes(shipment.status)) {
+        throw new ApiError(409, 'The delivery method can no longer be changed for this shipment.');
+    }
+    if (shipment.deliveryBoyId || shipment.providerOrderId) {
+        throw new ApiError(409, 'A delivery is already in progress for this shipment. The delivery method cannot be changed.');
+    }
+    const allowed = Array.isArray(shipment.allowedDeliveryMethods) && shipment.allowedDeliveryMethods.length
+        ? shipment.allowedDeliveryMethods
+        : null;
+    if (!allowed) throw new ApiError(409, 'This shipment was routed before delivery method selection existed.');
+    if (!allowed.includes(method)) {
+        throw new ApiError(409, shipment.deliveryRoutingDetails || 'This delivery method is not available for this shipment.');
+    }
+
+    const selection = { role: 'vendor', actorId: req.user.id, selectedAt: new Date() };
+    let warning = null;
+    if (method === 'SHIPROCKET') {
+        const vendor = await Vendor.findById(req.user.id);
+        const pickupLocation = await resolveShiprocketPickupLocation(vendor);
+        if (!pickupLocation) {
+            warning = 'Your Shiprocket pickup location is not synchronized yet. If it is still missing when you mark the order ready for pickup, the shipment will fall back to Manual Delivery.';
+        }
+        Object.assign(shipment, {
+            deliveryMethod: 'SHIPROCKET',
+            providerId: 'shiprocket',
+            deliveryRoutingReason: undefined,
+            deliveryRoutingDetails: 'Vendor selected Shiprocket.',
+            providerPickupLocationId: pickupLocation || shipment.providerPickupLocationId,
+            externalCreationStatus: 'not_started',
+            deliveryAssignmentStatus: 'pending',
+            deliveryMethodSelectedBy: selection,
+        });
+    } else {
+        // Wholesale/overweight keep their mandatory reason; otherwise record the vendor's choice.
+        const keepReason = ['WHOLESALE', 'OVERWEIGHT'].includes(shipment.deliveryRoutingReason);
+        Object.assign(shipment, {
+            deliveryMethod: 'INTERNAL',
+            providerId: 'own_fleet',
+            deliveryRoutingReason: keepReason ? shipment.deliveryRoutingReason : 'VENDOR_SELECTED_MANUAL',
+            deliveryRoutingDetails: keepReason ? shipment.deliveryRoutingDetails : 'Vendor selected Manual Delivery.',
+            externalCreationStatus: 'not_applicable',
+            deliveryAssignmentStatus: 'pending',
+            deliveryMethodSelectedBy: selection,
+        });
+    }
+    await shipment.save();
+    notifyOrderUpdate(order);
+
+    res.status(200).json(new ApiResponse(200, { shipment, warning },
+        method === 'SHIPROCKET' ? 'Shiprocket selected for this shipment.' : 'Manual Delivery selected for this shipment.'));
 });
 
 const deriveTopLevelOrderStatus = (vendorItems = [], fallback = 'pending') => {
@@ -260,7 +365,8 @@ export const getVendorOrderById = asyncHandler(async (req, res) => {
     orderObj.status = vi.status || orderObj.status;
     orderObj.items = filteredItems;
     orderObj.vendorItems = filteredVendorItems;
-    orderObj.shipment = vendorShipment || null;
+    // Canonical shape: `shipments` is always an array scoped to this vendor (frontend contract).
+    orderObj.shipments = vendorShipment ? [vendorShipment] : [];
     orderObj.commissionDetails = comm ? {
         ...comm,
         effectiveSubtotal: commDiscountedSub,
@@ -316,6 +422,12 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     const allowedNextStatuses = transitionMap[currentStatus] || [];
     if (!allowedNextStatuses.includes(status)) {
         throw new ApiError(409, `Cannot move order from ${currentStatus} to ${status}.`);
+    }
+
+    if (status === 'ready_for_pickup' || status === 'shipped') {
+        const guardShipment = await Shipment.findOne({ orderId: order._id, vendorId: req.user.id });
+        assertShipmentReadyForTransition(guardShipment, status);
+        if (status === 'shipped') await assertInternalShipmentHasActiveRider(guardShipment);
     }
 
     if (status === 'cancelled') {
@@ -412,10 +524,12 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
                     })
                     .catch(err => console.error('Failed to load delhivery provider:', err));
             } else if (shipmentForVendor.providerId === 'own_fleet') {
-                // Own-fleet shipments (including INTERNAL-routed ones) are offered to available riders.
-                // Vendor/Admin can still assign or reassign manually via /shipments/:id/assign-delivery.
-                // (INTERNAL-only manual assignment had no UI, so those orders never reached a rider.)
-                autoAssignDeliveryPartner(shipmentForVendor._id);
+                // Manual (INTERNAL) delivery: Vendor or Admin assigns a partner via
+                // /shipments/:id/assign-delivery (ManualDeliveryAssignment UI) — never auto-assigned.
+                // Legacy own-fleet shipments without a delivery method keep automatic offers.
+                if (shipmentForVendor.deliveryMethod !== 'INTERNAL') {
+                    autoAssignDeliveryPartner(shipmentForVendor._id);
+                }
             } else {
                 console.warn(`[Auto Assign] Unknown provider ${shipmentForVendor.providerId} for shipment ${shipmentForVendor._id}.`);
             }

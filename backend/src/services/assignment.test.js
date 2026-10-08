@@ -1,12 +1,16 @@
 import assert from 'node:assert/strict';
 import Shipment from '../models/Shipment.model.js';
 import DeliveryBoy from '../models/DeliveryBoy.model.js';
+import Order from '../models/Order.model.js';
 import { manualAssignDeliveryPartner } from './assignmentService.js';
 
 const originalShipmentFind = Shipment.findById;
 const originalDriverFind = DeliveryBoy.findOne;
+const originalOrderFind = Order.findById;
 
 try {
+    // Open order (manual assignment validates the order is not closed).
+    Order.findById = () => ({ select: () => ({ lean: async () => ({ status: 'processing', paymentMethod: 'cod', total: 100, vendorItems: [] }) }) });
     DeliveryBoy.findOne = async () => ({ _id: 'driver-a', maxActiveOrders: 3 });
     Shipment.findById = async () => ({
         _id: 'shipment-a',
@@ -42,4 +46,5 @@ try {
 } finally {
     Shipment.findById = originalShipmentFind;
     DeliveryBoy.findOne = originalDriverFind;
+    Order.findById = originalOrderFind;
 }

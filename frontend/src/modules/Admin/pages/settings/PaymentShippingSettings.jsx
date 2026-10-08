@@ -368,12 +368,10 @@ const PaymentShippingSettings = () => {
 
               <div className="border-t border-gray-200 pt-6">
                 <h3 className="text-lg font-bold text-gray-800 mb-1">Shiprocket Routing Limits</h3>
-                <p className="text-xs text-gray-500 mb-4">Orders above any limit use SafeFire Internal Delivery and manual assignment.</p>
+                <p className="text-xs text-gray-500 mb-4">Shipments heavier than this limit (and all wholesale orders) use Manual Delivery. Lighter orders let the vendor choose Shiprocket or Manual Delivery.</p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
                   {[
-                    ['maxShiprocketDistanceKm', 'Maximum Distance (km)', 50],
-                    ['maxShiprocketWeightKg', 'Maximum Weight (kg)', 20],
-                    ['maxAutomaticShiprocketOrderValue', 'Maximum Order Value (₹)', 50000],
+                    ['maxShiprocketWeightKg', 'Maximum Shiprocket Weight (kg)', 20],
                   ].map(([name, label, fallback]) => (
                     <div key={name}>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">{label}</label>

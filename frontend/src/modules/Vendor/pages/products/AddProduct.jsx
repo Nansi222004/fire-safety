@@ -20,6 +20,14 @@ import {
   buildVariantPayload,
 } from "../../utils/variantHelpers";
 
+// Product weight is stored in GRAMS (backend canonical unit); vendors enter kilograms.
+const kgToGrams = (kg) => Math.max(1, Math.round((parseFloat(kg) || 0) * 1000));
+const gramsToKg = (grams) => {
+  const value = Number(grams);
+  return Number.isFinite(value) && value > 0 ? String(Number((value / 1000).toFixed(3))) : "1";
+};
+
+
 const AddProduct = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -435,8 +443,8 @@ const AddProduct = () => {
     }
 
     const weightNum = parseFloat(formData.weight);
-    if (formData.weight === "" || isNaN(weightNum) || weightNum < 1) {
-      errors.weight = "Weight is required and must be at least 1 (kg/unit)";
+    if (formData.weight === "" || isNaN(weightNum) || weightNum <= 0) {
+      errors.weight = "Weight is required and must be greater than 0 kg";
     }
 
     const lengthNum = parseFloat(formData.dimensions?.length);
@@ -523,7 +531,7 @@ const AddProduct = () => {
       categoryId: finalCategoryId,
       subcategoryId: (formData.subcategoryId && String(formData.subcategoryId).trim()) ? formData.subcategoryId : null,
       brandId: formData.brandId ?? null,
-      weight: parseFloat(formData.weight) || 1,
+      weight: kgToGrams(formData.weight), // vendor enters kg; API stores grams
       dimensions: {
         length: parseFloat(formData.dimensions.length) || 10,
         breadth: parseFloat(formData.dimensions.breadth) || 10,
@@ -894,8 +902,8 @@ const AddProduct = () => {
                 name="weight"
                 value={formData.weight}
                 onChange={handleChange}
-                min="1"
-                step="0.1"
+                min="0.001"
+                step="0.001"
                 className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 text-sm ${
                   fieldErrors.weight
                     ? "border-red-500 bg-red-50 focus:ring-red-500 focus:border-red-500"

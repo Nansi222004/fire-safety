@@ -14,20 +14,24 @@ const ManualDeliveryAssignment = ({ shipment, orderId, actor, onAssigned }) => {
   const [selectedId, setSelectedId] = useState('');
   const [reassign, setReassign] = useState(false);
   const [loading, setLoading] = useState(false);
-  const isInternal = shipment?.deliveryMethod === 'INTERNAL' || shipment?.providerId === 'own_fleet';
+  // Manual Delivery shipments (plus legacy own-fleet shipments routed before delivery-method selection).
+  const isLegacyOwnFleet = !shipment?.deliveryMethod && !shipment?.allowedDeliveryMethods?.length && shipment?.providerId === 'own_fleet';
+  const isInternal = shipment?.deliveryMethod === 'INTERNAL' || isLegacyOwnFleet;
+  const isClosed = ['delivered', 'cancelled', 'returned', 'failed', 'return_initiated'].includes(shipment?.status);
   const alreadyAssigned = Boolean(shipment?.deliveryBoyId);
 
   useEffect(() => {
-    if (!isInternal || (alreadyAssigned && actor !== 'admin')) return;
+    if (!isInternal || isClosed || (alreadyAssigned && actor !== 'admin')) return;
     const endpoint = actor === 'admin'
       ? '/admin/orders/delivery-partners/available'
       : '/vendor/delivery-partners/available';
-    api.get(endpoint)
+    // Shipment-specific eligibility (capacity + COD limit) — same rules the assign API enforces.
+    api.get(endpoint, { params: { shipmentId: shipment?._id } })
       .then((response) => setPartners(unwrapList(response)))
       .catch(() => setPartners([]));
-  }, [actor, alreadyAssigned, isInternal]);
+  }, [actor, alreadyAssigned, isInternal, isClosed, shipment?._id]);
 
-  if (!isInternal) return null;
+  if (!isInternal || isClosed) return null;
 
   const assign = async () => {
     if (!selectedId) return toast.error('Select a delivery partner');
@@ -71,6 +75,7 @@ const ManualDeliveryAssignment = ({ shipment, orderId, actor, onAssigned }) => {
             {partners.map((partner) => (
               <option key={partner._id} value={partner._id}>
                 {partner.name} — {partner.vehicleType || 'vehicle'} {partner.vehicleNumber ? `(${partner.vehicleNumber})` : ''}
+                {typeof partner.activeShipments === 'number' ? ` · ${partner.activeShipments}/${partner.maxActiveOrders ?? 3} active` : ''}
               </option>
             ))}
           </select>
@@ -83,6 +88,12 @@ const ManualDeliveryAssignment = ({ shipment, orderId, actor, onAssigned }) => {
             {loading ? 'Assigning…' : alreadyAssigned ? 'Reassign' : 'Assign'}
           </button>
         </div>
+      )}
+
+      {(!alreadyAssigned || actor === 'admin') && partners.length === 0 && (
+        <p className="mt-2 text-[11px] text-amber-700">
+          No eligible delivery partners right now (partners must be online, under their active-delivery limit, and within the COD cash limit).
+        </p>
       )}
 
       {alreadyAssigned && actor === 'admin' && (

@@ -101,10 +101,24 @@ const shipmentSchema = new mongoose.Schema(
         deliveryRoutingReason: {
             type: String,
             enum: [
-                'WHOLESALE', 'HIGH_VALUE', 'OVERWEIGHT', 'LONG_DISTANCE',
-                'DISTANCE_UNAVAILABLE', 'SHIPROCKET_UNSERVICEABLE',
-                'SHIPROCKET_PICKUP_UNAVAILABLE', 'SHIPROCKET_CREATION_FAILED',
+                'WHOLESALE', 'OVERWEIGHT', 'VENDOR_SELECTED_MANUAL',
+                'SHIPROCKET_UNSERVICEABLE', 'SHIPROCKET_PICKUP_UNAVAILABLE', 'SHIPROCKET_CREATION_FAILED',
+                // Legacy reasons — no longer produced (distance / value no longer affect routing),
+                // kept so historical shipments remain valid and readable.
+                'HIGH_VALUE', 'LONG_DISTANCE', 'DISTANCE_UNAVAILABLE',
             ],
+        },
+        // Delivery methods this shipment may use, decided at checkout from wholesale + weight only.
+        // ['SHIPROCKET','INTERNAL'] → vendor chooses after accepting; ['INTERNAL'] → manual only.
+        // Absent on legacy shipments (routed automatically before this rule existed).
+        allowedDeliveryMethods: {
+            type: [{ type: String, enum: ['SHIPROCKET', 'INTERNAL'] }],
+            default: undefined,
+        },
+        deliveryMethodSelectedBy: {
+            role: { type: String, enum: ['vendor', 'admin', 'system'] },
+            actorId: { type: mongoose.Schema.Types.ObjectId },
+            selectedAt: { type: Date },
         },
         deliveryRoutingDetails: { type: String },
 

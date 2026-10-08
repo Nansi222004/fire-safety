@@ -141,6 +141,7 @@ router.get('/delivery-partners/available', ...vendorAuth, orderController.getAva
 router.get('/orders', ...vendorAuth, orderController.getVendorOrders);
 router.get('/orders/:id', ...vendorAuth, orderController.getVendorOrderById);
 router.post('/orders/:id/shipments/:shipmentId/assign-delivery', ...vendorAuth, orderController.assignDeliveryPartner);
+router.patch('/orders/:id/shipments/:shipmentId/delivery-method', ...vendorAuth, orderController.selectDeliveryMethod);
 router.patch('/orders/:id/status', ...vendorAuth, orderController.updateOrderStatus);
 router.post('/orders/:id/verify-pickup', ...vendorAuth, orderController.verifyPickup);
 

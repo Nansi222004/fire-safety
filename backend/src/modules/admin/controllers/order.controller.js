@@ -20,18 +20,23 @@ import AuditLog from '../../../models/AuditLog.model.js';
 import VendorWalletTransaction from '../../../models/VendorWalletTransaction.model.js';
 import PaymentAttempt from '../../../models/PaymentAttempt.model.js';
 import { processRazorpayRefund } from '../../../services/payment.service.js';
-import { cancelShipmentDeliveryAssignment, manualAssignDeliveryPartner } from '../../../services/assignmentService.js';
+import {
+    cancelShipmentDeliveryAssignment,
+    manualAssignDeliveryPartner,
+    listEligiblePartnersForShipment,
+    toPartnerOption,
+    ASSIGNMENT_ERROR_MESSAGES,
+} from '../../../services/assignmentService.js';
 import { processCancellationRefund } from '../../../services/cancellationRefundService.js';
 import { ensureDeliveryOtpForShipment } from '../../../services/deliveryOtp.service.js';
 
+// GET /api/admin/orders/delivery-partners/available?shipmentId=
 export const getAvailableDeliveryPartners = asyncHandler(async (req, res) => {
-    const partners = await DeliveryBoy.find({
-        isActive: true,
-        isAvailable: true,
-        applicationStatus: 'approved',
-        status: 'available',
-    }).select('name phone email vehicleType vehicleNumber status maxActiveOrders').sort({ name: 1 }).lean();
-    res.status(200).json(new ApiResponse(200, partners, 'Available delivery partners fetched.'));
+    const { partners, blocker } = await listEligiblePartnersForShipment({
+        shipmentId: mongoose.Types.ObjectId.isValid(req.query.shipmentId) ? req.query.shipmentId : null,
+    });
+    res.status(200).json(new ApiResponse(200, partners.map(toPartnerOption),
+        blocker ? ASSIGNMENT_ERROR_MESSAGES[blocker] || blocker : 'Eligible delivery partners fetched.'));
 });
 
 export const assignDeliveryPartner = asyncHandler(async (req, res) => {
@@ -55,7 +60,7 @@ export const assignDeliveryPartner = asyncHandler(async (req, res) => {
         const status = ['ALREADY_ASSIGNED', 'ASSIGNMENT_CONFLICT'].includes(result.code) ? 409 : 400;
         throw new ApiError(status, result.code === 'ALREADY_ASSIGNED'
             ? 'A delivery partner is already assigned. Set reassign=true to explicitly change it.'
-            : `Unable to assign delivery partner: ${result.code}`);
+            : ASSIGNMENT_ERROR_MESSAGES[result.code] || `Unable to assign delivery partner: ${result.code}`);
     }
     res.status(200).json(new ApiResponse(200, result.shipment,
         req.body.reassign === true ? 'Delivery partner reassigned.' : 'Delivery partner assigned.'));

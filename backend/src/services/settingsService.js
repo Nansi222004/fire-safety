@@ -114,10 +114,9 @@ export const getDeliveryRoutingSettings = async () => {
         const parsed = Number(value);
         return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
     };
+    // Routing depends only on wholesale + weight (distance and order value are not routing inputs).
     return {
-        maxDistanceKm: positive(shipping.maxShiprocketDistanceKm, 50),
         maxWeightKg: positive(shipping.maxShiprocketWeightKg, 20),
-        maxOrderValue: positive(shipping.maxAutomaticShiprocketOrderValue, 50000),
     };
 };
 

@@ -24,6 +24,7 @@ import { getOrderById, updateOrderStatus } from '../services/adminService';
 import { getSocket, joinRoom, leaveRoom } from '../../../shared/utils/socket';
 import toast from 'react-hot-toast';
 import ManualDeliveryAssignment from '../../../shared/components/Delivery/ManualDeliveryAssignment';
+import DeliveryMethodSelector from '../../../shared/components/Delivery/DeliveryMethodSelector';
 
 const ORDER_PRODUCT_PLACEHOLDER = getPlaceholderImage(100, 100, 'Product');
 
@@ -403,7 +404,9 @@ const OrderDetail = () => {
                           </div>
                         </div>
                       )}
+                      <DeliveryMethodSelector shipment={shipment} orderId={order._id || order.orderId} actor="admin" />
                       <ManualDeliveryAssignment
+                        key={`assign-${shipment._id}-${shipment.deliveryMethod || 'none'}`}
                         shipment={shipment}
                         orderId={order._id || order.orderId}
                         actor="admin"

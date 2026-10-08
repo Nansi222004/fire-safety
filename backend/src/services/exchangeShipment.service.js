@@ -52,6 +52,8 @@ export const createExchangeReplacementShipment = async (returnRequestId) => {
         shippingAddress: order.shippingAddress,
         paymentMethod: 'online',
         isWholesale: order.orderType === 'b2b',
+        // Exchange replacements have no vendor selection step: choose automatically.
+        selectionMode: 'auto',
     });
     const routing = decisions[String(returnRequest.vendorId)];
     const stableShipmentNumber = `EXC-${String(returnRequest._id)}`;

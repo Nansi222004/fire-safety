@@ -17,6 +17,7 @@ import AnimatedSelect from '../../../Admin/components/AnimatedSelect';
 import toast from 'react-hot-toast';
 import { recordSelfAction, cancelSelfAction } from '../../../../shared/utils/selfActionTracker';
 import ManualDeliveryAssignment from '../../../../shared/components/Delivery/ManualDeliveryAssignment';
+import DeliveryMethodSelector from '../../../../shared/components/Delivery/DeliveryMethodSelector';
 
 const OrderDetail = () => {
     const { id } = useParams();
@@ -490,7 +491,17 @@ const OrderDetail = () => {
                                                 )}
                                             </div>
 
+                                            <DeliveryMethodSelector
+                                                key={`${shipment._id}-${shipment.deliveryMethod || 'none'}`}
+                                                shipment={shipment}
+                                                orderId={order._id || order.orderId}
+                                                vendorStatus={currentStatus}
+                                                actor="vendor"
+                                                onChanged={() => setRefreshKey((value) => value + 1)}
+                                            />
+
                                             <ManualDeliveryAssignment
+                                                key={`assign-${shipment._id}-${shipment.deliveryMethod || 'none'}`}
                                                 shipment={shipment}
                                                 orderId={order._id || order.orderId}
                                                 actor="vendor"

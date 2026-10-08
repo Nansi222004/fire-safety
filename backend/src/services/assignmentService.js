@@ -8,6 +8,105 @@ import { createNotification } from './notification.service.js';
 import { notifyOrderUpdate, notifyReturnUpdate } from './socket.service.js';
 import { buildOrderItemsSummary, buildReturnItemsSummary } from '../utils/notificationProductFormatter.js';
 
+
+// ─── Delivery partner eligibility (single source of truth) ────────────────────
+// Used by the available-partner endpoints, manual assignment and auto-assignment so the
+// UI never offers a partner the backend would reject.
+
+/** Shipment statuses after which a shipment no longer occupies a rider. */
+export const TERMINAL_SHIPMENT_STATUSES = ['delivered', 'cancelled', 'returned', 'failed'];
+/** Assignment states in which a rider is holding the shipment. */
+export const ACTIVE_ASSIGNMENT_STATUSES = ['assigned', 'accepted', 'manual_override'];
+const TERMINAL_ORDER_STATUSES = ['cancelled', 'delivered', 'returned', 'payment_failed'];
+
+const DEFAULT_MAX_ACTIVE_ORDERS = 3;
+export const getMaxCodCashInHand = () => Number(process.env.DELIVERY_MAX_COD_CASH_IN_HAND) || 20000;
+
+/** Active Shipment assignments per rider (Shipment is the source of truth, not Order.deliveryBoyId). */
+export const getActiveShipmentCounts = async (riderIds = []) => {
+    if (!riderIds.length) return {};
+    const rows = await Shipment.aggregate([
+        {
+            $match: {
+                deliveryBoyId: { $in: riderIds },
+                deliveryAssignmentStatus: { $in: ACTIVE_ASSIGNMENT_STATUSES },
+                status: { $nin: TERMINAL_SHIPMENT_STATUSES },
+            },
+        },
+        { $group: { _id: '$deliveryBoyId', count: { $sum: 1 } } },
+    ]);
+    return Object.fromEntries(rows.map((row) => [String(row._id), row.count]));
+};
+
+const isCodOrder = (order) => ['cod', 'cash'].includes(String(order?.paymentMethod || '').toLowerCase());
+
+/**
+ * Delivery partners eligible for a shipment: active, approved, available/online, under capacity,
+ * and (for COD) able to carry the cash. Optionally excludes riders (e.g. previous decliners).
+ */
+export const findEligibleDeliveryPartners = async ({ order = null, excludeIds = [], includeIds = null } = {}) => {
+    const query = { isActive: true, applicationStatus: 'approved', status: 'available', isAvailable: { $ne: false } };
+    if (excludeIds.length) query._id = { $nin: excludeIds };
+    if (includeIds) query._id = { ...(query._id || {}), $in: includeIds };
+    if (order && isCodOrder(order)) {
+        query.cashInHand = { $lte: getMaxCodCashInHand() - (Number(order.total) || 0) };
+    }
+    const riders = await DeliveryBoy.find(query).lean();
+    const counts = await getActiveShipmentCounts(riders.map((r) => r._id));
+    return riders
+        .map((rider) => ({ ...rider, activeShipments: counts[String(rider._id)] || 0 }))
+        .filter((rider) => rider.activeShipments < (typeof rider.maxActiveOrders === 'number' ? rider.maxActiveOrders : DEFAULT_MAX_ACTIVE_ORDERS));
+};
+
+/** Explains why a shipment cannot receive a manual assignment (null when it can). */
+export const getManualAssignmentBlocker = (shipment, order) => {
+    if (!shipment) return 'SHIPMENT_NOT_FOUND';
+    if (shipment.deliveryMethod !== 'INTERNAL' || shipment.providerId !== 'own_fleet') return 'NOT_INTERNAL_DELIVERY';
+    if (TERMINAL_SHIPMENT_STATUSES.includes(shipment.status) || shipment.status === 'return_initiated') return 'SHIPMENT_CLOSED';
+    if (!order || order.isDeleted || TERMINAL_ORDER_STATUSES.includes(order.status)) return 'ORDER_CLOSED';
+    const vendorGroup = (order.vendorItems || []).find((vi) => String(vi.vendorId) === String(shipment.vendorId));
+    if (vendorGroup && ['cancelled', 'delivered'].includes(vendorGroup.status)) return 'ORDER_CLOSED';
+    return null;
+};
+
+/** Human-readable messages for manual-assignment result codes. */
+export const ASSIGNMENT_ERROR_MESSAGES = {
+    SHIPMENT_NOT_FOUND: 'Shipment not found.',
+    NOT_INTERNAL_DELIVERY: 'Only Manual Delivery shipments can be assigned a delivery partner.',
+    SHIPMENT_CLOSED: 'This shipment is already closed (delivered, cancelled, returned or failed).',
+    ORDER_CLOSED: 'This order is closed and can no longer be assigned.',
+    DELIVERY_PARTNER_UNAVAILABLE: 'Selected delivery partner is not active or not approved.',
+    DELIVERY_PARTNER_NOT_ELIGIBLE: 'Selected delivery partner is not eligible (offline, at capacity, or over the COD cash limit).',
+    ASSIGNMENT_CONFLICT: 'The shipment assignment changed. Please refresh and try again.',
+};
+
+/**
+ * Partners that can be offered for a shipment in the assignment UI.
+ * Without a shipmentId only status/approval/capacity apply; with one, COD limit and shipment state apply too.
+ */
+export const listEligiblePartnersForShipment = async ({ shipmentId, vendorId = null } = {}) => {
+    if (!shipmentId) return { partners: await findEligibleDeliveryPartners(), blocker: null };
+    const shipment = await Shipment.findOne({ _id: shipmentId, ...(vendorId ? { vendorId } : {}) }).lean();
+    if (!shipment) return { partners: [], blocker: 'SHIPMENT_NOT_FOUND' };
+    const order = await Order.findById(shipment.orderId).select('status isDeleted paymentMethod total vendorItems.vendorId vendorItems.status').lean();
+    const blocker = getManualAssignmentBlocker(shipment, order);
+    if (blocker) return { partners: [], blocker };
+    return { partners: await findEligibleDeliveryPartners({ order }), blocker: null };
+};
+
+const toPartnerOption = (rider) => ({
+    _id: rider._id,
+    name: rider.name,
+    phone: rider.phone,
+    email: rider.email,
+    vehicleType: rider.vehicleType,
+    vehicleNumber: rider.vehicleNumber,
+    status: rider.status,
+    maxActiveOrders: rider.maxActiveOrders,
+    activeShipments: rider.activeShipments,
+});
+export { toPartnerOption };
+
 const calculateDistance = (lat1, lon1, lat2, lon2) => {
     if (!lat1 || !lon1 || !lat2 || !lon2) return 999999;
     const R = 6371; // Radius of the Earth in km
@@ -28,21 +127,12 @@ export const manualAssignDeliveryPartner = async ({
     actorId,
     allowReassignment = false,
 }) => {
-    const [shipment, deliveryBoy] = await Promise.all([
-        Shipment.findById(shipmentId),
-        DeliveryBoy.findOne({
-            _id: deliveryBoyId,
-            isActive: true,
-            applicationStatus: 'approved',
-            status: 'available',
-            isAvailable: true,
-        }),
-    ]);
+    const shipment = await Shipment.findById(shipmentId);
     if (!shipment) return { success: false, code: 'SHIPMENT_NOT_FOUND' };
-    if (shipment.deliveryMethod !== 'INTERNAL' || shipment.providerId !== 'own_fleet') {
-        return { success: false, code: 'NOT_INTERNAL_DELIVERY' };
-    }
-    if (!deliveryBoy) return { success: false, code: 'DELIVERY_PARTNER_UNAVAILABLE' };
+    const orderForCheck = await Order.findById(shipment.orderId).select('status isDeleted paymentMethod total vendorItems.vendorId vendorItems.status').lean();
+    const blocker = getManualAssignmentBlocker(shipment, orderForCheck);
+    if (blocker) return { success: false, code: blocker };
+
     if (shipment.deliveryBoyId && String(shipment.deliveryBoyId) === String(deliveryBoyId)) {
         return { success: true, idempotent: true, shipment };
     }
@@ -50,12 +140,11 @@ export const manualAssignDeliveryPartner = async ({
         return { success: false, code: 'ALREADY_ASSIGNED', shipment };
     }
 
-    const activeAssignments = await Shipment.countDocuments({
-        deliveryBoyId: deliveryBoy._id,
-        status: { $nin: ['delivered', 'cancelled', 'returned', 'failed'] },
-    });
-    if (activeAssignments >= (Number(deliveryBoy.maxActiveOrders) || 3)) {
-        return { success: false, code: 'DELIVERY_PARTNER_AT_CAPACITY' };
+    // Same rules as the available-partners endpoint (status, approval, capacity, COD cash limit).
+    const [deliveryBoy] = await findEligibleDeliveryPartners({ order: orderForCheck, includeIds: [deliveryBoyId] });
+    if (!deliveryBoy) {
+        const exists = await DeliveryBoy.exists({ _id: deliveryBoyId, isActive: true, applicationStatus: 'approved' });
+        return { success: false, code: exists ? 'DELIVERY_PARTNER_NOT_ELIGIBLE' : 'DELIVERY_PARTNER_UNAVAILABLE' };
     }
 
     const filter = { _id: shipment._id, deliveryMethod: 'INTERNAL', providerId: 'own_fleet' };
@@ -164,61 +253,23 @@ export const autoAssignDeliveryPartner = async (shipmentId, options = {}) => {
         const vendorLocation = vendor.address?.location;
         const hasVendorCoords = vendorLocation?.coordinates?.length === 2;
 
-        // ─ 5. Find eligible delivery partners ─────────────────────────────
-        // Max cash a rider may hold (current cash-in-hand + this COD order). Configurable per deployment.
-        const MAX_COD_LIMIT = Number(process.env.DELIVERY_MAX_COD_CASH_IN_HAND) || 20000;
-        const baseDriverQuery = {
-            status: 'available',
-            isActive: true,
-            applicationStatus: 'approved',
-        };
-        if (order.paymentMethod === 'cash' || order.paymentMethod === 'cod') {
-            baseDriverQuery.cashInHand = { $lte: MAX_COD_LIMIT - (order.total || 0) };
-        }
-
+        // ─ 5–6. Eligible partners (shared rules: status, approval, Shipment-based capacity, COD limit)
         const rejected = shipment.rejectedDeliveryBoys || [];
-        let deliveryBoys = await DeliveryBoy.find({ ...baseDriverQuery, _id: { $nin: rejected } }).lean();
-        if (deliveryBoys.length === 0 && options.allowReoffer && rejected.length > 0) {
+        let eligibleBoys = await findEligibleDeliveryPartners({ order, excludeIds: rejected });
+        if (eligibleBoys.length === 0 && options.allowReoffer && rejected.length > 0) {
             // Everyone eligible has already declined or let the offer expire — offer again
             // rather than leaving the order stuck (e.g. a fleet with a single rider).
-            deliveryBoys = await DeliveryBoy.find(baseDriverQuery).lean();
-            if (deliveryBoys.length > 0) {
+            eligibleBoys = await findEligibleDeliveryPartners({ order });
+            if (eligibleBoys.length > 0) {
                 console.log(`[Auto Assign] Re-offering Shipment ${shipment.shipmentNumber} to previously declined rider(s).`);
             }
         }
-        if (deliveryBoys.length === 0) {
-            console.log(`[Auto Assign] No available delivery partners for Shipment ${shipment.shipmentNumber}.`);
-            await _markShipmentFailed(shipment, order);
-            return;
-        }
-
-        // ─ 6. Capacity filtering ──────────────────────────────────────────
-        const driverIds = deliveryBoys.map(d => d._id);
-        const activeOrdersCounts = await Order.aggregate([
-            {
-                $match: {
-                    deliveryBoyId: { $in: driverIds },
-                    status: { $in: ['pending', 'processing', 'ready_for_pickup', 'accepted', 'assigned'] },
-                },
-            },
-            { $group: { _id: '$deliveryBoyId', count: { $sum: 1 } } },
-        ]);
-        const countsMap = activeOrdersCounts.reduce((acc, row) => {
-            acc[String(row._id)] = row.count;
-            return acc;
-        }, {});
-
-        const eligibleBoys = deliveryBoys.filter(db => {
-            const activeCount = countsMap[String(db._id)] || 0;
-            const maxLimit = typeof db.maxActiveOrders === 'number' ? db.maxActiveOrders : 3;
-            return activeCount < maxLimit;
-        });
-
         if (eligibleBoys.length === 0) {
-            console.log(`[Auto Assign] No delivery partners have capacity for Shipment ${shipment.shipmentNumber}.`);
+            console.log(`[Auto Assign] No eligible delivery partners for Shipment ${shipment.shipmentNumber}.`);
             await _markShipmentFailed(shipment, order);
             return;
         }
+        const countsMap = Object.fromEntries(eligibleBoys.map((b) => [String(b._id), b.activeShipments]));
 
         // ─ 7. Rider selection (same 3-tier algorithm as legacy) ──────────
         const { selectedRider, assignmentMethod } = await _selectRider(
@@ -591,15 +642,8 @@ export const autoAssignReturnPickupPartner = async (returnRequestId) => {
         // 3. Find active tasks (orders + returns) count for capacity matching
         const driverIds = deliveryBoys.map(d => d._id);
         const [activeOrdersCounts, activeReturnsCounts] = await Promise.all([
-            Order.aggregate([
-                { 
-                    $match: { 
-                        deliveryBoyId: { $in: driverIds }, 
-                        status: { $in: ['pending', 'processing', 'ready_for_pickup', 'accepted', 'assigned'] } 
-                    } 
-                },
-                { $group: { _id: '$deliveryBoyId', count: { $sum: 1 } } }
-            ]),
+            // Forward deliveries are counted from Shipment assignments (source of truth).
+            getActiveShipmentCounts(driverIds).then((counts) => Object.entries(counts).map(([_id, count]) => ({ _id, count }))),
             ReturnRequest.aggregate([
                 {
                     $match: {
@@ -780,15 +824,8 @@ export const autoAssignExchangeReplacementPartner = async (returnRequestId) => {
         // 3. Aggregate capacity counts
         const driverIds = deliveryBoys.map(d => d._id);
         const [activeOrdersCounts, activeReturnsCounts] = await Promise.all([
-            Order.aggregate([
-                { 
-                    $match: { 
-                        deliveryBoyId: { $in: driverIds }, 
-                        status: { $in: ['pending', 'processing', 'ready_for_pickup', 'accepted', 'assigned'] } 
-                    } 
-                },
-                { $group: { _id: '$deliveryBoyId', count: { $sum: 1 } } }
-            ]),
+            // Forward deliveries are counted from Shipment assignments (source of truth).
+            getActiveShipmentCounts(driverIds).then((counts) => Object.entries(counts).map(([_id, count]) => ({ _id, count }))),
             ReturnRequest.aggregate([
                 {
                     $match: {
@@ -989,6 +1026,9 @@ export const retryStuckShipments = async () => {
     const retryBefore = new Date(Date.now() - reofferCooldownSeconds * 1000);
     const stuckShipments = await Shipment.find({
         providerId: 'own_fleet',
+        // Manual (INTERNAL) delivery is never auto-assigned: vendor/admin assign it explicitly.
+        // Only legacy own-fleet shipments (no deliveryMethod) are auto-offered.
+        deliveryMethod: { $exists: false },
         status: 'ready_for_pickup',
         deliveryAssignmentStatus: { $in: ['failed', 'pending'] },
         updatedAt: { $lt: retryBefore },

@@ -637,7 +637,8 @@ export const acceptOrder = asyncHandler(async (req, res) => {
         return res.status(200).json(new ApiResponse(200, responseData, 'Order offer already accepted.'));
     }
 
-    if (assignmentStatus !== 'assigned') {
+    // 'manual_override' = assigned by Vendor/Admin (Manual Delivery); the rider must still accept it.
+    if (!['assigned', 'manual_override'].includes(assignmentStatus)) {
         throw new ApiError(409, `Cannot accept order. Assignment status is ${assignmentStatus}.`);
     }
 
@@ -692,7 +693,7 @@ export const rejectOrder = asyncHandler(async (req, res) => {
     // ─ State guard (Shipment-primary) ───────────────────────────────────
     const assignmentStatus = shipment.deliveryAssignmentStatus;
 
-    if (assignmentStatus !== 'assigned') {
+    if (!['assigned', 'manual_override'].includes(assignmentStatus)) {
         throw new ApiError(409, 'No active assignment offer found to reject.');
     }
 
@@ -708,7 +709,8 @@ export const rejectOrder = asyncHandler(async (req, res) => {
         const updatedOrder = await Order.findById(order._id).lean();
         if (updatedOrder) notifyOrderUpdate(updatedOrder);
         
-        autoAssignDeliveryPartner(shipment._id);
+        // Manual (INTERNAL) delivery goes back to Vendor/Admin for a new manual assignment.
+        if (shipment.deliveryMethod !== 'INTERNAL') autoAssignDeliveryPartner(shipment._id);
     }).catch(err => {
         console.error(`[rejectOrder] Shipment sync failed for Order ${order.orderId}:`, err.message);
     });

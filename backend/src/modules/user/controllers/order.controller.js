@@ -672,7 +672,8 @@ export const placeOrder = asyncHandler(async (req, res) => {
                         vendorId:               vGroup.vendorId,
                         vendorName:             vGroup.vendorName,
                         providerId:             routing.providerId,
-                        deliveryMethod:         routing.deliveryMethod,
+                        deliveryMethod:         routing.deliveryMethod || undefined, // null → vendor chooses after accepting
+                        allowedDeliveryMethods: routing.allowedDeliveryMethods,
                         deliveryRoutingReason:  routing.deliveryRoutingReason,
                         deliveryRoutingDetails: routing.deliveryRoutingDetails,
                         distance:               routing.distanceKm,
