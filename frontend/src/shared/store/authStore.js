@@ -41,7 +41,7 @@ export const useAuthStore = create(
           localStorage.setItem('refresh-token', refreshToken);
 
           // Register FCM push token
-          registerFCMToken(true).catch(() => {});
+          registerFCMToken(true, 'user').catch(() => {});
 
           // Merge cart asynchronously in background so login returns immediately
           import('./useStore').then(m => {
@@ -129,7 +129,7 @@ export const useAuthStore = create(
           localStorage.setItem('refresh-token', refreshToken);
 
           // Register FCM push token
-          registerFCMToken(true).catch(() => {});
+          registerFCMToken(true, 'user').catch(() => {});
 
           // Merge cart after OTP verification
           const { mergeCart } = (await import('./useStore')).useCartStore.getState();
@@ -203,7 +203,7 @@ export const useAuthStore = create(
         }
 
         // Remove FCM push token
-        removeFCMToken().catch(() => {});
+        removeFCMToken('user').catch(() => {});
 
         set({
           user: null,
@@ -231,7 +231,7 @@ export const useAuthStore = create(
           const payload = response?.data ?? response;
 
           // Remove FCM push token
-          removeFCMToken().catch(() => {});
+          removeFCMToken('user').catch(() => {});
 
           set({
             user: null,

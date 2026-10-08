@@ -33,7 +33,7 @@ export const useAdminAuthStore = create(
           localStorage.setItem('adminRefreshToken', refreshToken);
 
           // Register FCM push token
-          registerFCMToken(true).catch(() => {});
+          registerFCMToken(true, 'admin').catch(() => {});
 
           set({
             admin,
@@ -56,7 +56,7 @@ export const useAdminAuthStore = create(
         }
 
         // Remove FCM push token
-        removeFCMToken().catch(() => {});
+        removeFCMToken('admin').catch(() => {});
 
         set({
           admin: null,

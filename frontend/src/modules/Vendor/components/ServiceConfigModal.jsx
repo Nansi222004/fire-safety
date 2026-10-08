@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FiX, FiCheck, FiMapPin, FiClock, FiDollarSign, FiCalendar, FiFileText } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import VariantPriceEditor, { getActiveVariants, toVariantPriceState, toVariantPricePayload } from './Services/VariantPriceEditor';
 
 const DEFAULT_SCHEDULE = {
   monday: { enabled: true, start: '09:00', end: '18:00' },
@@ -13,7 +14,8 @@ const DEFAULT_SCHEDULE = {
 };
 
 const ServiceConfigModal = ({ isOpen, onClose, vendorService, serviceMaster, onSave }) => {
-  const [price, setPrice] = useState(499);
+  const [price, setPrice] = useState('');
+  const [variantPrices, setVariantPrices] = useState({});
   const [pincodeInput, setPincodeInput] = useState('');
   const [serviceAreas, setServiceAreas] = useState([]);
   const [dailyCapacity, setDailyCapacity] = useState(10);
@@ -26,6 +28,7 @@ const ServiceConfigModal = ({ isOpen, onClose, vendorService, serviceMaster, onS
   useEffect(() => {
     if (vendorService) {
       setPrice(vendorService.price ?? 499);
+      setVariantPrices(toVariantPriceState(vendorService.variantPrices));
       setServiceAreas(Array.isArray(vendorService.serviceAreas) ? vendorService.serviceAreas : []);
       setDailyCapacity(vendorService.dailyCapacity ?? 10);
       setWorkingHours(vendorService.workingHours || { start: '09:00', end: '18:00' });
@@ -33,8 +36,9 @@ const ServiceConfigModal = ({ isOpen, onClose, vendorService, serviceMaster, onS
       setVendorNotes(vendorService.vendorNotes || '');
       setIsActive(vendorService.isActive !== false);
     } else {
-      setPrice(499);
-      setServiceAreas(['452001']); // Default initial example pincode
+      setPrice('');
+      setVariantPrices({});
+      setServiceAreas([]);
       setDailyCapacity(10);
       setWorkingHours({ start: '09:00', end: '18:00' });
       setWorkingSchedule(DEFAULT_SCHEDULE);
@@ -76,8 +80,8 @@ const ServiceConfigModal = ({ isOpen, onClose, vendorService, serviceMaster, onS
       return;
     }
 
-    if (Number(price) < 0) {
-      toast.error('Price cannot be negative.');
+    if (price === '' || !Number.isFinite(Number(price)) || Number(price) < 0) {
+      toast.error('Please enter a valid base price.');
       return;
     }
 
@@ -85,6 +89,7 @@ const ServiceConfigModal = ({ isOpen, onClose, vendorService, serviceMaster, onS
     try {
       const payload = {
         price: Number(price),
+        variantPrices: toVariantPricePayload(variantPrices, getActiveVariants(serviceMaster || vendorService?.serviceId)),
         serviceAreas,
         dailyCapacity: Number(dailyCapacity),
         workingHours,
@@ -166,6 +171,14 @@ const ServiceConfigModal = ({ isOpen, onClose, vendorService, serviceMaster, onS
             />
             <p className="text-[11px] text-slate-400 mt-1">Starting price charged for this service.</p>
           </div>
+
+          {/* Per category-type rates (options defined by Admin) */}
+          <VariantPriceEditor
+            serviceMaster={serviceMaster || vendorService?.serviceId}
+            basePrice={price}
+            value={variantPrices}
+            onChange={setVariantPrices}
+          />
 
           {/* Service Areas (Pincodes Tag/Chip Input) */}
           <div>

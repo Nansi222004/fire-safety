@@ -18,6 +18,7 @@ import { useDeliveryNotificationStore } from "../../store/deliveryNotificationSt
 import { motion, AnimatePresence } from "framer-motion";
 import DeliveryBottomNav from "./DeliveryBottomNav";
 import { appLogo } from "../../../../data/logos";
+import { registerFCMToken } from "../../../../services/pushNotificationService";
 
 const DeliveryLayout = () => {
   const navigate = useNavigate();
@@ -64,6 +65,11 @@ const DeliveryLayout = () => {
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
     );
   };
+
+  // Make sure this device receives delivery push notifications (also for existing sessions).
+  useEffect(() => {
+    registerFCMToken(false, "delivery").catch(() => {});
+  }, []);
 
   // Start watching location on mount
   useEffect(() => {

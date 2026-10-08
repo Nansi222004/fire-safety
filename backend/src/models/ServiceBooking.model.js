@@ -96,6 +96,8 @@ const serviceBookingSchema = new mongoose.Schema(
             unitPrice: { type: Number, required: true },
             quantity: { type: Number, default: 1 },
             subtotal: { type: Number, required: true },
+            visitCharge: { type: Number, default: 0 },
+            taxRate: { type: Number, default: 0 },
             tax: { type: Number, default: 0 },
             total: { type: Number, required: true },
         },

@@ -183,7 +183,7 @@ export const useDeliveryAuthStore = create(
           localStorage.setItem('delivery-refresh-token', refreshToken);
 
           // Register FCM push token
-          registerFCMToken(true).catch(() => {});
+          registerFCMToken(true, 'delivery').catch(() => {});
 
           let enriched = loginDeliveryBoy;
           try {
@@ -217,7 +217,7 @@ export const useDeliveryAuthStore = create(
         }
 
         // Remove FCM push token
-        removeFCMToken().catch(() => {});
+        removeFCMToken('delivery').catch(() => {});
 
         set({
           deliveryBoy: null,
@@ -245,7 +245,7 @@ export const useDeliveryAuthStore = create(
           const payload = response?.data ?? response;
 
           // Remove FCM push token
-          removeFCMToken().catch(() => {});
+          removeFCMToken('delivery').catch(() => {});
 
           set({
             deliveryBoy: null,

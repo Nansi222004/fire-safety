@@ -87,10 +87,26 @@ export async function getFCMToken() {
     }
 }
 
+// Push tokens must be stored on the account of the portal that registered them.
+// Each role has its own endpoint (/api/<role>/fcm-tokens) so the request is authenticated with
+// that role's session — the shared /fcm-tokens endpoint fell back to whichever login the browser
+// had (usually the customer), so vendor / delivery / admin devices never received pushes.
+const PUSH_SCOPES = ['user', 'vendor', 'delivery', 'admin'];
+const resolvePushScope = (scope) => {
+    if (PUSH_SCOPES.includes(scope)) return scope;
+    const path = typeof window !== 'undefined' ? window.location.pathname : '/';
+    if (path.startsWith('/vendor')) return 'vendor';
+    if (path.startsWith('/delivery')) return 'delivery';
+    if (path.startsWith('/admin')) return 'admin';
+    return 'user';
+};
+const tokenCacheKey = (scope) => `fcm_token_web_${scope}`;
+
 // Register FCM Token with Backend (SOP Step 5)
-export async function registerFCMToken(forceUpdate = false) {
+export async function registerFCMToken(forceUpdate = false, scope) {
+    const pushScope = resolvePushScope(scope);
     try {
-        const savedToken = localStorage.getItem('fcm_token_web');
+        const savedToken = localStorage.getItem(tokenCacheKey(pushScope));
         if (savedToken && !forceUpdate) {
             return savedToken;
         }
@@ -107,11 +123,11 @@ export async function registerFCMToken(forceUpdate = false) {
 
         // Save token to backend
         try {
-            await api.post('/fcm-tokens/save', {
+            await api.post(`/${pushScope}/fcm-tokens/save`, {
                 token: token,
                 platform: 'web',
             });
-            localStorage.setItem('fcm_token_web', token);
+            localStorage.setItem(tokenCacheKey(pushScope), token);
             console.log('✅ [Push Notification] FCM token registered with SafeFire backend');
             return token;
         } catch (apiErr) {
@@ -125,13 +141,14 @@ export async function registerFCMToken(forceUpdate = false) {
 }
 
 // Remove FCM Token on Logout (SOP Step 5)
-export async function removeFCMToken() {
+export async function removeFCMToken(scope) {
+    const pushScope = resolvePushScope(scope);
     try {
-        const token = localStorage.getItem('fcm_token_web');
+        const token = localStorage.getItem(tokenCacheKey(pushScope));
         if (!token) return;
 
         try {
-            await api.post('/fcm-tokens/remove', {
+            await api.post(`/${pushScope}/fcm-tokens/remove`, {
                 token: token,
                 platform: 'web',
             });
@@ -139,7 +156,7 @@ export async function removeFCMToken() {
             // Ignore API error on logout token cleanup
         }
 
-        localStorage.removeItem('fcm_token_web');
+        localStorage.removeItem(tokenCacheKey(pushScope));
         console.log('[Push Notification] FCM token removed locally');
     } catch (error) {
         console.warn('[Push Notification] Error removing FCM token:', error.message);

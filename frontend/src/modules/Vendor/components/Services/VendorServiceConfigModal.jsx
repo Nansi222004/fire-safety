@@ -3,6 +3,7 @@ import { FiX, FiSave, FiMapPin, FiClock, FiDollarSign, FiCalendar, FiPlus, FiTra
 import { motion, AnimatePresence } from 'framer-motion';
 import { useVendorServiceStore } from '../../../../shared/store/vendorServiceStore';
 import toast from 'react-hot-toast';
+import VariantPriceEditor, { getActiveVariants, toVariantPriceState, toVariantPricePayload } from './VariantPriceEditor';
 
 const DEFAULT_SCHEDULE = {
   monday: { enabled: true, start: '09:00', end: '18:00' },
@@ -36,7 +37,7 @@ const VendorServiceConfigModal = ({ vendorService, onClose, onSave }) => {
     if (vendorService) {
       setFormData({
         price: vendorService.price || 0,
-        variantPrices: vendorService.variantPrices ? Object.fromEntries(new Map(Object.entries(vendorService.variantPrices))) : {},
+        variantPrices: toVariantPriceState(vendorService.variantPrices),
         serviceAreasStr: Array.isArray(vendorService.serviceAreas) ? vendorService.serviceAreas.join(', ') : '',
         workingHours: {
           start: vendorService.workingHours?.start || '09:00',
@@ -65,16 +66,6 @@ const VendorServiceConfigModal = ({ vendorService, onClose, onSave }) => {
       workingHours: {
         ...prev.workingHours,
         [name]: value,
-      },
-    }));
-  };
-
-  const handleVariantPriceChange = (variantKey, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      variantPrices: {
-        ...prev.variantPrices,
-        [variantKey]: Number(value) || 0,
       },
     }));
   };
@@ -123,7 +114,7 @@ const VendorServiceConfigModal = ({ vendorService, onClose, onSave }) => {
     try {
       const payload = {
         price: numericPrice,
-        variantPrices: formData.variantPrices,
+        variantPrices: toVariantPricePayload(formData.variantPrices, getActiveVariants(serviceMaster)),
         serviceAreas: areasList,
         workingHours: formData.workingHours,
         workingSchedule: formData.workingSchedule,
@@ -249,30 +240,15 @@ const VendorServiceConfigModal = ({ vendorService, onClose, onSave }) => {
                   </div>
                 </div>
 
-                {pricingType === 'SIZE_BASED' && (
-                  <div className="space-y-2 pt-2 border-t border-gray-200">
-                    <label className="block text-xs font-semibold text-gray-700">
-                      Variant-wise Rates (Capacity / Size)
-                    </label>
-                    <p className="text-[11px] text-gray-500">Set rates for specific size variants:</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {['2 KG', '4 KG', '6 KG', '9 KG'].map((variantKey) => (
-                        <div key={variantKey} className="flex items-center gap-2 bg-white p-2 border border-gray-200 rounded-lg">
-                          <span className="text-xs font-bold text-gray-700 w-16">{variantKey}:</span>
-                          <span className="text-xs text-gray-400">₹</span>
-                          <input
-                            type="number"
-                            value={formData.variantPrices[variantKey] || ''}
-                            onChange={(e) => handleVariantPriceChange(variantKey, e.target.value)}
-                            min="0"
-                            className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
-                            placeholder="0"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                {/* Per category-type rates — options are defined by Admin on the service */}
+                <div className="pt-2 border-t border-gray-200">
+                  <VariantPriceEditor
+                    serviceMaster={serviceMaster}
+                    basePrice={formData.price}
+                    value={formData.variantPrices}
+                    onChange={(variantPrices) => setFormData((prev) => ({ ...prev, variantPrices }))}
+                  />
+                </div>
               </div>
 
               {/* Service Areas (Pincodes) */}

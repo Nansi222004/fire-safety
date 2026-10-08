@@ -53,7 +53,7 @@ const AppBootstrap = () => {
   useEffect(() => {
     if (isAuthenticated) {
       fetchCart();
-      registerFCMToken().catch(() => {});
+      registerFCMToken(false, 'user').catch(() => {});
     }
   }, [isAuthenticated, fetchCart]);
 

@@ -67,6 +67,40 @@ const serviceSchema = new mongoose.Schema(
             min: 0,
         },
         serviceFields: [serviceFieldSchema],
+
+        // ─── Booking flow configuration (all admin-managed; defaults keep legacy behaviour) ──
+        // "Category type" options for this service, e.g. CO2 / ABC / DCP, or 2 KG / 4 KG / 9 KG.
+        // Providers set a price per option via VendorService.variantPrices[key].
+        variantConfig: {
+            label: { type: String, trim: true, default: 'Category Type' },
+            description: { type: String, trim: true, default: '' },
+        },
+        variants: [
+            {
+                key: { type: String, required: true, trim: true },
+                label: { type: String, required: true, trim: true },
+                description: { type: String, trim: true, default: '' },
+                isActive: { type: Boolean, default: true },
+                sortOrder: { type: Number, default: 0 },
+            },
+        ],
+        // Shown only when serviceSettings.requiresQuantity is true.
+        quantityConfig: {
+            label: { type: String, trim: true, default: 'Quantity' },
+            unitLabel: { type: String, trim: true, default: 'unit' },
+            min: { type: Number, default: 1, min: 1 },
+            max: { type: Number, default: 100, min: 1 },
+        },
+        bookingConfig: {
+            slotDurationMinutes: { type: Number, default: 60, min: 15, max: 480 },
+            advanceBookingDays: { type: Number, default: 30, min: 1, max: 180 },
+            minLeadMinutes: { type: Number, default: 0, min: 0 },
+        },
+        pricingConfig: {
+            visitCharge: { type: Number, default: 0, min: 0 },
+            taxRate: { type: Number, default: 0, min: 0, max: 100 },
+            priceNote: { type: String, trim: true, default: '' },
+        },
     },
     { timestamps: true }
 );

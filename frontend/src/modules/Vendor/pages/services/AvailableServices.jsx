@@ -93,13 +93,13 @@ const AvailableServices = () => {
     setEnablingId(activeConfigService._id || activeConfigService.id);
     try {
       // 1. Enable service for vendor
-      const res = await enableService(activeConfigService._id || activeConfigService.id);
+      const res = await enableService(activeConfigService._id || activeConfigService.id, { silent: true });
       const vsDoc = res?.data || res;
       const vsId = vsDoc?._id || vsDoc?.id;
 
       if (vsId) {
         // 2. Update config with price, serviceAreas, dailyCapacity, workingHours
-        await updateServiceConfig(vsId, payload);
+        await updateServiceConfig(vsId, payload, { silent: true });
       }
       fetchAvailableServices();
       toast.success('Service enabled and configured successfully!');

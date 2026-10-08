@@ -8,6 +8,64 @@ import { slugify } from '../../../utils/slugify.js';
 /**
  * Helper to normalize dynamic service field keys and options
  */
+const slugKey = (value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+
+/**
+ * Normalizes admin booking-flow config (category types, quantity, schedule, pricing extras).
+ * Only keys present in the request are returned, so partial updates leave other config untouched.
+ */
+const normalizeBookingFlowConfig = (body = {}) => {
+    const out = {};
+    if (body.variantConfig) {
+        out.variantConfig = {
+            label: String(body.variantConfig.label || '').trim() || 'Category Type',
+            description: String(body.variantConfig.description || '').trim(),
+        };
+    }
+    if (Array.isArray(body.variants)) {
+        const seen = new Set();
+        out.variants = body.variants.map((v, i) => {
+            const key = slugKey(v.key || v.label);
+            if (!key) throw new ApiError(400, 'Each category type needs a name.');
+            if (seen.has(key)) throw new ApiError(400, `Duplicate category type "${v.label}".`);
+            seen.add(key);
+            return {
+                key,
+                label: String(v.label || '').trim(),
+                description: String(v.description || '').trim(),
+                isActive: v.isActive !== false,
+                sortOrder: Number.isInteger(v.sortOrder) ? v.sortOrder : i,
+            };
+        });
+    }
+    if (body.quantityConfig) {
+        const min = Math.max(1, Number(body.quantityConfig.min) || 1);
+        const max = Math.max(1, Number(body.quantityConfig.max) || 100);
+        if (max < min) throw new ApiError(400, 'Maximum quantity cannot be less than minimum quantity.');
+        out.quantityConfig = {
+            label: String(body.quantityConfig.label || '').trim() || 'Quantity',
+            unitLabel: String(body.quantityConfig.unitLabel || '').trim() || 'unit',
+            min,
+            max,
+        };
+    }
+    if (body.bookingConfig) {
+        out.bookingConfig = {
+            slotDurationMinutes: Number(body.bookingConfig.slotDurationMinutes) || 60,
+            advanceBookingDays: Number(body.bookingConfig.advanceBookingDays) || 30,
+            minLeadMinutes: Math.max(0, Number(body.bookingConfig.minLeadMinutes) || 0),
+        };
+    }
+    if (body.pricingConfig) {
+        out.pricingConfig = {
+            visitCharge: Math.max(0, Number(body.pricingConfig.visitCharge) || 0),
+            taxRate: Math.min(100, Math.max(0, Number(body.pricingConfig.taxRate) || 0)),
+            priceNote: String(body.pricingConfig.priceNote || '').trim(),
+        };
+    }
+    return out;
+};
+
 const normalizeServiceFields = (fields = []) => {
     if (!Array.isArray(fields)) return [];
     return fields.map((f, index) => {
@@ -207,6 +265,7 @@ export const createService = asyncHandler(async (req, res) => {
             ...serviceSettings,
         },
         serviceFields: cleanFields,
+        ...normalizeBookingFlowConfig(req.body),
     });
 
     const populatedService = await Service.findById(service._id)
@@ -307,6 +366,8 @@ export const updateService = asyncHandler(async (req, res) => {
     if (Array.isArray(serviceFields)) {
         updatePayload.serviceFields = normalizeServiceFields(serviceFields);
     }
+
+    Object.assign(updatePayload, normalizeBookingFlowConfig(req.body));
 
     const updatedService = await Service.findByIdAndUpdate(
         req.params.id,

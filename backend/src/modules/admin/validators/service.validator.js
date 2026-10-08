@@ -26,6 +26,38 @@ const serviceSettingsSchema = Joi.object({
     isRecurring: Joi.boolean().optional(),
 }).optional();
 
+// Booking-flow configuration (category types, quantity, schedule, pricing extras)
+const bookingFlowSchemas = {
+    variantConfig: Joi.object({
+        label: Joi.string().trim().max(60).allow('').optional(),
+        description: Joi.string().trim().max(300).allow('').optional(),
+    }).optional(),
+    variants: Joi.array().max(50).items(Joi.object({
+        _id: objectId.optional(),
+        key: Joi.string().trim().max(60).allow('').optional(), // derived from label when omitted
+        label: Joi.string().trim().min(1).max(100).required(),
+        description: Joi.string().trim().max(300).allow('').optional(),
+        isActive: Joi.boolean().optional(),
+        sortOrder: Joi.number().integer().min(0).optional(),
+    })).optional(),
+    quantityConfig: Joi.object({
+        label: Joi.string().trim().max(60).allow('').optional(),
+        unitLabel: Joi.string().trim().max(30).allow('').optional(),
+        min: Joi.number().integer().min(1).optional(),
+        max: Joi.number().integer().min(1).optional(),
+    }).optional(),
+    bookingConfig: Joi.object({
+        slotDurationMinutes: Joi.number().integer().min(15).max(480).optional(),
+        advanceBookingDays: Joi.number().integer().min(1).max(180).optional(),
+        minLeadMinutes: Joi.number().integer().min(0).max(10080).optional(),
+    }).optional(),
+    pricingConfig: Joi.object({
+        visitCharge: Joi.number().min(0).optional(),
+        taxRate: Joi.number().min(0).max(100).optional(),
+        priceNote: Joi.string().trim().max(300).allow('').optional(),
+    }).optional(),
+};
+
 export const serviceIdParamSchema = Joi.object({
     id: objectId.required(),
 });
@@ -48,6 +80,7 @@ export const createServiceSchema = Joi.object({
     estimatedDuration: Joi.string().trim().allow('').optional(),
     serviceSettings: serviceSettingsSchema,
     serviceFields: Joi.array().items(serviceFieldSchema).optional(),
+    ...bookingFlowSchemas,
 });
 
 export const updateServiceSchema = Joi.object({
@@ -68,6 +101,7 @@ export const updateServiceSchema = Joi.object({
     estimatedDuration: Joi.string().trim().allow('').optional(),
     serviceSettings: serviceSettingsSchema,
     serviceFields: Joi.array().items(serviceFieldSchema).optional(),
+    ...bookingFlowSchemas,
 }).min(1);
 
 export const updateServiceStatusSchema = Joi.object({

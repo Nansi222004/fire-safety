@@ -58,7 +58,7 @@ export const useVendorAuthStore = create(
           localStorage.setItem("vendor-refresh-token", refreshToken);
 
           // Register FCM push token
-          registerFCMToken(true).catch(() => {});
+          registerFCMToken(true, 'vendor').catch(() => {});
 
           return { success: true, vendor: normalized };
         } catch (error) {
@@ -137,7 +137,7 @@ export const useVendorAuthStore = create(
         }
 
         // Remove FCM push token
-        removeFCMToken().catch(() => {});
+        removeFCMToken('vendor').catch(() => {});
 
         set({
           vendor: null,
@@ -157,7 +157,7 @@ export const useVendorAuthStore = create(
           const data = response?.data ?? response;
 
           // Remove FCM push token
-          removeFCMToken().catch(() => {});
+          removeFCMToken('vendor').catch(() => {});
 
           set({
             vendor: null,

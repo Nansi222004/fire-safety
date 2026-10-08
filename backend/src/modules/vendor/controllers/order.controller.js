@@ -412,10 +412,10 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
                     })
                     .catch(err => console.error('Failed to load delhivery provider:', err));
             } else if (shipmentForVendor.providerId === 'own_fleet') {
-                // Routed internal orders are intentionally manual: Vendor or Admin assigns.
-                if (shipmentForVendor.deliveryMethod !== 'INTERNAL') {
-                    autoAssignDeliveryPartner(shipmentForVendor._id);
-                }
+                // Own-fleet shipments (including INTERNAL-routed ones) are offered to available riders.
+                // Vendor/Admin can still assign or reassign manually via /shipments/:id/assign-delivery.
+                // (INTERNAL-only manual assignment had no UI, so those orders never reached a rider.)
+                autoAssignDeliveryPartner(shipmentForVendor._id);
             } else {
                 console.warn(`[Auto Assign] Unknown provider ${shipmentForVendor.providerId} for shipment ${shipmentForVendor._id}.`);
             }

@@ -33,7 +33,7 @@ const PushNotifications = () => {
   const handleRegisterDevice = async () => {
     setIsRegistering(true);
     try {
-      const token = await registerFCMToken(true);
+      const token = await registerFCMToken(true, 'admin');
       if (token) {
         setHasRegisteredToken(true);
         setPermissionStatus(Notification.permission);

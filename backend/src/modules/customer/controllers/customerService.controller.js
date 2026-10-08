@@ -19,6 +19,13 @@ import { processCapturedPayment } from '../../../services/paymentProcessor.js';
 import { isPaymentMethodEnabled } from '../../../services/settingsService.js';
 import { isCodOnlyMode } from '../../../config/paymentConfig.js';
 import mongoose from 'mongoose';
+import {
+    buildVariantOptions,
+    getStartingUnitPrice,
+    computeServiceQuote,
+    buildSchedule,
+    assertBookableSlot,
+} from '../../../services/serviceBookingFlow.service.js';
 
 const DAYS_MAP = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -195,9 +202,11 @@ export const checkServiceability = asyncHandler(async (req, res) => {
         vendorServiceId: vs._id,
         vendorId: vs.vendorId._id,
         storeName: vs.vendorId.storeName || vs.vendorId.name || 'Service Vendor',
-        rating: vs.rating || vs.vendorId.rating || 4.8,
+        rating: Number(vs.rating || vs.vendorId.rating || 0),
         reviewCount: vs.reviewCount || 0,
         price: vs.price || 0,
+        startingPrice: getStartingUnitPrice(serviceMaster, vs),
+        variantOptions: buildVariantOptions(serviceMaster, vs),
         variantPrices: vs.variantPrices || {},
         workingHours: vs.workingHours || { start: '09:00', end: '18:00' },
         workingSchedule: vs.workingSchedule || undefined,
@@ -246,14 +255,25 @@ export const createBooking = asyncHandler(async (req, res) => {
     }
 
     const cleanPincode = String(pincode).trim();
+    if (!/^\d{6}$/.test(cleanPincode)) {
+        throw new ApiError(400, 'A valid 6-digit postal pincode is required.');
+    }
     const normalizedAddress = {
-        fullName: serviceAddress?.fullName || 'Customer',
-        phone: serviceAddress?.phone || '9876543210',
-        address: serviceAddress?.address || 'Site Address',
-        city: serviceAddress?.city || 'Indore',
-        state: serviceAddress?.state || 'Madhya Pradesh',
-        zipCode: serviceAddress?.zipCode || cleanPincode,
+        fullName: String(serviceAddress?.fullName || '').trim(),
+        phone: String(serviceAddress?.phone || '').replace(/\D/g, '').slice(-10),
+        address: String(serviceAddress?.address || '').trim(),
+        city: String(serviceAddress?.city || '').trim(),
+        state: String(serviceAddress?.state || '').trim(),
+        // The site must be inside the serviceable pincode the provider was matched on.
+        zipCode: cleanPincode,
     };
+    if (!normalizedAddress.fullName || normalizedAddress.phone.length !== 10 || !normalizedAddress.address || !normalizedAddress.city) {
+        throw new ApiError(400, 'Please provide contact name, a 10-digit phone number, site address and city.');
+    }
+    const bookingDateStr = String(bookingDate).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(bookingDateStr)) {
+        throw new ApiError(400, 'Invalid booking date provided.');
+    }
 
     // 1. Verify Service Master exists and is active
     const serviceMaster = await Service.findById(serviceId).populate('categoryId', 'name').lean();
@@ -291,50 +311,19 @@ export const createBooking = asyncHandler(async (req, res) => {
         throw new ApiError(400, `Selected Service Provider does not service pincode ${cleanPincode}.`);
     }
 
-    // 5. Working Hours & Weekly Schedule Validation
-    const nowIst = getIstDateAndMinutes(new Date());
-    const bookingDateObj = new Date(bookingDate);
-    if (isNaN(bookingDateObj.getTime())) {
-        throw new ApiError(400, 'Invalid booking date provided.');
-    }
-    const bookingIst = getIstDateAndMinutes(bookingDateObj);
+    // 5. Authoritative quote (category type, quantity, price) — never trusts client prices.
+    const quote = computeServiceQuote(serviceMaster, vendorService, {
+        variantKey: variant?.key,
+        quantity,
+    });
 
-    // Check closed day of week
-    const dayConfig = vendorService.workingSchedule?.[bookingIst.dayOfWeek];
-    if (dayConfig && dayConfig.enabled === false) {
-        throw new ApiError(
-            400,
-            `Selected Service Provider is closed on ${bookingIst.dayOfWeek.toUpperCase()}s. Please choose an open date.`
-        );
-    }
+    // 6. Date & slot must match the provider's real schedule and the admin booking window.
+    assertBookableSlot(serviceMaster, vendorService, bookingDateStr, timeSlot);
+    const bookingDateObj = new Date(`${bookingDateStr}T00:00:00.000Z`);
 
-    const startStr = dayConfig?.start || vendorService.workingHours?.start || '09:00';
-    const endStr = dayConfig?.end || vendorService.workingHours?.end || '18:00';
-    const startMins = parseHHMM(startStr) ?? 540;
-    const endMins = parseHHMM(endStr) ?? 1080;
-
-    const slotMinutes = parseHHMM(timeSlot);
-    if (slotMinutes !== null) {
-        if (slotMinutes < startMins || slotMinutes >= endMins) {
-            throw new ApiError(
-                400,
-                `Selected time slot (${timeSlot}) is outside vendor working hours (${startStr} - ${endStr}).`
-            );
-        }
-
-        // Same-day past time slot protection (IST)
-        if (bookingIst.dateStr === nowIst.dateStr) {
-            if (slotMinutes <= nowIst.minutes) {
-                throw new ApiError(400, 'Selected time slot has already passed for today. Please choose a future time slot.');
-            }
-        } else if (bookingIst.dateStr < nowIst.dateStr) {
-            throw new ApiError(400, 'Cannot book a service for a past date.');
-        }
-    }
-
-    // 6. Concurrency-Safe Daily Capacity Reservation
+    // 7. Concurrency-Safe Daily Capacity Reservation
     const dailyLimit = vendorService.dailyCapacity || 10;
-    const dateStr = bookingIst.dateStr;
+    const dateStr = bookingDateStr;
 
     await ServiceCapacity.updateOne(
         { vendorServiceId: vendorService._id, dateStr },
@@ -373,24 +362,11 @@ export const createBooking = asyncHandler(async (req, res) => {
         } catch (_) {}
     };
 
-    // 7. Authoritative Server-Side Price Calculation
-    let unitPrice = vendorService.price || 0;
-    if (variant && variant.key && vendorService.variantPrices) {
-        let vPrice = null;
-        if (typeof vendorService.variantPrices.get === 'function') {
-            vPrice = vendorService.variantPrices.get(variant.key);
-        } else if (typeof vendorService.variantPrices === 'object') {
-            vPrice = vendorService.variantPrices[variant.key];
-        }
-        if (typeof vPrice === 'number' && vPrice > 0) unitPrice = vPrice;
-    } else if (variant && typeof variant.price === 'number' && variant.price > 0) {
-        unitPrice = variant.price;
-    }
-
-    const qty = Math.max(1, Number(quantity) || 1);
-    const subtotal = Math.round(unitPrice * qty * 100) / 100;
-    const tax = 0;
-    const total = Math.round((subtotal + tax) * 100) / 100;
+    // 8. Pricing snapshot from the authoritative quote
+    const { unitPrice, subtotal, visitCharge, taxRate, tax, total } = quote;
+    const qty = quote.quantity;
+    const bookingVariant = quote.variant || {};
+    const pricingSnapshot = { unitPrice, quantity: qty, subtotal, visitCharge, taxRate, tax, total };
 
     const bookingId = `SRV-${Date.now().toString().slice(-6)}${Math.floor(100 + Math.random() * 900)}`;
 
@@ -413,14 +389,14 @@ export const createBooking = asyncHandler(async (req, res) => {
             serviceName: serviceMaster.name,
             categoryName: serviceMaster.categoryId?.name || 'Fire Safety',
             serviceImage: serviceMaster.image || '',
-            variant: variant || {},
+            variant: bookingVariant,
             quantity: qty,
             pincode: cleanPincode,
             serviceAddress: normalizedAddress,
             bookingDate: bookingDateObj,
             timeSlot,
             customFields,
-            pricing: { unitPrice, quantity: qty, subtotal, tax, total },
+            pricing: pricingSnapshot,
             paymentMethod: 'cod',
             paymentStatus: 'pending',
             status: 'pending',
@@ -469,14 +445,14 @@ export const createBooking = asyncHandler(async (req, res) => {
             serviceName: serviceMaster.name,
             categoryName: serviceMaster.categoryId?.name || 'Fire Safety',
             serviceImage: serviceMaster.image || '',
-            variant: variant || {},
+            variant: bookingVariant,
             quantity: qty,
             pincode: cleanPincode,
             serviceAddress: normalizedAddress,
             bookingDate: bookingDateObj,
             timeSlot,
             customFields,
-            pricing: { unitPrice, quantity: qty, subtotal, tax, total },
+            pricing: pricingSnapshot,
             paymentMethod: 'wallet',
             paymentStatus: 'paid',
             status: 'confirmed',
@@ -538,14 +514,14 @@ export const createBooking = asyncHandler(async (req, res) => {
         serviceName: serviceMaster.name,
         categoryName: serviceMaster.categoryId?.name || 'Fire Safety',
         serviceImage: serviceMaster.image || '',
-        variant: variant || {},
+        variant: bookingVariant,
         quantity: qty,
         pincode: cleanPincode,
         serviceAddress: normalizedAddress,
         bookingDate: bookingDateObj,
         timeSlot,
         customFields,
-        pricing: { unitPrice, quantity: qty, subtotal, tax, total },
+        pricing: pricingSnapshot,
         paymentMethod: normalizedMethod,
         paymentStatus: 'pending',
         status: 'pending',
@@ -1089,4 +1065,61 @@ export const getServiceReviews = asyncHandler(async (req, res) => {
             reviewCount: service.reviewCount || 0,
         }, 'Service reviews fetched successfully.')
     );
+});
+
+/**
+ * Resolves an active service + approved provider configuration that covers the pincode.
+ * Shared by the quote and schedule steps of the booking flow.
+ */
+const resolveBookableProvider = async ({ serviceId, vendorId, pincode }) => {
+    if (!mongoose.isValidObjectId(serviceId) || !mongoose.isValidObjectId(vendorId)) {
+        throw new ApiError(400, 'Valid service and provider are required.');
+    }
+    const cleanPincode = String(pincode || '').trim();
+    if (!/^\d{6}$/.test(cleanPincode)) throw new ApiError(400, 'A valid 6-digit postal pincode is required.');
+
+    const service = await Service.findOne({ _id: serviceId, isActive: true }).lean();
+    if (!service) throw new ApiError(404, 'Service not found or inactive.');
+
+    const vendor = await Vendor.findOne({ _id: vendorId, status: 'approved' })
+        .select('vendorCapabilities serviceCapability')
+        .lean();
+    if (!vendor || vendor.vendorCapabilities?.providesServices === false || vendor.serviceCapability?.status !== 'approved') {
+        throw new ApiError(400, 'Selected Service Provider is currently unavailable.');
+    }
+
+    const vendorService = await VendorService.findOne({ serviceId: service._id, vendorId: vendor._id, isActive: true }).lean();
+    if (!vendorService || !(vendorService.serviceAreas || []).some((a) => String(a).trim() === cleanPincode)) {
+        throw new ApiError(400, `Selected Service Provider does not service pincode ${cleanPincode}.`);
+    }
+    return { service, vendorService };
+};
+
+/**
+ * @desc    Server-calculated price breakdown for the selected provider, category type and quantity
+ * @route   POST /api/customer/services/quote
+ * @access  Public
+ */
+export const getServiceQuote = asyncHandler(async (req, res) => {
+    const { serviceId, vendorId, pincode, variantKey, quantity } = req.body || {};
+    const { service, vendorService } = await resolveBookableProvider({ serviceId, vendorId, pincode });
+    const quote = computeServiceQuote(service, vendorService, { variantKey, quantity });
+    res.status(200).json(new ApiResponse(200, quote, 'Quote calculated.'));
+});
+
+/**
+ * @desc    Bookable dates and time slots for a provider (weekly schedule + remaining daily capacity)
+ * @route   GET /api/customer/services/schedule?serviceId=&vendorId=&pincode=
+ * @access  Public
+ */
+export const getServiceSchedule = asyncHandler(async (req, res) => {
+    const { serviceId, vendorId, pincode, days } = req.query;
+    const { service, vendorService } = await resolveBookableProvider({ serviceId, vendorId, pincode });
+    const schedule = await buildSchedule(service, vendorService, { days });
+    res.status(200).json(new ApiResponse(200, {
+        days: schedule,
+        slotDurationMinutes: service.bookingConfig?.slotDurationMinutes || 60,
+        requiresDate: service.serviceSettings?.requiresDate !== false,
+        requiresTimeSlot: service.serviceSettings?.requiresTimeSlot !== false,
+    }, 'Schedule fetched.'));
 });

@@ -9,6 +9,7 @@ import { getSocket, joinRoom, leaveRoom } from '../../../../shared/utils/socket'
 import { useVendorNotificationStore } from '../../store/vendorNotificationStore';
 import toast from 'react-hot-toast';
 import { isSelfInitiatedNotification, isDuplicateNotification } from '../../../../shared/utils/selfActionTracker';
+import { registerFCMToken } from '../../../../services/pushNotificationService';
 
 const VendorLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -20,6 +21,11 @@ const VendorLayout = () => {
   const location = useLocation();
   const { syncVendor, vendor, token } = useVendorAuthStore();
   const { addNotification } = useVendorNotificationStore();
+
+  // Make sure this device receives vendor push notifications (also for sessions started before login-time registration).
+  useEffect(() => {
+    if (token) registerFCMToken(false, 'vendor').catch(() => {});
+  }, [token]);
 
   // Authoritative dynamic measurement of the rendered VendorHeader height
   useEffect(() => {

@@ -61,3 +61,15 @@ export const addServiceReview = (id, reviewData) =>
  */
 export const getServiceReviews = (slug, params = {}) =>
   api.get(`/customer/services/${slug}/reviews`, { params });
+
+/**
+ * Server-calculated price for provider + category type + quantity (booking flow "Price" step)
+ */
+export const getServiceQuote = (data) =>
+  api.post('/customer/services/quote', data);
+
+/**
+ * Bookable dates & time slots for a provider (booking flow "Schedule" step)
+ */
+export const getServiceSchedule = (params) =>
+  api.get('/customer/services/schedule', { params });

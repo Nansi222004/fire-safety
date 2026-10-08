@@ -1,6 +1,42 @@
 // Firebase Cloud Messaging Service Worker for SafeFire
 // Adhering strictly to Push Notifications SOP v2.0
 
+// Notification click and deep-link routing.
+// Registered before the Firebase SDK loads so it runs first for every notification,
+// including ones the SDK displays itself (their payload is nested under FCM_MSG).
+const resolveNotificationLink = (data = {}) =>
+    data.link ||
+    data.url ||
+    data.FCM_MSG?.data?.link ||
+    data.FCM_MSG?.data?.url ||
+    data.FCM_MSG?.fcmOptions?.link ||
+    '/';
+
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    event.stopImmediatePropagation();
+
+    const link = resolveNotificationLink(event.notification.data || {});
+
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+            for (const client of clientList) {
+                if ('focus' in client && client.url.includes(link) && link !== '/') {
+                    return client.focus();
+                }
+            }
+            if (clientList.length > 0 && 'focus' in clientList[0] && 'navigate' in clientList[0]) {
+                const client = clientList[0];
+                client.navigate(link);
+                return client.focus();
+            }
+            if (clients.openWindow) {
+                return clients.openWindow(link);
+            }
+        })
+    );
+});
+
 importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js');
 
@@ -39,6 +75,10 @@ if (messaging) {
     messaging.onBackgroundMessage((payload) => {
         console.log('[firebase-messaging-sw.js] Received background message:', payload);
 
+        // Messages with a "notification" block are displayed automatically by the Firebase SDK.
+        // Showing them here as well produced a duplicate notification for every push.
+        if (payload.notification) return undefined;
+
         const title = payload.notification?.title || payload.data?.title || 'SafeFire Notification';
         const options = {
             body: payload.notification?.body || payload.data?.body || payload.data?.message || '',
@@ -59,6 +99,8 @@ self.addEventListener('push', (event) => {
 
     try {
         const payload = event.data.json();
+        const isFcmMessage = Boolean(payload.fcmMessageId || payload.from || payload.notification || payload.data?.notificationId);
+        if (messaging && isFcmMessage) return;
         const title = payload.notification?.title || payload.data?.title || 'SafeFire Alert';
         const options = {
             body: payload.notification?.body || payload.data?.body || payload.data?.message || '',
@@ -71,7 +113,8 @@ self.addEventListener('push', (event) => {
 
         event.waitUntil(self.registration.showNotification(title, options));
     } catch (err) {
-        // Raw text push fallback
+        // Raw text push fallback (only when the Firebase SDK is not handling pushes)
+        if (messaging) return;
         const text = event.data.text();
         event.waitUntil(
             self.registration.showNotification('SafeFire Alert', {
@@ -80,34 +123,4 @@ self.addEventListener('push', (event) => {
             })
         );
     }
-});
-
-// Notification click and deep-link routing
-self.addEventListener('notificationclick', (event) => {
-    event.notification.close();
-
-    const data = event.notification.data || {};
-    const link = data.link || data.url || '/';
-
-    event.waitUntil(
-        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-            // Check if there is already an open window
-            for (const client of clientList) {
-                if ('focus' in client) {
-                    if (client.url.includes(link) && link !== '/') {
-                        return client.focus();
-                    }
-                }
-            }
-            if (clientList.length > 0 && 'focus' in clientList[0] && 'navigate' in clientList[0]) {
-                const client = clientList[0];
-                client.navigate(link);
-                return client.focus();
-            }
-            // Open new window
-            if (clients.openWindow) {
-                return clients.openWindow(link);
-            }
-        })
-    );
 });

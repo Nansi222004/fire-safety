@@ -118,7 +118,13 @@ export const manualAssignDeliveryPartner = async ({
  *
  * @param {string|ObjectId} shipmentId  - Shipment._id (primary lookup key)
  */
-export const autoAssignDeliveryPartner = async (shipmentId) => {
+/**
+ * @param {string|ObjectId} shipmentId
+ * @param {{ allowReoffer?: boolean }} [options]
+ *   allowReoffer: when no fresh rider is available, re-offer to riders who previously
+ *   declined / let the offer expire (used by the retry sweep so a small fleet never deadlocks).
+ */
+export const autoAssignDeliveryPartner = async (shipmentId, options = {}) => {
     try {
         // ─ 1. Load Shipment ──────────────────────────────────────────────────
         const shipment = await Shipment.findById(shipmentId);
@@ -159,18 +165,27 @@ export const autoAssignDeliveryPartner = async (shipmentId) => {
         const hasVendorCoords = vendorLocation?.coordinates?.length === 2;
 
         // ─ 5. Find eligible delivery partners ─────────────────────────────
-        const MAX_COD_LIMIT = 20000;
-        const driverQuery = {
+        // Max cash a rider may hold (current cash-in-hand + this COD order). Configurable per deployment.
+        const MAX_COD_LIMIT = Number(process.env.DELIVERY_MAX_COD_CASH_IN_HAND) || 20000;
+        const baseDriverQuery = {
             status: 'available',
             isActive: true,
             applicationStatus: 'approved',
-            _id: { $nin: shipment.rejectedDeliveryBoys || [] },
         };
         if (order.paymentMethod === 'cash' || order.paymentMethod === 'cod') {
-            driverQuery.cashInHand = { $lte: MAX_COD_LIMIT - (order.total || 0) };
+            baseDriverQuery.cashInHand = { $lte: MAX_COD_LIMIT - (order.total || 0) };
         }
 
-        const deliveryBoys = await DeliveryBoy.find(driverQuery).lean();
+        const rejected = shipment.rejectedDeliveryBoys || [];
+        let deliveryBoys = await DeliveryBoy.find({ ...baseDriverQuery, _id: { $nin: rejected } }).lean();
+        if (deliveryBoys.length === 0 && options.allowReoffer && rejected.length > 0) {
+            // Everyone eligible has already declined or let the offer expire — offer again
+            // rather than leaving the order stuck (e.g. a fleet with a single rider).
+            deliveryBoys = await DeliveryBoy.find(baseDriverQuery).lean();
+            if (deliveryBoys.length > 0) {
+                console.log(`[Auto Assign] Re-offering Shipment ${shipment.shipmentNumber} to previously declined rider(s).`);
+            }
+        }
         if (deliveryBoys.length === 0) {
             console.log(`[Auto Assign] No available delivery partners for Shipment ${shipment.shipmentNumber}.`);
             await _markShipmentFailed(shipment, order);
@@ -963,6 +978,28 @@ export const cancelShipmentDeliveryAssignment = async (shipmentId, reason = 'Pac
 // Polling scheduler for offer timeouts
 // ───────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Retries own-fleet shipments that are ready for pickup but have no rider
+ * (assignment 'failed' because nobody was available, or everyone declined / let the offer expire).
+ * Previously such shipments were never retried, so with a small fleet the order stayed
+ * unassigned forever. Runs from the assignment scheduler after a cool-down since the last attempt.
+ */
+export const retryStuckShipments = async () => {
+    const reofferCooldownSeconds = Number(process.env.DELIVERY_REOFFER_COOLDOWN_SECONDS || 120);
+    const retryBefore = new Date(Date.now() - reofferCooldownSeconds * 1000);
+    const stuckShipments = await Shipment.find({
+        providerId: 'own_fleet',
+        status: 'ready_for_pickup',
+        deliveryAssignmentStatus: { $in: ['failed', 'pending'] },
+        updatedAt: { $lt: retryBefore },
+    }).select('_id').limit(50);
+
+    for (const shipment of stuckShipments) {
+        await autoAssignDeliveryPartner(shipment._id, { allowReoffer: true });
+    }
+    return stuckShipments.length;
+};
+
 export const initAssignmentScheduler = () => {
     const TIMEOUT_INTERVAL_MS = 30000; // run every 30 seconds
 
@@ -998,6 +1035,9 @@ export const initAssignmentScheduler = () => {
                 // Re-trigger Shipment-based assignment
                 autoAssignDeliveryPartner(shipment._id);
             }
+
+            // ─ 1b. Retry stuck forward shipments (see retryStuckShipments) ─
+            await retryStuckShipments();
 
             // ─ 2. Handle Return Pickup timeouts (unchanged) ───────────────
             const expiredReturns = await ReturnRequest.find({

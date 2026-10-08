@@ -70,7 +70,8 @@ export const useVendorServiceStore = create((set, get) => ({
     }
   },
 
-  enableService: async (serviceId) => {
+  // { silent: true } lets a caller show one combined toast for a multi-step flow.
+  enableService: async (serviceId, { silent = false } = {}) => {
     set({ isLoading: true });
     try {
       const response = await enableVendorService(serviceId);
@@ -86,7 +87,7 @@ export const useVendorServiceStore = create((set, get) => ({
         totalMy: state.totalMy + 1,
         isLoading: false,
       }));
-      toast.success('Service enabled for your store successfully.');
+      if (!silent) toast.success('Service enabled for your store successfully.');
       return normalized;
     } catch (error) {
       set({ isLoading: false });
@@ -94,7 +95,7 @@ export const useVendorServiceStore = create((set, get) => ({
     }
   },
 
-  updateServiceConfig: async (id, configData) => {
+  updateServiceConfig: async (id, configData, { silent = false } = {}) => {
     set({ isLoading: true });
     try {
       const response = await updateVendorService(id, configData);
@@ -107,7 +108,7 @@ export const useVendorServiceStore = create((set, get) => ({
         ),
         isLoading: false,
       }));
-      toast.success('Service configuration updated successfully.');
+      if (!silent) toast.success('Service configuration updated successfully.');
       return normalized;
     } catch (error) {
       set({ isLoading: false });

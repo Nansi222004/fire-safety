@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import BookingFlowConfigTab, { DEFAULT_BOOKING_FLOW, bookingFlowFromService, bookingFlowToPayload } from "./BookingFlowConfigTab";
 import { FiX, FiSave, FiUpload, FiPlus, FiTrash2, FiArrowUp, FiArrowDown, FiEye, FiSettings, FiDollarSign, FiCalendar, FiList } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import { useServiceStore } from "../../../../shared/store/serviceStore";
@@ -64,6 +65,7 @@ const ServiceFormModal = ({ service, onClose, onSave }) => {
       isRecurring: false,
     },
     serviceFields: [],
+    bookingFlow: DEFAULT_BOOKING_FLOW,
   });
 
   // Fetch dynamic Service Categories for dropdown
@@ -123,6 +125,7 @@ const ServiceFormModal = ({ service, onClose, onSave }) => {
           optionsStr: Array.isArray(f.options) ? f.options.join(", ") : "",
           sortOrder: f.sortOrder || 0,
         })),
+        bookingFlow: bookingFlowFromService(service),
       });
     }
   }, [service]);
@@ -234,8 +237,10 @@ const ServiceFormModal = ({ service, onClose, onSave }) => {
     setIsSubmitting(true);
 
     try {
+      const { bookingFlow, ...rest } = formData;
       const payload = {
-        ...formData,
+        ...rest,
+        ...bookingFlowToPayload(bookingFlow),
         serviceFields: formData.serviceFields.map((f, i) => ({
           key: f.key || f.label.toLowerCase().replace(/[^a-z0-9_]/g, "_") || `field_${i + 1}`,
           label: f.label,
@@ -362,6 +367,18 @@ const ServiceFormModal = ({ service, onClose, onSave }) => {
                 }`}>
                 <FiPlus />
                 <span>4. Dynamic Fields & Preview</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("bookingFlow")}
+                className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-xl transition-colors ${
+                  activeTab === "bookingFlow"
+                    ? "bg-white text-primary-600 border-t-2 border-primary-600 shadow-sm"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}>
+                <FiSettings />
+                <span>5. Booking Flow</span>
               </button>
             </div>
 
@@ -617,6 +634,18 @@ const ServiceFormModal = ({ service, onClose, onSave }) => {
                     ))}
                   </div>
                 </div>
+              )}
+
+              {/* TAB 5: BOOKING FLOW (category types, quantity, price extras, schedule) */}
+              {activeTab === "bookingFlow" && (
+                <BookingFlowConfigTab
+                  value={formData.bookingFlow}
+                  onChange={(bookingFlow) => setFormData((prev) => ({ ...prev, bookingFlow }))}
+                  requiresQuantity={!!formData.serviceSettings.requiresQuantity}
+                  onToggleQuantity={(checked) =>
+                    setFormData((prev) => ({ ...prev, serviceSettings: { ...prev.serviceSettings, requiresQuantity: checked } }))
+                  }
+                />
               )}
 
               {/* TAB 4: DYNAMIC FIELDS & PREVIEW */}
