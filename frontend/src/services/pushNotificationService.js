@@ -174,19 +174,9 @@ export function setupForegroundNotificationHandler(customHandler) {
             const title = payload.notification?.title || payload.data?.title || 'SafeFire Notification';
             const body = payload.notification?.body || payload.data?.body || payload.data?.message || '';
 
-            // If user has granted permission and window is active, show native browser notification if desired
-            if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
-                try {
-                    new Notification(title, {
-                        body: body,
-                        icon: payload.notification?.icon || payload.data?.icon || '/favicon.ico',
-                        data: payload.data,
-                    });
-                } catch {
-                    // Native notification display fallback
-                }
-            }
-
+            // Foreground message received while app is active:
+            // Delegate OS-level background notifications exclusively to the Service Worker.
+            // Avoid creating duplicate native Notification here when document.hidden to prevent 2x popups.
             if (typeof customHandler === 'function') {
                 customHandler(payload);
             }

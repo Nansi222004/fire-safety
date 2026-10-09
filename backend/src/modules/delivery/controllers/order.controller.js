@@ -462,53 +462,42 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
     const itemsSummary = (order.items || [])
         .map((item) => `${item.name} (x${item.quantity})`)
         .join(', ');
+    const orderHumanId = String(order.orderId || order._id);
 
-    if (order.userId) {
-        statusNotificationTasks.push(
-            createNotification({
-                recipientId: order.userId,
-                recipientType: 'user',
-                title: status === 'delivered' ? 'Order delivered' : 'Order shipped',
-                message:
-                    status === 'delivered'
-                        ? `Your order ${order.orderId} containing [${itemsSummary}] has been delivered.`
-                        : `Your order ${order.orderId} containing [${itemsSummary}] is out for delivery.`,
-                type: 'order',
-                data: {
-                    orderId: String(order.orderId || order._id),
-                    status:  String(status),
-                },
-            })
-        );
+    // If status is 'delivered', shipmentDeliveredListener handles customer and vendor notifications.
+    // If status is 'shipped', ensureDeliveryOtpForShipment already notified the customer with OTP.
+    if (status !== 'delivered') {
+        const vendorIds = [
+            ...new Set(
+                (order.vendorItems || [])
+                    .map((item) => String(item?.vendorId || '').trim())
+                    .filter(Boolean)
+            ),
+        ];
+        vendorIds.forEach((vendorId) => {
+            const vendorGroup = (order.vendorItems || []).find((vg) => String(vg.vendorId) === String(vendorId));
+            const vItemsSummary = vendorGroup
+                ? (vendorGroup.items || []).map((item) => `${item.name} (x${item.quantity})`).join(', ')
+                : '';
+
+            statusNotificationTasks.push(
+                createNotification({
+                    recipientId:   vendorId,
+                    recipientType: 'vendor',
+                    title:         'Delivery status update',
+                    message:       `Order ${orderHumanId} containing [${vItemsSummary}] moved to ${status}.`,
+                    type:          'order',
+                    eventKey:      `order:${orderHumanId}:status:${status}:vendor:${vendorId}`,
+                    data: {
+                        orderId:       orderHumanId,
+                        orderMongoId:  String(order._id),
+                        status:        String(status),
+                        deepLink:      `/vendor/orders/${orderHumanId}`,
+                    },
+                })
+            );
+        });
     }
-
-    const vendorIds = [
-        ...new Set(
-            (order.vendorItems || [])
-                .map((item) => String(item?.vendorId || '').trim())
-                .filter(Boolean)
-        ),
-    ];
-    vendorIds.forEach((vendorId) => {
-        const vendorGroup = (order.vendorItems || []).find((vg) => String(vg.vendorId) === String(vendorId));
-        const vItemsSummary = vendorGroup
-            ? (vendorGroup.items || []).map((item) => `${item.name} (x${item.quantity})`).join(', ')
-            : '';
-
-        statusNotificationTasks.push(
-            createNotification({
-                recipientId:   vendorId,
-                recipientType: 'vendor',
-                title:         'Delivery status update',
-                message:       `Order ${order.orderId} containing [${vItemsSummary}] moved to ${status}.`,
-                type:          'order',
-                data: {
-                    orderId: String(order.orderId || order._id),
-                    status:  String(status),
-                },
-            })
-        );
-    });
 
     if (statusNotificationTasks.length > 0) {
         await Promise.allSettled(statusNotificationTasks);

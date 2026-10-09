@@ -18,12 +18,11 @@ import {
     ASSIGNMENT_ERROR_MESSAGES,
 } from '../../../services/assignmentService.js';
 import { notifyOrderUpdate } from '../../../services/socket.service.js';
-import { buildVendorItemsSummary } from '../../../utils/notificationProductFormatter.js';
-import { getDefaultCommissionRate } from '../../../services/settingsService.js';
+import { getDefaultCommissionRate, getDeliveryRoutingSettings } from '../../../services/settingsService.js';
 import { processCancellationRefund } from '../../../services/cancellationRefundService.js';
 import { ensureDeliveryOtpForShipment } from '../../../services/deliveryOtp.service.js';
 import { createShiprocketShipmentOrFallback } from '../../../services/shiprocketShipment.service.js';
-import { resolveShiprocketPickupLocation } from '../../../services/deliveryRouting.service.js';
+import { resolveShiprocketPickupLocation, evaluateDeliveryRouting } from '../../../services/deliveryRouting.service.js';
 import Vendor from '../../../models/Vendor.model.js';
 
 // GET /api/vendor/delivery-partners/available?shipmentId=  (shipment must belong to the vendor)
@@ -123,10 +122,19 @@ export const selectDeliveryMethod = asyncHandler(async (req, res) => {
     if (shipment.deliveryBoyId || shipment.providerOrderId) {
         throw new ApiError(409, 'A delivery is already in progress for this shipment. The delivery method cannot be changed.');
     }
-    const allowed = Array.isArray(shipment.allowedDeliveryMethods) && shipment.allowedDeliveryMethods.length
+    let allowed = Array.isArray(shipment.allowedDeliveryMethods) && shipment.allowedDeliveryMethods.length
         ? shipment.allowedDeliveryMethods
         : null;
-    if (!allowed) throw new ApiError(409, 'This shipment was routed before delivery method selection existed.');
+    if (!allowed) {
+        const settings = await getDeliveryRoutingSettings();
+        const routing = evaluateDeliveryRouting({
+            isWholesale: Boolean(order.isWholesale),
+            weightKg: shipment.packageWeight || 1,
+            settings,
+        });
+        allowed = routing.allowedDeliveryMethods;
+        shipment.allowedDeliveryMethods = allowed;
+    }
     if (!allowed.includes(method)) {
         throw new ApiError(409, shipment.deliveryRoutingDetails || 'This delivery method is not available for this shipment.');
     }
@@ -331,6 +339,28 @@ export const getVendorOrderById = asyncHandler(async (req, res) => {
     
     // Resolve vendor shipment
     const vendorShipment = (orderObj.shipments || []).find(s => String(s.vendorId) === String(req.user.id));
+    if (vendorShipment && (!vendorShipment.allowedDeliveryMethods || !vendorShipment.allowedDeliveryMethods.length)) {
+        const settings = await getDeliveryRoutingSettings();
+        const routing = evaluateDeliveryRouting({
+            isWholesale: Boolean(order.isWholesale),
+            weightKg: vendorShipment.packageWeight || 1,
+            settings,
+        });
+        vendorShipment.allowedDeliveryMethods = routing.allowedDeliveryMethods;
+        if (!vendorShipment.deliveryRoutingReason && routing.deliveryRoutingReason) {
+            vendorShipment.deliveryRoutingReason = routing.deliveryRoutingReason;
+        }
+        if (!vendorShipment.deliveryRoutingDetails && routing.deliveryRoutingDetails) {
+            vendorShipment.deliveryRoutingDetails = routing.deliveryRoutingDetails;
+        }
+        Shipment.updateOne({ _id: vendorShipment._id }, {
+            $set: {
+                allowedDeliveryMethods: routing.allowedDeliveryMethods,
+                ...(routing.deliveryRoutingReason ? { deliveryRoutingReason: routing.deliveryRoutingReason } : {}),
+                ...(routing.deliveryRoutingDetails ? { deliveryRoutingDetails: routing.deliveryRoutingDetails } : {}),
+            }
+        }).catch(() => {});
+    }
 
     // Preserve vendor preparation status as source of truth.
     // Only sync forward when delivery actually enters transit or completes delivery.
@@ -541,43 +571,42 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
 
     const notificationTasks = [];
     const vItemsText = buildVendorItemsSummary(vendorItem.items);
+    const orderHumanId = String(order.orderId || order._id);
 
     if (order.userId) {
+        let notifTitle = 'Order item status updated';
+        let notifMsg = `An item in your order ${orderHumanId} is now ${status}.${vItemsText}`;
+
+        if (status === 'processing') {
+            notifTitle = 'Your order has been accepted';
+            notifMsg = `Your order ${orderHumanId} has been accepted by the seller.${vItemsText}`;
+        } else if (status === 'ready_for_pickup') {
+            notifTitle = 'Order ready for pickup';
+            notifMsg = `An item in your order ${orderHumanId} is packed and ready for courier pickup.${vItemsText}`;
+        }
+
         notificationTasks.push(
             createNotification({
                 recipientId: order.userId,
                 recipientType: 'user',
-                title: 'Order item status updated',
-                message: `An item in your order ${order.orderId || order._id} is now ${status}.${vItemsText}`,
+                title: notifTitle,
+                message: notifMsg,
                 type: 'order',
+                eventKey: `order:${orderHumanId}:status:${status}:user`,
                 data: {
-                    orderId: String(order.orderId || order._id),
+                    orderId: orderHumanId,
+                    orderMongoId: String(order._id),
                     status: String(status),
                     scope: 'vendor_item',
+                    deepLink: `/orders/${orderHumanId}`,
                 },
             })
         );
     }
 
-    notificationTasks.push(
-        createNotification({
-            recipientId: req.user.id,
-            recipientType: 'vendor',
-            title: 'Order status updated',
-            message: `Order ${order.orderId || order._id} moved to ${status}.${vItemsText}`,
-            type: 'order',
-            data: {
-                orderId: String(order.orderId || order._id),
-                mongoOrderId: String(order._id),
-                status: String(status),
-                actorId: String(req.user.id),
-                actorRole: 'vendor',
-                action: 'vendor_order_status_update',
-            },
-        })
-    );
-
-    await Promise.allSettled(notificationTasks);
+    if (notificationTasks.length > 0) {
+        await Promise.allSettled(notificationTasks);
+    }
 
     res.status(200).json(new ApiResponse(200, order, 'Order status updated.'));
 });
@@ -756,6 +785,7 @@ export const verifyPickup = asyncHandler(async (req, res) => {
     // Trigger notification tasks
     const notificationTasks = [];
     const vItemsText = buildVendorItemsSummary(vendorItem.items);
+    const orderHumanId = String(order.orderId || order._id);
 
     if (order.userId) {
         notificationTasks.push(
@@ -763,30 +793,19 @@ export const verifyPickup = asyncHandler(async (req, res) => {
                 recipientId: order.userId,
                 recipientType: 'user',
                 title: 'Order item status updated',
-                message: `An item in your order ${order.orderId || order._id} is now shipped.${vItemsText}`,
+                message: `An item in your order ${orderHumanId} is now shipped.${vItemsText}`,
                 type: 'order',
+                eventKey: `order:${orderHumanId}:status:shipped:user`,
                 data: {
-                    orderId: String(order.orderId || order._id),
+                    orderId: orderHumanId,
+                    orderMongoId: String(order._id),
                     status: 'shipped',
                     scope: 'vendor_item',
+                    deepLink: `/orders/${orderHumanId}`,
                 },
             })
         );
     }
-
-    notificationTasks.push(
-        createNotification({
-            recipientId: req.user.id,
-            recipientType: 'vendor',
-            title: 'Package picked up successfully',
-            message: `Order ${order.orderId || order._id} has been handed over to the courier.${vItemsText}`,
-            type: 'order',
-            data: {
-                orderId: String(order.orderId || order._id),
-                status: 'shipped',
-            },
-        })
-    );
 
     if (order.deliveryBoyId) {
         notificationTasks.push(
@@ -794,11 +813,14 @@ export const verifyPickup = asyncHandler(async (req, res) => {
                 recipientId: order.deliveryBoyId,
                 recipientType: 'delivery',
                 title: 'Pickup verified successfully',
-                message: `Pickup for order ${order.orderId || order._id} has been verified. You can now proceed to deliver the items.${vItemsText}`,
+                message: `Pickup for order ${orderHumanId} has been verified. You can now proceed to deliver the items.${vItemsText}`,
                 type: 'order',
+                eventKey: `order:${orderHumanId}:pickup_verified:${order.deliveryBoyId}`,
                 data: {
-                    orderId: String(order.orderId || order._id),
+                    orderId: orderHumanId,
+                    orderMongoId: String(order._id),
                     status: 'shipped',
+                    deepLink: `/delivery/orders/${orderHumanId}`,
                 },
             })
         );

@@ -320,15 +320,23 @@ export async function processCapturedPayment({ razorpayOrderId, razorpayPaymentI
     if (!stockFailed) {
         try {
             // T1.2: Fixed recipient → recipientId (notification.service.js requires 'recipientId')
+            const orderHumanId = order.orderId || order._id;
             if (order.userId) {
                 try {
                     await createNotification({
                         recipientId:   order.userId,
                         recipientType: 'user',
                         title:         'Order Confirmed',
-                        message:       `Your order #${order.orderId} has been confirmed successfully!`,
+                        message:       `Your order #${orderHumanId} has been confirmed successfully!`,
                         type:          'order',
-                        data:          { orderId: String(order._id) },
+                        eventKey:      `order:${orderHumanId}:confirmed:user`,
+                        deepLink:      `/orders/${orderHumanId}`,
+                        data:          {
+                            orderId: String(orderHumanId),
+                            orderMongoId: String(order._id),
+                            recipientRole: 'user',
+                            deepLink: `/orders/${orderHumanId}`,
+                        },
                     });
                 } catch (e) {
                     logger.error('[USER_NOTIF_ERROR]', { message: e.message });
@@ -343,9 +351,16 @@ export async function processCapturedPayment({ razorpayOrderId, razorpayPaymentI
                         recipientId:   adm._id,
                         recipientType: 'admin',
                         title:         'New Order Placed',
-                        message:       `A new order #${order.orderId} of total ₹${order.total} has been placed.`,
+                        message:       `A new order #${orderHumanId} of total ₹${order.total} has been placed.`,
                         type:          'order',
-                        data:          { orderId: String(order._id) },
+                        eventKey:      `order:${orderHumanId}:placed:admin:${adm._id}`,
+                        deepLink:      `/admin/orders/${orderHumanId}`,
+                        data:          {
+                            orderId: String(orderHumanId),
+                            orderMongoId: String(order._id),
+                            recipientRole: 'admin',
+                            deepLink: `/admin/orders/${orderHumanId}`,
+                        },
                     })
                 ));
             } catch (e) {
@@ -363,11 +378,15 @@ export async function processCapturedPayment({ razorpayOrderId, razorpayPaymentI
                         recipientId:   vId,
                         recipientType: 'vendor',
                         title:         'New Order Received',
-                        message:       `You have received a new order #${order.orderId}.`,
+                        message:       `You have received a new order #${orderHumanId}.`,
                         type:          'order',
+                        eventKey:      `order:${orderHumanId}:vendor_received:${vId}`,
+                        deepLink:      `/vendor/orders/${orderHumanId}`,
                         data:          {
-                            orderId: String(order.orderId),
+                            orderId: String(orderHumanId),
                             orderMongoId: String(order._id),
+                            recipientRole: 'vendor',
+                            deepLink: `/vendor/orders/${orderHumanId}`,
                         },
                     })
                 ));

@@ -5,12 +5,23 @@
 // Registered before the Firebase SDK loads so it runs first for every notification,
 // including ones the SDK displays itself (their payload is nested under FCM_MSG).
 const resolveNotificationLink = (data = {}) =>
+    data.deepLink ||
     data.link ||
     data.url ||
+    data.FCM_MSG?.data?.deepLink ||
     data.FCM_MSG?.data?.link ||
     data.FCM_MSG?.data?.url ||
     data.FCM_MSG?.fcmOptions?.link ||
-    '/';
+    (() => {
+        const orderId = data.orderId || data.orderMongoId || data.FCM_MSG?.data?.orderId || data.FCM_MSG?.data?.orderMongoId;
+        const role = data.recipientRole || data.role || data.FCM_MSG?.data?.recipientRole || data.FCM_MSG?.data?.role;
+        if (orderId) {
+            if (role === 'vendor') return `/vendor/orders/${orderId}`;
+            if (role === 'delivery' || role === 'deliveryPartner') return `/delivery/orders/${orderId}`;
+            return `/orders/${orderId}`;
+        }
+        return '/';
+    })();
 
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
@@ -27,8 +38,7 @@ self.addEventListener('notificationclick', (event) => {
             }
             if (clientList.length > 0 && 'focus' in clientList[0] && 'navigate' in clientList[0]) {
                 const client = clientList[0];
-                client.navigate(link);
-                return client.focus();
+                return client.navigate(link).then(() => client.focus());
             }
             if (clients.openWindow) {
                 return clients.openWindow(link);
@@ -85,8 +95,8 @@ if (messaging) {
             icon: payload.notification?.icon || payload.data?.icon || '/favicon.ico',
             badge: '/favicon.ico',
             data: payload.data || {},
-            tag: payload.data?.notificationId || payload.data?.id || `safefire-${Date.now()}`,
-            renotify: true,
+            tag: payload.data?.eventKey || payload.data?.notificationId || payload.data?.id || `safefire-bg-${Date.now()}`,
+            renotify: false,
         };
 
         return self.registration.showNotification(title, options);
@@ -107,8 +117,8 @@ self.addEventListener('push', (event) => {
             icon: payload.notification?.icon || payload.data?.icon || '/favicon.ico',
             badge: '/favicon.ico',
             data: payload.data || {},
-            tag: payload.data?.notificationId || payload.data?.id || `safefire-push-${Date.now()}`,
-            renotify: true,
+            tag: payload.data?.eventKey || payload.data?.notificationId || payload.data?.id || `safefire-push-${Date.now()}`,
+            renotify: false,
         };
 
         event.waitUntil(self.registration.showNotification(title, options));

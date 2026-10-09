@@ -112,14 +112,25 @@ const shipmentDeliveredListener = async (payload) => {
         const Order = (await import('../../models/Order.model.js')).default;
         const { createNotification } = await import('../../services/notification.service.js');
         const order = await Order.findById(payload.orderId);
-        if (order?.userId) {
+        if (!order) return;
+
+        const orderHumanId = String(order.orderId || order._id);
+        const orderMongoId = String(order._id);
+
+        if (order.userId) {
             await createNotification({
                 recipientId: order.userId,
                 recipientType: 'user',
                 type: 'order',
                 title: 'Order Delivered',
-                message: `Your order #${order.orderId || order._id} has been delivered!`,
-                data: { orderId: String(order._id), orderNumber: String(order.orderId || '') }
+                message: `Your order #${orderHumanId} has been delivered!`,
+                eventKey: `order:${orderHumanId}:status:delivered:user`,
+                data: {
+                    orderId: orderHumanId,
+                    orderMongoId: orderMongoId,
+                    status: 'delivered',
+                    deepLink: `/orders/${orderHumanId}`,
+                }
             });
         }
         if (payload.vendorId) {
@@ -128,8 +139,14 @@ const shipmentDeliveredListener = async (payload) => {
                 recipientType: 'vendor',
                 type: 'order',
                 title: 'Order Delivered',
-                message: `Order #${payload.orderId} delivered. Earnings releasing in 7 days.`,
-                data: { orderId: String(payload.orderId) }
+                message: `Order #${orderHumanId} delivered. Earnings releasing in 7 days.`,
+                eventKey: `order:${orderHumanId}:status:delivered:vendor:${payload.vendorId}`,
+                data: {
+                    orderId: orderHumanId,
+                    orderMongoId: orderMongoId,
+                    status: 'delivered',
+                    deepLink: `/vendor/orders/${orderHumanId}`,
+                }
             });
         }
 

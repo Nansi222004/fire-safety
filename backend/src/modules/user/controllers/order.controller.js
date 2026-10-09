@@ -799,26 +799,37 @@ export const placeOrder = asyncHandler(async (req, res) => {
                 title: 'Order Placed!',
                 message: `Your order ${order.orderId} has been placed successfully.${itemsText}`,
                 type: 'order',
-                data: { link: `/orders/${order.orderId}` },
+                eventKey: `order:${order.orderId}:placed:customer`,
+                data: {
+                    orderId: String(order.orderId),
+                    orderMongoId: String(order._id),
+                    deepLink: `/orders/${order.orderId}`,
+                    link: `/orders/${order.orderId}`,
+                },
             }).catch((err) => console.error('[Order Notification] Failed to create:', err.message));
         }
 
         // Notify vendors and create database notifications
         (order.vendorItems || []).forEach((vGroup) => {
+            const vendorId = vGroup.vendorId?._id || vGroup.vendorId;
+            if (!vendorId) return;
             const vItemsText = buildVendorItemsSummary(vGroup.items);
             createNotification({
-                recipientId: vGroup.vendorId,
+                recipientId: vendorId,
                 recipientType: 'vendor',
                 title: 'New Order Received!',
                 message: `You have received a new order ${order.orderId} totalling ₹${vGroup.subtotal}.${vItemsText}`,
                 type: 'order',
+                eventKey: `order:${order.orderId}:vendor_received:${vendorId}`,
                 data: {
                     orderId: String(order.orderId),
                     orderMongoId: String(order._id),
+                    deepLink: `/vendor/orders/${order.orderId}`,
+                    link: `/vendor/orders/${order.orderId}`,
                 },
             }).catch((err) => console.error('[Vendor Order Notification] Failed to create:', err.message));
 
-            emitToRoom(`vendor_${vGroup.vendorId}`, 'new_order', {
+            emitToRoom(`vendor_${vendorId}`, 'new_order', {
                 orderId: order.orderId,
                 total: vGroup.subtotal,
                 itemsCount: vGroup.items?.length || 0,

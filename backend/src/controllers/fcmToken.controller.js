@@ -65,30 +65,34 @@ export const saveToken = asyncHandler(async (req, res) => {
         throw new ApiError(404, 'User account not found.');
     }
 
-    const doc = account.doc;
+    const Model = account.modelName === 'User' ? User
+                : account.modelName === 'Vendor' ? Vendor
+                : account.modelName === 'DeliveryBoy' ? DeliveryBoy
+                : Admin;
+
+    // Disassociate this token from any other accounts of this role (e.g. prior user on same device)
+    await Model.updateMany(
+        { _id: { $ne: doc._id } },
+        {
+            $pull: {
+                fcmTokens: cleanToken,
+                fcmTokenMobile: cleanToken,
+            },
+        }
+    );
 
     if (cleanPlatform === 'mobile' || cleanPlatform === 'android' || cleanPlatform === 'ios') {
-        if (!Array.isArray(doc.fcmTokenMobile)) {
-            doc.fcmTokenMobile = [];
+        const currentMobile = [...new Set((doc.fcmTokenMobile || []).filter(Boolean))];
+        if (!currentMobile.includes(cleanToken)) {
+            currentMobile.push(cleanToken);
         }
-        if (!doc.fcmTokenMobile.includes(cleanToken)) {
-            doc.fcmTokenMobile.push(cleanToken);
-            // Limit to 10 tokens FIFO
-            if (doc.fcmTokenMobile.length > 10) {
-                doc.fcmTokenMobile = doc.fcmTokenMobile.slice(-10);
-            }
-        }
+        doc.fcmTokenMobile = currentMobile.slice(-10);
     } else {
-        if (!Array.isArray(doc.fcmTokens)) {
-            doc.fcmTokens = [];
+        const currentWeb = [...new Set((doc.fcmTokens || []).filter(Boolean))];
+        if (!currentWeb.includes(cleanToken)) {
+            currentWeb.push(cleanToken);
         }
-        if (!doc.fcmTokens.includes(cleanToken)) {
-            doc.fcmTokens.push(cleanToken);
-            // Limit to 10 tokens FIFO
-            if (doc.fcmTokens.length > 10) {
-                doc.fcmTokens = doc.fcmTokens.slice(-10);
-            }
-        }
+        doc.fcmTokens = currentWeb.slice(-10);
     }
 
     await doc.save();

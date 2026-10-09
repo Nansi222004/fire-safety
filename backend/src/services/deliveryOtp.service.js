@@ -124,15 +124,20 @@ export const ensureDeliveryOtpForShipment = async (shipmentOrId, orderOrId, opti
     });
 
     if (order.userId) {
+        const orderHumanId = String(order.orderId || order._id);
         createNotification({
             recipientId: order.userId,
             recipientType: 'user',
             title: 'Delivery Verification OTP',
             message: `Your package (${shipment.shipmentNumber || 'Shipment'}) is shipped. Share OTP ${generatedOtp} with delivery partner upon delivery.`,
             type: 'order',
+            eventKey: `order:${orderHumanId}:delivery_otp:user`,
             data: {
-                orderId: String(order._id),
+                orderId: orderHumanId,
+                orderMongoId: String(order._id),
                 shipmentId: String(shipment._id),
+                status: 'shipped',
+                deepLink: `/orders/${orderHumanId}`,
             },
         }).catch((err) => {
             console.warn(`[Delivery OTP] Async notification error: ${err.message}`);

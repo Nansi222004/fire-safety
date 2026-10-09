@@ -520,6 +520,7 @@ export const initializePayment = asyncHandler(async (req, res) => {
         if (order && order.orderId) {
             const notificationTasks = [];
             
+            const orderHumanId = String(order.orderId || order._id);
             // 1. User Notification
             if (userId) {
                 const itemsText = buildOrderItemsSummary(order.items);
@@ -528,9 +529,15 @@ export const initializePayment = asyncHandler(async (req, res) => {
                         recipientId: userId,
                         recipientType: 'user',
                         title: 'Order Placed!',
-                        message: `Your order ${order.orderId} has been placed successfully.${itemsText}`,
+                        message: `Your order ${orderHumanId} has been placed successfully.${itemsText}`,
                         type: 'order',
-                        data: { link: `/orders/${order.orderId}` },
+                        eventKey: `order:${orderHumanId}:placed:customer`,
+                        data: {
+                            orderId: orderHumanId,
+                            orderMongoId: String(order._id),
+                            deepLink: `/orders/${orderHumanId}`,
+                            link: `/orders/${orderHumanId}`,
+                        },
                     }).catch(err => console.error('[COD User Notification] Failed:', err.message))
                 );
             }
@@ -543,9 +550,15 @@ export const initializePayment = asyncHandler(async (req, res) => {
                             recipientId: adm._id,
                             recipientType: 'admin',
                             title: 'New Order Placed',
-                            message: `A new COD order #${order.orderId} of total ₹${order.total} has been placed.`,
+                            message: `A new COD order #${orderHumanId} of total ₹${order.total} has been placed.`,
                             type: 'order',
-                            data: { orderId: String(order._id) },
+                            eventKey: `order:${orderHumanId}:placed:admin:${adm._id}`,
+                            data: {
+                                orderId: orderHumanId,
+                                orderMongoId: String(order._id),
+                                deepLink: `/admin/orders/${orderHumanId}`,
+                                link: `/admin/orders/${orderHumanId}`,
+                            },
                         }).catch(err => console.error('[COD Admin Notification] Failed:', err.message));
                     });
                 })
@@ -561,11 +574,14 @@ export const initializePayment = asyncHandler(async (req, res) => {
                         recipientId: vendorId,
                         recipientType: 'vendor',
                         title: 'New Order Received!',
-                        message: `You have received a new order ${order.orderId} totalling ₹${vGroup.subtotal}.${vItemsText}`,
+                        message: `You have received a new order ${orderHumanId} totalling ₹${vGroup.subtotal}.${vItemsText}`,
                         type: 'order',
+                        eventKey: `order:${orderHumanId}:vendor_received:${vendorId}`,
                         data: {
-                            orderId: String(order.orderId),
+                            orderId: orderHumanId,
                             orderMongoId: String(order._id),
+                            deepLink: `/vendor/orders/${orderHumanId}`,
+                            link: `/vendor/orders/${orderHumanId}`,
                         },
                     }).catch(err => console.error('[COD Vendor Notification] Failed:', err.message))
                 );
@@ -883,14 +899,21 @@ export const initializePayment = asyncHandler(async (req, res) => {
             });
         }
 
+        const orderHumanId = String(order.orderId || order._id);
         // Fully paid by wallet - trigger async side effects
         createNotification({
             recipientId: userId,
             recipientType: 'user',
             title: 'Order Confirmed',
-            message: `Your order #${order.orderId} has been confirmed successfully!`,
+            message: `Your order #${orderHumanId} has been confirmed successfully!`,
             type: 'order',
-            data: { orderId: String(order._id) },
+            eventKey: `order:${orderHumanId}:placed:customer`,
+            data: {
+                orderId: orderHumanId,
+                orderMongoId: String(order._id),
+                deepLink: `/orders/${orderHumanId}`,
+                link: `/orders/${orderHumanId}`,
+            },
         }).catch(console.error);
 
         // Notify each admin individually
@@ -901,9 +924,15 @@ export const initializePayment = asyncHandler(async (req, res) => {
                         recipientId: adm._id,
                         recipientType: 'admin',
                         title: 'New Order Placed',
-                        message: `A new order #${order.orderId} of total ₹${order.total} has been placed.`,
+                        message: `A new order #${orderHumanId} of total ₹${order.total} has been placed.`,
                         type: 'order',
-                        data: { orderId: String(order._id) },
+                        eventKey: `order:${orderHumanId}:placed:admin:${adm._id}`,
+                        data: {
+                            orderId: orderHumanId,
+                            orderMongoId: String(order._id),
+                            deepLink: `/admin/orders/${orderHumanId}`,
+                            link: `/admin/orders/${orderHumanId}`,
+                        },
                     }).catch(err => console.error('[Wallet Admin Notification] Failed:', err.message));
                 });
             })
@@ -918,11 +947,14 @@ export const initializePayment = asyncHandler(async (req, res) => {
                 recipientId: vendorId,
                 recipientType: 'vendor',
                 title: 'New Order Received!',
-                message: `You have received a new order ${order.orderId} totalling ₹${vGroup.subtotal}.${vItemsText}`,
+                message: `You have received a new order ${orderHumanId} totalling ₹${vGroup.subtotal}.${vItemsText}`,
                 type: 'order',
+                eventKey: `order:${orderHumanId}:vendor_received:${vendorId}`,
                 data: {
-                    orderId: String(order.orderId),
+                    orderId: orderHumanId,
                     orderMongoId: String(order._id),
+                    deepLink: `/vendor/orders/${orderHumanId}`,
+                    link: `/vendor/orders/${orderHumanId}`,
                 },
             }).catch(err => console.error('[Wallet Vendor Notification] Failed:', err.message));
         });

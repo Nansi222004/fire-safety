@@ -432,68 +432,82 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
 
     const notificationTasks = [];
     const itemsText = buildOrderItemsSummary(order.items);
+    const orderHumanId = String(order.orderId || order._id);
 
-    if (order.userId) {
-        notificationTasks.push(
-            createNotification({
-                recipientId: order.userId,
-                recipientType: 'user',
-                title: 'Order status updated',
-                message: `Your order ${order.orderId} is now ${status}.${itemsText}`,
-                type: 'order',
-                data: {
-                    orderId: String(order.orderId),
-                    status: String(nextStatus),
-                },
-            })
-        );
+    // Only dispatch status transition notifications if the status actually changed
+    if (previousStatus !== nextStatus) {
+        // If nextStatus is 'shipped', ensureDeliveryOtpForShipment already notified the customer with OTP
+        if (order.userId && nextStatus !== 'shipped') {
+            notificationTasks.push(
+                createNotification({
+                    recipientId: order.userId,
+                    recipientType: 'user',
+                    title: 'Order status updated',
+                    message: `Your order ${orderHumanId} is now ${nextStatus}.${itemsText}`,
+                    type: 'order',
+                    eventKey: `order:${orderHumanId}:status:${nextStatus}:user`,
+                    data: {
+                        orderId: orderHumanId,
+                        orderMongoId: String(order._id),
+                        status: String(nextStatus),
+                        deepLink: `/orders/${orderHumanId}`,
+                    },
+                })
+            );
+        }
+
+        const vendorIds = [
+            ...new Set(
+                (order.vendorItems || [])
+                    .map((item) => String(item?.vendorId || '').trim())
+                    .filter(Boolean)
+            ),
+        ];
+
+        vendorIds.forEach((vendorId) => {
+            const vendorGroup = (order.vendorItems || []).find((vg) => String(vg.vendorId) === String(vendorId));
+            const vItemsText = vendorGroup ? buildVendorItemsSummary(vendorGroup.items) : '';
+
+            notificationTasks.push(
+                createNotification({
+                    recipientId: vendorId,
+                    recipientType: 'vendor',
+                    title: 'Order status updated by admin',
+                    message: `Order ${orderHumanId} was updated to ${nextStatus} by admin.${vItemsText}`,
+                    type: 'order',
+                    eventKey: `order:${orderHumanId}:status:${nextStatus}:vendor:${vendorId}`,
+                    data: {
+                        orderId: orderHumanId,
+                        orderMongoId: String(order._id),
+                        status: String(nextStatus),
+                        deepLink: `/vendor/orders/${orderHumanId}`,
+                    },
+                })
+            );
+        });
+
+        const orderShipments = await mongoose.model('Shipment').find({ orderId: order._id, deliveryBoyId: { $exists: true, $ne: null } }).lean();
+        const deliveryBoyIds = [...new Set(orderShipments.map(s => String(s.deliveryBoyId)))];
+
+        deliveryBoyIds.forEach(boyId => {
+            notificationTasks.push(
+                createNotification({
+                    recipientId: boyId,
+                    recipientType: 'delivery',
+                    title: 'Assigned order updated',
+                    message: `Order ${orderHumanId} is now ${nextStatus}.${itemsText}`,
+                    type: 'order',
+                    eventKey: `order:${orderHumanId}:status:${nextStatus}:delivery:${boyId}`,
+                    data: {
+                        orderId: orderHumanId,
+                        orderMongoId: String(order._id),
+                        status: String(nextStatus),
+                        deepLink: `/delivery/orders/${orderHumanId}`,
+                    },
+                })
+            );
+        });
     }
-
-    const vendorIds = [
-        ...new Set(
-            (order.vendorItems || [])
-                .map((item) => String(item?.vendorId || '').trim())
-                .filter(Boolean)
-        ),
-    ];
-
-    vendorIds.forEach((vendorId) => {
-        const vendorGroup = (order.vendorItems || []).find((vg) => String(vg.vendorId) === String(vendorId));
-        const vItemsText = vendorGroup ? buildVendorItemsSummary(vendorGroup.items) : '';
-
-        notificationTasks.push(
-            createNotification({
-                recipientId: vendorId,
-                recipientType: 'vendor',
-                title: 'Order status updated by admin',
-                message: `Order ${order.orderId} was updated to ${status} by admin.${vItemsText}`,
-                type: 'order',
-                data: {
-                    orderId: String(order.orderId),
-                    status: String(nextStatus),
-                },
-            })
-        );
-    });
-
-    const orderShipments = await mongoose.model('Shipment').find({ orderId: order._id, deliveryBoyId: { $exists: true, $ne: null } }).lean();
-    const deliveryBoyIds = [...new Set(orderShipments.map(s => String(s.deliveryBoyId)))];
-
-    deliveryBoyIds.forEach(boyId => {
-        notificationTasks.push(
-            createNotification({
-                recipientId: boyId,
-                recipientType: 'delivery',
-                title: 'Assigned order updated',
-                message: `Order ${order.orderId} is now ${status}.${itemsText}`,
-                type: 'order',
-                data: {
-                    orderId: String(order.orderId),
-                    status: String(nextStatus),
-                },
-            })
-        );
-    });
 
     if (notificationTasks.length > 0) {
         await Promise.allSettled(notificationTasks);

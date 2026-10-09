@@ -69,14 +69,22 @@ const shipmentCancelledListener = async (payload) => {
 
         // 3. Notification
         const order = await Order.findById(payload.orderId);
+        const orderHumanId = order?.orderId || order?._id || payload.orderId;
         if (order?.userId) {
             await createNotification({
                 recipientId: order.userId,
                 recipientType: 'user',
                 type: 'order',
                 title: 'Order Cancelled',
-                message: `Your order #${order.orderId || order._id} has been cancelled.`,
-                data: { orderId: String(order._id), orderNumber: String(order.orderId || '') }
+                message: `Your order #${orderHumanId} has been cancelled.`,
+                eventKey: `order:${orderHumanId}:cancelled:user`,
+                deepLink: `/orders/${orderHumanId}`,
+                data: {
+                    orderId: String(orderHumanId),
+                    orderMongoId: String(order._id),
+                    recipientRole: 'user',
+                    deepLink: `/orders/${orderHumanId}`,
+                }
             });
         }
         if (payload.vendorId) {
@@ -85,8 +93,15 @@ const shipmentCancelledListener = async (payload) => {
                 recipientType: 'vendor',
                 type: 'order',
                 title: 'Order Cancelled',
-                message: `Order #${payload.orderId} has been cancelled.`,
-                data: { orderId: String(payload.orderId) }
+                message: `Order #${orderHumanId} has been cancelled.`,
+                eventKey: `order:${orderHumanId}:cancelled:vendor:${payload.vendorId}`,
+                deepLink: `/vendor/orders/${orderHumanId}`,
+                data: {
+                    orderId: String(orderHumanId),
+                    orderMongoId: String(order?._id || payload.orderId),
+                    recipientRole: 'vendor',
+                    deepLink: `/vendor/orders/${orderHumanId}`,
+                }
             });
         }
 
