@@ -136,6 +136,18 @@ const OrderDetail = () => {
 
     const handleStatusChange = async (newStatus) => {
         if (!order) return;
+
+        // Guard: Require delivery method selection before moving to ready_for_pickup or shipped
+        if (newStatus === 'ready_for_pickup' || newStatus === 'shipped') {
+            const unchosenShipment = (order.shipments || []).find(
+                (s) => !s.deliveryMethod || s.providerId === 'pending_selection'
+            );
+            if (unchosenShipment) {
+                toast.error('Choose a delivery method (Shiprocket or Manual Delivery) before marking the order ready for pickup.');
+                return;
+            }
+        }
+
         setUpdatingStatus(true);
         const actionKey = recordSelfAction({
             type: 'order_status_update',
@@ -146,16 +158,22 @@ const OrderDetail = () => {
 
         try {
             await updateVendorOrderStatus(order.orderId ?? order._id, newStatus);
-            // Optimistically update local state
-            setOrder((prev) => ({
-                ...prev,
-                vendorItems: prev.vendorItems?.map((vi) =>
-                    vi.vendorId?.toString() === vendorId?.toString()
-                        ? { ...vi, status: newStatus }
-                        : vi
-                ),
-                status: newStatus,
-            }));
+            // Re-fetch authoritative order data from server
+            const res = await getVendorOrderById(id);
+            const data = res?.data ?? res;
+            if (data) {
+                setOrder(data);
+            } else {
+                setOrder((prev) => ({
+                    ...prev,
+                    vendorItems: prev.vendorItems?.map((vi) =>
+                        vi.vendorId?.toString() === vendorId?.toString()
+                            ? { ...vi, status: newStatus }
+                            : vi
+                    ),
+                    status: newStatus,
+                }));
+            }
             const formattedStatus = newStatus.charAt(0).toUpperCase() + newStatus.slice(1).replace(/_/g, ' ');
             toast.success(`Order status updated to ${formattedStatus}`);
         } catch {
@@ -453,13 +471,25 @@ const OrderDetail = () => {
                                                     </h3>
                                                     <p className="text-[11px] text-gray-500 font-mono mt-1 mb-2">ID: {shipment.shipmentNumber || shipment._id}</p>
                                                     
-                                                    {shipment.providerId && (
-                                                        <p className="text-xs text-gray-600 font-medium capitalize">
+                                                    {shipment.deliveryMethod ? (
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <span className="text-xs text-gray-500 font-medium">Delivery Method:</span>
+                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                                                                {shipment.deliveryMethod === 'SHIPROCKET' ? '🚀 Shiprocket' : '🛵 Manual Delivery'}
+                                                            </span>
+                                                        </div>
+                                                    ) : shipment.providerId === 'pending_selection' || !shipment.deliveryMethod ? (
+                                                        <div className="flex items-center gap-1.5 mt-1 text-xs text-amber-800 bg-amber-50 border border-amber-200/80 px-2.5 py-1 rounded-lg font-medium w-fit">
+                                                            <span>⚠️</span>
+                                                            <span>Provider: <strong className="font-bold">Pending Selection</strong></span>
+                                                        </div>
+                                                    ) : shipment.providerId ? (
+                                                        <p className="text-xs text-gray-600 font-medium capitalize mt-1">
                                                             Provider: <span className="font-bold text-gray-800">{shipment.providerId.replace('_', ' ')}</span>
                                                         </p>
-                                                    )}
+                                                    ) : null}
                                                     {shipment.awbCode && (
-                                                        <p className="text-xs text-gray-600 font-medium">
+                                                        <p className="text-xs text-gray-600 font-medium mt-1">
                                                             AWB: <span className="font-bold text-gray-800 font-mono">{shipment.awbCode}</span>
                                                         </p>
                                                     )}
@@ -498,7 +528,14 @@ const OrderDetail = () => {
                                                 orderId={order._id || order.orderId}
                                                 vendorStatus={currentStatus}
                                                 actor="vendor"
-                                                onChanged={() => setRefreshKey((value) => value + 1)}
+                                                onChanged={async () => {
+                                                    setRefreshKey((value) => value + 1);
+                                                    try {
+                                                        const res = await getVendorOrderById(id);
+                                                        const data = res?.data ?? res;
+                                                        if (data) setOrder(data);
+                                                    } catch {}
+                                                }}
                                             />
 
                                             <ManualDeliveryAssignment
@@ -506,8 +543,45 @@ const OrderDetail = () => {
                                                 shipment={shipment}
                                                 orderId={order._id || order.orderId}
                                                 actor="vendor"
-                                                onAssigned={() => setRefreshKey((value) => value + 1)}
+                                                onAssigned={async () => {
+                                                    setRefreshKey((value) => value + 1);
+                                                    try {
+                                                        const res = await getVendorOrderById(id);
+                                                        const data = res?.data ?? res;
+                                                        if (data) setOrder(data);
+                                                    } catch {}
+                                                }}
                                             />
+
+                                            {/* Ready for Pickup Action when Processing */}
+                                            {currentStatus === 'processing' && (
+                                                <div className="mt-3.5 pt-3 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gray-50/70 p-3 rounded-xl border border-gray-200/60">
+                                                    <div className="text-xs text-gray-600">
+                                                        {!shipment.deliveryMethod ? (
+                                                            <span className="text-amber-700 font-semibold flex items-center gap-1.5">
+                                                                <span>⚠️</span> Choose a delivery method above to enable Ready for Pickup.
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-emerald-700 font-semibold flex items-center gap-1.5">
+                                                                <span>✅</span> Delivery method chosen. You can now mark order ready for pickup.
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        disabled={updatingStatus || !shipment.deliveryMethod}
+                                                        onClick={() => handleStatusChange('ready_for_pickup')}
+                                                        className={`w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                                                            shipment.deliveryMethod
+                                                                ? 'bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 active:scale-95 text-white shadow-md shadow-purple-500/20 cursor-pointer'
+                                                                : 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed'
+                                                        }`}
+                                                        title={!shipment.deliveryMethod ? 'Choose a delivery method above before marking ready for pickup' : 'Mark order ready for pickup'}
+                                                    >
+                                                        <span>📦 Mark Ready for Pickup</span>
+                                                    </button>
+                                                </div>
+                                            )}
 
                                             {/* Pickup OTP */}
                                             {currentStatus === 'ready_for_pickup' && assignmentStatus === 'accepted' && (

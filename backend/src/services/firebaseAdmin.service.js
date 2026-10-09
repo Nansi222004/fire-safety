@@ -149,12 +149,26 @@ export async function sendPushNotification(tokens = [], payload = {}) {
             };
         }
 
+        const webpushLink = notificationData.deepLink || notificationData.link || '/';
+        const webpushTag = notificationData.eventKey || notificationData.notificationId || undefined;
+
         const message = {
             notification: {
                 title: payload.title || 'SafeFire Notification',
                 body: payload.body || '',
             },
             data: notificationData,
+            webpush: {
+                fcmOptions: {
+                    link: webpushLink,
+                },
+                notification: {
+                    tag: webpushTag,
+                    renotify: false,
+                    icon: '/favicon.ico',
+                    badge: '/favicon.ico',
+                },
+            },
             tokens: uniqueTokens,
         };
 

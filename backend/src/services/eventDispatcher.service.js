@@ -23,7 +23,12 @@ class EventDispatcher {
         if (!this.handlers.has(eventName)) {
             this.handlers.set(eventName, []);
         }
-        this.handlers.get(eventName).push(handler);
+        const list = this.handlers.get(eventName);
+        if (list.includes(handler)) {
+            console.warn(`[EventDispatcher] Handler already registered for ${eventName}, skipping duplicate.`);
+            return;
+        }
+        list.push(handler);
         console.log(`[EventDispatcher] Registered handler for ${eventName}`);
     }
 

@@ -62,8 +62,8 @@ const AppBootstrap = () => {
     initializePushNotifications();
     setupForegroundNotificationHandler((payload) => {
       console.log("[Push Notification Foreground]:", payload);
-      // If payload has a link, we can trigger custom in-app handling if desired
-      if (payload?.data?.link && document.visibilityState === 'visible') {
+      // If payload has a link or deepLink, we can trigger custom in-app handling if desired
+      if ((payload?.data?.deepLink || payload?.data?.link) && document.visibilityState === 'visible') {
         const title = payload.notification?.title || payload.data?.title || 'SafeFire Alert';
         const msg = payload.notification?.body || payload.data?.body || payload.data?.message || '';
         // Suppress duplicate foreground toast for new order placement

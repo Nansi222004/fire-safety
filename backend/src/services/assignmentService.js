@@ -171,14 +171,20 @@ export const manualAssignDeliveryPartner = async ({
 
     if (!updated) return { success: false, code: 'ASSIGNMENT_CONFLICT' };
 
-    const order = await Order.findById(updated.orderId);
+    const orderHumanId = String(order?.orderId || updated.orderId);
     await createNotification({
         recipientId: deliveryBoy._id,
         recipientType: 'delivery',
-        title: 'Delivery assigned manually',
-        message: `You have been assigned order ${order?.orderId || updated.orderId}.`,
+        title: 'New delivery assigned',
+        message: `You have been assigned order #${orderHumanId}.`,
         type: 'order',
-        data: { orderId: String(order?._id || updated.orderId), shipmentId: String(updated._id) },
+        eventKey: `shipment:${updated._id}:delivery_assigned:${deliveryBoy._id}`,
+        data: {
+            orderId: orderHumanId,
+            orderMongoId: String(order?._id || ''),
+            shipmentId: String(updated._id),
+            deepLink: `/delivery/orders/${orderHumanId}`,
+        },
     });
     if (order) notifyOrderUpdate(order);
     return { success: true, shipment: updated };
@@ -324,16 +330,20 @@ export const autoAssignDeliveryPartner = async (shipmentId, options = {}) => {
             `You have been offered order ${order.orderId || order._id} from [${vendorsSummary}]. ` +
             `Please accept or reject within 5 minutes.${itemsText}`;
 
+        const orderHumanId = String(order.orderId || order._id);
         await createNotification({
             recipientId:   selectedRider._id,
             recipientType: 'delivery',
-            title:         'New order offer',
+            title:         'New delivery assigned',
             message:       richOfferMessage,
             type:          'order',
+            eventKey:      `shipment:${updatedShipment._id}:delivery_assigned:${selectedRider._id}`,
             data: {
-                orderId:     String(order.orderId || order._id),
+                orderId:     orderHumanId,
+                orderMongoId: String(order._id),
                 shipmentId:  String(updatedShipment._id),
                 assignedAt:  new Date().toISOString(),
+                deepLink:    `/delivery/orders/${orderHumanId}`,
             },
         });
 
@@ -472,15 +482,19 @@ export const autoAssignDeliveryPartnerLegacy = async (orderId) => {
             `You have been offered order ${order.orderId || order._id} from [${vendorsSummary}]. ` +
             `Please accept or reject within 5 minutes.${itemsText}`;
 
+        const orderHumanId = String(order.orderId || order._id);
         await createNotification({
             recipientId:   selectedRider._id,
             recipientType: 'delivery',
-            title:         'New order offer',
+            title:         'New delivery assigned',
             message:       richOfferMessage,
             type:          'order',
+            eventKey:      `order:${orderHumanId}:delivery_assigned:${selectedRider._id}`,
             data: {
-                orderId:    String(order.orderId || order._id),
-                assignedAt: new Date().toISOString(),
+                orderId:     orderHumanId,
+                orderMongoId: String(order._id),
+                assignedAt:  new Date().toISOString(),
+                deepLink:    `/delivery/orders/${orderHumanId}`,
             },
         });
 
@@ -995,13 +1009,18 @@ export const cancelShipmentDeliveryAssignment = async (shipmentId, reason = 'Pac
 
         // Notify assigned rider if rider was assigned
         if (assignedRiderId) {
+            const shpId = String(shipment.shipmentNumber || shipment._id);
             createNotification({
                 recipientId: assignedRiderId,
                 recipientType: 'delivery',
                 title: 'Delivery Task Cancelled',
-                message: `Delivery task for Shipment #${shipment.shipmentNumber || shipment._id} has been cancelled. Reason: ${reason}`,
+                message: `Delivery task for Shipment #${shpId} has been cancelled. Reason: ${reason}`,
                 type: 'order',
-                data: { shipmentId: String(shipment._id) }
+                eventKey: `shipment:${shipment._id}:cancelled:${assignedRiderId}`,
+                data: {
+                    shipmentId: String(shipment._id),
+                    deepLink: '/delivery/orders',
+                }
             }).catch(err => console.error('[Rider Notification Error]:', err.message));
         }
     } catch (err) {
