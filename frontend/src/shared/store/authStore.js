@@ -3,6 +3,12 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import api from '../utils/api';
 import { registerFCMToken, removeFCMToken } from '../../services/pushNotificationService';
 
+// Clears per-account address state left over from a previous session on this device.
+const resetAccountScopedData = () => {
+  try { localStorage.removeItem('safefire_checkout_address'); } catch {} // legacy shared key
+  import('./addressStore').then((m) => m.useAddressStore.getState().resetAddresses?.()).catch(() => {});
+};
+
 export const useAuthStore = create(
   persist(
     (set, get) => ({
@@ -28,6 +34,8 @@ export const useAuthStore = create(
             throw new Error('Invalid login response from server.');
           }
 
+          // Signing in starts a fresh account session on this device.
+          resetAccountScopedData();
           set({
             user,
             token: accessToken,
@@ -81,6 +89,7 @@ export const useAuthStore = create(
           };
 
           await api.post('/user/auth/register', payload);
+          resetAccountScopedData();
 
           set({
             user: null,
@@ -116,6 +125,8 @@ export const useAuthStore = create(
             throw new Error('Invalid OTP verification response from server.');
           }
 
+          // Signing in starts a fresh account session on this device.
+          resetAccountScopedData();
           set({
             user,
             token: accessToken,
@@ -221,6 +232,7 @@ export const useAuthStore = create(
         });
         localStorage.removeItem('wishlist-storage');
         localStorage.removeItem('address-storage');
+        resetAccountScopedData();
       },
 
       // Delete user account action
@@ -251,6 +263,7 @@ export const useAuthStore = create(
           });
           localStorage.removeItem('wishlist-storage');
           localStorage.removeItem('address-storage');
+          resetAccountScopedData();
 
           return { success: true, message: payload?.message || 'Account deleted successfully.' };
         } catch (error) {
