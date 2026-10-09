@@ -188,10 +188,14 @@ const ProductListItem = ({ product, index, isFlashSale = false }) => {
               <motion.button
                 type="button"
                 whileTap={{ scale: 0.95 }}
-                onClick={handleRemoveFromCart}
-                className="px-4 py-2 rounded-xl font-bold text-xs md:text-sm flex items-center gap-2 bg-rose-50 text-rose-600 border border-rose-100 transition-all shadow-sm">
-                <FiTrash2 className="text-xs md:text-base" />
-                <span>Remove</span>
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  useUIStore.getState().openCart();
+                }}
+                className="px-4 py-2 rounded-xl font-bold text-xs md:text-sm flex items-center gap-2 bg-primary-50 text-primary-600 border border-primary-500 hover:bg-primary-100 transition-all shadow-sm">
+                <FiShoppingBag className="text-xs md:text-base text-primary-600" />
+                <span>Go to Cart</span>
               </motion.button>
             ) : (
               <motion.button

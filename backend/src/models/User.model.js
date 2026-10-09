@@ -11,6 +11,10 @@ const userSchema = new mongoose.Schema(
         role: { type: String, enum: ['customer', 'delivery'], default: 'customer' },
         isVerified: { type: Boolean, default: false },
         isActive: { type: Boolean, default: true },
+        // Approved wholesale vendor account this customer account is linked to. Set only after the
+        // vendor's own credentials were proven on the User Side (same-credential login).
+        linkedWholesaleVendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor', default: null, index: true },
+        linkedWholesaleAt: { type: Date, default: null },
         otp: { type: String, select: false },
         otpExpiry: { type: Date, select: false },
         resetOtp: { type: String, select: false },

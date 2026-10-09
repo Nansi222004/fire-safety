@@ -14,9 +14,9 @@ const ManualDeliveryAssignment = ({ shipment, orderId, actor, onAssigned }) => {
   const [selectedId, setSelectedId] = useState('');
   const [reassign, setReassign] = useState(false);
   const [loading, setLoading] = useState(false);
-  // Manual Delivery shipments (plus legacy own-fleet shipments routed before delivery-method selection).
+  // Manual Delivery shipments (plus legacy own-fleet shipments and admin override on open shipments).
   const isLegacyOwnFleet = !shipment?.deliveryMethod && !shipment?.allowedDeliveryMethods?.length && shipment?.providerId === 'own_fleet';
-  const isInternal = shipment?.deliveryMethod === 'INTERNAL' || isLegacyOwnFleet;
+  const isInternal = shipment?.deliveryMethod === 'INTERNAL' || isLegacyOwnFleet || (actor === 'admin' && shipment?.providerId !== 'shiprocket');
   const isClosed = ['delivered', 'cancelled', 'returned', 'failed', 'return_initiated'].includes(shipment?.status);
   const alreadyAssigned = Boolean(shipment?.deliveryBoyId);
 

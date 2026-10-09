@@ -1,7 +1,7 @@
 import { FiHeart, FiShoppingBag, FiStar, FiTrash2, FiCheck } from "react-icons/fi";
 import { motion } from "framer-motion";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { useCartStore } from "../store/useStore";
+import { useCartStore, useUIStore } from "../store/useStore";
 import { useWishlistStore } from "../store/wishlistStore";
 import { formatPrice, getPlaceholderImage } from "../utils/helpers";
 import toast from "react-hot-toast";
@@ -25,6 +25,7 @@ const ProductCard = ({
   const isCategoriesRoute = redirectToCheckout || location.pathname.startsWith("/categories");
   const productLink = `/product/${product.id}`;
   const { items, addItem, removeItem } = useCartStore();
+  const openCart = useUIStore((state) => state.openCart);
   const {
     addItem: addToWishlist,
     removeItem: removeFromWishlist,
@@ -300,11 +301,15 @@ const ProductCard = ({
             {isInCart ? (
               <motion.button
                 type="button"
-                onClick={handleRemoveFromCart}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  openCart();
+                }}
                 whileTap={{ scale: 0.95 }}
-                className="w-full py-2.5 rounded-xl font-bold text-xs bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100 transition-all flex items-center justify-center gap-2 shadow-sm">
-                <FiTrash2 className="text-sm" />
-                <span>Remove</span>
+                className="w-full py-2.5 rounded-xl font-bold text-xs bg-primary-50 text-primary-600 border border-primary-500 hover:bg-primary-100 transition-all flex items-center justify-center gap-2 shadow-sm">
+                <FiShoppingBag className="text-sm text-primary-600" />
+                <span>Go to Cart</span>
               </motion.button>
             ) : (
               <motion.button

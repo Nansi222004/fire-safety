@@ -22,17 +22,42 @@ export const WHOLESALE_APPROVED_FILTER = {
 
 /**
  * Resolves the approved wholesale vendor account linked to a customer account.
- * The link is the shared (verified) email — "same account credentials".
- * Returns null for normal B2C customers.
+ * Eligibility is re-evaluated on every call from authoritative data:
+ *   • the customer account is active and verified,
+ *   • it carries an explicit link (linkedWholesaleVendorId) created when the vendor's own
+ *     credentials were proven on the User Side — a matching email alone is NOT enough,
+ *   • the linked vendor is still approved, verified, wholesale-enabled and wholesale-approved,
+ *   • and the vendor still owns the same email (the account identity did not change).
+ * Returns null for normal B2C customers, unlinked accounts and suspended/revoked vendors.
  */
 export const getWholesaleBuyerForUser = async (userId) => {
     if (!userId) return null;
-    const user = await User.findById(userId).select('email isActive isVerified').lean();
-    if (!user?.email || !user.isActive || !user.isVerified) return null;
+    const user = await User.findById(userId).select('email isActive isVerified linkedWholesaleVendorId').lean();
+    if (!user?.email || !user.isActive || !user.isVerified || !user.linkedWholesaleVendorId) return null;
 
-    return Vendor.findOne({ email: user.email, isVerified: true, ...WHOLESALE_APPROVED_FILTER })
+    return Vendor.findOne({
+        _id: user.linkedWholesaleVendorId,
+        email: user.email,
+        isVerified: true,
+        ...WHOLESALE_APPROVED_FILTER,
+    })
         .select('_id name storeName email')
         .lean();
+};
+
+/**
+ * Links a customer account to its approved wholesale vendor after the vendor password was
+ * verified for this login. No-op when the credentials do not belong to an approved wholesale vendor.
+ */
+export const linkWholesaleVendorIfCredentialsMatch = async (user, normalizedEmail, password) => {
+    if (!user?._id || !normalizedEmail || !password) return false;
+    const vendor = await Vendor.findOne({ email: normalizedEmail, isVerified: true, ...WHOLESALE_APPROVED_FILTER })
+        .select('+password _id');
+    if (!vendor || !(await vendor.comparePassword(password))) return false;
+    if (String(user.linkedWholesaleVendorId || '') !== String(vendor._id)) {
+        await User.updateOne({ _id: user._id }, { $set: { linkedWholesaleVendorId: vendor._id, linkedWholesaleAt: new Date() } });
+    }
+    return true;
 };
 
 export const assertWholesaleBuyer = async (userId) => {
@@ -68,6 +93,9 @@ export const provisionWholesaleBuyerAccount = async (normalizedEmail, password) 
             password,
             ...(normalizedPhone ? { phone: normalizedPhone } : {}),
             isVerified: true,
+            // Vendor credentials were just verified → explicit account link.
+            linkedWholesaleVendorId: vendor._id,
+            linkedWholesaleAt: new Date(),
         });
     } catch (err) {
         if (err?.code === 11000) {

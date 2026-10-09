@@ -19,8 +19,27 @@ const MobileRegister = () => {
     register,
     handleSubmit,
     watch,
+    clearErrors,
     formState: { errors },
   } = useForm();
+
+  const handleCapitalizeInput = (e, fieldName) => {
+    const input = e.target;
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
+    const original = input.value;
+    const formatted = original.replace(/(^|\s)\S/g, (c) => c.toUpperCase());
+    if (formatted !== original) {
+      input.value = formatted;
+      e.target.value = formatted;
+      if (start !== null && end !== null) {
+        input.setSelectionRange(start, end);
+      }
+    }
+    if (errors[fieldName] && input.value.trim().length >= 2) {
+      clearErrors(fieldName);
+    }
+  };
 
   const password = watch('password');
 
@@ -33,8 +52,15 @@ const MobileRegister = () => {
 
   const onSubmit = async (data) => {
     try {
-      // Combine first name and last name
-      const fullName = `${data.firstName} ${data.lastName}`;
+      const capitalizeWord = (str) =>
+        String(str || '')
+          .trim()
+          .split(/\s+/)
+          .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : ''))
+          .join(' ');
+
+      // Combine first name and last name with capitalization
+      const fullName = `${capitalizeWord(data.firstName)} ${capitalizeWord(data.lastName)}`.trim();
       // Backend stores a normalized 10-digit phone value.
       const phone = data.phone;
 
@@ -101,14 +127,16 @@ const MobileRegister = () => {
                     <FiUser className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     <input
                       type="text"
+                      autoCapitalize="words"
                       {...register('firstName', {
                         required: 'First name is required',
                         minLength: {
                           value: 2,
                           message: 'First name must be at least 2 characters',
                         },
+                        onChange: (e) => handleCapitalizeInput(e, 'firstName'),
                       })}
-                      className={`w-full pl-12 pr-4 py-3 rounded-xl border-2 ${errors.firstName
+                      className={`w-full pl-12 pr-4 py-3 rounded-xl border-2 capitalize ${errors.firstName
                           ? 'border-red-300 focus:border-red-500'
                           : 'border-gray-200 focus:border-primary-500'
                         } focus:outline-none transition-colors text-base`}
@@ -129,14 +157,16 @@ const MobileRegister = () => {
                     <FiUser className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     <input
                       type="text"
+                      autoCapitalize="words"
                       {...register('lastName', {
                         required: 'Last name is required',
                         minLength: {
                           value: 2,
                           message: 'Last name must be at least 2 characters',
                         },
+                        onChange: (e) => handleCapitalizeInput(e, 'lastName'),
                       })}
-                      className={`w-full pl-12 pr-4 py-3 rounded-xl border-2 ${errors.lastName
+                      className={`w-full pl-12 pr-4 py-3 rounded-xl border-2 capitalize ${errors.lastName
                           ? 'border-red-300 focus:border-red-500'
                           : 'border-gray-200 focus:border-primary-500'
                         } focus:outline-none transition-colors text-base`}

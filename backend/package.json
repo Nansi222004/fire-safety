@@ -9,7 +9,7 @@
     "start": "node src/server.js",
     "test": "node tests/unit/testRegisterValidation.js",
     "test:unit": "node tests/unit/testRegisterValidation.js",
-    "test:e2e": "node tests/e2e/wholesale.e2e.mjs && node tests/e2e/fireSafety.e2e.mjs && node tests/e2e/serviceBooking.e2e.mjs && node tests/e2e/deliveryAssignment.e2e.mjs && node tests/e2e/deliveryFlow.e2e.mjs",
+    "test:e2e": "node tests/e2e/wholesale.e2e.mjs && node tests/e2e/wholesaleVisibility.e2e.mjs && node tests/e2e/fireSafety.e2e.mjs && node tests/e2e/serviceBooking.e2e.mjs && node tests/e2e/deliveryAssignment.e2e.mjs && node tests/e2e/deliveryFlow.e2e.mjs",
     "test:delivery-routing": "node src/services/deliveryRouting.test.js",
     "test:wholesale-auth": "node src/services/wholesaleAuth.test.js",
     "test:product-channels": "node src/services/productChannel.test.js",

@@ -136,7 +136,7 @@ export const useCartStore = create(
           set({ items: (cart.items || []).map(mapBackendItemToStore), ownerUserId: currentUserId });
           toast.success("Added to cart");
           const { triggerCartAnimation } = useUIStore.getState();
-          triggerCartAnimation();
+          triggerCartAnimation?.();
           return true;
         } catch (error) {
           return false;
@@ -247,6 +247,8 @@ export const useUIStore = create((set) => ({
   cartAnimationTrigger: 0,
   toggleMenu: () => set((state) => ({ isMenuOpen: !state.isMenuOpen })),
   toggleCart: () => set((state) => ({ isCartOpen: !state.isCartOpen })),
+  openCart: () => set({ isCartOpen: true }),
+  closeCart: () => set({ isCartOpen: false }),
   setLoading: (loading) => set({ isLoading: loading }),
   triggerCartAnimation: () => set((state) => ({ cartAnimationTrigger: state.cartAnimationTrigger + 1 })),
 }));

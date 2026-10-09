@@ -4,6 +4,7 @@ import ApiError from '../utils/ApiError.js';
 import { sendEmail } from './email.service.js';
 import { createNotification } from './notification.service.js';
 import { notifyOrderUpdate } from './socket.service.js';
+import { emailCodeBox } from './emailLayout.js';
 import { hashOtp, verifyOtpHash, generateDeliveryOtpValue } from './otp.service.js';
 
 const IS_PRODUCTION = String(process.env.NODE_ENV || '').toLowerCase() === 'production';
@@ -38,7 +39,7 @@ export const sendDeliveryOtpEmail = async (order, otp) => {
             to,
             subject: `Delivery OTP for order ${order.orderId || order._id}`,
             text: `Your delivery verification OTP is ${otp}. Share it with the delivery partner only after receiving your order. It expires in 10 minutes.`,
-            html: `<p>Your delivery verification OTP is <strong>${otp}</strong>.</p><p>Share it with the delivery partner only after receiving your order.</p><p>This OTP expires in 10 minutes.</p>`,
+            html: `<h1 style="margin:0 0 8px;font-size:20px;font-weight:800;color:#1F2937;">Your order is out for delivery</h1><p style="margin:0;color:#64748B;">Order <strong style="color:#1F2937;">${order.orderId || order._id}</strong></p>${emailCodeBox(otp, 'Delivery verification OTP')}<p style="margin:0;">Share this OTP with the delivery partner <strong>only after you have received your order</strong>. It expires in 10 minutes.</p>`,
         });
         return true;
     } catch (err) {

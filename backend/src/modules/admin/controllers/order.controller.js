@@ -34,6 +34,7 @@ import { ensureDeliveryOtpForShipment } from '../../../services/deliveryOtp.serv
 export const getAvailableDeliveryPartners = asyncHandler(async (req, res) => {
     const { partners, blocker } = await listEligiblePartnersForShipment({
         shipmentId: mongoose.Types.ObjectId.isValid(req.query.shipmentId) ? req.query.shipmentId : null,
+        actorRole: 'admin',
     });
     res.status(200).json(new ApiResponse(200, partners.map(toPartnerOption),
         blocker ? ASSIGNMENT_ERROR_MESSAGES[blocker] || blocker : 'Eligible delivery partners fetched.'));

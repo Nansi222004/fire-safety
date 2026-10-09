@@ -58,10 +58,10 @@ export const findEligibleDeliveryPartners = async ({ order = null, excludeIds = 
         .filter((rider) => rider.activeShipments < (typeof rider.maxActiveOrders === 'number' ? rider.maxActiveOrders : DEFAULT_MAX_ACTIVE_ORDERS));
 };
 
-/** Explains why a shipment cannot receive a manual assignment (null when it can). */
-export const getManualAssignmentBlocker = (shipment, order) => {
+export const getManualAssignmentBlocker = (shipment, order, { allowPending = false } = {}) => {
     if (!shipment) return 'SHIPMENT_NOT_FOUND';
-    if (shipment.deliveryMethod !== 'INTERNAL' || shipment.providerId !== 'own_fleet') return 'NOT_INTERNAL_DELIVERY';
+    const isInternal = shipment.deliveryMethod === 'INTERNAL' || (allowPending && (!shipment.deliveryMethod || shipment.providerId === 'pending_selection' || shipment.providerId === 'own_fleet'));
+    if (!isInternal) return 'NOT_INTERNAL_DELIVERY';
     if (TERMINAL_SHIPMENT_STATUSES.includes(shipment.status) || shipment.status === 'return_initiated') return 'SHIPMENT_CLOSED';
     if (!order || order.isDeleted || TERMINAL_ORDER_STATUSES.includes(order.status)) return 'ORDER_CLOSED';
     const vendorGroup = (order.vendorItems || []).find((vi) => String(vi.vendorId) === String(shipment.vendorId));
@@ -84,12 +84,12 @@ export const ASSIGNMENT_ERROR_MESSAGES = {
  * Partners that can be offered for a shipment in the assignment UI.
  * Without a shipmentId only status/approval/capacity apply; with one, COD limit and shipment state apply too.
  */
-export const listEligiblePartnersForShipment = async ({ shipmentId, vendorId = null } = {}) => {
+export const listEligiblePartnersForShipment = async ({ shipmentId, vendorId = null, actorRole = 'vendor' } = {}) => {
     if (!shipmentId) return { partners: await findEligibleDeliveryPartners(), blocker: null };
     const shipment = await Shipment.findOne({ _id: shipmentId, ...(vendorId ? { vendorId } : {}) }).lean();
     if (!shipment) return { partners: [], blocker: 'SHIPMENT_NOT_FOUND' };
     const order = await Order.findById(shipment.orderId).select('status isDeleted paymentMethod total vendorItems.vendorId vendorItems.status').lean();
-    const blocker = getManualAssignmentBlocker(shipment, order);
+    const blocker = getManualAssignmentBlocker(shipment, order, { allowPending: actorRole === 'admin' });
     if (blocker) return { partners: [], blocker };
     return { partners: await findEligibleDeliveryPartners({ order }), blocker: null };
 };
@@ -130,7 +130,7 @@ export const manualAssignDeliveryPartner = async ({
     const shipment = await Shipment.findById(shipmentId);
     if (!shipment) return { success: false, code: 'SHIPMENT_NOT_FOUND' };
     const orderForCheck = await Order.findById(shipment.orderId).select('status isDeleted paymentMethod total vendorItems.vendorId vendorItems.status').lean();
-    const blocker = getManualAssignmentBlocker(shipment, orderForCheck);
+    const blocker = getManualAssignmentBlocker(shipment, orderForCheck, { allowPending: actorRole === 'admin' });
     if (blocker) return { success: false, code: blocker };
 
     if (shipment.deliveryBoyId && String(shipment.deliveryBoyId) === String(deliveryBoyId)) {
@@ -147,13 +147,15 @@ export const manualAssignDeliveryPartner = async ({
         return { success: false, code: exists ? 'DELIVERY_PARTNER_NOT_ELIGIBLE' : 'DELIVERY_PARTNER_UNAVAILABLE' };
     }
 
-    const filter = { _id: shipment._id, deliveryMethod: 'INTERNAL', providerId: 'own_fleet' };
+    const filter = { _id: shipment._id };
     if (!allowReassignment) filter.deliveryBoyId = { $in: [null, undefined] };
     else filter.deliveryBoyId = shipment.deliveryBoyId;
 
     const now = new Date();
     const updated = await Shipment.findOneAndUpdate(filter, {
         $set: {
+            deliveryMethod: 'INTERNAL',
+            providerId: 'own_fleet',
             deliveryBoyId: deliveryBoy._id,
             deliveryAssignmentStatus: 'manual_override',
             assignedBy: { role: actorRole, actorId, assignedAt: now },

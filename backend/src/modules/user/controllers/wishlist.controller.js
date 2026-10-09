@@ -31,7 +31,8 @@ export const addToWishlist = asyncHandler(async (req, res) => {
         throw new ApiError(400, 'Invalid product id.');
     }
 
-    const product = await Product.findOne({ _id: normalizedProductId, isActive: true }).select('price');
+    // Wishlist is part of the B2C storefront: wholesale-only (B2B) products are excluded.
+    const product = await Product.findOne({ _id: normalizedProductId, isActive: true, b2cAvailable: { $ne: false } }).select('price');
     if (!product) {
         throw new ApiError(404, 'Product not found.');
     }
@@ -112,7 +113,7 @@ export const moveSelectedToCart = asyncHandler(async (req, res) => {
         const varId = String(target.variantId || '');
 
         const product = await Product.findById(prodId);
-        if (!product || !product.isActive) {
+        if (!product || !product.isActive || product.b2cAvailable === false) {
             failedItems.push(prodId);
             continue;
         }

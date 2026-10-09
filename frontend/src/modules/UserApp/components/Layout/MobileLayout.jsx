@@ -8,11 +8,13 @@ import MobileCartBar from './MobileCartBar';
 import CartDrawer from '../../../../shared/components/Cart/CartDrawer';
 import useMobileHeaderHeight from '../../hooks/useMobileHeaderHeight';
 import ErrorBoundary from '../../../../shared/components/ErrorBoundary/ErrorBoundary';
+import { useAuthStore } from '../../../../shared/store/authStore';
 import "../../customer-animations.css";
 
 const MobileLayout = ({ children, showBottomNav = true, showCartBar = true, showHeader = true, onSearch }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const wholesaleAccess = useAuthStore((state) => state.isAuthenticated && state.user?.wholesaleAccess === true);
   const headerHeight = useMobileHeaderHeight();
   
   const handleGlobalSearch = (query) => {
@@ -74,6 +76,17 @@ const MobileLayout = ({ children, showBottomNav = true, showCartBar = true, show
           }`}
           style={mainStyle}
         >
+          {/* Approved wholesale buyers browsing retail pages always have a way back to the wholesale catalog */}
+          {wholesaleAccess && !location.pathname.startsWith('/wholesale') && !isAuthPage && (
+            <button
+              type="button"
+              onClick={() => navigate('/wholesale')}
+              className="w-full flex items-center justify-between gap-3 px-4 py-2 bg-sky-50 border-b border-sky-100 text-sky-800 text-xs font-semibold"
+            >
+              <span>You are signed in as a wholesale buyer. Retail prices are shown on this page.</span>
+              <span className="flex-shrink-0 font-bold underline">Wholesale catalog →</span>
+            </button>
+          )}
           {children}
         </main>
         {!shouldHideFooter && <DesktopFooter />}

@@ -32,16 +32,15 @@ const MobileCartBar = () => {
       animate={{ y: 0, opacity: 1 }}
       exit={{ y: 100, opacity: 0 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="fixed right-4 z-[9998] safe-area-bottom md:hidden"
-      style={{ bottom: "calc(4rem + 10px)" }}>
+      className="fixed right-4 md:right-8 z-[9998] safe-area-bottom bottom-[calc(4rem+10px)] md:bottom-8">
       <motion.button
         data-cart-bar
         onClick={toggleCart}
-        className="w-14 h-14 rounded-full gradient-green shadow-2xl flex items-center justify-center hover:shadow-3xl active:scale-[0.95] transition-all duration-300 group relative"
+        className="h-13 md:h-14 px-4 md:px-5 rounded-full bg-[#E31E24] hover:bg-[#c6151b] text-white shadow-2xl flex items-center justify-center hover:shadow-3xl active:scale-[0.95] transition-all duration-300 group relative gap-2.5 border-2 border-white/20"
         animate={
           pulseAnimation
             ? {
-              scale: [1, 1.1, 1],
+              scale: [1, 1.08, 1],
             }
             : {}
         }
@@ -55,13 +54,14 @@ const MobileCartBar = () => {
               : {}
           }
           transition={{ duration: 0.5 }}>
-          <FiShoppingBag className="text-2xl text-white" />
+          <FiShoppingBag className="text-xl md:text-2xl text-white" />
         </motion.div>
+        <span className="font-bold text-xs md:text-sm tracking-wide text-white">View Cart</span>
         <motion.span
           key={itemCount}
           initial={{ scale: 0, rotate: -180 }}
           animate={{ scale: 1, rotate: 0 }}
-          className="absolute -top-1 -right-1 w-6 h-6 text-white rounded-full flex items-center justify-center text-xs font-bold shadow-lg border-2 border-white"
+          className="w-6 h-6 text-gray-900 rounded-full flex items-center justify-center text-xs font-black shadow-md border-2 border-white"
           style={{ backgroundColor: "#ffc101" }}>
           {itemCount > 9 ? "9+" : itemCount}
         </motion.span>

@@ -311,8 +311,8 @@ export const updateCommissionRate = asyncHandler(async (req, res) => {
             subject: 'Store Commission Rate Updated',
             text: vendorMessage,
             html: `
-                <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-                    <h2 style="color: #4F46E5;">Commission Rate Update</h2>
+                <div>
+                    <h2 style="margin:0 0 12px;font-size:20px;font-weight:800;color:#E31E24;">Commission Rate Update</h2>
                     <p>Dear ${vendor.storeName || vendor.name || 'Vendor'},</p>
                     <p>${vendorMessage}</p>
                     <p>You can review your updated rate anytime in your Vendor Profile Settings.</p>

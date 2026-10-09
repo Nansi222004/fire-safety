@@ -13,9 +13,10 @@ import {
     getWholesaleBuyerForUser,
     provisionWholesaleBuyerAccount,
     verifyWholesaleVendorCredentials,
+    linkWholesaleVendorIfCredentialsMatch,
 } from '../../../services/wholesale.service.js';
 import { generateTokens } from '../../../utils/generateToken.js';
-import { sendOTP } from '../../../services/otp.service.js';
+import { sendOTP, buildOtpEmailTemplate } from '../../../services/otp.service.js';
 import { sendEmail } from '../../../services/email.service.js';
 import {
     uploadLocalFileToCloudinaryAndCleanup,
@@ -85,7 +86,7 @@ export const verifyOTP = asyncHandler(async (req, res) => {
 
     const { accessToken, refreshToken } = generateTokens({ id: user._id, role: 'customer', email: user.email });
     await persistRefreshSession(user, refreshToken);
-    res.status(200).json(new ApiResponse(200, { accessToken, refreshToken, user: { id: user._id, name: user.name, email: user.email } }, 'Email verified successfully.'));
+    res.status(200).json(new ApiResponse(200, { accessToken, refreshToken, user: { id: user._id, name: user.name, email: user.email, phone: user.phone || '' } }, 'Email verified successfully.'));
 });
 
 // POST /api/user/auth/login
@@ -120,8 +121,11 @@ export const login = asyncHandler(async (req, res) => {
 
     const { accessToken, refreshToken } = generateTokens({ id: user._id, role: 'customer', email: user.email });
     await persistRefreshSession(user, refreshToken);
+    // Same-credential wholesale login: link this account to the approved wholesale vendor only when the
+    // vendor's own password was proven in this login (never on email match alone).
+    await linkWholesaleVendorIfCredentialsMatch(user, normalizedEmail, password);
     const wholesaleAccess = Boolean(await getWholesaleBuyerForUser(user._id));
-    res.status(200).json(new ApiResponse(200, { accessToken, refreshToken, user: { id: user._id, name: user.name, email: user.email, avatar: user.avatar, wholesaleAccess } }, 'Login successful.'));
+    res.status(200).json(new ApiResponse(200, { accessToken, refreshToken, user: { id: user._id, name: user.name, email: user.email, phone: user.phone || '', avatar: user.avatar, wholesaleAccess } }, 'Login successful.'));
 });
 
 // POST /api/user/auth/refresh
@@ -197,11 +201,16 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     await user.save({ validateBeforeSave: false });
 
     try {
+        const { subject, html, text } = buildOtpEmailTemplate({
+            otp,
+            userName: user.name || '',
+            type: 'password_reset',
+        });
         await sendEmail({
             to: user.email,
-            subject: 'Password reset OTP',
-            text: `Your password reset OTP is ${otp}. It expires in 10 minutes.`,
-            html: `<p>Your password reset OTP is <strong>${otp}</strong>. It expires in 10 minutes.</p>`,
+            subject,
+            text,
+            html,
         });
     } catch (err) {
         console.warn(`[User Forgot Password] Email send failed for ${user.email}: ${err.message}`);

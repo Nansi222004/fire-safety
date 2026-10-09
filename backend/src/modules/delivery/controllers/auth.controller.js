@@ -10,6 +10,7 @@ import { generateTokens } from '../../../utils/generateToken.js';
 import { createNotification } from '../../../services/notification.service.js';
 import { sendEmail } from '../../../services/email.service.js';
 import { cleanupLocalFiles, uploadLocalFileToCloudinaryAndCleanupWithType } from '../../../services/upload.service.js';
+import { emailCodeBox } from '../../../services/emailLayout.js';
 import {
     clearRefreshSession,
     decodeRefreshTokenOrThrow,
@@ -146,7 +147,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
             to: deliveryBoy.email,
             subject: 'Delivery password reset OTP',
             text: `Your password reset OTP is ${otp}. It expires in 10 minutes.`,
-            html: `<p>Your password reset OTP is <strong>${otp}</strong>. It expires in 10 minutes.</p>`,
+            html: `<h1 style="margin:0 0 8px;font-size:20px;font-weight:800;color:#1F2937;">Password reset request</h1><p style="margin:0;">Use the code below to reset your SafeFire delivery partner password.</p>${emailCodeBox(otp, 'Password reset code')}<p style="margin:0;color:#64748B;font-size:13px;">It expires in 10 minutes. If you did not request this, you can ignore this email.</p>`,
         });
     } catch (err) {
         console.warn(`[Delivery Forgot Password] Email send failed for ${deliveryBoy.email}: ${err.message}`);

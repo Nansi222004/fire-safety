@@ -165,7 +165,12 @@ export const mergeCartLogic = async (userId, guestItems = []) => {
     let cart = await Cart.findOne({ userId });
     if (!cart) cart = new Cart({ userId, items: [] });
 
-    for (const guestItem of guestItems) {
+    // The B2C cart may only hold active retail (B2C) products — drop B2B-only / inactive items.
+    const guestProductIds = guestItems.map((item) => item?.productId).filter(Boolean);
+    const retailIds = new Set((await Product.find({ _id: { $in: guestProductIds }, isActive: true, b2cAvailable: { $ne: false } })
+        .select('_id').lean()).map((p) => String(p._id)));
+
+    for (const guestItem of guestItems.filter((item) => retailIds.has(String(item?.productId)))) {
         const existingItemIndex = cart.items.findIndex(item => 
             String(item.productId) === String(guestItem.productId) && areVariantsEqual(item.variant, guestItem.variant)
         );

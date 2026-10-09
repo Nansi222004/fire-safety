@@ -26,7 +26,7 @@ const MobileLogin = () => {
   useEffect(() => {
     useAuthStore.setState({ isLoading: false });
     if (isAuthenticated) {
-      navigate('/home', { replace: true });
+      navigate(useAuthStore.getState().user?.wholesaleAccess ? '/wholesale' : '/home', { replace: true });
     }
   }, [isAuthenticated, navigate]);
 
@@ -56,11 +56,14 @@ const MobileLogin = () => {
 
   const onSubmit = async (data) => {
     try {
-      await login(data.email, data.password, rememberMe);
+      const result = await login(data.email, data.password, rememberMe);
       replayPendingAction();
       toast.success('Login successful!');
       clearPostLoginRedirect();
-      navigate(from === '/login' ? '/home' : from, { replace: true });
+      // Approved wholesale buyers land in the Wholesale catalog unless they were heading somewhere specific.
+      const isDefaultTarget = ['/login', '/home', '/'].includes(from);
+      const landing = result?.user?.wholesaleAccess ? '/wholesale' : '/home';
+      navigate(isDefaultTarget ? landing : from, { replace: true });
     } catch (error) {
       const backendMessage = String(
         error?.response?.data?.message ||

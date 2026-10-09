@@ -43,7 +43,7 @@ const readSavedCheckoutAddress = (userId) => {
 const MobileCheckout = () => {
   const navigate = useNavigate();
   const { items, getTotal, clearCart, getItemsByVendor } = useCartStore();
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, fetchUserProfile } = useAuthStore();
   const { addresses, getDefaultAddress, addAddress, updateAddress, fetchAddresses } =
     useAddressStore();
   const { createOrder } = useOrderStore();
@@ -107,8 +107,11 @@ const MobileCheckout = () => {
   useEffect(() => {
     if (isAuthenticated) {
       fetchAddresses().catch(() => null);
+      if (!user?.phone) {
+        fetchUserProfile?.().catch(() => null);
+      }
     }
-  }, [isAuthenticated, fetchAddresses]);
+  }, [isAuthenticated, user?.phone, fetchAddresses, fetchUserProfile]);
 
   useEffect(() => {
     let cancelled = false;
@@ -199,7 +202,7 @@ const MobileCheckout = () => {
           ...prev,
           name: defaultAddress.fullName || user.name || prev.name || "",
           email: user.email || prev.email || "",
-          phone: defaultAddress.phone || user.phone || prev.phone || "",
+          phone: prev.phone || defaultAddress.phone || user.phone || "",
           address: defaultAddress.address || prev.address || "",
           city: defaultAddress.city || prev.city || "",
           zipCode: defaultAddress.zipCode || prev.zipCode || "",

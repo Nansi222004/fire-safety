@@ -117,6 +117,7 @@ router.post('/wallet/pay', ...customerAuth, walletController.payWithWallet);
 router.get('/wholesale/access', ...customerAuth, wholesaleController.getWholesaleAccess);
 router.get('/wholesale/products', ...customerAuth, wholesaleController.getWholesaleCatalog);
 router.get('/wholesale/products/:id', ...customerAuth, wholesaleController.getWholesaleProduct);
+router.post('/wholesale/cart/validate', ...customerAuth, wholesaleController.validateWholesaleCart);
 
 // My Fire Safety (protected; every query scoped to the logged-in customer)
 router.get('/fire-safety/equipment', ...customerAuth, fireSafetyController.getMyEquipment);

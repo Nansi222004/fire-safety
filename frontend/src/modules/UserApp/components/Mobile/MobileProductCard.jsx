@@ -1,7 +1,7 @@
 import { FiHeart, FiShoppingBag, FiStar, FiTrash2, FiCheck } from "react-icons/fi";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { useCartStore } from "../../../../shared/store/useStore";
+import { useCartStore, useUIStore } from "../../../../shared/store/useStore";
 import { useWishlistStore } from "../../../../shared/store/wishlistStore";
 import {
   formatPrice,
@@ -20,6 +20,7 @@ import { getVariantSignature } from "../../../../shared/utils/variant";
 const MobileProductCard = ({ product }) => {
   const navigate = useNavigate();
   const { items, addItem, removeItem } = useCartStore();
+  const openCart = useUIStore((state) => state.openCart);
   const {
     addItem: addToWishlist,
     removeItem: removeFromWishlist,
@@ -268,11 +269,15 @@ const MobileProductCard = ({ product }) => {
             {isInCart ? (
               <motion.button
                 type="button"
-                onClick={handleRemoveFromCart}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  openCart();
+                }}
                 whileTap={{ scale: 0.95 }}
-                className="w-full py-3 rounded-xl font-semibold text-sm bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 transition-all duration-300 flex items-center justify-center gap-2">
-                <FiTrash2 className="text-base" />
-                <span>Remove</span>
+                className="w-full py-3 rounded-xl font-semibold text-sm bg-primary-50 text-primary-600 border border-primary-500 hover:bg-primary-100 transition-all duration-300 flex items-center justify-center gap-2">
+                <FiShoppingBag className="text-base text-primary-600" />
+                <span>Go to Cart</span>
               </motion.button>
             ) : (
               <motion.button

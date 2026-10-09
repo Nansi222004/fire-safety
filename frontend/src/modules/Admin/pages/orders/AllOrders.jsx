@@ -627,7 +627,17 @@ const AllOrders = () => {
       key: "id",
       label: "Order ID",
       sortable: true,
-      render: (value) => <span className="font-semibold">{value}</span>,
+      render: (value, row) => (
+        <span
+          onClick={(e) => {
+            e.stopPropagation();
+            handleOrderDetails(row.id);
+          }}
+          className="font-semibold text-red-600 hover:text-red-700 hover:underline cursor-pointer"
+        >
+          {value}
+        </span>
+      ),
     },
     {
       key: "customer",
@@ -944,6 +954,7 @@ const AllOrders = () => {
           columns={columns}
           pagination={true}
           itemsPerPage={10}
+          onRowClick={(row) => handleOrderDetails(row.id)}
         />
       )}
 

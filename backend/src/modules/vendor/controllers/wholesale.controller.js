@@ -136,7 +136,7 @@ export const mapLegacyWholesaleCreate = (req, _res, next) => {
     req.body = {
         ...req.body,
         price: channel === 'both' ? req.body.retailPrice : req.body.wholesalePrice,
-        originalPrice: req.body.originalPrice ?? null,
+        ...(req.body.originalPrice != null ? { originalPrice: req.body.originalPrice } : {}),
         image: req.body.image || images[0] || '',
         b2cAvailable: channel === 'both',
         wholesale: {

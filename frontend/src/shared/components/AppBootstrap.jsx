@@ -57,6 +57,22 @@ const AppBootstrap = () => {
     }
   }, [isAuthenticated, fetchCart]);
 
+  // Wholesale shopping context is re-resolved from the server on every app load / account change,
+  // so approval, revocation or suspension is reflected without relying on stale local state.
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+    api.get('/user/wholesale/access')
+      .then((data) => {
+        const wholesaleAccess = data?.wholesaleAccess === true;
+        const current = useAuthStore.getState().user;
+        if (current && current.wholesaleAccess !== wholesaleAccess) {
+          useAuthStore.setState({ user: { ...current, wholesaleAccess, wholesaleBusinessName: data?.businessName || null } });
+        }
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user?.id]);
+
   useEffect(() => {
     // Initialize FCM Push Notifications and foreground message listener
     initializePushNotifications();
