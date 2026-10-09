@@ -499,7 +499,7 @@ const MobileProfile = () => {
                 </div>
                 <p className="text-xs sm:text-sm text-gray-500 truncate mb-1.5 flex items-center gap-1.5">
                   <FiMail className="text-gray-400 text-xs flex-shrink-0" />
-                  <span className="truncate">{user?.email || 'customer@safefire.com'}</span>
+                  <span className="truncate">{user?.email || ''}</span>
                 </p>
                 {user?.phone ? (
                   <p className="text-xs text-gray-500 flex items-center gap-1.5">

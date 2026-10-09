@@ -26,6 +26,20 @@ import MobileCheckoutSteps from "../components/Mobile/MobileCheckoutSteps";
 import PageTransition from "../../../shared/components/PageTransition";
 import OrderSummary from "../components/Mobile/CheckoutOrderSummary";
 
+// The last-used shipping address is remembered per account, so a new / different account
+// never sees another customer's details on a shared device.
+const checkoutAddressKey = (userId) => (userId ? `safefire_checkout_address:${userId}` : null);
+const readSavedCheckoutAddress = (userId) => {
+  const key = checkoutAddressKey(userId);
+  if (!key) return null;
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
 const MobileCheckout = () => {
   const navigate = useNavigate();
   const { items, getTotal, clearCart, getItemsByVendor } = useCartStore();
@@ -54,15 +68,11 @@ const MobileCheckout = () => {
   const [shippingQuotes, setShippingQuotes] = useState(null);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [formData, setFormData] = useState(() => {
-    let savedAddr = null;
-    try {
-      const raw = localStorage.getItem("safefire_checkout_address");
-      if (raw) savedAddr = JSON.parse(raw);
-    } catch {}
+    const savedAddr = readSavedCheckoutAddress(user?.id || user?._id);
     return {
-      name: savedAddr?.name || "",
-      email: savedAddr?.email || "",
-      phone: savedAddr?.phone || "",
+      name: savedAddr?.name || user?.name || "",
+      email: user?.email || savedAddr?.email || "",
+      phone: savedAddr?.phone || user?.phone || "",
       address: savedAddr?.address || "",
       city: savedAddr?.city || "",
       zipCode: savedAddr?.zipCode || "",
@@ -197,16 +207,12 @@ const MobileCheckout = () => {
           country: defaultAddress.country || prev.country || "India",
         }));
       } else {
-        let savedAddr = null;
-        try {
-          const raw = localStorage.getItem("safefire_checkout_address");
-          if (raw) savedAddr = JSON.parse(raw);
-        } catch {}
+        const savedAddr = readSavedCheckoutAddress(user.id || user._id);
 
         setFormData((prev) => ({
           ...prev,
           name: prev.name || savedAddr?.name || user.name || "",
-          email: prev.email || savedAddr?.email || user.email || "",
+          email: user.email || prev.email || savedAddr?.email || "",
           phone: prev.phone || savedAddr?.phone || user.phone || "",
           address: prev.address || savedAddr?.address || "",
           city: prev.city || savedAddr?.city || "",
@@ -489,7 +495,8 @@ const MobileCheckout = () => {
 
     if (step === 1) {
       try {
-        localStorage.setItem("safefire_checkout_address", JSON.stringify(normalizedShipping));
+        const key = checkoutAddressKey(user?.id || user?._id);
+        if (key) localStorage.setItem(key, JSON.stringify(normalizedShipping));
       } catch {}
 
       if (isAuthenticated) {
