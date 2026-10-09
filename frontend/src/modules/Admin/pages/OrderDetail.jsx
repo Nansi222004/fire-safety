@@ -231,8 +231,17 @@ const OrderDetail = () => {
               </div>
               <div>
                 <p className="text-xs text-gray-500 mb-0.5">Payment Status</p>
-                <Badge variant={order.paymentStatus === 'paid' ? 'delivered' : order.paymentStatus === 'pending' ? 'pending' : 'cancelled'} className="text-xs">
-                  {order.paymentStatus || (order.paymentMethod === 'cash' ? 'Pending' : 'Paid')}
+                <Badge
+                  variant={
+                    order.paymentStatus === 'paid' ? 'delivered'
+                    : order.paymentStatus === 'pending' ? 'pending'
+                    : 'cancelled'
+                  }
+                  className="text-xs"
+                >
+                  {order.paymentStatus === 'pending' && order.paymentMethod === 'cod'
+                    ? 'COD - Pending Collection'
+                    : order.paymentStatus || (order.paymentMethod === 'cash' ? 'Pending' : 'Paid')}
                 </Badge>
               </div>
             </div>

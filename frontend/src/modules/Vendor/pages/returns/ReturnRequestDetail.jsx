@@ -84,8 +84,8 @@ const ReturnRequestDetail = () => {
 
   const handleVerifyHandoffOtp = async (e) => {
     e.preventDefault();
-    if (!handoffOtp || handoffOtp.trim().length !== 6) {
-      toast.error("Please enter a valid 6-digit OTP.");
+    if (!handoffOtp || handoffOtp.trim().length !== 4) {
+      toast.error("Please enter a valid 4-digit OTP.");
       return;
     }
     setIsVerifyingHandoff(true);

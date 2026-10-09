@@ -258,7 +258,7 @@ export const verifyOtpHash = (otp, hash) => {
 /**
  * Generates an OTP for customer delivery.
  * In local development with DELIVERY_OTP_TEST_MODE=true, returns deterministic '9999'.
- * In production or standard mode, returns cryptographically secure 6-digit random string.
+ * In production or standard mode, returns cryptographically secure 4-digit random string.
  * @returns {string}
  */
 export const generateDeliveryOtpValue = () => {
@@ -267,6 +267,6 @@ export const generateDeliveryOtpValue = () => {
         return '9999';
     }
     const { randomInt } = crypto;
-    return String(randomInt(100000, 1000000));
+    return String(randomInt(1000, 10000));
 };
 

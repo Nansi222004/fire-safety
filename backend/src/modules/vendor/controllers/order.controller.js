@@ -24,6 +24,7 @@ import { ensureDeliveryOtpForShipment } from '../../../services/deliveryOtp.serv
 import { createShiprocketShipmentOrFallback } from '../../../services/shiprocketShipment.service.js';
 import { resolveShiprocketPickupLocation, evaluateDeliveryRouting } from '../../../services/deliveryRouting.service.js';
 import Vendor from '../../../models/Vendor.model.js';
+import { buildVendorItemsSummary } from '../../../utils/notificationProductFormatter.js';
 
 // GET /api/vendor/delivery-partners/available?shipmentId=  (shipment must belong to the vendor)
 export const getAvailableDeliveryPartners = asyncHandler(async (req, res) => {
@@ -714,8 +715,8 @@ export const getEarnings = asyncHandler(async (req, res) => {
 export const verifyPickup = asyncHandler(async (req, res) => {
     const { otp } = req.body;
     const normalizedOtp = String(otp || '').trim();
-    if (!/^\d{6}$/.test(normalizedOtp)) {
-        throw new ApiError(400, 'Please enter a valid 6-digit Pickup OTP.');
+    if (!/^\d{4}$/.test(normalizedOtp)) {
+        throw new ApiError(400, 'Please enter a valid 4-digit Pickup OTP.');
     }
 
     const { id } = req.params;

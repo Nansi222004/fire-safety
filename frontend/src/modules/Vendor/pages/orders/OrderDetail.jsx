@@ -34,8 +34,8 @@ const OrderDetail = () => {
     const handleVerifyPickup = async (e, shipmentIdOrOrderId) => {
         e.preventDefault();
         const normalized = String(pickupOtp || '').trim();
-        if (!/^\d{6}$/.test(normalized)) {
-            toast.error('Please enter a valid 6-digit OTP code');
+        if (!/^\d{4}$/.test(normalized)) {
+            toast.error('Please enter a valid 4-digit OTP code');
             return;
         }
 
@@ -592,22 +592,22 @@ const OrderDetail = () => {
                                                                 🔐 Verify Pickup
                                                             </h3>
                                                             <p className="text-xs text-primary-700">
-                                                                Ask the rider for their 6-digit OTP code to verify hand over.
+                                                                Ask the rider for their 4-digit OTP code to verify hand over.
                                                             </p>
                                                         </div>
                                                         <form onSubmit={(e) => { e.preventDefault(); handleVerifyPickup(e, order.orderId || order._id); }} className="flex gap-2 w-full sm:w-auto">
                                                             <input
                                                                 type="text"
                                                                 inputMode="numeric"
-                                                                maxLength={6}
+                                                                maxLength={4}
                                                                 value={pickupOtp}
-                                                                onChange={(e) => setPickupOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                                                                placeholder="6-digit OTP"
+                                                                onChange={(e) => setPickupOtp(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                                                                placeholder="4-digit OTP"
                                                                 className="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm text-center font-mono font-bold tracking-widest focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
                                                             />
                                                             <button
                                                                 type="submit"
-                                                                disabled={verifyingOtp || pickupOtp.length !== 6}
+                                                                disabled={verifyingOtp || pickupOtp.length !== 4}
                                                                 className="px-4 py-2 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white rounded-xl text-xs font-bold shadow-md shadow-primary-500/20 active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
                                                             >
                                                                 {verifyingOtp ? 'Verifying...' : 'Verify'}

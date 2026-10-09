@@ -192,7 +192,7 @@ export const resendDeliveryOtpForShipment = async (shipment, order) => {
  */
 export const verifyDeliveryOtpForShipment = async (shipment, inputOtp) => {
     const normalizedOtp = String(inputOtp || '').trim();
-    if (!/^\d{4,6}$/.test(normalizedOtp)) {
+    if (!/^\d{4}$/.test(normalizedOtp)) {
         throw new ApiError(400, 'Delivery OTP is required to complete delivery.');
     }
 

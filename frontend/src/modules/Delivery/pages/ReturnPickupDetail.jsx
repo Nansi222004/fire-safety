@@ -519,7 +519,7 @@ const DeliveryReturnPickupDetail = () => {
                   📋 Pickup Verification Checklist & Rules
                 </h4>
                 <ul className="text-xs font-semibold text-amber-800 list-disc list-inside space-y-1">
-                  <li>Reach customer location and ask customer for the 6-digit OTP code.</li>
+                  <li>Reach customer location and ask customer for the 4-digit OTP code.</li>
                   <li>Verify all 8 item checklist rules (original tags, undamaged, correct variant).</li>
                   <li>{["Product Damaged", "Wrong Product Received", "Missing Parts or Accessories", "Product Not Matching Description", "Defective Product"].includes(ret.returnReason) ? 'Take at least 1 proof photo of package condition (Required).' : 'Take photos of package condition (Optional).'}</li>
                 </ul>
@@ -545,8 +545,8 @@ const DeliveryReturnPickupDetail = () => {
                       <div className="flex gap-2">
                         <input
                           type="text"
-                          maxLength={6}
-                          placeholder="6-digit OTP"
+                          maxLength={4}
+                          placeholder="4-digit OTP"
                           value={otpInput}
                           onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ''))}
                           className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-bold font-mono tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -694,8 +694,8 @@ const DeliveryReturnPickupDetail = () => {
               <div className="flex gap-2">
                 <input
                   type="text"
-                  maxLength={6}
-                  placeholder="6-digit OTP"
+                  maxLength={4}
+                  placeholder="4-digit OTP"
                   value={otpInput}
                   onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ''))}
                   className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-bold font-mono tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-purple-500"
@@ -717,8 +717,8 @@ const DeliveryReturnPickupDetail = () => {
               <div className="flex gap-2">
                 <input
                   type="text"
-                  maxLength={6}
-                  placeholder="6-digit OTP"
+                  maxLength={4}
+                  placeholder="4-digit OTP"
                   value={otpInput}
                   onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ''))}
                   className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-bold font-mono tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-indigo-500"
