@@ -31,6 +31,7 @@ import {
   cancelServiceBooking,
   addServiceReview,
 } from "../services/customerServiceApi";
+import { getSocket } from "../../../shared/utils/socket";
 
 const ServiceBookingDetailPage = () => {
   const { id } = useParams();
@@ -103,7 +104,41 @@ const ServiceBookingDetailPage = () => {
 
   useEffect(() => {
     fetchBooking();
-  }, [fetchBooking]);
+
+    const socket = getSocket();
+    const handleStatusUpdate = (payload) => {
+      const updatedId = payload?.bookingId;
+      const updatedNumber = payload?.bookingNumber;
+      if (
+        String(updatedId) === String(id) ||
+        String(updatedNumber) === String(id) ||
+        (booking && (String(booking._id) === String(updatedId) || String(booking.bookingId) === String(updatedNumber)))
+      ) {
+        fetchBooking();
+      }
+    };
+
+    if (socket) {
+      socket.on("serviceBookingStatusUpdated", handleStatusUpdate);
+    }
+
+    const pollInterval = setInterval(() => {
+      if (!id) return;
+      getServiceBookingById(id)
+        .then((res) => {
+          const data = res?.booking || res?.data?.booking || (res?._id ? res : null);
+          if (data) setBooking(data);
+        })
+        .catch(() => {});
+    }, 5000);
+
+    return () => {
+      if (socket) {
+        socket.off("serviceBookingStatusUpdated", handleStatusUpdate);
+      }
+      clearInterval(pollInterval);
+    };
+  }, [fetchBooking, id, booking?._id, booking?.bookingId]);
 
   const handleCancelBooking = async (e) => {
     e.preventDefault();

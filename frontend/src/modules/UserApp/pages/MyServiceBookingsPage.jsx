@@ -24,6 +24,7 @@ import {
   cancelServiceBooking,
   addServiceReview,
 } from "../services/customerServiceApi";
+import { getSocket } from "../../../shared/utils/socket";
 
 const MyServiceBookingsPage = () => {
   const navigate = useNavigate();
@@ -85,6 +86,31 @@ const MyServiceBookingsPage = () => {
 
   useEffect(() => {
     fetchBookings();
+
+    const socket = getSocket();
+    const handleStatusUpdate = () => {
+      fetchBookings();
+    };
+
+    if (socket) {
+      socket.on("serviceBookingStatusUpdated", handleStatusUpdate);
+    }
+
+    const pollInterval = setInterval(() => {
+      getCustomerServiceBookings()
+        .then((res) => {
+          const payload = res?.bookings || res?.data?.bookings || (Array.isArray(res) ? res : []);
+          setBookings(payload);
+        })
+        .catch(() => {});
+    }, 6000);
+
+    return () => {
+      if (socket) {
+        socket.off("serviceBookingStatusUpdated", handleStatusUpdate);
+      }
+      clearInterval(pollInterval);
+    };
   }, [fetchBookings]);
 
   const handleOpenReview = (booking) => {

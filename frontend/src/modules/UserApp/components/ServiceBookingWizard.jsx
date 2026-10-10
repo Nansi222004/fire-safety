@@ -1012,7 +1012,7 @@ const ServiceBookingWizard = ({ isOpen, onClose, service: initialService }) => {
 
           {/* ── PAYMENT ── */}
           {currentStep.id === 'payment' && (
-            <form id="booking-final-form" onSubmit={handleSubmitBooking} className="space-y-4 animate-fadeIn">
+            <div className="space-y-4 animate-fadeIn">
               <div className="space-y-2.5">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-[#E31E24]">Payment method</h4>
                 {isCodOnly ? (
@@ -1064,7 +1064,7 @@ const ServiceBookingWizard = ({ isOpen, onClose, service: initialService }) => {
                   </div>
                 )}
               </div>
-            </form>
+            </div>
           )}
         </div>
 
@@ -1083,14 +1083,16 @@ const ServiceBookingWizard = ({ isOpen, onClose, service: initialService }) => {
 
           {currentStep.id === 'payment' ? (
             <button
-              type="submit"
-              form="booking-final-form"
+              key="confirm-booking"
+              type="button"
+              onClick={handleSubmitBooking}
               disabled={isSubmitting}
               className="px-4 sm:px-6 py-2.5 bg-[#E31E24] hover:bg-[#c6151b] text-white font-bold rounded-xl text-xs shadow-lg shadow-[#E31E24]/30 flex items-center gap-2 disabled:opacity-50">
               {isSubmitting ? <><FiLoader className="animate-spin text-sm" /> Confirming…</> : <><FiCheck /> Confirm & Book</>}
             </button>
           ) : (
             <button
+              key="continue-step"
               type="button"
               onClick={handleContinue}
               disabled={!canContinue() || isCheckingPincode}
