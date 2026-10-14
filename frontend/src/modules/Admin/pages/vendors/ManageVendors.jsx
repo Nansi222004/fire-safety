@@ -411,7 +411,7 @@ const ManageVendors = () => {
   const handleDelete = async () => {
     const result = await deleteVendor(actionModal.vendorId);
     if (result.success) toast.success("Vendor deleted successfully");
-    else toast.error(result.message || "Vendor has related records and cannot be deleted. Suspend it instead.");
+    else toast.error(result.message || "Failed to delete vendor");
   };
 
   const handleCommissionUpdate = async () => {
@@ -530,7 +530,7 @@ const ManageVendors = () => {
       case "delete":
         return {
           title: "Delete Vendor?",
-          message: `Delete "${actionModal.vendorName}"? Deletion is allowed only when no products, orders, shipments, service, payout, or wallet history exists.`,
+          message: `Are you sure you want to delete "${actionModal.vendorName}"? This will permanently delete the vendor and its catalog records.`,
           confirmText: "Delete",
           onConfirm: handleDelete,
           type: "danger",

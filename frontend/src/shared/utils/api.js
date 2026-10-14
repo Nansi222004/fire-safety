@@ -279,7 +279,8 @@ api.interceptors.response.use(
     const now = Date.now();
     const isDuplicateRecentToast = lastApiToastMessage === cleanMessage && now - lastApiToastTime < 3500;
 
-    if (!error.response?.data?.requiresConfirmation && !error.toastShown && !isDuplicateRecentToast) {
+    const isSilent = Boolean(error.config?.silent || error.config?.skipErrorToast);
+    if (!isSilent && !error.response?.data?.requiresConfirmation && !error.toastShown && !isDuplicateRecentToast) {
       error.toastShown = true;
       lastApiToastTime = now;
       lastApiToastMessage = cleanMessage;
