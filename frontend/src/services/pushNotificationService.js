@@ -102,42 +102,55 @@ const resolvePushScope = (scope) => {
 };
 const tokenCacheKey = (scope) => `fcm_token_web_${scope}`;
 
+let fcmRegistrationInFlight = null;
+
 // Register FCM Token with Backend (SOP Step 5)
 export async function registerFCMToken(forceUpdate = false, scope) {
-    const pushScope = resolvePushScope(scope);
-    try {
-        const savedToken = localStorage.getItem(tokenCacheKey(pushScope));
-        if (savedToken && !forceUpdate) {
-            return savedToken;
-        }
-
-        const hasPermission = await requestNotificationPermission();
-        if (!hasPermission) {
-            return null;
-        }
-
-        const token = await getFCMToken();
-        if (!token) {
-            return null;
-        }
-
-        // Save token to backend
-        try {
-            await api.post(`/${pushScope}/fcm-tokens/save`, {
-                token: token,
-                platform: 'web',
-            });
-            localStorage.setItem(tokenCacheKey(pushScope), token);
-            console.log('✅ [Push Notification] FCM token registered with SafeFire backend');
-            return token;
-        } catch (apiErr) {
-            console.warn('[Push Notification] Failed to save token with backend:', apiErr.message);
-            return token;
-        }
-    } catch (error) {
-        console.warn('[Push Notification] Error registering FCM token:', error.message);
-        return null;
+    if (fcmRegistrationInFlight) {
+        return fcmRegistrationInFlight;
     }
+
+    const task = (async () => {
+        const pushScope = resolvePushScope(scope);
+        try {
+            const savedToken = localStorage.getItem(tokenCacheKey(pushScope));
+            if (savedToken && !forceUpdate) {
+                return savedToken;
+            }
+
+            const hasPermission = await requestNotificationPermission();
+            if (!hasPermission) {
+                return null;
+            }
+
+            const token = await getFCMToken();
+            if (!token) {
+                return null;
+            }
+
+            // Save token to backend
+            try {
+                await api.post(`/${pushScope}/fcm-tokens/save`, {
+                    token: token,
+                    platform: 'web',
+                }, { silent: true, skipErrorToast: true });
+                localStorage.setItem(tokenCacheKey(pushScope), token);
+                console.log('✅ [Push Notification] FCM token registered with SafeFire backend');
+                return token;
+            } catch (apiErr) {
+                console.warn('[Push Notification] Failed to save token with backend:', apiErr.message);
+                return token;
+            }
+        } catch (error) {
+            console.warn('[Push Notification] Error registering FCM token:', error.message);
+            return null;
+        } finally {
+            fcmRegistrationInFlight = null;
+        }
+    })();
+
+    fcmRegistrationInFlight = task;
+    return task;
 }
 
 // Remove FCM Token on Logout (SOP Step 5)
