@@ -82,28 +82,34 @@ export const saveToken = asyncHandler(async (req, res) => {
         }
     );
 
-    if (cleanPlatform === 'mobile' || cleanPlatform === 'android' || cleanPlatform === 'ios') {
-        const currentMobile = [...new Set((doc.fcmTokenMobile || []).filter(Boolean))];
-        if (!currentMobile.includes(cleanToken)) {
-            currentMobile.push(cleanToken);
-        }
-        doc.fcmTokenMobile = currentMobile.slice(-10);
-    } else {
-        const currentWeb = [...new Set((doc.fcmTokens || []).filter(Boolean))];
-        if (!currentWeb.includes(cleanToken)) {
-            currentWeb.push(cleanToken);
-        }
-        doc.fcmTokens = currentWeb.slice(-10);
+    const isMobile = cleanPlatform === 'mobile' || cleanPlatform === 'android' || cleanPlatform === 'ios';
+    const fieldName = isMobile ? 'fcmTokenMobile' : 'fcmTokens';
+
+    // Atomically add token to the account without optimistic version conflicts
+    const updatedDoc = await Model.findByIdAndUpdate(
+        doc._id,
+        {
+            $addToSet: { [fieldName]: cleanToken },
+        },
+        { new: true, select: 'fcmTokens fcmTokenMobile' }
+    );
+
+    // Keep token list capped at 10 to avoid unbounded growth
+    if (updatedDoc && Array.isArray(updatedDoc[fieldName]) && updatedDoc[fieldName].length > 10) {
+        await Model.updateOne(
+            { _id: doc._id },
+            { $set: { [fieldName]: updatedDoc[fieldName].slice(-10) } }
+        );
     }
 
-    await doc.save();
+    const tokenCount = updatedDoc ? (updatedDoc[fieldName]?.length || 0) : 1;
 
     res.status(200).json({
         success: true,
         message: 'FCM token saved',
         data: {
             platform: cleanPlatform,
-            tokenCount: cleanPlatform === 'mobile' ? doc.fcmTokenMobile.length : doc.fcmTokens.length,
+            tokenCount,
         },
     });
 });
@@ -131,19 +137,26 @@ export const removeToken = asyncHandler(async (req, res) => {
 
     const doc = account.doc;
 
-    if (!cleanPlatform || cleanPlatform === 'web') {
-        if (Array.isArray(doc.fcmTokens)) {
-            doc.fcmTokens = doc.fcmTokens.filter(t => t !== cleanToken);
-        }
+    const Model = account.modelName === 'User' ? User
+                : account.modelName === 'Vendor' ? Vendor
+                : account.modelName === 'DeliveryBoy' ? DeliveryBoy
+                : Admin;
+
+    const isMobile = cleanPlatform === 'mobile' || cleanPlatform === 'android' || cleanPlatform === 'ios';
+    const isWeb = cleanPlatform === 'web';
+
+    const pullObj = {};
+    if (!cleanPlatform || isWeb) {
+        pullObj.fcmTokens = cleanToken;
+    }
+    if (!cleanPlatform || isMobile) {
+        pullObj.fcmTokenMobile = cleanToken;
     }
 
-    if (!cleanPlatform || cleanPlatform === 'mobile' || cleanPlatform === 'android' || cleanPlatform === 'ios') {
-        if (Array.isArray(doc.fcmTokenMobile)) {
-            doc.fcmTokenMobile = doc.fcmTokenMobile.filter(t => t !== cleanToken);
-        }
-    }
-
-    await doc.save();
+    await Model.updateOne(
+        { _id: doc._id },
+        { $pull: pullObj }
+    );
 
     res.status(200).json({
         success: true,

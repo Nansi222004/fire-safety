@@ -5,8 +5,8 @@
   "main": "src/server.js",
   "type": "module",
   "scripts": {
-    "dev": "nodemon src/server.js",
-    "start": "node src/server.js",
+    "dev": "node api.js && nodemon src/server.js",
+    "start": "node api.js && node src/server.js",
     "test:delivery-routing": "node src/services/deliveryRouting.test.js",
     "test:wholesale-auth": "node src/services/wholesaleAuth.test.js",
     "test:product-channels": "node src/services/productChannel.test.js",

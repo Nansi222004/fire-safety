@@ -356,6 +356,17 @@ export const createProduct = asyncHandler(async (req, res) => {
                 status: 'approved',
                 isVerified: true,
                 commissionRate: 0,
+                address: {
+                    street: 'Platform Headquarters',
+                    city: 'Platform City',
+                    state: 'Platform State',
+                    zipCode: '110001',
+                    country: 'India',
+                },
+                documents: {
+                    businessLicense: 'platform-internal',
+                    identity: 'platform-internal',
+                },
             });
         }
         targetVendorId = adminVendor._id;
@@ -399,6 +410,12 @@ export const createProduct = asyncHandler(async (req, res) => {
         stockQuantity: finalStockQuantity,
         vendorId: targetVendorId,
         ...rest,
+        weight: rest.weight || 0.5,
+        dimensions: {
+            length: rest.dimensions?.length || 15,
+            breadth: rest.dimensions?.breadth || 12,
+            height: rest.dimensions?.height || 8,
+        },
         variants: normalizedVariants,
         faqs: sanitizeFaqs(rest.faqs),
     });
