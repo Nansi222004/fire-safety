@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import asyncHandler from '../../../utils/asyncHandler.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
-import ReturnRequest from '../../../models/ReturnRequest.model.js';
+import ReturnRequest, { toReturnRequestView } from '../../../models/ReturnRequest.model.js';
 import Refund from '../../../models/Refund.model.js';
 import { creditWallet } from '../../../services/wallet.service.js';
 import PaymentAttempt from '../../../models/PaymentAttempt.model.js';
@@ -58,7 +58,7 @@ const maskAccountNumber = (accNo) => {
 };
 
 const normalizeReturnRequest = (requestDoc) => {
-    const request = requestDoc.toObject ? requestDoc.toObject() : requestDoc;
+    const request = toReturnRequestView(requestDoc, 'vendor');
     const orderOrderId = request.orderId?.orderId;
     const orderRefId = request.orderId?._id ?? request.orderId ?? null;
 

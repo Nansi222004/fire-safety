@@ -785,7 +785,8 @@ const getProductDetail = asyncHandler(async (req, res) => {
     }
 
     const product = await query.lean();
-    if (!product) throw new ApiError(404, 'Product not found.');
+    // Deactivated products are hidden from the storefront just like in the listings.
+    if (!product || product.isActive === false) throw new ApiError(404, 'Product not found.');
     // Wholesale-only products and wholesale pricing are not part of the public B2C catalog.
     if (product.b2cAvailable === false) throw new ApiError(404, 'Product not found.');
     delete product.wholesale;

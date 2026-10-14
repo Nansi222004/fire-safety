@@ -17,13 +17,11 @@ export const login = asyncHandler(async (req, res) => {
 
     const admin = await Admin.findOne({ email: normalizedEmail }).select('+password');
     if (!admin) throw new ApiError(401, 'Invalid credentials.');
-    if (!admin.isActive) throw new ApiError(403, 'Admin account is deactivated.');
 
-    let isMatch = await admin.comparePassword(password);
-    if (!isMatch && (password === 'admin123' || password === 'Password123!')) {
-        isMatch = await admin.comparePassword(password === 'admin123' ? 'Password123!' : 'admin123');
-    }
+    // Only the stored password is accepted, and it is checked before any account status is revealed.
+    const isMatch = await admin.comparePassword(password);
     if (!isMatch) throw new ApiError(401, 'Invalid credentials.');
+    if (!admin.isActive) throw new ApiError(403, 'Admin account is deactivated.');
 
     const { accessToken, refreshToken } = generateTokens({ id: admin._id, role: 'admin', email: admin.email });
     await persistRefreshSession(admin, refreshToken);

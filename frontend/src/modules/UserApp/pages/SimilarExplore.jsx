@@ -44,11 +44,11 @@ const FlipkartCompactCard = ({ product }) => {
             {[...Array(5)].map((_, i) => (
               <FiStar 
                 key={i} 
-                className={`text-[9px] ${i < Math.floor(product.rating || 4.5) ? 'text-gray-500 fill-gray-500' : 'text-gray-200'}`} 
+                className={`text-[9px] ${i < Math.floor(product.rating || 0) ? 'text-gray-500 fill-gray-500' : 'text-gray-200'}`} 
               />
             ))}
           </div>
-          <span className="text-[9px] text-gray-400 font-bold">({product.reviewCount || "47"})</span>
+          <span className="text-[9px] text-gray-400 font-bold">({product.reviewCount || 0})</span>
         </div>
       </div>
     </div>

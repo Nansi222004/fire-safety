@@ -6,6 +6,7 @@ import { createNotification } from './notification.service.js';
 import { notifyOrderUpdate } from './socket.service.js';
 import { emailCodeBox } from './emailLayout.js';
 import { hashOtp, verifyOtpHash, generateDeliveryOtpValue } from './otp.service.js';
+import { isOtpDebugEnabled } from '../config/otpConfig.js';
 
 const IS_PRODUCTION = String(process.env.NODE_ENV || '').toLowerCase() === 'production';
 export const DELIVERY_OTP_TTL_MS = IS_PRODUCTION ? 10 * 60 * 1000 : 24 * 60 * 60 * 1000;
@@ -90,7 +91,7 @@ export const ensureDeliveryOtpForShipment = async (shipmentOrId, orderOrId, opti
         return {
             shipment,
             isNew: false,
-            generatedOtp: !IS_PRODUCTION ? shipment.deliveryOtpDebug : undefined,
+            generatedOtp: isOtpDebugEnabled() ? shipment.deliveryOtpDebug : undefined,
         };
     }
 
@@ -105,7 +106,9 @@ export const ensureDeliveryOtpForShipment = async (shipmentOrId, orderOrId, opti
         deliveryOtpSentAt:   now,
         deliveryOtpAttempts: 0,
         deliveryOtpVerifiedAt: undefined,
-        deliveryOtpDebug:    !IS_PRODUCTION ? generatedOtp : undefined,
+        // The customer's own code (also emailed). Shipment.deliveryOtpDebug is select:false and only the customer's
+        // order endpoint selects it — rider responses never include it.
+        deliveryOtpDebug:    generatedOtp,
     };
 
     if (options.setOutForDelivery) {
@@ -147,7 +150,7 @@ export const ensureDeliveryOtpForShipment = async (shipmentOrId, orderOrId, opti
     return {
         shipment: updatedShipment,
         isNew: true,
-        generatedOtp: !IS_PRODUCTION ? generatedOtp : undefined,
+        generatedOtp: isOtpDebugEnabled() ? generatedOtp : undefined,
     };
 };
 

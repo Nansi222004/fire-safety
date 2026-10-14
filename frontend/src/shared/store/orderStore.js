@@ -16,7 +16,8 @@ const normalizeVendorGroup = (group) => ({
 });
 
 const normalizeOrder = (order) => {
-  const id = order?.id || order?.orderId || order?._id;
+  // Prefer the customer-facing order number (ORD-…) over Mongo's `id` virtual so every screen shows the same ID.
+  const id = order?.orderId || order?.id || order?._id;
   const isCod = order?.paymentMethod === 'cod' || order?.paymentMethod === 'cash';
   const total = isCod && typeof order?.total === 'number'
     ? Math.round(order.total)

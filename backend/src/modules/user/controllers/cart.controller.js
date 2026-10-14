@@ -7,8 +7,10 @@ import Product from '../../../models/Product.model.js';
 const normalizeVariantPart = (v) => String(v || '').trim().toLowerCase();
 
 const areVariantsEqual = (v1, v2) => {
-    if (!v1 && !v2) return true;
-    if (!v1 || !v2) return false;
+    // A stored line without a variant comes back from Mongoose as an empty nested object, while a request may
+    // send no variant at all. Treat missing as empty so the same product merges into one line.
+    v1 = v1 || {};
+    v2 = v2 || {};
 
     // Check primary axes first
     if (normalizeVariantPart(v1.size) !== normalizeVariantPart(v2.size)) return false;

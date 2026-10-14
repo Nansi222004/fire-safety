@@ -284,14 +284,14 @@ const ProductCard = ({
               {[...Array(5)].map((_, i) => (
                 <FiStar
                   key={i}
-                  className={`text-[10px] ${i < Math.floor(product.rating || 4)
+                  className={`text-[10px] ${i < Math.floor(product.rating || 0)
                       ? "text-amber-400 fill-amber-400"
                       : "text-slate-200"
                     }`}
                 />
               ))}
               <span className="text-[10px] text-slate-400 font-medium ml-1">
-                ({product.reviewCount || 47})
+                ({product.reviewCount || 0})
               </span>
             </div>
           </div>

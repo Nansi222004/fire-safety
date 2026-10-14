@@ -28,6 +28,7 @@ import {
 } from '../../../services/deliveryOtp.service.js';
 import { hashOtp, verifyOtpHash, generateDeliveryOtpValue } from '../../../services/otp.service.js';
 import { emailCodeBox } from '../../../services/emailLayout.js';
+import { isOtpDebugEnabled } from '../../../config/otpConfig.js';
 
 const IS_PRODUCTION = String(process.env.NODE_ENV || '').toLowerCase() === 'production';
 
@@ -339,6 +340,14 @@ export const getProfileSummary = asyncHandler(async (req, res) => {
     );
 });
 
+// Removes OTP secrets from an order sent to the rider app. Only the rider's own pickup code may be added back.
+const stripOrderOtpSecrets = (obj) => {
+    for (const key of Object.keys(obj || {})) {
+        if (/Otp(Hash|Debug)$/.test(key)) delete obj[key];
+    }
+    return obj;
+};
+
 // GET /api/delivery/orders/:id
 export const getOrderDetail = asyncHandler(async (req, res) => {
     const OTP_SELECT_S = '+deliveryOtpHash +deliveryOtpExpiry +deliveryOtpSentAt +deliveryOtpAttempts +deliveryOtpDebug +pickupOtpHash +pickupOtpExpiry +pickupOtpDebug';
@@ -353,7 +362,7 @@ export const getOrderDetail = asyncHandler(async (req, res) => {
 
     if (!isLegacy && shipment) {
         // Overlay the Shipment status and OTP fields on top of the Order response
-        const doc = order.toObject();
+        const doc = stripOrderOtpSecrets(order.toObject());
         doc.status = shipment.status;
         doc.deliveryAssignmentStatus = shipment.deliveryAssignmentStatus;
         doc.assignedAt = shipment.assignedAt;
@@ -371,17 +380,16 @@ export const getOrderDetail = asyncHandler(async (req, res) => {
             status:                shipment.status,
         };
         
-        // Add debug OTPs if not in production
-        const IS_PRODUCTION = process.env.NODE_ENV === 'production';
-        if (!IS_PRODUCTION) {
-            doc.pickupOtpDebug = shipment.pickupOtpDebug;
-            doc.deliveryOtpDebug = shipment.deliveryOtpDebug;
-        }
+        // The pickup OTP is the rider's own code (shown to the vendor at pickup). The delivery OTP belongs to the
+        // customer and is collected by the rider, so it is never sent to the rider app.
+        doc.pickupOtpDebug = shipment.pickupOtpDebug;
 
         return res.status(200).json(new ApiResponse(200, doc, 'Order detail fetched.'));
     }
 
-    res.status(200).json(new ApiResponse(200, order, 'Order detail fetched.'));
+    const legacyDoc = stripOrderOtpSecrets(order.toObject());
+    if (order.pickupOtpDebug) legacyDoc.pickupOtpDebug = order.pickupOtpDebug; // rider's own code
+    res.status(200).json(new ApiResponse(200, legacyDoc, 'Order detail fetched.'));
 });
 
 // PATCH /api/delivery/orders/:id/status
@@ -503,7 +511,7 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
         await Promise.allSettled(statusNotificationTasks);
     }
 
-    const doc = order.toObject();
+    const doc = stripOrderOtpSecrets(order.toObject());
     if (shipment) {
         // Fix: Make sure memory object reflects the updated status for response
         if (status === 'delivered') {
@@ -531,11 +539,7 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
             status:                shipment.status,
         };
         
-        const IS_PRODUCTION = process.env.NODE_ENV === 'production';
-        if (!IS_PRODUCTION) {
-            doc.pickupOtpDebug = shipment.pickupOtpDebug;
-            doc.deliveryOtpDebug = shipment.deliveryOtpDebug;
-        }
+        doc.pickupOtpDebug = shipment.pickupOtpDebug; // rider's own code; never the customer's delivery OTP
     }
 
     res.status(200).json(new ApiResponse(200, doc, 'Delivery status updated.'));
@@ -555,11 +559,19 @@ export const resendDeliveryOtp = asyncHandler(async (req, res) => {
 // PATCH /api/delivery/location
 export const updateLocation = asyncHandler(async (req, res) => {
     const { lat, lng } = req.body;
-    if (lat === undefined || lng === undefined) throw new ApiError(400, 'Coordinates required.');
+    if (lat === undefined || lng === undefined || lat === null || lng === null || lat === '' || lng === '') {
+        throw new ApiError(400, 'Coordinates required.');
+    }
+    const latitude = Number(lat);
+    const longitude = Number(lng);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
+        throw new ApiError(400, 'Invalid coordinates.');
+    }
 
+    // currentLocation is a GeoJSON Point (2dsphere index): coordinates are [longitude, latitude].
     const deliveryBoy = await DeliveryBoy.findByIdAndUpdate(
         req.user.id,
-        { currentLocation: { lat, lng } },
+        { currentLocation: { type: 'Point', coordinates: [longitude, latitude] } },
         { new: true }
     );
 
@@ -580,7 +592,7 @@ export const updateLocation = asyncHandler(async (req, res) => {
 
 // GET /api/delivery/orders/:id/debug-otp (non-production only)
 export const getDeliveryOtpForDebug = asyncHandler(async (req, res) => {
-    if (IS_PRODUCTION) {
+    if (!isOtpDebugEnabled()) {
         throw new ApiError(404, 'Route not found.');
     }
 
@@ -620,8 +632,8 @@ export const acceptOrder = asyncHandler(async (req, res) => {
     const assignmentStatus = shipment.deliveryAssignmentStatus;
 
     if (assignmentStatus === 'accepted') {
-        const responseData = { ...(order.toObject ? order.toObject() : order) };
-        if (!IS_PRODUCTION && shipment.pickupOtpDebug) {
+        const responseData = stripOrderOtpSecrets({ ...(order.toObject ? order.toObject() : order) });
+        if (shipment.pickupOtpDebug) {
             responseData.pickupOtpDebug = shipment.pickupOtpDebug;
         }
         return res.status(200).json(new ApiResponse(200, responseData, 'Order offer already accepted.'));
@@ -649,7 +661,7 @@ export const acceptOrder = asyncHandler(async (req, res) => {
             pickupOtpHash:            pickupOtpHash,
             pickupOtpExpiry:          pickupOtpExpiry,
             pickupOtpSentAt:          pickupOtpNow,
-            pickupOtpDebug:           !IS_PRODUCTION ? generatedPickupOtp : undefined,
+            pickupOtpDebug:           generatedPickupOtp, // rider's own code, shown in the rider app
             status:                   shipmentStatusUpdate,
         },
     });
@@ -661,15 +673,11 @@ export const acceptOrder = asyncHandler(async (req, res) => {
 
     // Re-fetch a minimal order snapshot for socket notification + response
     // (we need orderId for the socket room key)
-    const updatedOrder = await Order.findById(order._id).select("+pickupOtpHash").lean();
+    const updatedOrder = stripOrderOtpSecrets(await Order.findById(order._id).lean());
     notifyOrderUpdate(updatedOrder); // Uses order_${order.orderId} room
 
-    // Surface pickup OTP debug value in the response (non-production only) so tests
-    // can verify it without a separate debug endpoint.
-    const responseData = { ...(updatedOrder || {}), status: newOrderStatus };
-    if (!IS_PRODUCTION) {
-        responseData.pickupOtpDebug = generatedPickupOtp;
-    }
+    // Return the rider's own pickup code so the rider app can show it to the vendor.
+    const responseData = { ...(updatedOrder || {}), status: newOrderStatus, pickupOtpDebug: generatedPickupOtp };
 
     return res.status(200).json(new ApiResponse(200, responseData, 'Order offer accepted successfully.'));
 });
@@ -687,22 +695,25 @@ export const rejectOrder = asyncHandler(async (req, res) => {
         throw new ApiError(409, 'No active assignment offer found to reject.');
     }
 
-    Shipment.findByIdAndUpdate(
+    // Persist the rejection before answering, so the rider app never sees a stale assignment on its next refresh.
+    await Shipment.findByIdAndUpdate(
         shipment._id,
         {
             $unset: { deliveryBoyId: '' },
             $set:   { deliveryAssignmentStatus: 'pending' },
             $push:  { rejectedDeliveryBoys: req.user.id },
         }
-    ).then(async () => {
-        // Re-fetch for socket room key
+    );
+
+    // Socket update and re-routing can run in the background.
+    (async () => {
         const updatedOrder = await Order.findById(order._id).lean();
         if (updatedOrder) notifyOrderUpdate(updatedOrder);
-        
+
         // Manual (INTERNAL) delivery goes back to Vendor/Admin for a new manual assignment.
-        if (shipment.deliveryMethod !== 'INTERNAL') autoAssignDeliveryPartner(shipment._id);
-    }).catch(err => {
-        console.error(`[rejectOrder] Shipment sync failed for Order ${order.orderId}:`, err.message);
+        if (shipment.deliveryMethod !== 'INTERNAL') await autoAssignDeliveryPartner(shipment._id);
+    })().catch(err => {
+        console.error(`[rejectOrder] Re-routing failed for Order ${order.orderId}:`, err.message);
     });
 
     return res.status(200).json(new ApiResponse(200, null, 'Order offer rejected. Re-routing.'));

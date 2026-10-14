@@ -1,5 +1,6 @@
 import express from 'express';
 import { authenticate } from '../middlewares/authenticate.js';
+import { authorize, enforceAccountStatus } from '../middlewares/authorize.js';
 import {
     saveToken,
     removeToken,
@@ -29,7 +30,7 @@ router.post('/remove', removeToken);
 // Test notification for authenticated user
 router.post('/test', sendTestNotification);
 
-// Broadcast push notification to target audience (admin / auth)
-router.post('/broadcast', sendBroadcastNotification);
+// Broadcast push notification to a target audience — admins only.
+router.post('/broadcast', authorize('admin', 'superadmin'), enforceAccountStatus, sendBroadcastNotification);
 
 export default router;

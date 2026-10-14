@@ -207,6 +207,11 @@ export const login = asyncHandler(async (req, res) => {
 
     const deliveryBoy = await DeliveryBoy.findOne({ email: normalizedEmail }).select('+password');
     if (!deliveryBoy) throw new ApiError(401, 'Invalid credentials.');
+
+    // Check the password first so application status is only revealed to the account owner.
+    const isMatch = await deliveryBoy.comparePassword(password);
+    if (!isMatch) throw new ApiError(401, 'Invalid credentials.');
+
     if (deliveryBoy.applicationStatus === 'pending') {
         throw new ApiError(403, 'Your account is pending admin approval.');
     }
@@ -217,9 +222,6 @@ export const login = asyncHandler(async (req, res) => {
         );
     }
     if (!deliveryBoy.isActive) throw new ApiError(403, 'Account is deactivated. Contact admin.');
-
-    const isMatch = await deliveryBoy.comparePassword(password);
-    if (!isMatch) throw new ApiError(401, 'Invalid credentials.');
 
     const { accessToken, refreshToken } = generateTokens({ id: deliveryBoy._id, role: 'delivery', email: deliveryBoy.email });
     await persistRefreshSession(deliveryBoy, refreshToken);
@@ -319,7 +321,14 @@ export const updateProfile = asyncHandler(async (req, res) => {
 
     if (typeof vehicleType === 'string') update.vehicleType = vehicleType.trim();
     if (typeof vehicleNumber === 'string') update.vehicleNumber = vehicleNumber.trim();
-    if (typeof currentLocation === 'object' && currentLocation !== null) update.currentLocation = currentLocation;
+    if (typeof currentLocation === 'object' && currentLocation !== null) {
+        // Only accept a valid GeoJSON Point — anything else would break the 2dsphere index on currentLocation.
+        const [lng, lat] = Array.isArray(currentLocation.coordinates) ? currentLocation.coordinates.map(Number) : [];
+        if (!Number.isFinite(lng) || !Number.isFinite(lat) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+            throw new ApiError(400, 'currentLocation must be a GeoJSON Point with [longitude, latitude].');
+        }
+        update.currentLocation = { type: 'Point', coordinates: [lng, lat] };
+    }
 
     if (typeof status === 'string') {
         const normalized = status.toLowerCase();

@@ -172,8 +172,9 @@ const orderSchema = new mongoose.Schema(
 orderSchema.index(
     { idempotencyScope: 1, idempotencyKey: 1 },
     {
+        // partialFilterExpression already limits the index to orders with both fields; MongoDB rejects `sparse`
+        // combined with it, which previously prevented this unique index from ever being created.
         unique: true,
-        sparse: true,
         partialFilterExpression: {
             idempotencyScope: { $exists: true, $type: 'string' },
             idempotencyKey: { $exists: true, $type: 'string' },

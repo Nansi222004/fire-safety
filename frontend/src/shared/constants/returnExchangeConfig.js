@@ -149,10 +149,12 @@ export const EXCHANGE_TIMELINE = [
     }
 ];
 
+// Must match backend/src/shared/statusTransitions.js — the API rejects any other move
+// (enforced by frontend/tests/unit/contracts/frontendBackendContract.test.js).
 export const RETURN_TRANSITIONS = {
     pending: ['approved', 'rejected'],
-    approved: ['pickup_pending', 'completed'],
-    pickup_pending: ['pickup_assigned', 'completed'],
+    approved: ['pickup_pending'],
+    pickup_pending: ['pickup_assigned'],
     pickup_assigned: ['picked_up'],
     picked_up: ['delivered_to_vendor'],
     delivered_to_vendor: ['completed', 'rejected'],
@@ -166,7 +168,7 @@ export const EXCHANGE_TRANSITIONS = {
     pickup_pending: ['pickup_assigned'],
     pickup_assigned: ['picked_up'],
     picked_up: ['delivered_to_vendor'],
-    delivered_to_vendor: ['replacement_preparing', 'rejected'],
+    delivered_to_vendor: ['replacement_preparing', 'replacement_ready', 'rejected'],
     replacement_preparing: ['replacement_ready'],
     replacement_ready: ['replacement_assigned'],
     replacement_assigned: ['out_for_delivery'],

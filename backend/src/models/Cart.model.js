@@ -48,6 +48,7 @@ const cartSchema = new mongoose.Schema({
 // Middleware to update totals
 cartSchema.pre('save', function(next) {
     this.totalItems = this.items.reduce((sum, item) => sum + item.quantity, 0);
+    this.totalAmount = this.items.reduce((sum, item) => sum + (Number(item.priceAtAddition) || 0) * item.quantity, 0);
     next();
 });
 

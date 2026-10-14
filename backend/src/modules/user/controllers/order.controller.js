@@ -6,7 +6,7 @@ import Shipment from '../../../models/Shipment.model.js';
 import Product from '../../../models/Product.model.js';
 import Coupon from '../../../models/Coupon.model.js';
 import Commission from '../../../models/Commission.model.js';
-import ReturnRequest from '../../../models/ReturnRequest.model.js';
+import ReturnRequest, { toReturnRequestView } from '../../../models/ReturnRequest.model.js';
 import Admin from '../../../models/Admin.model.js';
 import Payment from '../../../models/Payment.model.js';
 import PaymentAttempt from '../../../models/PaymentAttempt.model.js';
@@ -260,7 +260,7 @@ export const placeOrder = asyncHandler(async (req, res) => {
             'vendorId',
             'commissionRate storeName'
         );
-        if (!product) throw new ApiError(404, `Product not found: ${item.productId}`);
+        if (!product || product.isActive === false) throw new ApiError(404, `Product not found: ${item.productId}`);
         if (!product.vendorId) {
             throw new ApiError(400, `The vendor for product ${product.name} is inactive or does not exist.`);
         }
@@ -855,7 +855,7 @@ export const getUserOrders = asyncHandler(async (req, res) => {
 
     // Fetch return requests for these orders
     const orderIds = orders.map(o => o._id);
-    const returnRequests = await ReturnRequest.find({ orderId: { $in: orderIds } }).lean();
+    const returnRequests = (await ReturnRequest.find({ orderId: { $in: orderIds } }).lean()).map((r) => toReturnRequestView(r, 'customer'));
 
     // Group return requests by orderId
     const returnMap = {};
@@ -1140,7 +1140,7 @@ const maskAccountNumber = (accNo) => {
 };
 
 const normalizeReturnRequest = (requestDoc) => {
-    const request = typeof requestDoc?.toObject === 'function' ? requestDoc.toObject() : { ...requestDoc };
+    const request = toReturnRequestView(requestDoc, 'customer');
     const orderOrderId = request?.orderId?.orderId || '';
     const orderRefId = request?.orderId?._id || request?.orderId || null;
 
@@ -1627,14 +1627,14 @@ export const regenerateReturnPickupOtp = asyncHandler(async (req, res) => {
     returnRequest.returnPickupOtpVerified = false;
 
     // 5.1 — Only store/return plain-text OTP in non-production environments
-    const isDev = process.env.NODE_ENV !== 'production';
-    returnRequest.returnPickupOtpDebug = isDev ? otp : null;
+    // Customer's own code (shown in the customer app); never sent to the rider who collects it.
+    returnRequest.returnPickupOtpDebug = otp;
 
     await returnRequest.save();
     notifyReturnUpdate(returnRequest);
 
     return res.status(200).json(new ApiResponse(200, {
-        ...(isDev && { otpDebug: otp }),   // never exposed in production
+        otpDebug: otp, // the customer's own pickup code
         expiresAt: returnRequest.returnPickupOtpExpiresAt,
         returnRequest: normalizeReturnRequest(returnRequest)
     }, 'OTP regenerated successfully.'));

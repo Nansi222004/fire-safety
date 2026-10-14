@@ -215,10 +215,10 @@ export async function processCapturedPayment({ razorpayOrderId, razorpayPaymentI
                 await Coupon.updateOne(couponFilter, { $inc: { usedCount: 1 } }, { session });
             }
 
-            // Update Order status
+            // Paid: the order now waits for vendor acceptance (vendor accepting moves it to 'processing').
             await Order.findByIdAndUpdate(
                 order._id,
-                { $set: { status: 'processing', paymentStatus: 'paid' } },
+                { $set: { status: 'pending', paymentStatus: 'paid' } },
                 { session }
             );
 
@@ -397,7 +397,7 @@ export async function processCapturedPayment({ razorpayOrderId, razorpayPaymentI
             logger.error('[NOTIFICATION_ERROR] Post-payment notification failed:', { message: notifErr.message });
         }
 
-        order.status = 'processing';
+        order.status = 'pending';
         order.paymentStatus = 'paid';
 
         try {

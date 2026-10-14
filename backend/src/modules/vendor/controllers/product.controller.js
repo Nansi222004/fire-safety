@@ -7,6 +7,15 @@ import Category from '../../../models/Category.model.js';
 import { slugify } from '../../../utils/slugify.js';
 import { resolveProductSalesChannels } from '../../../services/productChannel.service.js';
 
+// Fields a vendor must never set through the request body: ownership is always the authenticated vendor, and
+// rating / reviewCount are maintained by the review aggregation.
+const PROTECTED_PRODUCT_FIELDS = ['_id', '__v', 'vendorId', 'rating', 'reviewCount', 'createdAt', 'updatedAt'];
+const stripProtectedFields = (body = {}, extra = []) => {
+    const clean = { ...body };
+    for (const key of [...PROTECTED_PRODUCT_FIELDS, ...extra]) delete clean[key];
+    return clean;
+};
+
 const deriveStockStatus = (stockQuantity = 0, lowStockThreshold = 10) => {
     if (stockQuantity <= 0) return 'out_of_stock';
     if (stockQuantity <= lowStockThreshold) return 'low_stock';
@@ -244,7 +253,7 @@ export const getVendorProductById = asyncHandler(async (req, res) => {
 
 // POST /api/vendor/products
 export const createProduct = asyncHandler(async (req, res) => {
-    const { name, ...rest } = req.body;
+    const { name, ...rest } = stripProtectedFields(req.body, ['slug']);
     if (!name) throw new ApiError(400, 'Product name is required.');
     const slug = slugify(name) + '-' + Date.now();
     const stockQuantity = Number(rest.stockQuantity ?? 0);
@@ -337,7 +346,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
         }
     }
 
-    Object.assign(product, req.body);
+    Object.assign(product, stripProtectedFields(req.body, ['slug']));
     product.b2cAvailable = salesChannels.b2cAvailable;
     product.wholesale = salesChannels.wholesale;
     if (Object.prototype.hasOwnProperty.call(req.body, 'faqs')) {

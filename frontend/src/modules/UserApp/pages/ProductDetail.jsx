@@ -76,33 +76,43 @@ const FlipkartCompactCard = ({ product }) => {
             {[...Array(5)].map((_, i) => (
               <FiStar 
                 key={i} 
-                className={`text-[9px] ${i < Math.floor(product.rating || 4.5) ? 'text-gray-500 fill-gray-500' : 'text-gray-200'}`} 
+                className={`text-[9px] ${i < Math.floor(product.rating || 0) ? 'text-gray-500 fill-gray-500' : 'text-gray-200'}`} 
               />
             ))}
           </div>
-          <span className="text-[9px] text-gray-400 font-bold">({product.reviewCount || "47"})</span>
+          <span className="text-[9px] text-gray-400 font-bold">({product.reviewCount || 0})</span>
         </div>
       </div>
     </div>
   );
 };
 
+// Delivery & payment info from the admin-configured public checkout settings (no hard-coded dates or pincodes).
 const DeliveryBlock = () => {
+  const [shipping, setShipping] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    api.get("/settings/checkout")
+      .then((data) => { if (active) setShipping(data?.shipping || {}); })
+      .catch(() => { if (active) setShipping({}); });
+    return () => { active = false; };
+  }, []);
+
+  const freeShippingThreshold = Number(shipping?.freeShippingThreshold) || 0;
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-start gap-3">
-          <div className="w-5 h-5 rounded-full border border-green-500 flex items-center justify-center mt-0.5">
-            <svg className="w-3.5 h-3.5 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
-          </div>
-          <div>
-            <div className="text-sm font-bold text-slate-800">Delivery by Wed, 26 Apr</div>
-            <div className="text-xs text-gray-400 font-medium">638504 <span className="text-gray-300">(Anthiyour)</span></div>
-          </div>
+      <div className="flex items-start gap-3">
+        <div className="w-5 h-5 rounded-full border border-green-500 flex items-center justify-center mt-0.5">
+          <svg className="w-3.5 h-3.5 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
         </div>
-        <button className="px-4 py-2 border border-gray-100 rounded-lg text-sm text-pink-500 font-bold shadow-sm">Change</button>
+        <div>
+          <div className="text-sm font-bold text-slate-800">Delivery to your address</div>
+          <div className="text-xs text-gray-400 font-medium">Delivery charges and timeline are confirmed at checkout for your pincode.</div>
+        </div>
       </div>
 
       <div className="flex gap-4 pt-4 border-t border-gray-50">
@@ -114,7 +124,11 @@ const DeliveryBlock = () => {
               <path d="M16 10a4 4 0 0 1-8 0"></path>
             </svg>
           </div>
-          <span>Free delivery above ₹499</span>
+          <span>
+            {freeShippingThreshold > 0
+              ? `Free delivery above ₹${freeShippingThreshold.toLocaleString("en-IN")}`
+              : "Shipping calculated at checkout"}
+          </span>
         </div>
         <div className="flex items-center gap-2 text-xs text-slate-500">
           <div className="p-2 bg-gray-50 rounded-lg">
@@ -123,7 +137,7 @@ const DeliveryBlock = () => {
               <line x1="2" y1="10" x2="22" y2="10" />
             </svg>
           </div>
-          <span>COD on orders above ₹499</span>
+          <span>Cash on Delivery available</span>
         </div>
       </div>
     </div>
@@ -750,13 +764,15 @@ const MobileProductDetail = () => {
 
   const productFeatures = useMemo(() => {
     if (Array.isArray(product?.features) && product.features.length > 0) return product.features;
-    // Professional fallback features to satisfy UI requirements
-    return [
-      { id: 1, label: "Premium Build", desc: "Expertly crafted using high-grade, durable materials." },
-      { id: 2, label: "Modern Design", desc: "Sleek and minimalist aesthetic that suits any style." },
-      { id: 3, label: "Quality Tested", desc: "Undergoes rigorous inspection for maximum reliability." },
-      { id: 4, label: "Skin Friendly", desc: "Hypoallergenic components designed for daily comfort." }
-    ];
+    // Built only from facts stored on the product — never invented marketing claims.
+    const facts = [];
+    if (product?.warrantyPeriod) facts.push({ id: "warranty", label: "Warranty", desc: product.warrantyPeriod });
+    if (product?.guaranteePeriod) facts.push({ id: "guarantee", label: "Guarantee", desc: product.guaranteePeriod });
+    if (product?.returnable !== undefined) {
+      facts.push({ id: "returns", label: product.returnable ? "Returnable" : "Non-returnable", desc: product.returnable ? "Eligible for return as per the return policy." : "This item cannot be returned." });
+    }
+    if (product?.codAllowed !== false) facts.push({ id: "cod", label: "Cash on Delivery", desc: "Pay in cash when the order is delivered." });
+    return facts;
   }, [product]);
 
   if (!product) {
@@ -894,7 +910,7 @@ const MobileProductDetail = () => {
                       </Link>
                       <div className="flex items-center gap-0.5 text-[10px] bg-yellow-50 text-yellow-700 px-1.5 py-0.5 rounded-full font-bold">
                         <FiStar className="fill-current text-[8px]" />
-                        <span>{vendor?.rating || 4.5}</span>
+                        <span>{Number(vendor?.rating || 0).toFixed(1)}</span>
                       </div>
                       <span className="text-gray-300">|</span>
                       <Link to={storeLink} className="text-xs font-black text-pink-500 hover:text-pink-600 transition-colors uppercase tracking-wider flex items-center gap-0.5">
@@ -1061,6 +1077,7 @@ const MobileProductDetail = () => {
                           </div>
 
                           {/* Features List */}
+                          {productFeatures.length > 0 && (
                           <div className="space-y-4 border-t border-gray-50 pt-6">
                             <h4 className="text-sm font-bold text-slate-800 tracking-wider">Features & Highlights</h4>
                             <div className="grid grid-cols-1 gap-4">
@@ -1075,6 +1092,7 @@ const MobileProductDetail = () => {
                               ))}
                             </div>
                           </div>
+                          )}
                         </motion.div>
                       </div>
                     )}

@@ -794,7 +794,7 @@ const ServiceDetailPage = () => {
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold text-slate-900">{rev.userId?.name || "Verified Customer"}</span>
                             <div className="flex items-center gap-1 text-amber-500 text-xs">
-                              {Array.from({ length: rev.rating || 5 }).map((_, i) => (
+                              {Array.from({ length: rev.rating || 0 }).map((_, i) => (
                                 <FiStar key={i} className="fill-amber-400 text-amber-400 text-[11px]" />
                               ))}
                             </div>

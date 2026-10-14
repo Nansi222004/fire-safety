@@ -448,7 +448,7 @@ const DeliveryLayout = () => {
               <div className="flex items-center gap-2">
                 <FiMapPin className="text-amber-600 text-lg flex-shrink-0" />
                 <span>
-                  <strong>Location Permission Blocked:</strong> Click the 🔒 icon next to <code>{typeof window !== "undefined" ? window.location.host : "URL"}</code> in your browser address bar $\rightarrow$ set <strong>Location</strong> to <em>Allow</em> $\rightarrow$ click <strong>Enable GPS</strong>.
+                  <strong>Location Permission Blocked:</strong> Click the 🔒 icon next to <code>{typeof window !== "undefined" ? window.location.host : "URL"}</code> in your browser address bar → set <strong>Location</strong> to <em>Allow</em> → click <strong>Enable GPS</strong>.
                 </span>
               </div>
               <button

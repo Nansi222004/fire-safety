@@ -174,7 +174,7 @@ export const approveApplication = asyncHandler(async (req, res) => {
 
         await session.commitTransaction();
     } catch (err) {
-        await session.abortTransaction();
+        if (session.inTransaction()) await session.abortTransaction();
         throw err;
     } finally {
         session.endSession();
@@ -298,7 +298,7 @@ export const rejectApplication = asyncHandler(async (req, res) => {
 
         await session.commitTransaction();
     } catch (err) {
-        await session.abortTransaction();
+        if (session.inTransaction()) await session.abortTransaction();
         throw err;
     } finally {
         session.endSession();

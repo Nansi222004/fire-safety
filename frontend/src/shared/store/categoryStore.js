@@ -27,9 +27,12 @@ export const useCategoryStore = create(
       initialize: async () => {
         set({ isLoading: true });
         try {
+          // Use the admin endpoint only with a signed-in admin; on /admin/login (or a logged-out visit) it would
+          // fail with "Authentication required" and flash an error toast.
           const isAdminArea =
             typeof window !== 'undefined' &&
-            window.location.pathname.startsWith('/admin');
+            window.location.pathname.startsWith('/admin') &&
+            Boolean(localStorage.getItem('adminToken'));
           const response = isAdminArea
             ? await getAllCategories()
             : await getPublicCategories();

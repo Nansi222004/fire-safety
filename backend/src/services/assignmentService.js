@@ -129,7 +129,7 @@ export const manualAssignDeliveryPartner = async ({
 }) => {
     const shipment = await Shipment.findById(shipmentId);
     if (!shipment) return { success: false, code: 'SHIPMENT_NOT_FOUND' };
-    const orderForCheck = await Order.findById(shipment.orderId).select('status isDeleted paymentMethod total vendorItems.vendorId vendorItems.status').lean();
+    const orderForCheck = await Order.findById(shipment.orderId).select('orderId status isDeleted paymentMethod total vendorItems.vendorId vendorItems.status').lean();
     const blocker = getManualAssignmentBlocker(shipment, orderForCheck, { allowPending: actorRole === 'admin' });
     if (blocker) return { success: false, code: blocker };
 
@@ -173,6 +173,7 @@ export const manualAssignDeliveryPartner = async ({
 
     if (!updated) return { success: false, code: 'ASSIGNMENT_CONFLICT' };
 
+    const order = orderForCheck;
     const orderHumanId = String(order?.orderId || updated.orderId);
     await createNotification({
         recipientId: deliveryBoy._id,
@@ -188,7 +189,8 @@ export const manualAssignDeliveryPartner = async ({
             deepLink: `/delivery/orders/${orderHumanId}`,
         },
     });
-    if (order) notifyOrderUpdate(order);
+    const fullOrder = await Order.findById(updated.orderId).lean();
+    if (fullOrder) notifyOrderUpdate(fullOrder);
     return { success: true, shipment: updated };
 };
 

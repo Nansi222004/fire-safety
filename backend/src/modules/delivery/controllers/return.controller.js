@@ -1,7 +1,7 @@
 import asyncHandler from '../../../utils/asyncHandler.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
-import ReturnRequest from '../../../models/ReturnRequest.model.js';
+import ReturnRequest, { toRiderSafeReturnRequest } from '../../../models/ReturnRequest.model.js';
 import Shipment from '../../../models/Shipment.model.js';
 import DeliveryWalletTransaction from '../../../models/DeliveryWalletTransaction.model.js';
 import DeliveryBoy from '../../../models/DeliveryBoy.model.js';
@@ -31,7 +31,7 @@ export const getAssignedReturnPickups = asyncHandler(async (req, res) => {
         .populate('vendorId', 'storeName shopName phone address')
         .sort({ createdAt: -1 });
 
-    return res.status(200).json(new ApiResponse(200, returns, 'Assigned return pickups fetched.'));
+    return res.status(200).json(new ApiResponse(200, returns.map(toRiderSafeReturnRequest), 'Assigned return pickups fetched.'));
 });
 
 // GET /api/delivery/returns/:id
@@ -46,7 +46,7 @@ export const getReturnPickupDetail = asyncHandler(async (req, res) => {
 
     if (!returnRequest) throw new ApiError(404, 'Return request not found.');
 
-    return res.status(200).json(new ApiResponse(200, returnRequest, 'Return pickup details fetched.'));
+    return res.status(200).json(new ApiResponse(200, toRiderSafeReturnRequest(returnRequest), 'Return pickup details fetched.'));
 });
 
 // POST /api/delivery/returns/:id/accept
@@ -75,10 +75,8 @@ export const acceptReturnPickup = asyncHandler(async (req, res) => {
         returnRequest.vendorHandoverOtpAttempts = 0;
         returnRequest.vendorHandoverOtpVerified = false;
         
-        const isProduction = String(process.env.NODE_ENV || '').toLowerCase() === 'production';
-        if (!isProduction) {
-            returnRequest.vendorHandoverOtpDebug = handoverOtp;
-        }
+        // Vendor's own code (shown in the vendor dashboard); never sent to the rider who collects it.
+        returnRequest.vendorHandoverOtpDebug = handoverOtp;
     }
     await returnRequest.save();
     await Shipment.findOneAndUpdate(
@@ -120,7 +118,7 @@ export const acceptReturnPickup = asyncHandler(async (req, res) => {
         });
     }
 
-    return res.status(200).json(new ApiResponse(200, returnRequest, 'Offer accepted successfully.'));
+    return res.status(200).json(new ApiResponse(200, toRiderSafeReturnRequest(returnRequest), 'Offer accepted successfully.'));
 });
 
 // POST /api/delivery/returns/:id/reject
@@ -215,10 +213,8 @@ export const updateReturnPickupStatus = asyncHandler(async (req, res) => {
         returnRequest.customerDeliveryOtpAttempts = 0;
         returnRequest.customerDeliveryOtpVerified = false;
 
-        const isProduction = String(process.env.NODE_ENV || '').toLowerCase() === 'production';
-        if (!isProduction) {
-            returnRequest.customerDeliveryOtpDebug = deliveryOtp;
-        }
+        // Customer's own code (shown in the customer app); never sent to the rider who collects it.
+        returnRequest.customerDeliveryOtpDebug = deliveryOtp;
 
         // Cleanup Vendor Handover OTP
         returnRequest.vendorHandoverOtpHash = null;
@@ -275,6 +271,8 @@ export const updateReturnPickupStatus = asyncHandler(async (req, res) => {
         returnRequest.vendorHandoffOtpExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
         returnRequest.vendorHandoffOtpAttempts = 0;
         returnRequest.vendorHandoffOtpVerified = false;
+        // This is the rider's own code (shown in the rider app and handed to the vendor), so it is always stored;
+        // serialization only exposes it to the rider (see toRiderSafeReturnRequest).
         returnRequest.vendorHandoffOtpDebug = vendorOtp;
     }
 
@@ -502,7 +500,7 @@ export const updateReturnPickupStatus = asyncHandler(async (req, res) => {
         await Promise.allSettled(notificationTasks);
     }
 
-    return res.status(200).json(new ApiResponse(200, returnRequest, 'Status updated successfully.'));
+    return res.status(200).json(new ApiResponse(200, toRiderSafeReturnRequest(returnRequest), 'Status updated successfully.'));
 });
 
 // POST /api/delivery/returns/:id/verify-otp

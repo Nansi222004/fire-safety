@@ -212,7 +212,7 @@ export const approveServiceRequest = asyncHandler(async (req, res) => {
         }
     } catch (err) {
         if (session.inTransaction()) {
-            await session.abortTransaction();
+            if (session.inTransaction()) await session.abortTransaction();
         }
         throw err;
     } finally {

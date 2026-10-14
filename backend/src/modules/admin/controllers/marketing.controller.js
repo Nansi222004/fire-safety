@@ -560,8 +560,18 @@ export const getAllCampaigns = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, campaigns, 'Campaigns fetched successfully'));
 });
 
+const assertCampaignWindow = (startDate, endDate) => {
+    const start = startDate ? new Date(startDate) : null;
+    const end = endDate ? new Date(endDate) : null;
+    if ((start && Number.isNaN(start.getTime())) || (end && Number.isNaN(end.getTime()))) {
+        throw new ApiError(400, 'Campaign dates are invalid');
+    }
+    if (start && end && start >= end) throw new ApiError(400, 'End date must be after start date');
+};
+
 export const createCampaign = asyncHandler(async (req, res) => {
     const payload = { ...req.body };
+    assertCampaignWindow(payload.startDate, payload.endDate);
     const slugSource = payload.slug || payload.name;
     payload.slug = await ensureUniqueCampaignSlug(slugSource);
     payload.route = `/sale/${payload.slug}`;
@@ -587,6 +597,10 @@ export const updateCampaign = asyncHandler(async (req, res) => {
     if (!existing) throw new ApiError(404, 'Campaign not found');
 
     const payload = { ...req.body };
+    assertCampaignWindow(
+        payload.startDate !== undefined ? payload.startDate : existing.startDate,
+        payload.endDate !== undefined ? payload.endDate : existing.endDate,
+    );
     if (payload.name !== undefined || payload.slug !== undefined) {
         const slugSource = payload.slug || payload.name || existing.slug || existing.name;
         payload.slug = await ensureUniqueCampaignSlug(slugSource, existing._id);

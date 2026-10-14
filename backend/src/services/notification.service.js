@@ -250,7 +250,10 @@ export const createNotification = async (optionsOrRecipientId, ...rest) => {
             });
             return existing;
         }
-        throw dbErr;
+        // A notification is a side effect: never fail (or roll back) the action that triggered it.
+        console.error(`[Notification Service] Failed to store notification "${title}" for ${normalizedRecipientType} ${recipientId}: ${dbErr.message}`);
+        if (effectiveEventKey) pushDedupeCache.delete(`${normalizedRecipientType}:${recipientId}:${effectiveEventKey}`);
+        return null;
     }
 
     // 3. Real-time WebSocket Broadcast (Canonical event: 'new_notification')

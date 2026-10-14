@@ -34,6 +34,7 @@ import PageTransition from "../../../shared/components/PageTransition";
 import usePullToRefresh from "../hooks/usePullToRefresh";
 import toast from "react-hot-toast";
 import api from "../../../shared/utils/api";
+import sideBannerFallbackImg from '../../../assets/ABC Fire Extinguishers.webp';
 
 const normalizeId = (value) => String(value ?? "").trim();
 const toNumber = (value, fallback = 0) => {
@@ -821,7 +822,7 @@ const MobileHome = () => {
                     Try searching for something else, like:
                   </p>
                   <div className="flex flex-wrap justify-center gap-2">
-                    {['Shoes', 'Watches', 'Bags', 'Clothing'].map(term => (
+                    {['Fire Extinguisher', 'Smoke Detector', 'Fire Blanket', 'Hose Reel'].map(term => (
                       <button
                         key={term}
                         onClick={() => setSearchParams({ q: term })}
@@ -977,14 +978,14 @@ const MobileHome = () => {
                   <div className="flex-1 flex flex-col justify-between z-20 text-left h-full max-w-[60%]">
                     <div className="space-y-4">
                       <span className="inline-block bg-amber-500/10 text-amber-400 border border-amber-500/20 px-3 py-1 rounded-full text-xs font-black tracking-widest uppercase">
-                        {sideBanner?.subtitle || "PREMIUM COLLECTION"}
+                        {sideBanner?.subtitle || "SAFETY ESSENTIALS"}
                       </span>
                       <h3 className="text-white text-3xl font-black leading-tight tracking-tight drop-shadow-sm">
-                        {sideBanner?.title || "Luxury that Defines You"}
+                        {sideBanner?.title || "Be Ready Before It Starts"}
                       </h3>
                       <p className="text-slate-300 text-sm font-medium leading-relaxed">
                         {sideBanner?.description ||
-                          "Exclusive watches for every occasion."}
+                          "Extinguishers, alarms and safety kits for every home and workplace."}
                       </p>
                     </div>
 
@@ -1012,13 +1013,13 @@ const MobileHome = () => {
                         />
                       )}
                       <img
-                        src={sideBanner?.image || "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=600&q=80"}
+                        src={sideBanner?.image || sideBannerFallbackImg}
                         alt={sideBanner?.altText || "Fire Extinguisher"}
                         className="h-full w-auto object-contain pointer-events-none select-none rounded-2xl"
                         draggable={false}
                         onError={(e) => {
                           e.target.src =
-                            "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=600&q=80";
+                            sideBannerFallbackImg;
                         }}
                       />
                     </picture>

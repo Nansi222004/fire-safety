@@ -7,9 +7,6 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
-    "test": "node tests/unit/testRegisterValidation.js",
-    "test:unit": "node tests/unit/testRegisterValidation.js",
-    "test:e2e": "node tests/e2e/wholesale.e2e.mjs && node tests/e2e/wholesaleVisibility.e2e.mjs && node tests/e2e/fireSafety.e2e.mjs && node tests/e2e/serviceBooking.e2e.mjs && node tests/e2e/deliveryAssignment.e2e.mjs && node tests/e2e/deliveryFlow.e2e.mjs",
     "test:delivery-routing": "node src/services/deliveryRouting.test.js",
     "test:wholesale-auth": "node src/services/wholesaleAuth.test.js",
     "test:product-channels": "node src/services/productChannel.test.js",
@@ -20,7 +17,15 @@
     "test:exchange-shipment": "node src/services/exchangeShipment.test.js",
     "test:assignment": "node src/services/assignment.test.js",
     "test:shiprocket-webhook": "node src/modules/user/controllers/shiprocketWebhook.test.js",
-    "seed:coupons": "node src/scripts/seedCoupons.js"
+    "seed:coupons": "node src/scripts/seedCoupons.js",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:e2e": "vitest run tests/e2e/api",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "e2e:server": "node tests/e2e-server/start.mjs",
+    "test:legacy": "node tests/unit/testRegisterValidation.js",
+    "test:e2e:legacy": "node tests/e2e/wholesale.e2e.mjs && node tests/e2e/wholesaleVisibility.e2e.mjs && node tests/e2e/fireSafety.e2e.mjs && node tests/e2e/serviceBooking.e2e.mjs && node tests/e2e/deliveryAssignment.e2e.mjs && node tests/e2e/deliveryFlow.e2e.mjs"
   },
   "author": "furqan",
   "license": "ISC",
@@ -45,6 +50,10 @@
     "winston": "^3.19.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.9"
+    "@vitest/coverage-v8": "^3.2.4",
+    "mongodb-memory-server": "^10.2.1",
+    "nodemon": "^3.1.9",
+    "supertest": "^7.1.4",
+    "vitest": "^3.2.4"
   }
 }

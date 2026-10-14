@@ -849,7 +849,7 @@ export const cancelBooking = asyncHandler(async (req, res) => {
 
         await session.commitTransaction();
     } catch (err) {
-        await session.abortTransaction();
+        if (session.inTransaction()) await session.abortTransaction();
         throw err;
     } finally {
         session.endSession();

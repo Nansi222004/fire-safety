@@ -46,7 +46,7 @@ const MobileOrderCard = ({ order }) => {
         <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
           <div className="flex items-center gap-2">
             <span className="text-[10px] uppercase font-black text-slate-400 tracking-wider">Order ID</span>
-            <span className="text-sm font-extrabold text-gray-900 font-mono">#{order.id.slice(-8).toUpperCase()}</span>
+            <span className="text-sm font-extrabold text-gray-900 font-mono">{order.id}</span>
           </div>
           <span className="text-xs text-slate-400 font-semibold flex items-center gap-1">
             <FiCalendar className="text-[10px]" />

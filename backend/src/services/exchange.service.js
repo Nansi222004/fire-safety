@@ -140,7 +140,7 @@ export const generateReturnPickupOtp = (request) => {
     request.returnPickupOtpExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
     request.returnPickupOtpAttempts = 0;
     request.returnPickupOtpVerified = false;
-    request.returnPickupOtpDebug = otp;
+    request.returnPickupOtpDebug = otp; // customer's own code; hidden from the rider by the role views
 };
 
 /**

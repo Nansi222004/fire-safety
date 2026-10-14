@@ -122,7 +122,8 @@ courierCODRemittanceSchema.pre('save', function (next) {
 courierCODRemittanceSchema.pre('save', async function (next) {
     if (this.isNew && !this.remittanceNumber) {
         const year  = new Date().getFullYear();
-        const count = await mongoose.model('CourierCODRemittance').countDocuments();
+        // Count inside the caller's transaction so several remittances created together get distinct numbers.
+        const count = await mongoose.model('CourierCODRemittance').countDocuments().session(this.$session() || null);
         const seq   = String(count + 1).padStart(6, '0');
         this.remittanceNumber = `REM-${year}-${seq}`;
     }

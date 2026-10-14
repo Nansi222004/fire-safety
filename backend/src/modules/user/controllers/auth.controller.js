@@ -18,6 +18,7 @@ import {
 import { generateTokens } from '../../../utils/generateToken.js';
 import { sendOTP, buildOtpEmailTemplate } from '../../../services/otp.service.js';
 import { sendEmail } from '../../../services/email.service.js';
+import { isTestOtpAllowed, TEST_OTP } from '../../../config/otpConfig.js';
 import {
     uploadLocalFileToCloudinaryAndCleanup,
     deleteFromCloudinary,
@@ -73,7 +74,7 @@ export const verifyOTP = asyncHandler(async (req, res) => {
     const user = await User.findOne({ email: normalizedEmail }).select('+otp +otpExpiry');
     if (!user) throw new ApiError(404, 'User not found.');
 
-    const isTestOtp = process.env.NODE_ENV !== 'production' && otp === '123456';
+    const isTestOtp = isTestOtpAllowed() && otp === TEST_OTP;
     if (!isTestOtp) {
         if (user.otp !== otp) throw new ApiError(400, 'Invalid OTP.');
         if (user.otpExpiry < Date.now()) throw new ApiError(400, 'OTP has expired. Please request a new one.');

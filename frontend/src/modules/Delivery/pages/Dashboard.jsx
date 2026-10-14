@@ -232,7 +232,7 @@ const DeliveryDashboard = () => {
             <div className="w-1.5 h-1.5 rounded-full bg-white/20 hidden xs:inline-block" />
             <div className="text-amber-300 flex items-center gap-1 flex-shrink-0">
               <span>★</span>
-              <span>{Number(deliveryBoy?.rating || 5.0).toFixed(1)}</span>
+              <span>{deliveryBoy?.rating ? Number(deliveryBoy.rating).toFixed(1) : "New"}</span>
             </div>
           </div>
         </motion.div>

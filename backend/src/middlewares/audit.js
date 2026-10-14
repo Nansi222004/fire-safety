@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import AuditLog from '../models/AuditLog.model.js';
 
 // SEC-06: Fields to redact from audit log bodies to prevent PII/sensitive data leakage
@@ -44,11 +45,15 @@ export const audit = (action, resource) => {
                     ? undefined
                     : redactSensitive(req.body);
 
+                // Some resources are addressed by a human-readable key (orders use "ORD-..."), which is not an ObjectId.
+                const rawId = req.params.id || data?.data?._id || data?.data?.id;
+                const objectId = [rawId, data?.data?._id].find((v) => v && mongoose.isValidObjectId(v) && String(v).length === 24);
                 const logData = {
                     adminId:    req.user.id,
                     action,
                     resource,
-                    resourceId: req.params.id || data?.data?._id || data?.data?.id,
+                    resourceId: objectId,
+                    resourceRef: rawId ? String(rawId) : undefined,
                     changes:    sanitizedBody,
                     ipAddress:  req.ip || req.headers['x-forwarded-for'],
                     userAgent:  req.headers['user-agent'],

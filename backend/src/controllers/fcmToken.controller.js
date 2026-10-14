@@ -65,6 +65,7 @@ export const saveToken = asyncHandler(async (req, res) => {
         throw new ApiError(404, 'User account not found.');
     }
 
+    const { doc } = account;
     const Model = account.modelName === 'User' ? User
                 : account.modelName === 'Vendor' ? Vendor
                 : account.modelName === 'DeliveryBoy' ? DeliveryBoy
@@ -192,7 +193,7 @@ export const sendTestNotification = asyncHandler(async (req, res) => {
 /**
  * @desc    Broadcast push notification to target audience (Admin only / Authenticated)
  * @route   POST /api/fcm-tokens/broadcast
- * @access  Private
+ * @access  Private (Admin only)
  */
 export const sendBroadcastNotification = asyncHandler(async (req, res) => {
     const { title, message, target = 'all', data = {} } = req.body;

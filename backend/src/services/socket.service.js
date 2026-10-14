@@ -1,6 +1,7 @@
 import { Server } from 'socket.io';
 import { verifyAccessToken } from '../config/jwt.js';
 import logger from '../utils/logger.js';
+import { toReturnRequestView } from '../models/ReturnRequest.model.js';
 
 let io;
 
@@ -149,23 +150,24 @@ export const notifyReturnUpdate = async (request) => {
         const deliveryBoyId = payload.deliveryBoyId?._id || payload.deliveryBoyId;
 
         // Emit to specific order room
+        // Each audience gets only the OTP codes it owns (see toReturnRequestView); the shared order room gets none.
         if (orderId) {
-            emitToRoom(`order_${orderId}`, 'return_updated', payload);
+            emitToRoom(`order_${orderId}`, 'return_updated', toReturnRequestView(payload, 'none'));
         }
 
         // Emit to user room
         if (userId) {
-            emitToRoom(`user_${userId}`, 'return_updated', payload);
+            emitToRoom(`user_${userId}`, 'return_updated', toReturnRequestView(payload, 'customer'));
         }
 
         // Emit to vendor room
         if (vendorId) {
-            emitToRoom(`vendor_${vendorId}`, 'return_updated', payload);
+            emitToRoom(`vendor_${vendorId}`, 'return_updated', toReturnRequestView(payload, 'vendor'));
         }
 
         // Emit to delivery boy room
         if (deliveryBoyId) {
-            emitToRoom(`delivery_${deliveryBoyId}`, 'return_updated', payload);
+            emitToRoom(`delivery_${deliveryBoyId}`, 'return_updated', toReturnRequestView(payload, 'rider'));
         }
 
         // Emit to admin room

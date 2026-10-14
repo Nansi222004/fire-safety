@@ -232,7 +232,7 @@ export const toggleLockCustomerWallet = asyncHandler(async (req, res) => {
     }
 
     const wallet = await getWallet(id);
-    wallet.isLocked = !wallet.isLocked;
+    wallet.status = wallet.status === 'locked' ? 'active' : 'locked';
     await wallet.save();
 
     res.status(200).json(new ApiResponse(200, wallet, `Wallet successfully ${wallet.isLocked ? 'locked' : 'unlocked'}`));

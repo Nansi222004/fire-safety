@@ -140,3 +140,17 @@ export const uploadCSV = multer({
     },
     limits: { fileSize: 10 * 1024 * 1024 }, // 10MB for CSV
 }).single('file');
+
+/**
+ * Route-level error middleware: when any later step of the route fails (validation, controller), delete the files
+ * multer already wrote to disk for this request. Use it as the LAST handler of an upload route, e.g.
+ *   router.post('/register', uploadDeliveryDocuments([...]), validate(schema), controller.register, cleanupUploadsOnError);
+ */
+export const cleanupUploadsOnError = async (err, req, res, next) => {
+    const files = [
+        req.file,
+        ...(Array.isArray(req.files) ? req.files : Object.values(req.files || {}).flat()),
+    ].filter(Boolean);
+    await Promise.allSettled(files.map((f) => (f.path ? fs.promises.unlink(f.path) : null)));
+    next(err);
+};

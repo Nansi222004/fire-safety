@@ -22,8 +22,9 @@ export const useAuthStore = create(
       // Login action
       login: async (email, password, rememberMe = false) => {
         set({ isLoading: true });
+        // Declared outside try: the catch block needs it to remember which email still needs verification.
+        const normalizedEmail = String(email || '').trim().toLowerCase();
         try {
-          const normalizedEmail = String(email || '').trim().toLowerCase();
           const response = await api.post('/user/auth/login', { email: normalizedEmail, password });
           const payload = response?.data ?? response;
           const accessToken = payload?.accessToken;

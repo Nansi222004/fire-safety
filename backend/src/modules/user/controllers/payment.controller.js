@@ -360,7 +360,8 @@ export const initializePayment = asyncHandler(async (req, res) => {
                     shippingAddress,
                     paymentMethod: 'cod',
 
-                    status: 'processing',
+                    // Awaiting vendor acceptance — the same status the vendor dashboard derives from its pending items.
+                    status: 'pending',
                     paymentStatus: 'pending',
                     subtotal,
                     shipping,
@@ -671,7 +672,7 @@ export const initializePayment = asyncHandler(async (req, res) => {
 
                 shippingAddress,
                 paymentMethod: isFullyPaidByWallet ? 'wallet' : normalizedPaymentMethod,
-                status: isFullyPaidByWallet ? 'processing' : 'payment_pending',  // No stock deducted yet unless fully paid
+                status: isFullyPaidByWallet ? 'pending' : 'payment_pending', // paid orders wait for vendor acceptance like COD  // No stock deducted yet unless fully paid
                 paymentStatus: isFullyPaidByWallet ? 'paid' : 'pending',
                 subtotal,
                 shipping,
@@ -965,7 +966,7 @@ export const initializePayment = asyncHandler(async (req, res) => {
             console.error('[Email Error]', e.message);
         }
 
-        order.status = 'processing';
+        order.status = 'pending';
         order.paymentStatus = 'paid';
         notifyOrderUpdate(order).catch(console.error);
 

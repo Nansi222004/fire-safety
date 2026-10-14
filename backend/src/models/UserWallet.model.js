@@ -45,8 +45,13 @@ const userWalletSchema = new mongoose.Schema(
             default: 'active',
         },
     },
-    { timestamps: true }
+    { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );
+
+// Read-only convenience flag used by the admin UI; `status` is the source of truth (debitWallet checks it).
+userWalletSchema.virtual('isLocked').get(function isLocked() {
+    return this.status === 'locked';
+});
 
 const UserWallet = mongoose.model('UserWallet', userWalletSchema);
 export { UserWallet };

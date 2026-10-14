@@ -14,6 +14,7 @@ const vendorWalletTransactionSchema = new mongoose.Schema(
                 'ESCROW_RELEASE',    // Order payout credited from cron after delivery confirmation
                 'WITHDRAWAL_HOLD',   // Balance locked on withdrawal request
                 'WITHDRAWAL_REFUND', // Balance returned on withdrawal rejection
+                'WITHDRAWAL_COMPLETED', // Informational record: payout disbursed (balance was deducted at WITHDRAWAL_HOLD)
                 'ADJUSTMENT',        // Admin manual bonus or penalty
                 'RETURN_CLAWBACK',   // Deducted when vendor already paid and return approved
                 'CANCELLATION_CLAWBACK', // Deducted when vendor already paid and order/item cancelled by admin

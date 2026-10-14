@@ -51,7 +51,7 @@ import {
     updateProductSchema,
     productIdParamSchema,
 } from '../validators/product.validator.js';
-import { uploadSingle, uploadMultiple, uploadDocumentSingle, uploadVendorRegistrationDocuments } from '../../../middlewares/upload.js';
+import { uploadSingle, uploadMultiple, uploadDocumentSingle, uploadVendorRegistrationDocuments, cleanupUploadsOnError } from '../../../middlewares/upload.js';
 
 const router = Router();
 const vendorAuth = [authenticate, authorize('vendor'), enforceAccountStatus];
@@ -96,7 +96,8 @@ router.post(
         next();
     },
     validate(registerSchema),
-    authController.register
+    authController.register,
+    cleanupUploadsOnError
 );
 router.post('/auth/verify-otp', otpVerifyLimiter, validate(verifyOtpSchema), authController.verifyOTP);
 router.post('/auth/resend-otp', otpLimiter, validate(resendOtpSchema), authController.resendOTP);

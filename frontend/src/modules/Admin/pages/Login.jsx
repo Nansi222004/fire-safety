@@ -107,7 +107,7 @@ const AdminLogin = () => {
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
-                    placeholder="sfsappdevelopment@gmail.com"
+                    placeholder="admin@example.com"
                     className="w-full pl-10 pr-4 py-3 bg-[#F8FAFC] border border-[#E5E7EB] rounded-xl focus:outline-none focus:border-[#E31E24] focus:bg-white text-sm text-[#0F172A] placeholder:text-[#94A3B8] transition-all"
                     required
                   />
@@ -170,19 +170,6 @@ const AdminLogin = () => {
               </button>
             </form>
 
-            {/* Demo Credentials */}
-            <div
-              onClick={() => setFormData({ email: 'sfsappdevelopment@gmail.com', password: 'admin123' })}
-              className="p-3.5 bg-[#FEF2F2] rounded-xl cursor-pointer hover:bg-red-100 transition-colors border border-red-200 group"
-              title="Click to autofill test credentials"
-            >
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-xs text-[#0F172A] font-bold">Demo Credentials:</p>
-                <span className="text-[11px] text-[#E31E24] font-semibold group-hover:underline">Click to autofill</span>
-              </div>
-              <p className="text-xs text-[#64748B]">Email: <span className="font-semibold text-[#0F172A]">sfsappdevelopment@gmail.com</span></p>
-              <p className="text-xs text-[#64748B]">Password: <span className="font-semibold text-[#0F172A]">admin123</span></p>
-            </div>
           </motion.div>
         </main>
 

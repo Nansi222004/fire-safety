@@ -90,6 +90,9 @@ export const getAllReviews = asyncHandler(async (req, res) => {
  */
 export const updateReviewStatus = asyncHandler(async (req, res) => {
     const { status } = req.body;
+    if (!['approved', 'rejected', 'pending'].includes(status)) {
+        throw new ApiError(400, 'Status must be one of: approved, rejected, pending.');
+    }
     const review = await Review.findById(req.params.id);
 
     if (!review) {

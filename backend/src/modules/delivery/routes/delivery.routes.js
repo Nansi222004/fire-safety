@@ -9,7 +9,7 @@ import { authenticate } from '../../../middlewares/authenticate.js';
 import { authorize, enforceAccountStatus } from '../../../middlewares/authorize.js';
 import { authLimiter, otpVerifyLimiter } from '../../../middlewares/rateLimiter.js';
 import { validate } from '../../../middlewares/validate.js';
-import { uploadDeliveryDocuments, uploadMultiple } from '../../../middlewares/upload.js';
+import { uploadDeliveryDocuments, uploadMultiple, cleanupUploadsOnError } from '../../../middlewares/upload.js';
 import {
     loginSchema,
     registerSchema,
@@ -33,7 +33,8 @@ router.post(
         { name: 'aadharCard', maxCount: 1 },
     ]),
     validate(registerSchema),
-    authController.register
+    authController.register,
+    cleanupUploadsOnError
 );
 router.post('/auth/forgot-password', authLimiter, validate(forgotPasswordSchema), authController.forgotPassword);
 router.post('/auth/verify-reset-otp', otpVerifyLimiter, validate(verifyResetOtpSchema), authController.verifyResetOTP);

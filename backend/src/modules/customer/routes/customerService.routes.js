@@ -14,6 +14,7 @@ import {
     getServiceSchedule,
 } from '../controllers/customerService.controller.js';
 import { authenticate } from '../../../middlewares/authenticate.js';
+import { authorize, enforceAccountStatus } from '../../../middlewares/authorize.js';
 
 const router = Router();
 
@@ -25,12 +26,13 @@ router.post('/services/quote', getServiceQuote);
 router.get('/services/schedule', getServiceSchedule);
 router.get('/services/:slug/reviews', getServiceReviews);
 
-// Authenticated Customer routes
-router.post('/bookings', authenticate, createBooking);
-router.post('/bookings/verify-payment', authenticate, verifyServicePayment);
-router.get('/bookings', authenticate, getCustomerBookings);
-router.get('/bookings/:id', authenticate, getBookingById);
-router.patch('/bookings/:id/cancel', authenticate, cancelBooking);
-router.post('/bookings/:id/review', authenticate, addServiceReview);
+// Authenticated Customer routes (customer accounts only; blocked/unverified accounts are rejected)
+const customerAuth = [authenticate, authorize('customer'), enforceAccountStatus];
+router.post('/bookings', ...customerAuth, createBooking);
+router.post('/bookings/verify-payment', ...customerAuth, verifyServicePayment);
+router.get('/bookings', ...customerAuth, getCustomerBookings);
+router.get('/bookings/:id', ...customerAuth, getBookingById);
+router.patch('/bookings/:id/cancel', ...customerAuth, cancelBooking);
+router.post('/bookings/:id/review', ...customerAuth, addServiceReview);
 
 export default router;

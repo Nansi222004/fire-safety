@@ -761,11 +761,11 @@ export const approveBrandRequest = asyncHandler(async (req, res) => {
             message: `Your brand "${request.brandName}" has been approved. Use it in products now.`,
             type: 'system',
             data: { brandId: String(brand[0]._id) },
-        });
+        }).catch((err) => console.error('[Notification] post-commit notification failed:', err.message));
 
         res.status(200).json(new ApiResponse(200, request, 'Brand request approved.'));
     } catch (error) {
-        await session.abortTransaction();
+        if (session.inTransaction()) await session.abortTransaction();
         throw error;
     } finally {
         session.endSession();
@@ -861,11 +861,11 @@ export const convertToGlobalBrandRequest = asyncHandler(async (req, res) => {
             message: `Your brand "${request.brandName}" has been approved as a Global Brand. All sellers can select it.`,
             type: 'system',
             data: { brandId: String(brand[0]._id) },
-        });
+        }).catch((err) => console.error('[Notification] post-commit notification failed:', err.message));
 
         res.status(200).json(new ApiResponse(200, request, 'Brand request converted to global and approved.'));
     } catch (error) {
-        await session.abortTransaction();
+        if (session.inTransaction()) await session.abortTransaction();
         throw error;
     } finally {
         session.endSession();
@@ -1015,7 +1015,7 @@ export const approveCategoryRequest = asyncHandler(async (req, res) => {
             message: `Your category request "${request.categoryName}" has been approved. Use it in products now.`,
             type: 'system',
             data: { categoryId: String(category[0]._id) },
-        });
+        }).catch((err) => console.error('[Notification] post-commit notification failed:', err.message));
 
         // Emit Socket Event
         emitToRoom(`vendor_${request.vendorId}`, 'category_request_approved', request);
@@ -1023,7 +1023,7 @@ export const approveCategoryRequest = asyncHandler(async (req, res) => {
 
         res.status(200).json(new ApiResponse(200, request, 'Category request approved.'));
     } catch (error) {
-        await session.abortTransaction();
+        if (session.inTransaction()) await session.abortTransaction();
         throw error;
     } finally {
         session.endSession();

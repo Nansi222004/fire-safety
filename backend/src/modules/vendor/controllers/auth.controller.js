@@ -23,6 +23,7 @@ import { queueVendorShiprocketPickupSync, syncVendorShiprocketPickup } from '../
 
 import VendorDocument from '../../../models/VendorDocument.model.js';
 import { cleanupLocalFiles, uploadLocalFileToCloudinaryAndCleanupWithType } from '../../../services/upload.service.js';
+import { isTestOtpAllowed, TEST_OTP } from '../../../config/otpConfig.js';
 
 // POST /api/vendor/auth/register
 export const register = asyncHandler(async (req, res) => {
@@ -214,7 +215,7 @@ export const verifyOTP = asyncHandler(async (req, res) => {
     const { email, otp } = req.body;
 
     const vendor = await Vendor.findOne({ email }).select('+otp +otpExpiry');
-    const isTestOtp = process.env.NODE_ENV !== 'production' && otp === '123456';
+    const isTestOtp = isTestOtpAllowed() && otp === TEST_OTP;
     if (!isTestOtp) {
         if (vendor.otp !== otp) throw new ApiError(400, 'Invalid OTP.');
         if (vendor.otpExpiry < Date.now()) throw new ApiError(400, 'OTP has expired.');
@@ -244,6 +245,7 @@ export const verifyOTP = asyncHandler(async (req, res) => {
 
 // POST /api/vendor/auth/resend-otp
 export const resendOTP = asyncHandler(async (req, res) => {
+    const email = String(req.body?.email || '').trim().toLowerCase();
     if (!email) throw new ApiError(400, 'Email is required.');
 
     const vendor = await Vendor.findOne({ email });
@@ -338,13 +340,15 @@ export const login = asyncHandler(async (req, res) => {
 
     const vendor = await Vendor.findOne({ email }).select('+password');
     if (!vendor) throw new ApiError(401, 'Invalid credentials.');
+
+    // Check the password first so account status is only revealed to the account owner.
+    const isMatch = await vendor.comparePassword(password);
+    if (!isMatch) throw new ApiError(401, 'Invalid credentials.');
+
     if (!vendor.isVerified) throw new ApiError(403, 'Please verify your email first.');
     if (vendor.status === 'pending') throw new ApiError(403, 'Your account is pending admin approval.');
     if (vendor.status === 'suspended') throw new ApiError(403, `Your account has been suspended. Reason: ${vendor.suspensionReason || 'Contact support.'}`);
     if (vendor.status === 'rejected') throw new ApiError(403, 'Your vendor application was rejected.');
-
-    const isMatch = await vendor.comparePassword(password);
-    if (!isMatch) throw new ApiError(401, 'Invalid credentials.');
 
     const { accessToken, refreshToken } = generateTokens({ id: vendor._id, role: 'vendor', email: vendor.email });
     await persistRefreshSession(vendor, refreshToken);

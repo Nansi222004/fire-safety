@@ -680,7 +680,7 @@ const DeliveryReturnPickupDetail = () => {
                 Provide this OTP code to the store clerk upon returning items to the shop. The vendor must verify this on their dashboard to complete handoff.
               </p>
               <div className="py-3 px-6 bg-white border border-indigo-200 rounded-2xl font-mono text-3xl font-black text-indigo-950 tracking-widest shadow-sm max-w-xs mx-auto">
-                {ret.vendorHandoffOtpDebug || '123456'}
+                {ret.vendorHandoffOtpDebug || '——'}
               </div>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
                 Status: In Transit to Shop

@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { signAccessToken, signRefreshToken } from '../config/jwt.js';
 
 /**
@@ -7,6 +8,8 @@ import { signAccessToken, signRefreshToken } from '../config/jwt.js';
  */
 export const generateTokens = (payload) => {
     const accessToken = signAccessToken(payload);
-    const refreshToken = signRefreshToken(payload);
+    // A unique jti makes every refresh token distinct, even when two are issued within the same second,
+    // so rotation always invalidates the previous token.
+    const refreshToken = signRefreshToken({ ...payload, jti: crypto.randomUUID() });
     return { accessToken, refreshToken };
 };

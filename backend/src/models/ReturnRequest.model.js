@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { isOtpDebugEnabled } from '../config/otpConfig.js';
 
 const returnRequestSchema = new mongoose.Schema(
     {
@@ -155,6 +156,52 @@ const returnRequestSchema = new mongoose.Schema(
     },
     { timestamps: true }
 );
+
+// ── OTP exposure rules ──────────────────────────────────────────────────────────────────────────────────────
+// Each return/exchange OTP is shown (as …OtpDebug) to the party who OWNS it and must hand it over; the party who
+// COLLECTS it must never receive it, and OTP hashes never leave the server.
+//   returnPickupOtp      owner: customer → collected by the rider at pickup
+//   customerDeliveryOtp  owner: customer → collected by the rider at replacement delivery
+//   vendorHandoverOtp    owner: vendor   → collected by the rider at replacement pickup
+//   vendorHandoffOtp     owner: rider    → collected by the vendor when returned items arrive
+const OTP_OWNERS = {
+    returnPickupOtpDebug: 'customer',
+    customerDeliveryOtpDebug: 'customer',
+    vendorHandoverOtpDebug: 'vendor',
+    vendorHandoffOtpDebug: 'rider',
+};
+
+/** Removes OTP hashes (always). Used by the default toJSON/toObject output. */
+export const stripReturnOtpSecrets = (ret) => {
+    if (!ret || typeof ret !== 'object') return ret;
+    for (const key of Object.keys(ret)) {
+        if (key.endsWith('OtpHash')) delete ret[key];
+    }
+    return ret;
+};
+
+/**
+ * Serializes a return request for one role: 'customer' | 'vendor' | 'rider' | 'admin'.
+ * Admins (support) see every plain code. With OTP debugging enabled, vendors also see the rider's handoff code
+ * (for testing); riders never receive codes they have to collect.
+ */
+export const toReturnRequestView = (doc, role) => {
+    if (!doc) return doc;
+    const view = typeof doc.toObject === 'function' ? doc.toObject({ transform: false }) : { ...doc };
+    stripReturnOtpSecrets(view);
+    if (role === 'admin') return view;
+    for (const [field, owner] of Object.entries(OTP_OWNERS)) {
+        const debugShare = role === 'vendor' && field === 'vendorHandoffOtpDebug' && isOtpDebugEnabled();
+        if (owner !== role && !debugShare) delete view[field];
+    }
+    return view;
+};
+
+export const toRiderSafeReturnRequest = (doc) => toReturnRequestView(doc, 'rider');
+
+const otpSafeTransform = (doc, ret) => stripReturnOtpSecrets(ret);
+returnRequestSchema.set('toJSON', { transform: otpSafeTransform });
+returnRequestSchema.set('toObject', { transform: otpSafeTransform });
 
 const ReturnRequest = mongoose.model('ReturnRequest', returnRequestSchema);
 export { ReturnRequest };
