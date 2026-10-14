@@ -36,6 +36,7 @@ const productBaseSchema = {
     images: Joi.array().items(Joi.string().trim()).optional(),
     image: Joi.string().trim().allow('').optional(),
     categoryId: objectId,
+    subcategoryId: objectId.allow(null, '').optional(),
     brandId: objectId.allow(null, '').optional(),
     vendorId: objectId.allow(null, '').optional(),
     stock: Joi.string().valid('in_stock', 'low_stock', 'out_of_stock').optional(),
@@ -62,12 +63,12 @@ const productBaseSchema = {
     relatedProducts: Joi.array().items(objectId).optional(),
     faqs: Joi.array().items(faqSchema).optional(),
     variants: variantSchema,
-    weight: Joi.number().positive().optional(),
+    weight: Joi.number().positive().allow(null).optional(),
     dimensions: Joi.object({
-        length: Joi.number().min(1).required(),
-        breadth: Joi.number().min(1).required(),
-        height: Joi.number().min(1).required(),
-    }).optional(),
+        length: Joi.number().min(1).allow(null).optional(),
+        breadth: Joi.number().min(1).allow(null).optional(),
+        height: Joi.number().min(1).allow(null).optional(),
+    }).allow(null).optional(),
 };
 
 export const createProductSchema = Joi.object({
@@ -75,12 +76,12 @@ export const createProductSchema = Joi.object({
     name: productBaseSchema.name.required(),
     price: productBaseSchema.price.required(),
     categoryId: productBaseSchema.categoryId.required(),
-    weight: Joi.number().positive().required(),
+    weight: Joi.number().positive().default(0.5).optional(),
     dimensions: Joi.object({
-        length: Joi.number().min(1).required(),
-        breadth: Joi.number().min(1).required(),
-        height: Joi.number().min(1).required(),
-    }).required(),
+        length: Joi.number().min(1).default(15).optional(),
+        breadth: Joi.number().min(1).default(12).optional(),
+        height: Joi.number().min(1).default(8).optional(),
+    }).default({ length: 15, breadth: 12, height: 8 }).optional(),
     vendorId: objectId.allow(null, '').optional(),
 });
 

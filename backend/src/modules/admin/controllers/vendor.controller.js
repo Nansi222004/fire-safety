@@ -225,41 +225,24 @@ export const updateVendor = asyncHandler(async (req, res) => {
 });
 
 // DELETE /api/admin/vendors/:id
-// Hard deletion is allowed only for an unused account. Historical commerce,
-// logistics, service and wallet records are never cascaded or removed.
 export const deleteVendor = asyncHandler(async (req, res) => {
     const vendor = await Vendor.findById(req.params.id).select('_id email storeName');
     if (!vendor) throw new ApiError(404, 'Vendor not found.');
 
-    const dependencyChecks = await Promise.all([
-        Product.exists({ vendorId: vendor._id }),
-        Order.exists({ $or: [{ 'vendorItems.vendorId': vendor._id }, { 'items.vendorId': vendor._id }] }),
-        Shipment.exists({ vendorId: vendor._id }),
-        ReturnRequest.exists({ vendorId: vendor._id }),
-        Commission.exists({ vendorId: vendor._id }),
-        Settlement.exists({ vendorId: vendor._id }),
-        Withdrawal.exists({ vendorId: vendor._id }),
-        VendorWalletTransaction.exists({ vendorId: vendor._id }),
-        VendorService.exists({ vendorId: vendor._id }),
-        ServiceBooking.exists({ vendorId: vendor._id }),
-    ]);
-    const dependencyNames = [
-        'products', 'orders', 'shipments', 'returns', 'commissions',
-        'settlements', 'withdrawals', 'wallet transactions', 'services', 'service bookings',
-    ];
-    const foundDependencies = dependencyNames.filter((_, index) => Boolean(dependencyChecks[index]));
-
-    if (foundDependencies.length) {
-        throw new ApiError(
-            409,
-            `Vendor has historical or business records (${foundDependencies.join(', ')}) and cannot be deleted. Suspend the vendor instead.`
-        );
-    }
-
     await Promise.all([
+        Product.deleteMany({ vendorId: vendor._id }),
+        VendorService.deleteMany({ vendorId: vendor._id }),
         VendorDocument.deleteMany({ vendorId: vendor._id }),
         Notification.deleteMany({ recipientId: vendor._id, recipientType: 'vendor' }),
+        Commission.deleteMany({ vendorId: vendor._id }),
+        Settlement.deleteMany({ vendorId: vendor._id }),
+        Withdrawal.deleteMany({ vendorId: vendor._id }),
+        VendorWalletTransaction.deleteMany({ vendorId: vendor._id }),
+        ServiceBooking.deleteMany({ vendorId: vendor._id }),
+        Shipment.deleteMany({ vendorId: vendor._id }),
+        ReturnRequest.deleteMany({ vendorId: vendor._id }),
     ]);
+
     await Vendor.deleteOne({ _id: vendor._id });
 
     res.status(200).json(new ApiResponse(200, { id: String(vendor._id) }, 'Vendor deleted successfully.'));

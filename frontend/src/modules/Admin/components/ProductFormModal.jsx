@@ -58,11 +58,11 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
     cancelable: true,
     taxIncluded: false,
     taxRate: 18,
-    weight: "",
+    weight: "0.5",
     dimensions: {
-      length: "",
-      breadth: "",
-      height: "",
+      length: "15",
+      breadth: "12",
+      height: "8",
     },
     description: "",
     tags: [],
@@ -649,11 +649,11 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
       subcategoryId: formData.subcategoryId || null,
       brandId: formData.brandId || null,
       vendorId: formData.vendorId || undefined,
-      weight: parseFloat(formData.weight) || undefined,
+      weight: parseFloat(formData.weight) || 0.5,
       dimensions: {
-        length: parseFloat(formData.dimensions.length) || undefined,
-        breadth: parseFloat(formData.dimensions.breadth) || undefined,
-        height: parseFloat(formData.dimensions.height) || undefined,
+        length: parseFloat(formData.dimensions?.length) || 15,
+        breadth: parseFloat(formData.dimensions?.breadth) || 12,
+        height: parseFloat(formData.dimensions?.height) || 8,
       },
       faqs: (formData.faqs || [])
         .map((faq) => ({
@@ -849,7 +849,25 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                         />
                       </div>
 
-
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Vendor (Optional)
+                        </label>
+                        <AnimatedSelect
+                          name="vendorId"
+                          value={formData.vendorId || ""}
+                          onChange={handleChange}
+                          placeholder="Platform Admin (Default)"
+                          disabled={isVendorProduct}
+                          options={[
+                            { value: "", label: "Platform Admin Store (Default)" },
+                            ...vendors.map((vendor) => ({
+                              value: String(vendor.id || vendor._id),
+                              label: `${vendor.storeName || vendor.name || "Vendor"} (${vendor.email || ""})`,
+                            })),
+                          ]}
+                        />
+                      </div>
 
                       <div className="md:col-span-2">
                         <label className="block text-sm font-semibold text-gray-700 mb-2">
