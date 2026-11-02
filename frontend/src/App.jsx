@@ -149,9 +149,7 @@ import MobileVerification from "./modules/UserApp/pages/Verification";
 import MobileForgotPassword from "./modules/UserApp/pages/ForgotPassword";
 import MobileResetPassword from "./modules/UserApp/pages/ResetPassword";
 import MobileProfile from "./modules/UserApp/pages/Profile";
-// TEMPORARILY DISABLED — USER WALLET PAGE IMPORT
-// DO NOT DELETE — RE-ENABLE WHEN WALLET FEATURE IS RESTORED
-// import UserWalletPage from "./modules/UserApp/pages/Wallet";
+import UserWalletPage from "./modules/UserApp/pages/Wallet";
 import UserNotifications from "./modules/UserApp/pages/Notifications";
 import MobileOrders from "./modules/UserApp/pages/Orders";
 import MobileOrderDetail from "./modules/UserApp/pages/OrderDetail";
@@ -495,9 +493,6 @@ const AppRoutes = () => {
           </RouteWrapper>
         }
       />
-      {/* TEMPORARILY DISABLED — USER WALLET ROUTE */}
-      {/* DO NOT DELETE — RE-ENABLE WHEN WALLET FEATURE IS RESTORED */}
-      {/*
       <Route
         path="/user/wallet"
         element={
@@ -508,7 +503,6 @@ const AppRoutes = () => {
           </RouteWrapper>
         }
       />
-      */}
       <Route
         path="/notifications"
         element={
@@ -786,10 +780,7 @@ const AppRoutes = () => {
         <Route path="marketing/banner-library" element={<HomepageBanners />} />
         <Route path="marketing/offers" element={<Offers />} />
         <Route path="marketing/promocodes" element={<PromoCodes />} />
-        {/* TEMPORARILY DISABLED — GIFT CARD FEATURE */}
-        {/* DO NOT DELETE — RE-ENABLE WHEN GIFT CARD FEATURE IS ENABLED */}
-        {/* <Route path="marketing/gift-cards" element={<GiftCards />} /> */}
-        <Route path="marketing/gift-cards" element={<Navigate to="/admin/marketing" replace />} />
+        <Route path="marketing/gift-cards" element={<GiftCards />} />
         <Route path="notifications" element={<AllNotifications />} />
         <Route
           path="notifications/push-notifications"

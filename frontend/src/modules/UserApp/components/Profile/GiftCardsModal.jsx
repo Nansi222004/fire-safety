@@ -22,11 +22,6 @@ import { useAuthStore } from '../../../../shared/store/authStore';
 
 const ALLOWED_DENOMINATIONS = [500, 1000, 2500, 5000, 10000];
 
-// =========================================================================
-// TEMPORARILY DISABLED — GIFT CARD RAZORPAY (DO NOT DELETE)
-// Re-enable when online Gift Card payment is approved.
-// =========================================================================
-/*
 const loadRazorpay = () => {
   return new Promise((resolve) => {
     if (typeof window === 'undefined') return resolve(false);
@@ -41,8 +36,6 @@ const loadRazorpay = () => {
     document.body.appendChild(script);
   });
 };
-*/
-// =========================================================================
 
 // Validate recipient phone (optional, but if non-empty requires strictly 10 digits)
 const validateRecipientPhone = (phone) => {
@@ -204,14 +197,6 @@ const GiftCardsModal = ({ isOpen, onClose, onWalletUpdated }) => {
       return;
     }
 
-    // =========================================================================
-    // TEMPORARILY DISABLED — GIFT CARD RAZORPAY (DO NOT DELETE)
-    // Re-enable when online Gift Card payment is approved.
-    // =========================================================================
-    toast.error('Unable to complete your purchase right now. Please try again.');
-    return;
-
-    /*
     setIsPurchasing(true);
     try {
       // 1. Initialize Gift Card checkout with backend
@@ -293,8 +278,6 @@ const GiftCardsModal = ({ isOpen, onClose, onWalletUpdated }) => {
       toast.error(err.response?.data?.message || err.message || 'Could not initiate purchase');
       setIsPurchasing(false);
     }
-    */
-    // =========================================================================
   };
 
   if (!isOpen) return null;
@@ -638,31 +621,17 @@ const GiftCardsModal = ({ isOpen, onClose, onWalletUpdated }) => {
                         disabled={isPurchasing || !!phoneError}
                         className="flex-1 py-3 bg-gradient-to-r from-[#E31E24] via-[#F02828] to-[#FF6A00] text-white font-extrabold rounded-xl text-sm hover:shadow-lg active:scale-98 transition-all flex items-center justify-center gap-2 shadow-md shadow-red-500/20 disabled:opacity-50 cursor-pointer"
                       >
-                        <FiGift className="text-base" /> Buy Gift Card
+                        <FiLock className="text-sm" />{' '}
+                        {isPurchasing
+                          ? 'Connecting Razorpay...'
+                          : `Pay ₹${(isCustom ? Number(customAmount) || 0 : selectedAmount).toLocaleString('en-IN')} Securely`}
                       </button>
                     </div>
 
-                    {/*
-                    // =========================================================================
-                    // TEMPORARILY DISABLED — GIFT CARD RAZORPAY (DO NOT DELETE)
-                    // Re-enable when online Gift Card payment is approved.
-                    // =========================================================================
-                    <button
-                      type="submit"
-                      disabled={isPurchasing || !!phoneError}
-                      className="flex-1 py-3 bg-gradient-to-r from-[#E31E24] via-[#F02828] to-[#FF6A00] text-white font-extrabold rounded-xl text-sm hover:shadow-lg active:scale-98 transition-all flex items-center justify-center gap-2 shadow-md shadow-red-500/20 disabled:opacity-50"
-                    >
-                      <FiLock className="text-sm" />{' '}
-                      {isPurchasing
-                        ? 'Connecting Razorpay...'
-                        : `Pay ₹${(isCustom ? Number(customAmount) || 0 : selectedAmount).toLocaleString('en-IN')} Securely`}
-                    </button>
                     <div className="flex items-center justify-center gap-1.5 py-0.5 text-[11px] text-gray-400 font-medium">
                       <FiLock className="text-emerald-500 shrink-0 text-xs" />
                       <span>Instant Digital Delivery • Powered by Secure Razorpay Checkout</span>
                     </div>
-                    // =========================================================================
-                    */}
                   </div>
                 </form>
               )}
