@@ -255,10 +255,9 @@ const resolveVariantStock = (product, selectedVariant) => {
 
 const BULLET_LINE_RE = /^\s*(?:[-*•●▪◦]|\d+[.)])\s+/;
 
-// Turns a plain-text description into { paragraphs, bullets } for the Highlights layout.
-// - Lines starting with -, *, •, or "1." become bullets
-// - Other lines become paragraphs (lines after the first bullet also become bullets)
-// - A single unformatted block with many sentences is split: first 2 sentences intro, rest bullets
+// Turns a plain-text description into { paragraphs, bullets }.
+// - Descriptive sentences are merged into one paragraph
+// - Lines starting with -, *, •, "1." and short Title-Case spec phrases become bullets
 const parseDescription = (text) => {
   const clean = String(text || "")
     .replace(/<br\s*\/?>/gi, "\n")
@@ -271,32 +270,37 @@ const parseDescription = (text) => {
     .trim();
   if (!clean) return { paragraphs: [], bullets: [] };
 
-  const lines = clean.split("\n").map((l) => l.trim()).filter(Boolean);
-  const paragraphs = [];
-  const bullets = [];
-  let seenBullet = false;
+  // Break into lines, then each line into sentences
+  const pieces = clean
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .flatMap((line) => {
+      if (BULLET_LINE_RE.test(line)) return [{ text: line.replace(BULLET_LINE_RE, ""), forced: true }];
+      return (line.match(/[^.!?]+[.!?]+(?=\s|$)|[^.!?]+$/g) || [line])
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((s) => ({ text: s, forced: false }));
+    });
 
-  lines.forEach((line) => {
-    if (BULLET_LINE_RE.test(line)) {
-      seenBullet = true;
-      bullets.push(line.replace(BULLET_LINE_RE, ""));
-    } else if (seenBullet) {
-      bullets.push(line);
-    } else {
-      paragraphs.push(line);
-    }
+  const descriptive = [];
+  const bullets = [];
+
+  pieces.forEach(({ text: piece, forced }) => {
+    if (forced || isSpecPoint(piece)) bullets.push(piece.replace(/\.$/, ""));
+    else descriptive.push(piece);
   });
 
-  if (bullets.length === 0 && paragraphs.length === 1) {
-    const sentences = (paragraphs[0].match(/[^.!?]+[.!?]+(?=\s|$)|[^.!?]+$/g) || [])
-      .map((s) => s.trim())
-      .filter(Boolean);
-    if (sentences.length >= 4) {
-      return { paragraphs: [sentences.slice(0, 2).join(" ")], bullets: sentences.slice(2) };
-    }
-  }
+  return { paragraphs: descriptive.length ? [descriptive.join(" ")] : [], bullets };
+};
 
-  return { paragraphs, bullets };
+// A spec/utility point is a short Title-Case phrase (e.g. "Liner Gauge 13G"),
+// while a descriptive sentence is mostly lowercase words.
+const isSpecPoint = (sentence) => {
+  const words = sentence.replace(/[.!?,:;]+/g, " ").split(/\s+/).filter(Boolean);
+  if (!words.length) return false;
+  const capitalised = words.filter((w) => /^[A-Z0-9]/.test(w)).length;
+  return capitalised / words.length >= 0.6;
 };
 
 const DescriptionHighlights = ({ text }) => {
@@ -307,7 +311,6 @@ const DescriptionHighlights = ({ text }) => {
 
   return (
     <div className="space-y-4">
-      <h4 className="text-base font-bold text-slate-900">Highlights</h4>
       {intro.map((para, idx) => (
         <p key={`p-${idx}`} className="text-[13px] text-slate-600 leading-relaxed">
           {para}
