@@ -10,8 +10,6 @@ import {
 import toast from "react-hot-toast";
 import LazyImage from "../../../../shared/components/LazyImage";
 import { useState, useRef } from "react";
-import useLongPress from "../../hooks/useLongPress";
-import LongPressMenu from "./LongPressMenu";
 import FlyingItem from "./FlyingItem";
 import VendorBadge from "../../../Vendor/components/VendorBadge";
 import { getVendorById } from "../../data/catalogData";
@@ -33,8 +31,6 @@ const MobileProductCard = ({ product }) => {
   );
   const [isJustAdded, setIsJustAdded] = useState(false);
   const [justFavorited, setJustFavorited] = useState(false);
-  const [showLongPressMenu, setShowLongPressMenu] = useState(false);
-  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [showFlyingItem, setShowFlyingItem] = useState(false);
   const [flyingItemPos, setFlyingItemPos] = useState({
     start: { x: 0, y: 0 },
@@ -141,49 +137,13 @@ const MobileProductCard = ({ product }) => {
     }
   };
 
-  const handleLongPress = (e) => {
-    const target = e?.currentTarget || e?.target;
-    if (target && typeof target.getBoundingClientRect === 'function') {
-      const rect = target.getBoundingClientRect();
-      setMenuPosition({
-        x: rect.left + rect.width / 2,
-        y: rect.top + rect.height / 2,
-      });
-      setShowLongPressMenu(true);
-    } else if (e?.clientX && e?.clientY) {
-      setMenuPosition({
-        x: e.clientX,
-        y: e.clientY,
-      });
-      setShowLongPressMenu(true);
-    }
-  };
-
-  const handleShare = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: product.name,
-        text: `Check out ${product.name}`,
-        url: window.location.origin + `/product/${product.id}`,
-      });
-    } else {
-      navigator.clipboard.writeText(
-        window.location.origin + `/product/${product.id}`
-      );
-      toast.success("Link copied to clipboard");
-    }
-  };
-
-  const longPressHandlers = useLongPress(handleLongPress, 500);
-
   return (
     <>
       <motion.div
         whileTap={{ scale: 0.98 }}
         whileHover={{ y: -3 }}
         transition={{ duration: 0.2 }}
-        className="glass-card rounded-2xl overflow-hidden mb-4 border border-slate-200/80 shadow-sm hover:shadow-md transition-all duration-300"
-        {...longPressHandlers}>
+        className="glass-card rounded-2xl overflow-hidden mb-4 border border-slate-200/80 shadow-sm hover:shadow-md transition-all duration-300">
         <div className="flex gap-4 p-4">
           {/* Product Image */}
           <Link to={`/product/${product.id}`} className="w-24 h-24 flex-shrink-0 rounded-xl overflow-hidden bg-gray-100 block group">
@@ -313,16 +273,6 @@ const MobileProductCard = ({ product }) => {
           </div>
         </div>
       </motion.div>
-
-      <LongPressMenu
-        isOpen={showLongPressMenu}
-        onClose={() => setShowLongPressMenu(false)}
-        position={menuPosition}
-        onAddToCart={handleAddToCart}
-        onAddToWishlist={handleFavorite}
-        onShare={handleShare}
-        isInWishlist={isFavorite}
-      />
 
       {showFlyingItem && (
         <FlyingItem

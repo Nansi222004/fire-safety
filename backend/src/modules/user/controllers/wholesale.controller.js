@@ -122,7 +122,7 @@ export const validateWholesaleCart = asyncHandler(async (req, res) => {
     const ids = items.map((i) => String(i?.productId || '')).filter((id) => mongoose.isValidObjectId(id));
     const products = await Product.find({ _id: { $in: ids }, isActive: true }).select(PRODUCT_FIELDS).lean();
     const sellers = await Vendor.find({ _id: { $in: products.map((p) => p.vendorId) } })
-        .select('status vendorCapabilities wholesaleCapability.status').lean();
+        .select('status accountType vendorCapabilities wholesaleCapability.status').lean();
     const productMap = new Map(products.map((p) => [String(p._id), p]));
     const sellerMap = new Map(sellers.map((v) => [String(v._id), v]));
 

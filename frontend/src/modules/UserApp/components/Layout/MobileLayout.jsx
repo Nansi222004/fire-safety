@@ -5,6 +5,7 @@ import DesktopHeader from './DesktopHeader';
 import DesktopFooter from './DesktopFooter';
 import MobileBottomNav from './MobileBottomNav';
 import MobileCartBar from './MobileCartBar';
+import FloatingContactButtons from './FloatingContactButtons';
 import CartDrawer from '../../../../shared/components/Cart/CartDrawer';
 import useMobileHeaderHeight from '../../hooks/useMobileHeaderHeight';
 import ErrorBoundary from '../../../../shared/components/ErrorBoundary/ErrorBoundary';
@@ -91,6 +92,7 @@ const MobileLayout = ({ children, showBottomNav = true, showCartBar = true, show
         </main>
         {!shouldHideFooter && <DesktopFooter />}
         {showCartBar && <MobileCartBar />}
+        {!isAuthPage && !isCheckoutPage && <FloatingContactButtons />}
         {shouldShowBottomNav && <MobileBottomNav />}
         <CartDrawer />
       </div>

@@ -95,7 +95,9 @@ const getChildRoute = (parentRoute, childName) => {
       "Banner Library": "/admin/marketing/banner-library",
       Offers: "/admin/marketing/offers",
       "Promo Codes": "/admin/marketing/promocodes",
-      "Gift Cards & Vouchers": "/admin/marketing/gift-cards",
+      // TEMPORARILY DISABLED — GIFT CARD FEATURE
+      // DO NOT DELETE — RE-ENABLE WHEN GIFT CARD FEATURE IS ENABLED
+      // "Gift Cards & Vouchers": "/admin/marketing/gift-cards",
     },
     "/admin/notifications": {
       "All Notifications": "/admin/notifications",
@@ -147,7 +149,7 @@ const getChildRoute = (parentRoute, childName) => {
       "Manage Vendors": "/admin/vendors/manage-vendors",
       "Pending Approvals": "/admin/vendors/pending-approvals",
       "Service Applications": "/admin/vendors/service-partner-applications",
-      "Wholesale Applications": "/admin/vendors/wholesale-applications",
+      "Wholesalers": "/admin/vendors/wholesale-applications",
       "Commission Rates": "/admin/vendors/commission-rates",
       "Vendor Analytics": "/admin/vendors/vendor-analytics",
     },

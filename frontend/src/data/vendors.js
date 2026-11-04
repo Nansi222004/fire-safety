@@ -1,4 +1,4 @@
-import logoImage from "../../data/logos/safefire_logo.png";
+import logoImage from "../assets/logo-firesafety.png";
 
 export const vendors = [
   {

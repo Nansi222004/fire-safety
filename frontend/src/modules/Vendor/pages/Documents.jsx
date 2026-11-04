@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import DataTable from "../../Admin/components/DataTable";
 import ConfirmModal from "../../Admin/components/ConfirmModal";
 import Badge from "../../../shared/components/Badge";
-import { useVendorAuthStore } from "../store/vendorAuthStore";
+import { useSellerAuthStore } from "../../../shared/store/sellerAuthStore";
 import {
   getVendorDocuments,
   uploadVendorDocument,
@@ -14,7 +14,7 @@ import { getSocket, joinRoom, leaveRoom } from "../../../shared/utils/socket";
 import toast from "react-hot-toast";
 
 const Documents = () => {
-  const { vendor, token } = useVendorAuthStore();
+  const { vendor, token } = useSellerAuthStore();
   const [documents, setDocuments] = useState([]);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null });
   const [showUpload, setShowUpload] = useState(false);

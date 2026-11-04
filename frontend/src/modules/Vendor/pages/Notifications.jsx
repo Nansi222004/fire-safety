@@ -5,12 +5,13 @@ import { useNavigate } from "react-router-dom";
 import DataTable from "../../Admin/components/DataTable";
 import Badge from "../../../shared/components/Badge";
 import AnimatedSelect from "../../Admin/components/AnimatedSelect";
-import { useVendorAuthStore } from "../store/vendorAuthStore";
+import { useSellerAuthStore } from "../../../shared/store/sellerAuthStore";
 import { useVendorNotificationStore } from "../store/vendorNotificationStore";
+import { sellerPath } from "../../../shared/utils/sellerPortal";
 
 const Notifications = () => {
   const navigate = useNavigate();
-  const { vendor } = useVendorAuthStore();
+  const { vendor } = useSellerAuthStore();
   const {
     notifications,
     markAsRead,
@@ -266,12 +267,12 @@ const Notifications = () => {
             const documentId = data.documentId || (typeof data.get === 'function' ? data.get('documentId') : null);
 
             if (actionUrl) navigate(actionUrl);
-            else if (notifType === 'commission_update') navigate('/vendor/profile');
-            else if (inquiryId) navigate(`/vendor/store-builder?inquiryId=${inquiryId}`);
-            else if (returnRequestId) navigate(`/vendor/return-requests/${returnRequestId}`);
-            else if (documentId) navigate("/vendor/documents");
-            else if (orderId) navigate(`/vendor/orders/${orderId}`);
-            else navigate("/vendor/profile");
+            else if (notifType === 'commission_update') navigate(sellerPath('/vendor/profile'));
+            else if (inquiryId) navigate(sellerPath(`/vendor/store-builder?inquiryId=${inquiryId}`));
+            else if (returnRequestId) navigate(sellerPath(`/vendor/return-requests/${returnRequestId}`));
+            else if (documentId) navigate(sellerPath("/vendor/documents"));
+            else if (orderId) navigate(sellerPath(`/vendor/orders/${orderId}`));
+            else navigate(sellerPath("/vendor/profile"));
 
             if (!row.isRead) {
               handleMarkRead(row._id);

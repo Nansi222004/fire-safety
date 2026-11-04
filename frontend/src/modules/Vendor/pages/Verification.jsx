@@ -116,10 +116,7 @@ const VendorVerification = () => {
           <Link to="/" className="flex items-center gap-3 group">
             <img src={appLogo} alt="Fire Safety Shop Logo" className="h-9 w-auto object-contain" />
             <div>
-              <span className="text-lg font-bold text-[#0F172A] tracking-tight group-hover:text-[#E31E24] transition-colors block leading-none">
-                Fire Safety Shop
-              </span>
-              <span className="text-xs text-[#64748B] font-medium block mt-0.5">
+              <span className="text-xs text-[#64748B] font-medium block">
                 Seller Account Verification
               </span>
             </div>

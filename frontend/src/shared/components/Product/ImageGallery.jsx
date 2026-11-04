@@ -72,7 +72,7 @@ const ImageGallery = ({
             <LazyImage
               src={imageArray[selectedIndex]}
               alt={`${productName} - Image ${selectedIndex + 1}`}
-              className="w-full h-full object-cover mix-blend-multiply"
+              className="w-full h-full object-contain mix-blend-multiply"
               onError={(e) => {
                 e.target.src =
                   "https://via.placeholder.com/500x500?text=Product+Image";

@@ -131,7 +131,7 @@ export const initializePayment = asyncHandler(async (req, res) => {
         }
         const sellerIds = [...new Set(products.map(p => String(p.vendorId)))];
         const sellers = await Vendor.find({ _id: { $in: sellerIds } })
-            .select('status vendorCapabilities wholesaleCapability.status')
+            .select('status accountType vendorCapabilities wholesaleCapability.status')
             .lean();
         wholesaleSellerMap = Object.fromEntries(sellers.map(v => [String(v._id), v]));
     }

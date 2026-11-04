@@ -18,26 +18,20 @@ export const SERVICE_MENU_TITLES = new Set([
   'Services',
 ]);
 
-export const WHOLESALE_MENU_TITLES = new Set([
-  'Wholesale',
-]);
-
 /**
  * Dashboard modes (workspaces). Each mode maps to one independent capability:
  *   b2c       → sellsProducts
  *   services  → providesServices (approved Service Partner)
- *   wholesale → wholesaleEnabled (admin-approved Wholesale/B2B)
+ * Wholesale/B2B is not a vendor mode: it belongs to separate Wholesaler accounts (/wholesaler).
  */
 export const VENDOR_MODES = {
   B2C: 'b2c',
   SERVICES: 'services',
-  WHOLESALE: 'wholesale',
 };
 
 export const VENDOR_MODE_LABELS = {
   b2c: 'B2C',
   services: 'Services',
-  wholesale: 'Wholesale',
 };
 
 /**
@@ -61,11 +55,10 @@ export const getVendorCapabilities = (vendor) => {
   const sellsProducts = caps.sellsProducts === true;
   const providesServices = caps.providesServices === true && isServiceApproved;
 
-  // Wholesale/B2B is an independent capability, active only after admin approval.
-  const wholesaleStatus = vendor?.wholesaleCapability?.status || 'none';
-  const wholesaleEnabled = caps.wholesaleEnabled === true && wholesaleStatus === 'approved';
-  const isWholesalePending = wholesaleStatus === 'pending';
-  const isWholesaleRejected = wholesaleStatus === 'rejected';
+  // Wholesale/B2B selling exists only on admin-approved Wholesaler accounts (shared product pages use it).
+  const wholesaleEnabled = vendor?.accountType === 'wholesaler'
+    && caps.wholesaleEnabled === true
+    && vendor?.wholesaleCapability?.status === 'approved';
 
   const isServiceOnly = providesServices && !sellsProducts;
   const isProductOnly = sellsProducts && !providesServices;
@@ -101,22 +94,18 @@ export const getVendorCapabilities = (vendor) => {
     badgeText,
     badgeType,
     wholesaleEnabled,
-    wholesaleStatus,
-    isWholesalePending,
-    isWholesaleRejected,
   };
 };
 
 /**
  * Modes the vendor may switch between — strictly derived from approved capabilities.
- * @returns {Array<'b2c'|'services'|'wholesale'>}
+ * @returns {Array<'b2c'|'services'>}
  */
 export const getAvailableVendorModes = (vendor) => {
-  const { sellsProducts, providesServices, wholesaleEnabled } = getVendorCapabilities(vendor);
+  const { sellsProducts, providesServices } = getVendorCapabilities(vendor);
   const modes = [];
   if (sellsProducts) modes.push(VENDOR_MODES.B2C);
   if (providesServices) modes.push(VENDOR_MODES.SERVICES);
-  if (wholesaleEnabled) modes.push(VENDOR_MODES.WHOLESALE);
   return modes;
 };
 
@@ -147,7 +136,7 @@ export const resolveVendorMode = (vendor, preferredMode) => {
  * @returns {Array} Filtered menu items
  */
 export const filterVendorMenu = (menu = [], vendor, mode = null) => {
-  const { sellsProducts, providesServices, wholesaleEnabled } = getVendorCapabilities(vendor);
+  const { sellsProducts, providesServices } = getVendorCapabilities(vendor);
 
   // With multiple workspaces, the selected mode narrows the capability-specific sections.
   // With a single workspace (or no mode), behaviour is identical to the capability-only filter.
@@ -162,11 +151,6 @@ export const filterVendorMenu = (menu = [], vendor, mode = null) => {
     // If it's a service-specific item, only show if vendor can provide services
     if (SERVICE_MENU_TITLES.has(item.title)) {
       return providesServices && (!useMode || mode === VENDOR_MODES.SERVICES);
-    }
-
-    // Wholesale workspace — only for admin-approved wholesale vendors
-    if (WHOLESALE_MENU_TITLES.has(item.title)) {
-      return wholesaleEnabled && (!useMode || mode === VENDOR_MODES.WHOLESALE);
     }
 
     // Shared items are always visible
@@ -190,7 +174,7 @@ export const getGroupedVendorMenu = (filteredMenu = [], vendor) => {
 
   const getSectionTitle = (itemTitle) => {
     if (caps.isServiceOnly) {
-      if (['Dashboard', 'Services', 'Wholesale'].includes(itemTitle)) {
+      if (['Dashboard', 'Services'].includes(itemTitle)) {
         return 'CORE WORKFLOW';
       }
       return 'MANAGEMENT & TOOLS';
@@ -207,7 +191,6 @@ export const getGroupedVendorMenu = (filteredMenu = [], vendor) => {
         'Product Reviews',
         'Stock Management',
         'Inventory Reports',
-        'Wholesale',
       ].includes(itemTitle)) {
         return 'CATALOG & ORDERS';
       }
@@ -226,7 +209,6 @@ export const getGroupedVendorMenu = (filteredMenu = [], vendor) => {
       'Product Reviews',
       'Stock Management',
       'Inventory Reports',
-      'Wholesale',
     ].includes(itemTitle)) {
       return 'CORE WORKFLOW';
     }

@@ -2,13 +2,13 @@
 import { useState, useEffect } from 'react';
 import { FiSave, FiCreditCard, FiLock } from 'react-icons/fi';
 import { motion } from 'framer-motion';
-import { useVendorAuthStore } from "../../store/vendorAuthStore";
+import { useSellerAuthStore } from "../../../../shared/store/sellerAuthStore";
 import { updateVendorBankDetails } from '../../services/vendorService';
 import AnimatedSelect from '../../../Admin/components/AnimatedSelect';
 import toast from 'react-hot-toast';
 
 const PaymentSettings = () => {
-  const { vendor, syncVendor } = useVendorAuthStore();
+  const { vendor, syncVendor } = useSellerAuthStore();
   const [formData, setFormData] = useState({
     bankDetails: {
       accountName: '',

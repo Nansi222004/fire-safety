@@ -61,10 +61,7 @@ const VendorLogin = () => {
           <Link to="/" className="flex items-center gap-2.5 sm:gap-3 group">
             <img src={appLogo} alt="Fire Safety Shop Logo" className="h-8 sm:h-9 w-auto object-contain" />
             <div>
-              <span className="text-base sm:text-lg font-bold text-[#0F172A] tracking-tight group-hover:text-[#E31E24] transition-colors block leading-none">
-                Fire Safety Shop
-              </span>
-              <span className="text-[11px] sm:text-xs text-[#64748B] font-medium block mt-0.5">
+              <span className="text-[11px] sm:text-xs text-[#64748B] font-medium block">
                 Seller Portal Access
               </span>
             </div>

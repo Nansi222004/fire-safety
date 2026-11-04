@@ -26,7 +26,8 @@ import {
   replyToVendorSupportTicket,
 } from "../services/vendorService";
 import { getSocket, joinRoom, leaveRoom } from "../../../shared/utils/socket";
-import { useVendorAuthStore } from "../store/vendorAuthStore";
+import { useSellerAuthStore } from "../../../shared/store/sellerAuthStore";
+import { sellerPath, sellerTokenKey } from "../../../shared/utils/sellerPortal";
 
 const SupportTickets = () => {
   const { id } = useParams();
@@ -65,10 +66,10 @@ const SupportTickets = () => {
     fetchTicketTypes();
   }, [fetchTickets, fetchTicketTypes]);
 
-  const { vendor } = useVendorAuthStore();
+  const { vendor } = useSellerAuthStore();
 
   useEffect(() => {
-    const token = localStorage.getItem('vendor-token') || localStorage.getItem('token');
+    const token = localStorage.getItem(sellerTokenKey()) || localStorage.getItem('token');
     if (!token || !vendor?.id) return;
 
     const socket = getSocket(token);
@@ -266,7 +267,7 @@ const SupportTickets = () => {
       label: "Actions",
       render: (_, row) => (
         <button
-          onClick={() => navigate(`/vendor/support-tickets/${row._id}`)}
+          onClick={() => navigate(sellerPath(`/vendor/support-tickets/${row._id}`))}
           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
           title="View Ticket"
         >
@@ -367,7 +368,7 @@ const SupportTickets = () => {
               {filteredTickets.map(ticket => (
                 <div 
                   key={ticket._id}
-                  onClick={() => navigate(`/vendor/support-tickets/${ticket._id}`)}
+                  onClick={() => navigate(sellerPath(`/vendor/support-tickets/${ticket._id}`))}
                   className="bg-white p-3.5 rounded-2xl border border-gray-100 flex items-center justify-between cursor-pointer active:scale-98 hover:border-primary-200 hover:shadow-xs transition-all shadow-xs"
                 >
                   <div className="flex-1 min-w-0 pr-2.5">
@@ -591,7 +592,7 @@ const TicketDetail = ({
       className="space-y-4 sm:space-y-6 pb-6 px-1 sm:px-0">
       <div className="flex items-center gap-2.5 mb-2 px-1 lg:px-0 pt-1 lg:pt-0">
         <button
-          onClick={() => navigate("/vendor/support-tickets")}
+          onClick={() => navigate(sellerPath("/vendor/support-tickets"))}
           className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-600">
           <FiArrowLeft className="text-lg" />
         </button>
@@ -623,7 +624,7 @@ const TicketDetail = ({
                       <div className="border-t border-gray-100 p-4 sm:p-6 text-center space-y-2 bg-gray-50/80">
                           <p className="text-xs sm:text-sm font-bold text-gray-500">This ticket has been closed. Replies are disabled.</p>
                           <button
-                              onClick={() => navigate("/vendor/support-tickets")}
+                              onClick={() => navigate(sellerPath("/vendor/support-tickets"))}
                               className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors"
                           >
                               Create New Ticket

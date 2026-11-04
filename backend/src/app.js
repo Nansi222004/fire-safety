@@ -12,6 +12,7 @@ import publicRoutes from './routes/public.routes.js';
 import userRoutes from './modules/user/routes/user.routes.js';
 import adminRoutes from './modules/admin/routes/admin.routes.js';
 import vendorRoutes from './modules/vendor/routes/vendor.routes.js';
+import wholesalerRoutes from './modules/wholesaler/routes/wholesaler.routes.js';
 import deliveryRoutes from './modules/delivery/routes/delivery.routes.js';
 import workerRoutes from './modules/worker/routes/worker.routes.js';
 import webhookRouter from './modules/user/routes/webhook.routes.js';
@@ -120,6 +121,7 @@ app.use('/api', publicRoutes);                       // Public: products, catego
 app.use('/api/fcm-tokens', fcmTokenRoutes);           // FCM Push Notification Tokens (SOP)
 app.use('/api/user/fcm-tokens', fcmTokenRoutes);      // FCM Tokens scoped for customer
 app.use('/api/vendor/fcm-tokens', fcmTokenRoutes);    // FCM Tokens scoped for vendor
+app.use('/api/wholesaler/fcm-tokens', fcmTokenRoutes); // FCM Tokens scoped for wholesaler
 app.use('/api/delivery/fcm-tokens', fcmTokenRoutes);  // FCM Tokens scoped for delivery
 app.use('/api/admin/fcm-tokens', fcmTokenRoutes);     // FCM Tokens scoped for admin
 app.use('/api/customer', customerServiceRoutes);      // Customer Services & Bookings: catalog, pincode check, bookings
@@ -130,6 +132,7 @@ app.use('/api/user', userRoutes);                    // Customer: auth, addresse
 app.use('/api/user/payment', paymentRouter);         // Payment: initialize, retry, exchange-upgrade
 app.use('/api/admin', adminRoutes);                  // Admin: auth, vendors, orders, catalog, analytics
 app.use('/api/vendor', vendorRoutes);                // Vendor: auth, products, orders, earnings
+app.use('/api/wholesaler', wholesalerRoutes);        // Wholesaler (B2B seller, separate account): auth, catalog, B2B orders, wallet
 app.use('/api/delivery', deliveryRoutes);            // Delivery: auth, orders
 app.use('/api/worker', workerRoutes);                // Fire safety inspector: auth, assigned tasks, reports
 

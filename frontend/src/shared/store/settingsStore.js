@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import toast from "react-hot-toast";
-import logoImage from "../../../data/logos/safefire_logo.png";
+import logoImage from "../../assets/logo-firesafety.png";
 import api from "../utils/api";
 
 const defaultSettings = {
@@ -10,7 +10,8 @@ const defaultSettings = {
     storeLogo: logoImage,
     favicon: logoImage,
     contactEmail: "contact@example.com",
-    contactPhone: "+1234567890",
+    contactPhone: "",
+    whatsappPhone: "",
     address: "",
     businessHours: "Mon-Fri 9AM-6PM",
     timezone: "UTC",
@@ -21,6 +22,10 @@ const defaultSettings = {
       instagram: "",
       twitter: "",
       linkedin: "",
+    },
+    appLinks: {
+      googlePlay: "",
+      appStore: "",
     },
     accentColor: "#FFE11B",
     storeDescription: "",

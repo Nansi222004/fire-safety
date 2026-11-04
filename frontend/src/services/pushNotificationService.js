@@ -1,5 +1,6 @@
 import { messaging, getToken, onMessage, isConfigValid, firebaseConfig } from '../firebase';
 import api from '../shared/utils/api';
+import { isWholesalerPath } from '../shared/utils/sellerPortal';
 
 const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY;
 
@@ -91,11 +92,12 @@ export async function getFCMToken() {
 // Each role has its own endpoint (/api/<role>/fcm-tokens) so the request is authenticated with
 // that role's session — the shared /fcm-tokens endpoint fell back to whichever login the browser
 // had (usually the customer), so vendor / delivery / admin devices never received pushes.
-const PUSH_SCOPES = ['user', 'vendor', 'delivery', 'admin'];
+const PUSH_SCOPES = ['user', 'vendor', 'wholesaler', 'delivery', 'admin'];
 const resolvePushScope = (scope) => {
     if (PUSH_SCOPES.includes(scope)) return scope;
     const path = typeof window !== 'undefined' ? window.location.pathname : '/';
     if (path.startsWith('/vendor')) return 'vendor';
+    if (isWholesalerPath(path)) return 'wholesaler';
     if (path.startsWith('/delivery')) return 'delivery';
     if (path.startsWith('/admin')) return 'admin';
     return 'user';

@@ -1,4 +1,5 @@
 import { io } from 'socket.io-client';
+import { isWholesalerPath } from './sellerPortal';
 
 const rawApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000').trim();
 const SOCKET_URL = rawApiBaseUrl.replace(/\/api\/?$/, '').replace(/\/+$/, '') || 'http://localhost:5000';
@@ -14,6 +15,9 @@ const getActiveToken = (tokenInput) => {
     const path = window.location.pathname;
     if (path.startsWith('/admin')) {
         return localStorage.getItem('adminToken') || localStorage.getItem('admin-token') || localStorage.getItem('token');
+    }
+    if (isWholesalerPath(path)) {
+        return localStorage.getItem('wholesaler-token') || localStorage.getItem('token');
     }
     if (path.startsWith('/vendor')) {
         return localStorage.getItem('vendor-token') || localStorage.getItem('token');

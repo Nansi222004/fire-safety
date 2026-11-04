@@ -379,7 +379,7 @@ const getShopMetadata = asyncHandler(async (req, res) => {
     }
 
     // 3. Vendors
-    const vendors = await Vendor.find({ status: 'approved' })
+    const vendors = await Vendor.find({ status: 'approved', accountType: { $ne: 'wholesaler' } })
         .select('_id id storeName name isVerified logo')
         .lean();
 
@@ -889,7 +889,8 @@ router.get('/vendors/all', detailCache, asyncHandler(async (req, res) => {
     const numericPage = Math.max(parseInt(page, 10) || 1, 1);
     const numericLimit = Math.max(parseInt(limit, 10) || 50, 1);
     const skip = (numericPage - 1) * numericLimit;
-    const filter = {};
+    // Wholesalers are B2B-only accounts and never listed as public retail sellers.
+    const filter = { accountType: { $ne: 'wholesaler' } };
     if (status && status !== 'all') {
         filter.status = status;
     }
@@ -920,6 +921,7 @@ router.get('/vendors/:id', detailCache, asyncHandler(async (req, res) => {
     let query = Vendor.findOne({
         _id: req.params.id,
         status: 'approved',
+        accountType: { $ne: 'wholesaler' },
     });
 
     if (mongoose.models.VendorStore) {
@@ -1015,6 +1017,7 @@ router.get('/vendors/:id/products', listCache, asyncHandler(async (req, res) => 
     const vendor = await Vendor.findOne({
         _id: req.params.id,
         status: 'approved',
+        accountType: { $ne: 'wholesaler' },
     }).select('_id').lean();
     if (!vendor) throw new ApiError(404, 'Vendor not found.');
     const activeSaleProductIds = await getActiveSaleProductIds();
@@ -1291,7 +1294,7 @@ router.get('/settings/general', asyncHandler(async (req, res) => {
     
     // Authoritative contact info configured in Admin Settings -> General -> Contact Info
     const primaryContactEmail = value.contactEmail || value.supportEmail || "contact@example.com";
-    const primaryContactPhone = value.contactPhone || value.supportPhone || value.phone || "+91 98765 43210";
+    const primaryContactPhone = value.contactPhone || value.supportPhone || value.phone || "";
 
     // Filter out private administrative fields to protect platform configuration data
     const publicSettings = {
@@ -1308,6 +1311,10 @@ router.get('/settings/general', asyncHandler(async (req, res) => {
             instagram: "",
             twitter: "",
             linkedin: "",
+        },
+        appLinks: value.appLinks || {
+            googlePlay: "",
+            appStore: "",
         }
     };
     

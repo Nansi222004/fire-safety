@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { FiSearch, FiCheckCircle, FiXCircle, FiBriefcase } from 'react-icons/fi';
+import { FiSearch, FiCheckCircle, FiXCircle, FiBriefcase, FiExternalLink } from 'react-icons/fi';
 import api from '../../../../shared/utils/api';
 
 const STATUS_TABS = [
@@ -17,15 +18,7 @@ const STATUS_TONES = {
   rejected: 'bg-red-50 text-red-700 border-red-200',
 };
 
-const capabilityLabels = (vendor) => {
-  const caps = vendor?.vendorCapabilities || {};
-  const labels = [];
-  if (caps.sellsProducts) labels.push('B2C Products');
-  if (caps.providesServices && vendor?.serviceCapability?.status === 'approved') labels.push('Services');
-  if (caps.wholesaleEnabled) labels.push('Wholesale');
-  return labels;
-};
-
+// Wholesalers are separate B2B seller accounts registered on the Wholesaler portal (GSTIN required).
 const AdminWholesaleApplications = () => {
   const [vendors, setVendors] = useState([]);
   const [stats, setStats] = useState({ pending: 0, approved: 0, rejected: 0 });
@@ -45,7 +38,7 @@ const AdminWholesaleApplications = () => {
       setVendors(Array.isArray(data?.vendors) ? data.vendors : []);
       if (data?.stats) setStats(data.stats);
     } catch (err) {
-      toast.error(err.message || 'Failed to fetch wholesale applications.');
+      toast.error(err.message || 'Failed to fetch wholesalers.');
     } finally {
       setLoading(false);
     }
@@ -60,7 +53,7 @@ const AdminWholesaleApplications = () => {
     setActingId(vendor._id);
     try {
       await api.post(`/admin/wholesale/applications/${vendor._id}/approve`);
-      toast.success(`Wholesale capability enabled for ${vendor.storeName || vendor.name}.`);
+      toast.success(`${vendor.storeName || vendor.name} is now an approved wholesaler.`);
       fetchApplications();
     } catch (err) {
       toast.error(err.message || 'Failed to approve.');
@@ -78,7 +71,7 @@ const AdminWholesaleApplications = () => {
     setActingId(rejectTarget._id);
     try {
       await api.post(`/admin/wholesale/applications/${rejectTarget._id}/reject`, { reason: rejectReason.trim() });
-      toast.success(rejectTarget.wholesaleCapability?.status === 'approved' ? 'Wholesale capability revoked.' : 'Application rejected.');
+      toast.success(rejectTarget.wholesaleCapability?.status === 'approved' ? 'Wholesale access revoked.' : 'Application rejected.');
       setRejectTarget(null);
       setRejectReason('');
       fetchApplications();
@@ -93,10 +86,11 @@ const AdminWholesaleApplications = () => {
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <FiBriefcase className="text-sky-600" /> Wholesale / B2B Applications
+          <FiBriefcase className="text-sky-600" /> Wholesalers
         </h1>
         <p className="text-sm text-gray-600 mt-1">
-          Approve vendors for the Wholesale/B2B capability. This is independent of product and service capabilities.
+          Review wholesaler registrations (separate B2B seller accounts). Verify the GSTIN and documents before approving —
+          approval activates both the account and wholesale selling/buying.
         </p>
       </div>
 
@@ -129,7 +123,7 @@ const AdminWholesaleApplications = () => {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search vendor, store or email..."
+              placeholder="Search business, email or GSTIN..."
               className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
@@ -138,16 +132,16 @@ const AdminWholesaleApplications = () => {
         {loading ? (
           <p className="text-sm text-gray-500 py-8 text-center">Loading…</p>
         ) : vendors.length === 0 ? (
-          <p className="text-sm text-gray-500 py-8 text-center">No wholesale applications found.</p>
+          <p className="text-sm text-gray-500 py-8 text-center">No wholesalers found.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wide text-gray-500 border-b border-gray-200">
-                  <th className="py-3 pr-3">Vendor</th>
+                  <th className="py-3 pr-3">Wholesaler</th>
                   <th className="py-3 px-3">Business Details</th>
-                  <th className="py-3 px-3">Current Capabilities</th>
-                  <th className="py-3 px-3">Status</th>
+                  <th className="py-3 px-3">Account</th>
+                  <th className="py-3 px-3">Wholesale</th>
                   <th className="py-3 pl-3 text-right">Actions</th>
                 </tr>
               </thead>
@@ -161,8 +155,9 @@ const AdminWholesaleApplications = () => {
                       <td className="py-3 pr-3 min-w-[180px]">
                         <p className="font-semibold text-gray-800">{vendor.storeName || vendor.name}</p>
                         <p className="text-xs text-gray-500">{vendor.email}</p>
-                        {vendor.status !== 'approved' && (
-                          <p className="text-[11px] text-amber-600 mt-1">Vendor account: {vendor.status}</p>
+                        {vendor.phone && <p className="text-xs text-gray-500">{vendor.phone}</p>}
+                        {vendor.address?.city && (
+                          <p className="text-[11px] text-gray-400">{[vendor.address.city, vendor.address.state].filter(Boolean).join(', ')}</p>
                         )}
                       </td>
                       <td className="py-3 px-3 min-w-[220px] text-xs text-gray-600 space-y-0.5">
@@ -173,12 +168,14 @@ const AdminWholesaleApplications = () => {
                         {wc.appliedAt && <p className="text-gray-400">Applied {new Date(wc.appliedAt).toLocaleDateString('en-IN')}</p>}
                         {status === 'rejected' && wc.rejectionReason && <p className="text-red-600">Reason: {wc.rejectionReason}</p>}
                       </td>
-                      <td className="py-3 px-3">
-                        <div className="flex flex-wrap gap-1">
-                          {capabilityLabels(vendor).map((label) => (
-                            <span key={label} className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-gray-100 text-gray-700">{label}</span>
-                          ))}
-                        </div>
+                      <td className="py-3 px-3 text-xs space-y-1 min-w-[150px]">
+                        <p className="capitalize text-gray-700"><span className="font-semibold">Status:</span> {vendor.status}</p>
+                        <p className={vendor.isVerified ? 'text-emerald-700' : 'text-amber-600'}>
+                          {vendor.isVerified ? 'Email verified' : 'Email not verified yet'}
+                        </p>
+                        <Link to={`/admin/vendors/${vendor._id}`} className="inline-flex items-center gap-1 font-semibold text-sky-700 hover:underline">
+                          Details & documents <FiExternalLink />
+                        </Link>
                       </td>
                       <td className="py-3 px-3">
                         <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-bold border capitalize ${STATUS_TONES[status] || 'bg-gray-50 text-gray-600 border-gray-200'}`}>
@@ -189,7 +186,8 @@ const AdminWholesaleApplications = () => {
                         {status !== 'approved' && (
                           <button
                             type="button"
-                            disabled={actingId === vendor._id || vendor.status !== 'approved'}
+                            disabled={actingId === vendor._id || vendor.status === 'suspended'}
+                            title={vendor.status === 'suspended' ? 'Reactivate the account from its details page first' : undefined}
                             onClick={() => handleApprove(vendor)}
                             className="inline-flex items-center gap-1 px-3 py-1.5 mr-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold">
                             <FiCheckCircle /> Approve
@@ -219,14 +217,14 @@ const AdminWholesaleApplications = () => {
           <div className="fixed inset-0 bg-black/50" onClick={() => setRejectTarget(null)} />
           <div className="relative bg-white rounded-2xl p-6 max-w-md w-full shadow-xl space-y-4">
             <h3 className="text-lg font-bold text-gray-800">
-              {rejectTarget.wholesaleCapability?.status === 'approved' ? 'Revoke wholesale capability' : 'Reject wholesale application'}
+              {rejectTarget.wholesaleCapability?.status === 'approved' ? 'Revoke wholesale access' : 'Reject wholesaler application'}
             </h3>
             <p className="text-sm text-gray-600">{rejectTarget.storeName || rejectTarget.name}</p>
             <textarea
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
               rows={3}
-              placeholder="Reason (shared with the vendor)"
+              placeholder="Reason (shared with the wholesaler)"
               className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
             <div className="flex justify-end gap-2">

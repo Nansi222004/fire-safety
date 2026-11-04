@@ -29,9 +29,11 @@ export const resolveProductSalesChannels = ({
     const b2cAvailable = body.b2cAvailable !== undefined
         ? Boolean(body.b2cAvailable)
         : currentB2c;
+    const canSellWholesale = vendorCapabilities.wholesaleEnabled === true && wholesaleCapability.status === 'approved';
     const wholesaleEnabled = submittedWholesale.enabled !== undefined
         ? Boolean(submittedWholesale.enabled)
-        : currentWholesale.enabled === true;
+        // A B2B listing kept from before wholesale moved to Wholesaler accounts lapses when a retail vendor edits it.
+        : currentWholesale.enabled === true && canSellWholesale;
 
     if (!b2cAvailable && !wholesaleEnabled) {
         throw new ApiError(400, 'A product must be available on at least one sales channel (B2C or B2B).');
@@ -39,10 +41,7 @@ export const resolveProductSalesChannels = ({
     if (b2cAvailable && vendorCapabilities.sellsProducts !== true) {
         throw new ApiError(403, 'Retail (B2C) availability requires the Product Seller capability.');
     }
-    if (
-        wholesaleEnabled
-        && (vendorCapabilities.wholesaleEnabled !== true || wholesaleCapability.status !== 'approved')
-    ) {
+    if (wholesaleEnabled && !canSellWholesale) {
         throw new ApiError(403, 'Approved Wholesale/B2B capability is required for B2B product availability.');
     }
 

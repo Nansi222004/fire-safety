@@ -108,11 +108,15 @@ const MobileProfile = () => {
     }
   }, [activeModal]);
 
+  // TEMPORARILY DISABLED — GIFT CARD FEATURE
+  // DO NOT DELETE — RE-ENABLE WHEN GIFT CARD FEATURE IS ENABLED
+  /*
   useEffect(() => {
     if (user) {
       fetchGiftCardSummary();
     }
   }, [user]);
+  */
 
   const unreadNotificationCount = useUserNotificationStore((state) => state.unreadCount);
   const ensureNotificationHydrated = useUserNotificationStore((state) => state.ensureHydrated);
@@ -251,6 +255,9 @@ const MobileProfile = () => {
       border: 'border-emerald-100',
       link: '/addresses',
     },
+    // TEMPORARILY DISABLED — USER WALLET FEATURE
+    // DO NOT DELETE — RE-ENABLE WHEN WALLET FEATURE IS RESTORED
+    /*
     {
       title: 'Wallet',
       subtitle: 'Balance & Refunds',
@@ -260,6 +267,10 @@ const MobileProfile = () => {
       border: 'border-amber-100',
       link: '/user/wallet',
     },
+    */
+    // TEMPORARILY DISABLED — GIFT CARD FEATURE
+    // DO NOT DELETE — RE-ENABLE WHEN GIFT CARD FEATURE IS ENABLED
+    /*
     {
       title: 'Gift Cards',
       subtitle: 'Vouchers & Claim',
@@ -269,6 +280,7 @@ const MobileProfile = () => {
       border: 'border-purple-100',
       action: () => setActiveModal('giftcard'),
     },
+    */
     {
       title: 'Coupons',
       subtitle: 'Offers & Promo',
@@ -331,6 +343,9 @@ const MobileProfile = () => {
     {
       title: 'Offers & Coupons',
       items: [
+        // TEMPORARILY DISABLED — GIFT CARD FEATURE
+        // DO NOT DELETE — RE-ENABLE WHEN GIFT CARD FEATURE IS ENABLED
+        /*
         {
           label: 'Gift Cards & Vouchers',
           description: 'Redeem e-gift vouchers or send SafeFire cards to friends',
@@ -340,6 +355,7 @@ const MobileProfile = () => {
           badge: giftCardBalance !== null && giftCardBalance > 0 ? `₹${giftCardBalance.toLocaleString('en-IN')} available` : null,
           action: () => setActiveModal('giftcard'),
         },
+        */
         {
           label: 'Coupons & Exclusive Offers',
           description: 'View active discount codes and promotional offers',
@@ -854,6 +870,9 @@ const MobileProfile = () => {
                 </div>
               )}
 
+              {/* TEMPORARILY DISABLED — GIFT CARD FEATURE */}
+              {/* DO NOT DELETE — RE-ENABLE WHEN GIFT CARD FEATURE IS ENABLED */}
+              {/*
               <GiftCardsModal
                 isOpen={activeModal === 'giftcard'}
                 onClose={() => {
@@ -865,6 +884,7 @@ const MobileProfile = () => {
                   fetchGiftCardSummary();
                 }}
               />
+              */}
 
               {/* Coupons & Exclusive Offers Modal */}
               {activeModal === 'coupons' && (

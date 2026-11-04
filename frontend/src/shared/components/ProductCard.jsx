@@ -7,8 +7,6 @@ import { formatPrice, getPlaceholderImage } from "../utils/helpers";
 import toast from "react-hot-toast";
 import LazyImage from "./LazyImage";
 import { useState, useRef } from "react";
-import useLongPress from "../../modules/UserApp/hooks/useLongPress";
-import LongPressMenu from "../../modules/UserApp/components/Mobile/LongPressMenu";
 import FlyingItem from "../../modules/UserApp/components/Mobile/FlyingItem";
 import { getVariantSignature } from "../utils/variant";
 
@@ -39,8 +37,6 @@ const ProductCard = ({
   const [isAdding, setIsAdding] = useState(false);
   const [isJustAdded, setIsJustAdded] = useState(false);
   const [justFavorited, setJustFavorited] = useState(false);
-  const [showLongPressMenu, setShowLongPressMenu] = useState(false);
-  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [showFlyingItem, setShowFlyingItem] = useState(false);
   const [flyingItemPos, setFlyingItemPos] = useState({
     start: { x: 0, y: 0 },
@@ -133,39 +129,6 @@ const ProductCard = ({
     toast.success("Removed from cart!");
   };
 
-  const handleLongPress = (e) => {
-    const target = e?.currentTarget || e?.target;
-    if (target && typeof target.getBoundingClientRect === 'function') {
-      const rect = target.getBoundingClientRect();
-      setMenuPosition({
-        x: rect.left + rect.width / 2,
-        y: rect.top + rect.height / 2,
-      });
-      setShowLongPressMenu(true);
-    } else if (e?.clientX && e?.clientY) {
-      setMenuPosition({
-        x: e.clientX,
-        y: e.clientY,
-      });
-      setShowLongPressMenu(true);
-    }
-  };
-
-  const handleShare = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: product.name,
-        text: `Check out ${product.name}`,
-        url: window.location.origin + productLink,
-      });
-    } else {
-      navigator.clipboard.writeText(window.location.origin + productLink);
-      toast.success("Link copied to clipboard");
-    }
-  };
-
-  const longPressHandlers = useLongPress(handleLongPress, 500);
-
   const handleFavorite = (e) => {
     e.stopPropagation();
     setJustFavorited(true);
@@ -193,8 +156,7 @@ const ProductCard = ({
         whileHover={{ y: -4 }}
         transition={{ duration: 0.25, ease: "easeOut" }}
         style={{ willChange: "transform", transform: "translateZ(0)" }}
-        className="bg-white rounded-2xl overflow-hidden group cursor-pointer h-full flex flex-col hover:shadow-xl hover:border-slate-300 transition-all duration-300 border border-slate-200/80 shadow-sm"
-        {...longPressHandlers}>
+        className="bg-white rounded-2xl overflow-hidden group cursor-pointer h-full flex flex-col hover:shadow-xl hover:border-slate-300 transition-all duration-300 border border-slate-200/80 shadow-sm">
         <div className="relative">
           {/* Favorite Icon */}
           <div className="absolute top-2 right-2 z-10">
@@ -342,16 +304,6 @@ const ProductCard = ({
           </div>
         </div>
       </motion.div>
-
-      <LongPressMenu
-        isOpen={showLongPressMenu}
-        onClose={() => setShowLongPressMenu(false)}
-        position={menuPosition}
-        onAddToCart={handleAddToCart}
-        onAddToWishlist={handleFavorite}
-        onShare={handleShare}
-        isInWishlist={isFavorite}
-      />
 
       {showFlyingItem && (
         <FlyingItem

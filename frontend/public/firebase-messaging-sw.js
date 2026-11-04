@@ -92,8 +92,8 @@ if (messaging) {
         const title = payload.notification?.title || payload.data?.title || 'SafeFire Notification';
         const options = {
             body: payload.notification?.body || payload.data?.body || payload.data?.message || '',
-            icon: payload.notification?.icon || payload.data?.icon || '/favicon.ico',
-            badge: '/favicon.ico',
+            icon: payload.notification?.icon || payload.data?.icon || '/logo-firesafety.png',
+            badge: '/logo-firesafety.png',
             data: payload.data || {},
             tag: payload.data?.eventKey || payload.data?.notificationId || payload.data?.id || `safefire-bg-${Date.now()}`,
             renotify: false,
@@ -114,8 +114,8 @@ self.addEventListener('push', (event) => {
         const title = payload.notification?.title || payload.data?.title || 'SafeFire Alert';
         const options = {
             body: payload.notification?.body || payload.data?.body || payload.data?.message || '',
-            icon: payload.notification?.icon || payload.data?.icon || '/favicon.ico',
-            badge: '/favicon.ico',
+            icon: payload.notification?.icon || payload.data?.icon || '/logo-firesafety.png',
+            badge: '/logo-firesafety.png',
             data: payload.data || {},
             tag: payload.data?.eventKey || payload.data?.notificationId || payload.data?.id || `safefire-push-${Date.now()}`,
             renotify: false,
@@ -129,7 +129,7 @@ self.addEventListener('push', (event) => {
         event.waitUntil(
             self.registration.showNotification('SafeFire Alert', {
                 body: text,
-                icon: '/favicon.ico',
+                icon: '/logo-firesafety.png',
             })
         );
     }

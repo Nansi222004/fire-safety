@@ -175,6 +175,23 @@ const GeneralSettings = () => {
                   />
                 </div>
 
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    WhatsApp Contact Number
+                  </label>
+                  <input
+                    type="tel"
+                    name="whatsappPhone"
+                    value={formData.whatsappPhone || ""}
+                    onChange={handleChange}
+                    placeholder="Leave blank to use the contact phone"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Include the country code, for example +91 98765 43210.
+                  </p>
+                </div>
+
                 <div className="md:col-span-2">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Address
@@ -249,6 +266,57 @@ const GeneralSettings = () => {
                         handleSocialMediaChange("linkedin", e.target.value)
                       }
                       placeholder="https://linkedin.com/company/yourpage"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-gray-200 pt-6">
+                <h3 className="text-lg font-bold text-gray-800 mb-1">
+                  Get the App
+                </h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  Add store listing links to show app download buttons in the customer website footer.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Google Play Store URL
+                    </label>
+                    <input
+                      type="url"
+                      value={formData.appLinks?.googlePlay || ""}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          appLinks: {
+                            ...formData.appLinks,
+                            googlePlay: e.target.value,
+                          },
+                        })
+                      }
+                      placeholder="https://play.google.com/store/apps/details?id=..."
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Apple App Store URL
+                    </label>
+                    <input
+                      type="url"
+                      value={formData.appLinks?.appStore || ""}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          appLinks: {
+                            ...formData.appLinks,
+                            appStore: e.target.value,
+                          },
+                        })
+                      }
+                      placeholder="https://apps.apple.com/app/..."
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                   </div>

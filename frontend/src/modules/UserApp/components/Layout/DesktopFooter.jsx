@@ -6,22 +6,28 @@ import {
   FiTwitter,
   FiArrowRight,
 } from "react-icons/fi";
+import { FaApple, FaGooglePlay } from "react-icons/fa";
 import { useSettingsStore } from "../../../../shared/store/settingsStore";
+// Light variant of the logo (white lettering) for the dark footer.
+import footerLogo from "../../../../assets/logo-firesafety-light.png";
 
 const DesktopFooter = () => {
   const { settings } = useSettingsStore();
   const general = settings?.general || {};
+  const appLinks = general.appLinks || {};
+  const hasAppLinks = appLinks.googlePlay || appLinks.appStore;
 
   return (
     <footer className="hidden lg:block bg-slate-900 text-slate-300 border-t border-slate-800 pt-16 pb-8 w-full mt-auto">
-      <div className="max-w-[1440px] mx-auto px-8 lg:px-16 xl:px-20 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-10">
+      <div className="max-w-[1440px] mx-auto px-8 lg:px-16 xl:px-20 grid grid-cols-2 lg:grid-cols-12 gap-x-8 gap-y-10">
         {/* Brand Column */}
-        <div className="space-y-6">
-          <Link to="/" className="flex items-center gap-2">
-            <span className="text-2xl font-black tracking-tight text-white uppercase">
-              {general.storeName || "Fire Safety Shop"}
-            </span>
-            <span className="w-2 h-2 rounded-full bg-red-600 mt-1.5" />
+        <div className="col-span-2 lg:col-span-3 space-y-6">
+          <Link to="/" className="inline-flex items-center">
+            <img
+              src={footerLogo}
+              alt={general.storeName || "Fire Safety Shop"}
+              className="h-12 w-auto object-contain"
+            />
           </Link>
           <p className="text-sm text-slate-400 font-medium leading-relaxed">
             {general.storeDescription || "Safety Today, Secure Tomorrow — Your trusted online store for fire protection and safety products."}
@@ -29,7 +35,7 @@ const DesktopFooter = () => {
           {(general.contactEmail || general.contactPhone || general.address) && (
             <div className="text-xs space-y-1.5 text-slate-400 font-medium pt-1">
               {general.contactEmail && (
-                <p>Email: <a href={`mailto:${general.contactEmail}`} className="hover:text-white transition-colors">{general.contactEmail}</a></p>
+                <p className="break-all">Email: <a href={`mailto:${general.contactEmail}`} className="hover:text-white transition-colors">{general.contactEmail}</a></p>
               )}
               {general.contactPhone && (
                 <p>Phone: <a href={`tel:${general.contactPhone}`} className="hover:text-white transition-colors">{general.contactPhone}</a></p>
@@ -59,7 +65,7 @@ const DesktopFooter = () => {
         </div>
 
         {/* Categories Column */}
-        <div className="space-y-6">
+        <div className="lg:col-span-2 space-y-6">
           <h4 className="text-sm font-bold uppercase text-white tracking-widest">
             Fire Protection Categories
           </h4>
@@ -84,7 +90,7 @@ const DesktopFooter = () => {
         </div>
 
         {/* Support Column */}
-        <div className="space-y-6">
+        <div className="lg:col-span-2 space-y-6">
           <h4 className="text-sm font-bold uppercase text-white tracking-widest">
             Support & Partner Care
           </h4>
@@ -109,7 +115,7 @@ const DesktopFooter = () => {
         </div>
 
         {/* Legal Column */}
-        <div className="space-y-6">
+        <div className="lg:col-span-2 space-y-6">
           <h4 className="text-sm font-bold uppercase text-white tracking-widest">
             Legal
           </h4>
@@ -131,25 +137,72 @@ const DesktopFooter = () => {
           </ul>
         </div>
 
-        {/* Newsletter / Contact Column */}
-        <div className="space-y-6">
-          <h4 className="text-sm font-bold uppercase text-white tracking-widest">
-            Join Our Newsletter
-          </h4>
-          <p className="text-sm text-slate-400 font-medium">
-            Subscribe to get notifications about new releases, special sales,
-            and vendor events.
-          </p>
-          <div className="flex gap-2">
-            <input
-              type="email"
-              placeholder="Your email address"
-              className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-white transition-all"
-            />
-            <button className="px-5 py-2.5 bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-sm font-bold transition-all flex items-center justify-center">
-              <FiArrowRight />
-            </button>
+        {/* Newsletter + App Downloads Column */}
+        <div className="col-span-2 lg:col-span-3 space-y-8">
+          <div className="space-y-4">
+            <h4 className="text-sm font-bold uppercase text-white tracking-widest">
+              Join Our Newsletter
+            </h4>
+            <p className="text-sm text-slate-400 font-medium">
+              Subscribe to get notifications about new releases, special sales,
+              and vendor events.
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="email"
+                placeholder="Your email address"
+                aria-label="Email address"
+                className="flex-1 min-w-0 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-white transition-all"
+              />
+              <button
+                type="button"
+                aria-label="Subscribe"
+                className="flex-shrink-0 px-4 py-2.5 bg-[#E31E24] hover:bg-[#C8191E] text-white rounded-xl text-sm font-bold transition-all flex items-center justify-center"
+              >
+                <FiArrowRight />
+              </button>
+            </div>
           </div>
+
+          {hasAppLinks && (
+          <div className="space-y-4">
+            <h4 className="text-sm font-bold uppercase text-white tracking-widest">
+              Get the App
+            </h4>
+            <div className="flex flex-wrap gap-3">
+              {appLinks.googlePlay && (
+                <a
+                  href={appLinks.googlePlay}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Get it on Google Play"
+                  className="flex items-center gap-3 rounded-lg border border-slate-600 bg-slate-800 px-4 py-3 text-white hover:border-white transition-colors"
+                >
+                  <FaGooglePlay className="text-xl" />
+                  <span className="flex flex-col leading-tight">
+                    <span className="text-[10px] text-slate-300">GET IT ON</span>
+                    <span className="text-sm font-semibold">Google Play</span>
+                  </span>
+                </a>
+              )}
+              {appLinks.appStore && (
+                <a
+                  href={appLinks.appStore}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Download on the App Store"
+                  className="flex items-center gap-3 rounded-lg border border-slate-600 bg-slate-800 px-4 py-3 text-white hover:border-white transition-colors"
+                >
+                  <FaApple className="text-2xl" />
+                  <span className="flex flex-col leading-tight">
+                    <span className="text-[10px] text-slate-300">Download on the</span>
+                    <span className="text-sm font-semibold">App Store</span>
+                  </span>
+                </a>
+              )}
+            </div>
+          </div>
+          )}
         </div>
       </div>
 

@@ -335,6 +335,42 @@ const DescriptionHighlights = ({ text }) => {
   );
 };
 
+const resolveVariantImage = (imageMap, selection) => {
+  if (!imageMap || !selection || typeof selection !== "object") return "";
+
+  const entries = imageMap instanceof Map
+    ? Array.from(imageMap.entries())
+    : Object.entries(imageMap);
+  if (!entries.length) return "";
+
+  const normalizeKey = (value) =>
+    String(value || "")
+      .replace(/%2e/gi, ".")
+      .replace(/%25/g, "%")
+      .trim()
+      .toLowerCase();
+  const axes = Object.fromEntries(
+    Object.entries(selection).map(([axis, value]) => [
+      axis.trim().toLowerCase().replace(/\s+/g, "_"),
+      String(value || "").trim().toLowerCase(),
+    ])
+  );
+  const size = axes.size || "";
+  const color = axes.color || "";
+  const candidates = [
+    getVariantSignature(selection),
+    `${size}|${color}`,
+    size && !color ? size : "",
+    color && !size ? color : "",
+  ].filter(Boolean);
+  const candidateSet = new Set(candidates.map(normalizeKey));
+  const match = entries.find(([key, value]) =>
+    candidateSet.has(normalizeKey(key)) && String(value || "").trim()
+  );
+
+  return String(match?.[1] || "").trim();
+};
+
 const isMongoId = (value) => /^[a-fA-F0-9]{24}$/.test(String(value || ""));
 const normalizeProduct = (raw) => {
   if (!raw) return null;
@@ -776,12 +812,7 @@ const MobileProductDetail = () => {
 
   const productImages = useMemo(() => {
     if (!product) return [];
-    const selectedVariantKey = getVariantSignature(selectedVariant || {});
-    const variantImage = String(
-      product?.variants?.imageMap?.[selectedVariantKey] ||
-      product?.variants?.imageMap?.get?.(selectedVariantKey) ||
-      ""
-    ).trim();
+    const variantImage = resolveVariantImage(product?.variants?.imageMap, selectedVariant);
     const images =
       Array.isArray(product.images) && product.images.length > 0
         ? product.images.filter(Boolean)
@@ -793,6 +824,10 @@ const MobileProductDetail = () => {
     }
     return images;
   }, [product, selectedVariant]);
+
+  useEffect(() => {
+    setGalleryIndex(0);
+  }, [productImages]);
 
   const currentPrice = useMemo(() => {
     return resolveVariantPrice(product, selectedVariant);
@@ -959,7 +994,7 @@ const MobileProductDetail = () => {
                             galleryIndex === idx ? "border-emerald-500 shadow-md scale-95" : "border-gray-100 bg-gray-50"
                           }`}
                         >
-                          <img src={img} className="w-full h-full object-cover" alt={`Angle ${idx + 1}`} />
+                          <img src={img} className="w-full h-full object-contain" alt={`Angle ${idx + 1}`} />
                           {galleryIndex === idx && (
                             <div className="absolute inset-0 bg-emerald-500/10 flex items-center justify-center">
                               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />

@@ -210,16 +210,12 @@ const DesktopHeader = ({ onSearch }) => {
           >
           <Link to="/home" className="flex-shrink-0 flex items-center gap-2">
             {appLogo.src ? (
-              <div className="flex items-center gap-2">
-                <img
-                  src={appLogo.src}
-                  alt={appLogo.alt}
-                  className="h-10 lg:h-12 w-auto object-contain"
-                />
-                <span className="text-xl lg:text-2xl font-black text-gray-800 tracking-tight">
-                  Fire Safety Shop
-                </span>
-              </div>
+              // The logo artwork already contains the "Fire Safety Shop" wordmark.
+              <img
+                src={appLogo.src}
+                alt={appLogo.alt}
+                className="h-10 lg:h-12 w-auto object-contain"
+              />
             ) : (
               <span className="text-2xl font-extrabold text-primary-600">
                 Fire Safety Shop
@@ -401,6 +397,9 @@ const DesktopHeader = ({ onSearch }) => {
                         <FiUser className="text-gray-500 text-base" />
                         <span>Profile</span>
                       </Link>
+                      {/* TEMPORARILY DISABLED — USER WALLET FEATURE */}
+                      {/* DO NOT DELETE — RE-ENABLE WHEN WALLET FEATURE IS RESTORED */}
+                      {/*
                       <Link
                         to="/user/wallet"
                         onClick={() => setShowUserMenu(false)}
@@ -409,6 +408,7 @@ const DesktopHeader = ({ onSearch }) => {
                         <FiCreditCard className="text-gray-500 text-base" />
                         <span>Wallet</span>
                       </Link>
+                      */}
                       <Link
                         to="/orders"
                         onClick={() => setShowUserMenu(false)}

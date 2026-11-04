@@ -47,4 +47,15 @@ assert.throws(
     /at least one sales channel/
 );
 
+// A retail vendor editing a legacy B2C+B2B product keeps B2C; the inherited B2B listing lapses.
+assert.deepEqual(
+    resolveProductSalesChannels({
+        body: { name: 'Renamed' },
+        currentProduct: { b2cAvailable: true, wholesale: { enabled: true, price: 4200, moq: 10 } },
+        vendorCapabilities: { sellsProducts: true, wholesaleEnabled: false },
+        wholesaleCapability: { status: 'none' },
+    }),
+    { b2cAvailable: true, wholesale: { enabled: false, price: 4200, moq: 10 } }
+);
+
 console.log('Unified product sales-channel tests passed.');
