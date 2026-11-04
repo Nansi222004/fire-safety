@@ -1,6 +1,7 @@
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { API_BASE_URL } from './constants';
+import { isWholesalerPath } from './sellerPortal';
 
 const AUTH_SCOPES = {
   admin: {
@@ -18,6 +19,14 @@ const AUTH_SCOPES = {
     persistKey: 'vendor-auth-storage',
     loginPath: '/vendor/login',
     areaPrefix: '/vendor',
+  },
+  wholesaler: {
+    prefix: '/wholesaler',
+    accessKey: 'wholesaler-token',
+    refreshKey: 'wholesaler-refresh-token',
+    persistKey: 'wholesaler-auth-storage',
+    loginPath: '/wholesaler/login',
+    areaPrefix: '/wholesaler',
   },
   delivery: {
     prefix: '/delivery',
@@ -60,6 +69,7 @@ const EXCLUDED_AUTH_SUFFIXES = [
 const refreshInFlight = {
   admin: null,
   vendor: null,
+  wholesaler: null,
   delivery: null,
   worker: null,
   user: null,
@@ -91,6 +101,7 @@ const redirectTo = (path) => {
 const getScopeFromUrl = (url = '') => {
   if (url.startsWith('/admin')) return 'admin';
   if (url.startsWith('/vendor')) return 'vendor';
+  if (url.startsWith('/wholesaler')) return 'wholesaler';
   if (url.startsWith('/delivery')) return 'delivery';
   if (url.startsWith('/worker')) return 'worker';
   return 'user';
@@ -99,6 +110,7 @@ const getScopeFromUrl = (url = '') => {
 const getScopeFromPath = (path = window.location.pathname) => {
   if (path.startsWith('/admin')) return 'admin';
   if (path.startsWith('/vendor')) return 'vendor';
+  if (isWholesalerPath(path)) return 'wholesaler';
   if (path.startsWith('/delivery')) return 'delivery';
   if (path.startsWith('/worker')) return 'worker';
   return 'user';
@@ -183,11 +195,17 @@ const runRefresh = async (scope) => {
 
 api.interceptors.request.use(
   (config) => {
+    // Shared seller pages call /vendor/* endpoints; inside the Wholesaler portal the same
+    // endpoints are served under /wholesaler/* with the wholesaler session.
+    if (typeof config.url === 'string' && config.url.startsWith('/vendor/') && isWholesalerPath()) {
+      config.url = `/wholesaler/${config.url.slice('/vendor/'.length)}`;
+    }
+
     const scope = getScopeFromUrl(config.url || '');
     let token = localStorage.getItem(AUTH_SCOPES[scope]?.accessKey);
 
     // If no token found under determined scope and URL is not strictly scope-prefixed, check active path scope or fallback
-    if (!token && (!config.url || (!config.url.startsWith('/user') && !config.url.startsWith('/admin') && !config.url.startsWith('/vendor') && !config.url.startsWith('/delivery') && !config.url.startsWith('/worker')))) {
+    if (!token && (!config.url || (!config.url.startsWith('/user') && !config.url.startsWith('/admin') && !config.url.startsWith('/vendor') && !config.url.startsWith('/wholesaler') && !config.url.startsWith('/delivery') && !config.url.startsWith('/worker')))) {
       const pathScope = getScopeFromPath();
       const pathToken = localStorage.getItem(AUTH_SCOPES[pathScope]?.accessKey);
       if (pathToken) {

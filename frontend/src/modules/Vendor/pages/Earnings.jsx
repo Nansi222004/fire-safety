@@ -11,13 +11,14 @@ import { motion } from "framer-motion";
 import ExportButton from "../../Admin/components/ExportButton";
 import AnimatedSelect from "../../Admin/components/AnimatedSelect";
 import { formatPrice } from "../../../shared/utils/helpers";
-import { useVendorAuthStore } from "../store/vendorAuthStore";
+import { useSellerAuthStore } from "../../../shared/store/sellerAuthStore";
 import { getVendorEarnings } from "../services/vendorService";
+import { sellerPath } from "../../../shared/utils/sellerPortal";
 
 const Earnings = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { vendor } = useVendorAuthStore();
+  const { vendor } = useSellerAuthStore();
 
   const getActiveTab = () => {
     const path = location.pathname;
@@ -86,11 +87,11 @@ const Earnings = () => {
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     if (tab === "overview") {
-      navigate("/vendor/earnings");
+      navigate(sellerPath("/vendor/earnings"));
     } else if (tab === "commission") {
-      navigate("/vendor/earnings/commission-history");
+      navigate(sellerPath("/vendor/earnings/commission-history"));
     } else if (tab === "settlement") {
-      navigate("/vendor/earnings/settlement-history");
+      navigate(sellerPath("/vendor/earnings/settlement-history"));
     }
   };
 
@@ -370,7 +371,7 @@ const Earnings = () => {
                             <button
                               onClick={() =>
                                 navigate(
-                                  `/vendor/orders/${commission.orderRef || commission.orderId}`
+                                  sellerPath(`/vendor/orders/${commission.orderRef || commission.orderId}`)
                                 )
                               }
                               className="w-full md:w-auto px-4 py-2 bg-slate-50 hover:bg-primary-600 hover:text-white border border-gray-100 text-slate-700 hover:border-transparent rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 active:scale-98">

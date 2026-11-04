@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { getAllBrands, getPublicBrands, createBrand, updateBrand, deleteBrand } from '../../modules/Admin/services/adminService';
 import { getVendorBrands, getVendorBrandRequests, requestVendorBrand, resubmitVendorBrandRequest } from '../../modules/Vendor/services/vendorService';
 import toast from 'react-hot-toast';
+import { isSellerPortalPath } from '../utils/sellerPortal';
 
 export const useBrandStore = create(
   persist(
@@ -17,7 +18,7 @@ export const useBrandStore = create(
         try {
           const isVendorArea =
             typeof window !== 'undefined' &&
-            window.location.pathname.startsWith('/vendor');
+            isSellerPortalPath(window.location.pathname);
           const response = isVendorArea
             ? await getVendorBrands()
             : await getAllBrands();

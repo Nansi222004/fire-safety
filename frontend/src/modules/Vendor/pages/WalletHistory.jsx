@@ -13,12 +13,12 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import Badge from "../../../shared/components/Badge";
 import { formatPrice } from "../../../shared/utils/helpers";
-import { useVendorAuthStore } from "../store/vendorAuthStore";
+import { useSellerAuthStore } from "../../../shared/store/sellerAuthStore";
 import api from "../../../shared/utils/api";
 import toast from "react-hot-toast";
 
 const WalletHistory = () => {
-  const { vendor } = useVendorAuthStore();
+  const { vendor } = useSellerAuthStore();
   const [stats, setStats] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);

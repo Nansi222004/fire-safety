@@ -213,10 +213,6 @@ import RequestService from "./modules/Vendor/pages/services/RequestService";
 import VendorServiceRequests from "./modules/Vendor/pages/services/VendorServiceRequests";
 import VendorServiceBookings from "./modules/Vendor/pages/services/VendorServiceBookings";
 import ServicePartnerApplication from "./modules/Vendor/pages/services/ServicePartnerApplication";
-import VendorWholesaleApplication from "./modules/Vendor/pages/wholesale/WholesaleApplication";
-import VendorWholesaleProducts from "./modules/Vendor/pages/wholesale/WholesaleProducts";
-import VendorWholesalePricing from "./modules/Vendor/pages/wholesale/WholesalePricing";
-import VendorWholesaleOrders from "./modules/Vendor/pages/wholesale/WholesaleOrders";
 import VendorOrders from "./modules/Vendor/pages/Orders";
 import VendorAllOrders from "./modules/Vendor/pages/orders/AllOrders";
 import VendorOrderTracking from "./modules/Vendor/pages/orders/OrderTracking";
@@ -242,6 +238,19 @@ import VendorProfile from "./modules/Vendor/pages/settings/ProfileSettings";
 import VendorPickupLocations from "./modules/Vendor/pages/PickupLocations";
 import VendorReports from "./modules/Vendor/pages/Reports";
 import VendorLanguageSettings from "./modules/Vendor/pages/LanguageSettings";
+import VendorPaymentSettings from "./modules/Vendor/pages/settings/PaymentSettings";
+// Wholesaler (B2B seller) portal — separate accounts; shares the seller pages above where noted in routes.
+import WholesalerLogin from "./modules/Wholesaler/pages/Login";
+import WholesalerRegister from "./modules/Wholesaler/pages/Register";
+import WholesalerVerification from "./modules/Wholesaler/pages/Verification";
+import WholesalerForgotPassword from "./modules/Wholesaler/pages/ForgotPassword";
+import WholesalerProtectedRoute from "./modules/Wholesaler/components/WholesalerProtectedRoute";
+import WholesalerLayout from "./modules/Wholesaler/components/Layout/WholesalerLayout";
+import WholesalerDashboard from "./modules/Wholesaler/pages/Dashboard";
+import WholesalerProducts from "./modules/Wholesaler/pages/Products";
+import WholesalerPricing from "./modules/Wholesaler/pages/Pricing";
+import WholesalerOrders from "./modules/Wholesaler/pages/Orders";
+import WholesalerProfile from "./modules/Wholesaler/pages/Profile";
 
 
 // Inner component that has access to useLocation
@@ -922,8 +931,8 @@ const AppRoutes = () => {
         {/* Products Capability Routes */}
         <Route path="products" element={<VendorProtectedRoute requiredCapability="products"><VendorProducts /></VendorProtectedRoute>} />
         <Route path="products/manage-products" element={<VendorProtectedRoute requiredCapability="products"><VendorManageProducts /></VendorProtectedRoute>} />
-        <Route path="products/add-product" element={<VendorProtectedRoute requiredCapability="productsOrWholesale"><VendorAddProduct /></VendorProtectedRoute>} />
-        <Route path="products/:id" element={<VendorProtectedRoute requiredCapability="productsOrWholesale"><VendorProductForm /></VendorProtectedRoute>} />
+        <Route path="products/add-product" element={<VendorProtectedRoute requiredCapability="products"><VendorAddProduct /></VendorProtectedRoute>} />
+        <Route path="products/:id" element={<VendorProtectedRoute requiredCapability="products"><VendorProductForm /></VendorProtectedRoute>} />
         <Route path="brand-requests" element={<VendorProtectedRoute requiredCapability="products"><VendorBrandRequests /></VendorProtectedRoute>} />
         <Route path="category-requests" element={<VendorProtectedRoute requiredCapability="products"><VendorCategoryRequests /></VendorProtectedRoute>} />
         <Route path="stock-management" element={<VendorProtectedRoute requiredCapability="products"><VendorStockManagement /></VendorProtectedRoute>} />
@@ -939,14 +948,6 @@ const AppRoutes = () => {
         <Route path="services/my-requests" element={<VendorProtectedRoute requiredCapability="services"><VendorServiceRequests /></VendorProtectedRoute>} />
         <Route path="services/service-bookings" element={<VendorProtectedRoute requiredCapability="services"><VendorServiceBookings /></VendorProtectedRoute>} />
 
-        {/* Wholesale / B2B Capability Routes */}
-        <Route path="wholesale/apply" element={<VendorWholesaleApplication />} />
-        <Route path="wholesale" element={<Navigate to="/vendor/wholesale/products" replace />} />
-        <Route path="wholesale/products" element={<VendorProtectedRoute requiredCapability="wholesale"><VendorWholesaleProducts /></VendorProtectedRoute>} />
-        <Route path="wholesale/add-product" element={<VendorProtectedRoute requiredCapability="wholesale"><Navigate to="/vendor/products/add-product?channel=b2b&from=wholesale" replace /></VendorProtectedRoute>} />
-        <Route path="wholesale/pricing" element={<VendorProtectedRoute requiredCapability="wholesale"><VendorWholesalePricing /></VendorProtectedRoute>} />
-        <Route path="wholesale/orders" element={<VendorProtectedRoute requiredCapability="wholesale"><VendorWholesaleOrders /></VendorProtectedRoute>} />
-        <Route path="wholesale/orders/:id" element={<VendorProtectedRoute requiredCapability="wholesale"><VendorOrderDetail /></VendorProtectedRoute>} />
 
         <Route path="orders" element={<VendorProtectedRoute requiredCapability="products"><VendorOrders /></VendorProtectedRoute>} />
         <Route path="orders/all-orders" element={<VendorProtectedRoute requiredCapability="products"><VendorAllOrders /></VendorProtectedRoute>} />
@@ -994,6 +995,46 @@ const AppRoutes = () => {
         <Route path="settings/profile" element={<VendorProfile />} />
         <Route path="profile" element={<VendorProfile />} />
 
+      </Route>
+      {/* Wholesale/B2B selling moved to the separate Wholesaler portal */}
+      <Route path="/vendor/wholesale/*" element={<Navigate to="/wholesaler/login" replace />} />
+
+      {/* Wholesaler Routes (separate B2B seller accounts) */}
+      <Route path="/wholesaler/login" element={<WholesalerLogin />} />
+      <Route path="/wholesaler/register" element={<WholesalerRegister />} />
+      <Route path="/wholesaler/verification" element={<WholesalerVerification />} />
+      <Route path="/wholesaler/forgot-password" element={<WholesalerForgotPassword />} />
+      <Route
+        path="/wholesaler"
+        element={
+          <WholesalerProtectedRoute>
+            <ErrorBoundary>
+              <WholesalerLayout />
+            </ErrorBoundary>
+          </WholesalerProtectedRoute>
+        }>
+        <Route index element={<Navigate to="/wholesaler/dashboard" replace />} />
+        <Route path="dashboard" element={<WholesalerDashboard />} />
+        <Route path="products" element={<WholesalerProducts />} />
+        {/* Shared seller product form: B2B-only for wholesaler accounts */}
+        <Route path="products/add-product" element={<VendorAddProduct />} />
+        <Route path="products/:id" element={<VendorProductForm />} />
+        <Route path="pricing" element={<WholesalerPricing />} />
+        <Route path="orders" element={<WholesalerOrders />} />
+        <Route path="orders/:id" element={<VendorOrderDetail />} />
+        <Route path="return-requests" element={<VendorReturnRequests />} />
+        <Route path="return-requests/:id" element={<VendorReturnRequestDetail />} />
+        <Route path="earnings" element={<VendorEarnings />} />
+        <Route path="earnings/commission-history" element={<VendorEarnings />} />
+        <Route path="earnings/settlement-history" element={<VendorEarnings />} />
+        <Route path="wallet-history" element={<VendorWalletHistory />} />
+        <Route path="settings/payment" element={<VendorPaymentSettings />} />
+        <Route path="profile" element={<WholesalerProfile />} />
+        <Route path="documents" element={<VendorDocuments />} />
+        <Route path="notifications" element={<VendorNotifications />} />
+        <Route path="support-tickets" element={<VendorSupportTickets />} />
+        <Route path="support-tickets/:id" element={<VendorSupportTickets />} />
+        <Route path="*" element={<Navigate to="/wholesaler/dashboard" replace />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -11,7 +11,7 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     const [totalOrders, totalUsers, totalVendors, totalProducts, revenueAgg, pendingOrders] = await Promise.all([
         Order.countDocuments(activeOrderFilter),
         User.countDocuments({ role: 'customer' }),
-        Vendor.countDocuments({ status: 'approved' }),
+        Vendor.countDocuments({ status: 'approved', accountType: { $ne: 'wholesaler' } }),
         Product.countDocuments({ isActive: true }),
         Order.aggregate([{ $match: { ...activeOrderFilter, status: { $ne: 'cancelled' } } }, { $group: { _id: null, total: { $sum: '$total' } } }]),
         Order.countDocuments({ ...activeOrderFilter, status: 'pending' }),

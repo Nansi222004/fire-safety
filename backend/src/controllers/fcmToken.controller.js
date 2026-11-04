@@ -18,7 +18,7 @@ async function resolveAccount(userAuth) {
     if (role === 'customer') {
         const user = await User.findById(userAuth.id);
         if (user) return { doc: user, modelName: 'User', recipientType: 'user' };
-    } else if (role === 'vendor') {
+    } else if (role === 'vendor' || role === 'wholesaler') {
         const vendor = await Vendor.findById(userAuth.id);
         if (vendor) return { doc: vendor, modelName: 'Vendor', recipientType: 'vendor' };
     } else if (role === 'delivery') {

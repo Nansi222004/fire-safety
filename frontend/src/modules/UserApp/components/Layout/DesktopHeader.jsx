@@ -210,16 +210,12 @@ const DesktopHeader = ({ onSearch }) => {
           >
           <Link to="/home" className="flex-shrink-0 flex items-center gap-2">
             {appLogo.src ? (
-              <div className="flex items-center gap-2">
-                <img
-                  src={appLogo.src}
-                  alt={appLogo.alt}
-                  className="h-10 lg:h-12 w-auto object-contain"
-                />
-                <span className="text-xl lg:text-2xl font-black text-gray-800 tracking-tight">
-                  Fire Safety Shop
-                </span>
-              </div>
+              // The logo artwork already contains the "Fire Safety Shop" wordmark.
+              <img
+                src={appLogo.src}
+                alt={appLogo.alt}
+                className="h-10 lg:h-12 w-auto object-contain"
+              />
             ) : (
               <span className="text-2xl font-extrabold text-primary-600">
                 Fire Safety Shop

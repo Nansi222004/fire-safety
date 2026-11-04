@@ -19,7 +19,7 @@ import Badge from "../../../../shared/components/Badge";
 import AnimatedSelect from "../../../Admin/components/AnimatedSelect";
 import ConfirmModal from "../../../Admin/components/ConfirmModal";
 import { formatPrice } from "../../../../shared/utils/helpers";
-import { useVendorAuthStore } from "../../store/vendorAuthStore";
+import { useSellerAuthStore } from "../../../../shared/store/sellerAuthStore";
 import {
   getVendorReturnRequestById,
   updateVendorReturnRequestStatus,
@@ -32,11 +32,12 @@ import {
   RETURN_TRANSITIONS,
   EXCHANGE_TRANSITIONS
 } from "../../../../shared/constants/returnExchangeConfig";
+import { sellerPath } from "../../../../shared/utils/sellerPortal";
 
 const ReturnRequestDetail = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { vendor } = useVendorAuthStore();
+  const { vendor } = useSellerAuthStore();
   const [returnRequest, setReturnRequest] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [status, setStatus] = useState("");
@@ -113,14 +114,14 @@ const ReturnRequestDetail = () => {
         const data = res?.data ?? res;
         if (!data) {
           toast.error("Return request not found");
-          navigate("/vendor/return-requests");
+          navigate(sellerPath("/vendor/return-requests"));
           return;
         }
         setReturnRequest(data);
         setStatus(data.status);
       } catch {
         toast.error("Return request not found");
-        navigate("/vendor/return-requests");
+        navigate(sellerPath("/vendor/return-requests"));
       }
     };
 
@@ -517,7 +518,7 @@ const ReturnRequestDetail = () => {
               Original Order
             </h2>
             <Link
-              to={`/vendor/orders/${returnRequest.orderId}`}
+              to={sellerPath(`/vendor/orders/${returnRequest.orderId}`)}
               className="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-semibold text-sm">
               <span>View Order: {returnRequest.orderId}</span>
               <FiArrowLeft className="rotate-180 text-xs" />
@@ -952,7 +953,7 @@ const ReturnRequestDetail = () => {
             </h2>
             <div className="space-y-1.5">
               <Link
-                to={`/vendor/orders/${returnRequest.orderId}`}
+                to={sellerPath(`/vendor/orders/${returnRequest.orderId}`)}
                 className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-xs font-semibold">
                 <FiShoppingBag className="text-sm" />
                 View Original Order

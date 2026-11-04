@@ -1,4 +1,4 @@
-import appLogo from "../../../data/logos/safefire_logo.png";
+import appLogo from "../../assets/logo-firesafety.png";
 import fireBlanketImg from "../../assets/Fire Blankets.jpg";
 import smokeAlarmImg from "../../assets/Smoke & Fire Alarms.jpg";
 

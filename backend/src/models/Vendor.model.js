@@ -7,6 +7,14 @@ const vendorSchema = new mongoose.Schema(
         email: { type: String, required: true, unique: true, lowercase: true, index: true },
         password: { type: String, required: true, select: false },
         phone: { type: String },
+        // 'vendor' = retail seller (/vendor portal). 'wholesaler' = separate Wholesale/B2B account
+        // (/wholesaler portal). The two never share a login: each auth flow only accepts its own type.
+        accountType: {
+            type: String,
+            enum: ['vendor', 'wholesaler'],
+            default: 'vendor',
+            index: true,
+        },
         storeName: { type: String, required: true },
         storeLogo: { type: String },
         storeDescription: { type: String },

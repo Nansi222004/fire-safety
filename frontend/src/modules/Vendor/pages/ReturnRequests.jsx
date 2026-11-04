@@ -7,7 +7,7 @@ import ExportButton from "../../Admin/components/ExportButton";
 import Badge from "../../../shared/components/Badge";
 import AnimatedSelect from "../../Admin/components/AnimatedSelect";
 import { formatPrice } from "../../../shared/utils/helpers";
-import { useVendorAuthStore } from "../store/vendorAuthStore";
+import { useSellerAuthStore } from "../../../shared/store/sellerAuthStore";
 import {
   getAllVendorReturnRequests,
   updateVendorReturnRequestStatus,
@@ -15,10 +15,11 @@ import {
 import { getSocket, joinRoom, leaveRoom } from "../../../shared/utils/socket";
 import toast from "react-hot-toast";
 import { getStatusConfig } from "../../../shared/constants/returnExchangeConfig";
+import { sellerPath, sellerTokenKey } from "../../../shared/utils/sellerPortal";
 
 const ReturnRequests = () => {
   const navigate = useNavigate();
-  const { vendor } = useVendorAuthStore();
+  const { vendor } = useSellerAuthStore();
   const [returnRequests, setReturnRequests] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -51,7 +52,7 @@ const ReturnRequests = () => {
   useEffect(() => {
     if (!vendorId) return;
 
-    const token = localStorage.getItem('vendor-token') || localStorage.getItem('token');
+    const token = localStorage.getItem(sellerTokenKey()) || localStorage.getItem('token');
     if (!token) return;
 
     const socket = getSocket(token);
@@ -218,7 +219,7 @@ const ReturnRequests = () => {
       render: (value) => (
         <span
           className="text-blue-600 hover:text-blue-800 cursor-pointer font-medium"
-          onClick={() => navigate(`/vendor/orders/${value}`)}>
+          onClick={() => navigate(sellerPath(`/vendor/orders/${value}`))}>
           {value}
         </span>
       ),
@@ -313,7 +314,7 @@ const ReturnRequests = () => {
       render: (_, row) => (
         <div className="flex items-center gap-2">
           <button
-            onClick={() => navigate(`/vendor/return-requests/${row.id}`)}
+            onClick={() => navigate(sellerPath(`/vendor/return-requests/${row.id}`))}
             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
             title="View Details">
             <FiEye />
@@ -536,7 +537,7 @@ const ReturnRequests = () => {
             return (
               <div
                 key={request.id}
-                onClick={() => navigate(`/vendor/return-requests/${request.id}`)}
+                onClick={() => navigate(sellerPath(`/vendor/return-requests/${request.id}`))}
                 className="bg-white rounded-2xl p-3.5 shadow-xs border border-gray-100 hover:border-gray-200 transition-all space-y-3 active:scale-99 cursor-pointer">
                 {/* Card Top Row: Type & Status */}
                 <div className="flex items-center justify-between gap-2">
@@ -566,7 +567,7 @@ const ReturnRequests = () => {
                     <span
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigate(`/vendor/orders/${request.orderId}`);
+                        navigate(sellerPath(`/vendor/orders/${request.orderId}`));
                       }}
                       className="font-mono font-bold text-primary-600 hover:underline text-xs truncate block max-w-[140px]">
                       #{request.orderId}
@@ -664,7 +665,7 @@ const ReturnRequests = () => {
             columns={columns}
             pagination={true}
             itemsPerPage={10}
-            onRowClick={(row) => navigate(`/vendor/return-requests/${row.id}`)}
+            onRowClick={(row) => navigate(sellerPath(`/vendor/return-requests/${row.id}`))}
           />
         ) : (
           <div className="bg-white rounded-xl p-12 shadow-sm border border-gray-200 text-center">

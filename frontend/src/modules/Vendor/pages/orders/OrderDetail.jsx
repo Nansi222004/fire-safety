@@ -8,7 +8,7 @@ import {
     FiDollarSign,
 } from 'react-icons/fi';
 import { motion } from 'framer-motion';
-import { useVendorAuthStore } from '../../store/vendorAuthStore';
+import { useSellerAuthStore } from "../../../../shared/store/sellerAuthStore";
 import { getVendorOrderById, updateVendorOrderStatus, verifyVendorPickup } from '../../services/vendorService';
 import { getSocket, joinRoom, leaveRoom } from '../../../../shared/utils/socket';
 import { formatPrice } from '../../../../shared/utils/helpers';
@@ -18,11 +18,12 @@ import toast from 'react-hot-toast';
 import { recordSelfAction, cancelSelfAction } from '../../../../shared/utils/selfActionTracker';
 import ManualDeliveryAssignment from '../../../../shared/components/Delivery/ManualDeliveryAssignment';
 import DeliveryMethodSelector from '../../../../shared/components/Delivery/DeliveryMethodSelector';
+import { sellerPath, sellerTokenKey } from "../../../../shared/utils/sellerPortal";
 
 const OrderDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { vendor } = useVendorAuthStore();
+    const { vendor } = useSellerAuthStore();
 
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -98,7 +99,7 @@ const OrderDetail = () => {
         // but the page kept rendering stale shipment props until a full browser reload.
         fetchOrder(!order);
 
-        const token = localStorage.getItem('vendor-token') || localStorage.getItem('token');
+        const token = localStorage.getItem(sellerTokenKey()) || localStorage.getItem('token');
         if (token) {
             const socket = getSocket(token);
             if (socket) {
@@ -237,7 +238,7 @@ const OrderDetail = () => {
                     Order #{id} may not belong to your store.
                 </p>
                 <Link
-                    to="/vendor/orders"
+                    to={sellerPath("/vendor/orders")}
                     className="inline-block text-blue-600 hover:underline text-sm"
                 >
                     ← Back to Orders
@@ -256,7 +257,7 @@ const OrderDetail = () => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
                 <div className="flex items-center gap-3">
                     <Link
-                        to="/vendor/orders"
+                        to={sellerPath("/vendor/orders")}
                         className="p-2 sm:p-2 bg-white border border-gray-200 hover:bg-gray-100 rounded-xl sm:rounded-lg transition-all shadow-xs text-gray-700 flex-shrink-0 active:scale-95"
                     >
                         <FiArrowLeft className="text-lg sm:text-xl" />

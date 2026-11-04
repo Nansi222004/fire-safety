@@ -11,6 +11,7 @@ import PageTransition from "../../../shared/components/PageTransition";
 import LazyImage from "../../../shared/components/LazyImage";
 import ProductCard from "../../../shared/components/ProductCard";
 import api from "../../../shared/utils/api";
+import { appLogo } from "../../../shared/utils/imagePaths";
 import AnimatedBanner from "../components/Mobile/AnimatedBanner";
 
 const normalizeId = (value) => String(value ?? "").trim();
@@ -19,7 +20,7 @@ const ALL_CATEGORY = {
   id: "all",
   name: "All",
   description: "Certified fire extinguishers, hoses, alarms & safety gear across all categories",
-  image: "/logos/safefire_logo.png",
+  image: appLogo,
   isAll: true,
 };
 

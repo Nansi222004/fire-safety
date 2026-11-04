@@ -599,20 +599,3 @@ export const updateVendorServiceBookingStatus = (id, data) =>
 export const updateVendorServiceBookingNotes = (id, notes) =>
     api.patch(`/vendor/service-bookings/${id}/notes`, { notes });
 
-
-// ─── WHOLESALE / B2B ──────────────────────────────────────────────────────────
-
-export const getWholesaleApplication = () =>
-    api.get('/vendor/wholesale/application');
-
-export const applyForWholesale = (data) =>
-    api.post('/vendor/wholesale/application', data);
-
-export const getWholesaleProducts = (params = {}) =>
-    api.get('/vendor/wholesale/products', { params });
-
-export const updateWholesalePricing = (id, data) =>
-    api.patch(`/vendor/wholesale/products/${id}`, data);
-
-export const getWholesaleOrders = (params = {}) =>
-    api.get('/vendor/wholesale/orders', { params });

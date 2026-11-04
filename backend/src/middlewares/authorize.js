@@ -4,6 +4,7 @@ import Vendor from '../models/Vendor.model.js';
 import DeliveryBoy from '../models/DeliveryBoy.model.js';
 import Admin from '../models/Admin.model.js';
 import Worker from '../models/Worker.model.js';
+import { isVendorWholesaleApproved } from '../services/wholesale.service.js';
 
 /**
  * Role-based authorization middleware
@@ -41,15 +42,32 @@ export const enforceAccountStatus = async (req, res, next) => {
         }
 
         if (role === 'vendor') {
-            const vendor = await Vendor.findById(req.user.id).select('status isVerified vendorCapabilities serviceCapability wholesaleCapability.status').lean();
+            const vendor = await Vendor.findById(req.user.id).select('accountType status isVerified vendorCapabilities serviceCapability wholesaleCapability.status').lean();
             if (!vendor) return next(new ApiError(401, 'Account not found.'));
+            if (vendor.accountType === 'wholesaler') return next(new ApiError(403, 'Wholesaler accounts must use the Wholesaler portal.'));
             if (!vendor.isVerified) return next(new ApiError(403, 'Please verify your email first.'));
             if (vendor.status !== 'approved') {
                 return next(new ApiError(403, `Vendor account is ${vendor.status}.`));
             }
-            req.vendorCapabilities = vendor.vendorCapabilities || { sellsProducts: true, providesServices: false };
+            // Wholesale belongs to separate Wholesaler accounts only; legacy flags on retail vendors are ignored.
+            req.vendorCapabilities = { ...(vendor.vendorCapabilities || { sellsProducts: true, providesServices: false }), wholesaleEnabled: false };
             req.serviceCapability = vendor.serviceCapability || { status: 'none' };
-            req.wholesaleCapability = vendor.wholesaleCapability || { status: 'none' };
+            req.wholesaleCapability = { status: 'none' };
+            return next();
+        }
+
+        if (role === 'wholesaler') {
+            const wholesaler = await Vendor.findById(req.user.id).select('accountType status isVerified vendorCapabilities wholesaleCapability.status').lean();
+            if (!wholesaler || wholesaler.accountType !== 'wholesaler') return next(new ApiError(401, 'Account not found.'));
+            if (!wholesaler.isVerified) return next(new ApiError(403, 'Please verify your email first.'));
+            if (wholesaler.status !== 'approved') {
+                return next(new ApiError(403, `Wholesaler account is ${wholesaler.status}.`));
+            }
+            if (!isVendorWholesaleApproved(wholesaler)) {
+                return next(new ApiError(403, 'Wholesale access is not active for this account.'));
+            }
+            req.vendorCapabilities = wholesaler.vendorCapabilities;
+            req.wholesaleCapability = wholesaler.wholesaleCapability;
             return next();
         }
 
@@ -109,17 +127,6 @@ export const requireVendorCapability = (capability) =>
                 if (caps.sellsProducts !== true) {
                     return next(new ApiError(403, 'Product seller capability is required to perform this action.'));
                 }
-            } else if (targetCap === 'productsorwholesale') {
-                let wholesaleStatus = req.wholesaleCapability?.status;
-                if (!wholesaleStatus) {
-                    const vendor = await Vendor.findById(req.user.id).select('wholesaleCapability.status').lean();
-                    wholesaleStatus = vendor?.wholesaleCapability?.status || 'none';
-                }
-                const hasProductAccess = caps.sellsProducts === true;
-                const hasWholesaleAccess = caps.wholesaleEnabled === true && wholesaleStatus === 'approved';
-                if (!hasProductAccess && !hasWholesaleAccess) {
-                    return next(new ApiError(403, 'Product Seller or approved Wholesale/B2B capability is required.'));
-                }
             } else if (targetCap === 'services' || targetCap === 'providesservices') {
                 if (caps.providesServices !== true) {
                     return next(new ApiError(403, 'Service provider capability is required to perform this action.'));
@@ -132,15 +139,6 @@ export const requireVendorCapability = (capability) =>
                 }
                 if (serviceStatus !== 'approved') {
                     return next(new ApiError(403, 'Approved Service Partner status is required to perform this action.'));
-                }
-            } else if (targetCap === 'wholesale' || targetCap === 'wholesaleenabled') {
-                let wholesaleStatus = req.wholesaleCapability?.status;
-                if (!wholesaleStatus) {
-                    const vendor = await Vendor.findById(req.user.id).select('wholesaleCapability.status').lean();
-                    wholesaleStatus = vendor?.wholesaleCapability?.status || 'none';
-                }
-                if (caps.wholesaleEnabled !== true || wholesaleStatus !== 'approved') {
-                    return next(new ApiError(403, 'Approved Wholesale/B2B capability is required to perform this action.'));
                 }
             }
             next();

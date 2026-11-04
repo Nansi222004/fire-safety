@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { FiSave, FiX, FiUpload } from "react-icons/fi";
 import { motion } from "framer-motion";
-import { useVendorAuthStore } from "../../store/vendorAuthStore";
+import { useSellerAuthStore } from "../../../../shared/store/sellerAuthStore";
 import { useVendorProductStore } from "../../store/vendorProductStore";
 import { useCategoryStore } from "../../../../shared/store/categoryStore";
 import { useBrandStore } from "../../../../shared/store/brandStore";
@@ -21,12 +21,13 @@ import {
   normalizeVariantStateForForm,
   decodeVariantKey,
 } from "../../utils/variantHelpers";
+import { sellerPath } from "../../../../shared/utils/sellerPortal";
 
 const ProductForm = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { id } = useParams();
-  const { vendor } = useVendorAuthStore();
+  const { vendor } = useSellerAuthStore();
   const { fetchProductById, editProduct, addProduct, getById, isSaving } =
     useVendorProductStore();
   const isEdit = id && id !== "new";
@@ -148,7 +149,7 @@ const ProductForm = () => {
   useEffect(() => {
     if (!vendorId) {
       toast.error("Please log in to edit products");
-      navigate("/vendor/login");
+      navigate(sellerPath("/vendor/login"));
       return;
     }
 
@@ -160,7 +161,7 @@ const ProductForm = () => {
         fetchProductById(id).then((product) => {
           if (!product) {
             toast.error("Product not found");
-            navigate("/vendor/products/manage-products");
+            navigate(sellerPath("/vendor/products/manage-products"));
             return;
           }
           populateForm(product, categories);
@@ -680,7 +681,7 @@ const ProductForm = () => {
       }
 
       if (result) {
-        navigate(openedFromWholesale ? "/vendor/wholesale/products" : "/vendor/products/manage-products");
+        navigate(sellerPath(openedFromWholesale ? "/vendor/wholesale/products" : "/vendor/products/manage-products"));
       }
     } catch (err) {
       console.error("Product save failed:", err?.response?.data || err);
@@ -1526,7 +1527,7 @@ const ProductForm = () => {
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-3 border-t border-gray-200">
           <button
             type="button"
-            onClick={() => navigate(openedFromWholesale ? "/vendor/wholesale/products" : "/vendor/products/manage-products")}
+            onClick={() => navigate(sellerPath(openedFromWholesale ? "/vendor/wholesale/products" : "/vendor/products/manage-products"))}
             className="w-full sm:w-auto px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-semibold text-sm">
             Cancel
           </button>

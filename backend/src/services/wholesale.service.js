@@ -5,16 +5,18 @@ import ApiError from '../utils/ApiError.js';
 /**
  * Wholesale / B2B helpers.
  *
- * Wholesale is an independent vendor capability: it never alters
- * sellsProducts / providesServices / serviceCapability.
+ * Wholesale belongs exclusively to separate Wholesaler accounts (Vendor.accountType = 'wholesaler').
+ * Retail vendor accounts never have wholesale access, whatever their stored capability flags say.
  */
 
-// A vendor has wholesale capability only after admin approval.
+// A wholesaler can sell or buy wholesale only after admin approval.
 export const isVendorWholesaleApproved = (vendor) =>
+    vendor?.accountType === 'wholesaler' &&
     vendor?.vendorCapabilities?.wholesaleEnabled === true &&
     vendor?.wholesaleCapability?.status === 'approved';
 
 export const WHOLESALE_APPROVED_FILTER = {
+    accountType: 'wholesaler',
     status: 'approved',
     'vendorCapabilities.wholesaleEnabled': true,
     'wholesaleCapability.status': 'approved',

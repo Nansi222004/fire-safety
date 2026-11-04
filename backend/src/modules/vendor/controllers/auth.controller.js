@@ -24,16 +24,24 @@ import { queueVendorShiprocketPickupSync, syncVendorShiprocketPickup } from '../
 import VendorDocument from '../../../models/VendorDocument.model.js';
 import { cleanupLocalFiles, uploadLocalFileToCloudinaryAndCleanupWithType } from '../../../services/upload.service.js';
 import { isTestOtpAllowed, TEST_OTP } from '../../../config/otpConfig.js';
+import { isVendorWholesaleApproved } from '../../../services/wholesale.service.js';
 
-// POST /api/vendor/auth/register
-export const register = asyncHandler(async (req, res) => {
-    const { name, email, password, phone, storeName, storeDescription } = req.body;
-    let address = req.body.address;
+// Retail vendors and Wholesalers share these auth handlers but never each other's login.
+// Wholesaler routes set req.accountType = 'wholesaler'; the JWT role equals the account type.
+const accountTypeOf = (req) => (req.accountType === 'wholesaler' ? 'wholesaler' : 'vendor');
+const accountScope = (req) => (accountTypeOf(req) === 'wholesaler'
+    ? { accountType: 'wholesaler' }
+    : { accountType: { $ne: 'wholesaler' } });
+const matchesAccountType = (req, account) => (account?.accountType === 'wholesaler') === (accountTypeOf(req) === 'wholesaler');
+
+/**
+ * Parses and validates the business address sent at registration (JSON string or object).
+ */
+export const parseRegistrationAddress = (rawAddress) => {
+    let address = rawAddress;
     if (typeof address === 'string') {
         try { address = JSON.parse(address); } catch (e) {}
     }
-
-    // Validate Business Address
     const street = String(address?.street || '').trim();
     const city = String(address?.city || '').trim();
     const state = String(address?.state || '').trim();
@@ -43,26 +51,31 @@ export const register = asyncHandler(async (req, res) => {
     if (!street || !city || !state || !zipCode || !country) {
         throw new ApiError(400, 'All Business Address fields (Street Address, City, State, Zip Code, Country) are mandatory.');
     }
+    return { street, city, state, zipCode, country };
+};
 
-    // Check files or payload for Business License & Identity Proof
+/**
+ * Validates the mandatory registration documents (license + identity), rejects an already
+ * registered email, then uploads the files. Local files are cleaned up on every failure path.
+ */
+export const prepareRegistrationDocuments = async (req, normalizedEmail, { licenseLabel = 'Business License' } = {}) => {
     const licenseFile = req.files?.license?.[0];
     const identityFile = req.files?.identity?.[0];
     let licenseUrl = req.body.documents?.license || req.body.licenseUrl || '';
     let identityUrl = req.body.documents?.identity || req.body.identityUrl || '';
+    const localPaths = [licenseFile?.path, identityFile?.path].filter(Boolean);
 
     if (!licenseFile && !licenseUrl) {
-        throw new ApiError(400, 'Business License document is mandatory.');
+        throw new ApiError(400, `${licenseLabel} document is mandatory.`);
     }
     if (!identityFile && !identityUrl) {
         throw new ApiError(400, 'Identity Proof document is mandatory.');
     }
 
-    const normalizedEmail = String(email || '').trim().toLowerCase();
+    // Email is unique across retail vendor and wholesaler accounts.
     const existing = await Vendor.findOne({ email: normalizedEmail });
     if (existing) {
-        if (licenseFile?.path || identityFile?.path) {
-            await cleanupLocalFiles([licenseFile?.path, identityFile?.path].filter(Boolean));
-        }
+        if (localPaths.length) await cleanupLocalFiles(localPaths);
         throw new ApiError(409, 'Email already registered.');
     }
 
@@ -91,11 +104,79 @@ export const register = asyncHandler(async (req, res) => {
             if (uploadedIdentity?.publicId) identityPublicId = uploadedIdentity.publicId;
         }
     } catch (err) {
-        if (licenseFile?.path || identityFile?.path) {
-            await cleanupLocalFiles([licenseFile?.path, identityFile?.path].filter(Boolean));
-        }
+        if (localPaths.length) await cleanupLocalFiles(localPaths);
         throw err;
     }
+
+    return { licenseFile, identityFile, licenseUrl, identityUrl, licensePublicId, identityPublicId };
+};
+
+/**
+ * Creates the VendorDocument records admins review for a new registration.
+ */
+export const createRegistrationDocumentRecords = async (vendor, docs, { licenseLabel = 'Business License' } = {}) => {
+    try {
+        await VendorDocument.create([
+            {
+                vendorId: vendor._id,
+                name: licenseLabel,
+                category: 'License',
+                fileUrl: docs.licenseUrl,
+                filePublicId: docs.licensePublicId,
+                fileName: docs.licenseFile?.originalname || 'business_license',
+                fileType: docs.licenseFile?.mimetype || 'application/pdf',
+                fileSize: docs.licenseFile?.size || 0,
+                status: 'pending',
+            },
+            {
+                vendorId: vendor._id,
+                name: 'Identity Proof',
+                category: 'Other',
+                fileUrl: docs.identityUrl,
+                filePublicId: docs.identityPublicId,
+                fileName: docs.identityFile?.originalname || 'identity_proof',
+                fileType: docs.identityFile?.mimetype || 'application/pdf',
+                fileSize: docs.identityFile?.size || 0,
+                status: 'pending',
+            },
+        ]);
+    } catch (docErr) {
+        console.warn(`VendorDocument creation warning for ${vendor._id}: ${docErr.message}`);
+    }
+};
+
+/**
+ * Notifies all active admins that a new account is awaiting review.
+ */
+export const notifyAdminsOfRegistration = async (vendor, title) => {
+    const admins = await Admin.find({ isActive: true }).select('_id');
+    await Promise.all(
+        admins.map((admin) =>
+            createNotification({
+                recipientId: admin._id,
+                recipientType: 'admin',
+                title,
+                message: `${vendor.storeName || vendor.name} has registered and is awaiting review.`,
+                type: 'system',
+                data: {
+                    vendorId: String(vendor._id),
+                    vendorEmail: vendor.email,
+                    accountType: vendor.accountType,
+                    status: vendor.status,
+                },
+            })
+        )
+    );
+};
+
+// POST /api/vendor/auth/register
+export const register = asyncHandler(async (req, res) => {
+    const { name, email, password, phone, storeName, storeDescription } = req.body;
+    const { street, city, state, zipCode, country } = parseRegistrationAddress(req.body.address);
+
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const docs = await prepareRegistrationDocuments(req, normalizedEmail);
+    const { licenseUrl, identityUrl } = docs;
 
     let vendorCapabilities = req.body.vendorCapabilities;
     if (typeof vendorCapabilities === 'string') {
@@ -104,26 +185,13 @@ export const register = asyncHandler(async (req, res) => {
     const sellsProducts = vendorCapabilities?.sellsProducts !== undefined ? Boolean(vendorCapabilities.sellsProducts) : true;
     const providesServices = vendorCapabilities?.providesServices !== undefined ? Boolean(vendorCapabilities.providesServices) : false;
 
-    // Wholesale/B2B: registration can only REQUEST the capability. It is enabled
-    // (vendorCapabilities.wholesaleEnabled = true) exclusively by admin approval.
-    const requestWholesale = req.body.requestWholesale === true || req.body.requestWholesale === 'true';
-
-    if (!sellsProducts && !providesServices && !requestWholesale) {
-        throw new ApiError(400, 'At least one capability (Fire Safety Products, Fire Safety Services or Wholesale/B2B) must be selected.');
+    // Wholesale/B2B is a separate Wholesaler account (/wholesaler), never a retail vendor capability.
+    if (!sellsProducts && !providesServices) {
+        const wantsWholesale = req.body.requestWholesale === true || req.body.requestWholesale === 'true';
+        throw new ApiError(400, wantsWholesale
+            ? 'Wholesale/B2B selling requires a separate Wholesaler account. Please register on the Wholesaler portal.'
+            : 'At least one capability (Fire Safety Products or Fire Safety Services) must be selected.');
     }
-    const wholesaleDetails = req.body.wholesaleDetails || {};
-    const wholesaleCapability = requestWholesale
-        ? {
-            status: 'pending',
-            businessDetails: {
-                businessType: String(wholesaleDetails.businessType || '').trim(),
-                gstNumber: String(wholesaleDetails.gstNumber || '').trim().toUpperCase(),
-                expectedMonthlyVolume: String(wholesaleDetails.expectedMonthlyVolume || '').trim(),
-                description: String(wholesaleDetails.description || '').trim(),
-            },
-            appliedAt: new Date(),
-        }
-        : { status: 'none' };
 
     const vendor = await Vendor.create({
         name: String(name || '').trim(),
@@ -152,60 +220,17 @@ export const register = asyncHandler(async (req, res) => {
         serviceCapability: providesServices
             ? { status: 'pending', applicationId: null, appliedAt: null }
             : { status: 'none' },
-        wholesaleCapability,
+        accountType: 'vendor',
         status: 'pending'
     });
 
     // Save VendorDocument records for Admin Review
-    try {
-        await VendorDocument.create([
-            {
-                vendorId: vendor._id,
-                name: 'Business License',
-                category: 'License',
-                fileUrl: licenseUrl,
-                filePublicId: licensePublicId,
-                fileName: licenseFile?.originalname || 'business_license',
-                fileType: licenseFile?.mimetype || 'application/pdf',
-                fileSize: licenseFile?.size || 0,
-                status: 'pending',
-            },
-            {
-                vendorId: vendor._id,
-                name: 'Identity Proof',
-                category: 'Other',
-                fileUrl: identityUrl,
-                filePublicId: identityPublicId,
-                fileName: identityFile?.originalname || 'identity_proof',
-                fileType: identityFile?.mimetype || 'application/pdf',
-                fileSize: identityFile?.size || 0,
-                status: 'pending',
-            },
-        ]);
-    } catch (docErr) {
-        console.warn(`VendorDocument creation warning for ${vendor._id}: ${docErr.message}`);
-    }
+    await createRegistrationDocumentRecords(vendor, docs);
 
     await sendOTP(vendor, 'vendor_verification');
 
     // Notify all active admins about a new vendor registration request.
-    const admins = await Admin.find({ isActive: true }).select('_id');
-    await Promise.all(
-        admins.map((admin) =>
-            createNotification({
-                recipientId: admin._id,
-                recipientType: 'admin',
-                title: 'New Vendor Registration',
-                message: `${vendor.storeName || vendor.name} has registered and is awaiting review.`,
-                type: 'system',
-                data: {
-                    vendorId: String(vendor._id),
-                    vendorEmail: vendor.email,
-                    status: vendor.status,
-                },
-            })
-        )
-    );
+    await notifyAdminsOfRegistration(vendor, 'New Vendor Registration');
 
     res.status(201).json(new ApiResponse(201, { email: vendor.email }, 'Registration submitted. Please verify your email and await admin approval.'));
 });
@@ -214,7 +239,8 @@ export const register = asyncHandler(async (req, res) => {
 export const verifyOTP = asyncHandler(async (req, res) => {
     const { email, otp } = req.body;
 
-    const vendor = await Vendor.findOne({ email }).select('+otp +otpExpiry');
+    const vendor = await Vendor.findOne({ email, ...accountScope(req) }).select('+otp +otpExpiry');
+    if (!vendor) throw new ApiError(404, 'Account not found.');
     const isTestOtp = isTestOtpAllowed() && otp === TEST_OTP;
     if (!isTestOtp) {
         if (vendor.otp !== otp) throw new ApiError(400, 'Invalid OTP.');
@@ -225,7 +251,8 @@ export const verifyOTP = asyncHandler(async (req, res) => {
     vendor.otp = undefined;
     vendor.otpExpiry = undefined;
 
-    const approvalRequired = await isVendorApprovalRequired();
+    // Wholesalers are always reviewed by an admin (GSTIN verification), whatever the vendor setting.
+    const approvalRequired = vendor.accountType === 'wholesaler' || await isVendorApprovalRequired();
     if (!approvalRequired) {
         vendor.status = 'approved';
     }
@@ -248,8 +275,8 @@ export const resendOTP = asyncHandler(async (req, res) => {
     const email = String(req.body?.email || '').trim().toLowerCase();
     if (!email) throw new ApiError(400, 'Email is required.');
 
-    const vendor = await Vendor.findOne({ email });
-    if (!vendor) throw new ApiError(404, 'Vendor not found.');
+    const vendor = await Vendor.findOne({ email, ...accountScope(req) });
+    if (!vendor) throw new ApiError(404, 'Account not found.');
     if (vendor.isVerified) throw new ApiError(400, 'Email is already verified.');
 
     await sendOTP(vendor, 'vendor_verification');
@@ -261,7 +288,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     const { email } = req.body;
     const normalizedEmail = String(email || '').trim().toLowerCase();
 
-    const vendor = await Vendor.findOne({ email: normalizedEmail }).select('+resetOtp +resetOtpExpiry +resetOtpVerified');
+    const vendor = await Vendor.findOne({ email: normalizedEmail, ...accountScope(req) }).select('+resetOtp +resetOtpExpiry +resetOtpVerified');
 
     // Keep response generic to avoid account enumeration.
     if (!vendor) {
@@ -300,8 +327,8 @@ export const verifyResetOTP = asyncHandler(async (req, res) => {
     const { email, otp } = req.body;
     const normalizedEmail = String(email || '').trim().toLowerCase();
 
-    const vendor = await Vendor.findOne({ email: normalizedEmail }).select('+resetOtp +resetOtpExpiry +resetOtpVerified');
-    if (!vendor) throw new ApiError(404, 'Vendor not found.');
+    const vendor = await Vendor.findOne({ email: normalizedEmail, ...accountScope(req) }).select('+resetOtp +resetOtpExpiry +resetOtpVerified');
+    if (!vendor) throw new ApiError(404, 'Account not found.');
     if (!vendor.resetOtp || !vendor.resetOtpExpiry) throw new ApiError(400, 'No reset OTP requested.');
     if (vendor.resetOtpExpiry < new Date()) throw new ApiError(400, 'Reset OTP has expired.');
     if (vendor.resetOtp !== String(otp)) throw new ApiError(400, 'Invalid reset OTP.');
@@ -317,8 +344,8 @@ export const resetPassword = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
     const normalizedEmail = String(email || '').trim().toLowerCase();
 
-    const vendor = await Vendor.findOne({ email: normalizedEmail }).select('+password +resetOtp +resetOtpExpiry +resetOtpVerified');
-    if (!vendor) throw new ApiError(404, 'Vendor not found.');
+    const vendor = await Vendor.findOne({ email: normalizedEmail, ...accountScope(req) }).select('+password +resetOtp +resetOtpExpiry +resetOtpVerified');
+    if (!vendor) throw new ApiError(404, 'Account not found.');
     if (!vendor.resetOtpVerified) throw new ApiError(400, 'Please verify reset OTP first.');
     if (!vendor.resetOtp || !vendor.resetOtpExpiry) throw new ApiError(400, 'No reset OTP requested.');
     if (vendor.resetOtpExpiry < new Date()) throw new ApiError(400, 'Reset OTP has expired.');
@@ -338,7 +365,8 @@ export const resetPassword = asyncHandler(async (req, res) => {
 export const login = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
 
-    const vendor = await Vendor.findOne({ email }).select('+password');
+    const accountType = accountTypeOf(req);
+    const vendor = await Vendor.findOne({ email, ...accountScope(req) }).select('+password');
     if (!vendor) throw new ApiError(401, 'Invalid credentials.');
 
     // Check the password first so account status is only revealed to the account owner.
@@ -348,22 +376,29 @@ export const login = asyncHandler(async (req, res) => {
     if (!vendor.isVerified) throw new ApiError(403, 'Please verify your email first.');
     if (vendor.status === 'pending') throw new ApiError(403, 'Your account is pending admin approval.');
     if (vendor.status === 'suspended') throw new ApiError(403, `Your account has been suspended. Reason: ${vendor.suspensionReason || 'Contact support.'}`);
-    if (vendor.status === 'rejected') throw new ApiError(403, 'Your vendor application was rejected.');
+    if (vendor.status === 'rejected') throw new ApiError(403, `Your ${accountType} application was rejected.`);
+    if (accountType === 'wholesaler' && !isVendorWholesaleApproved(vendor)) {
+        throw new ApiError(403, 'Wholesale access is not active for this account. Contact support.');
+    }
 
-    const { accessToken, refreshToken } = generateTokens({ id: vendor._id, role: 'vendor', email: vendor.email });
+    const { accessToken, refreshToken } = generateTokens({ id: vendor._id, role: accountType, email: vendor.email });
     await persistRefreshSession(vendor, refreshToken);
+    const isWholesaler = accountType === 'wholesaler';
     res.status(200).json(new ApiResponse(200, {
         accessToken,
         refreshToken,
         vendor: {
             id: vendor._id,
+            accountType,
             name: vendor.name,
             storeName: vendor.storeName,
             email: vendor.email,
             storeLogo: vendor.storeLogo,
-            vendorCapabilities: vendor.vendorCapabilities || { sellsProducts: true, providesServices: false },
+            vendorCapabilities: isWholesaler
+                ? vendor.vendorCapabilities
+                : { ...(vendor.vendorCapabilities?.toObject?.() || vendor.vendorCapabilities || { sellsProducts: true, providesServices: false }), wholesaleEnabled: false },
             serviceCapability: vendor.serviceCapability || { status: 'none' },
-            wholesaleCapability: { status: vendor.wholesaleCapability?.status || 'none' },
+            wholesaleCapability: { status: isWholesaler ? (vendor.wholesaleCapability?.status || 'none') : 'none' },
         }
     }, 'Login successful.'));
 });
@@ -372,17 +407,21 @@ export const login = asyncHandler(async (req, res) => {
 export const refresh = asyncHandler(async (req, res) => {
     const { refreshToken } = req.body;
     const decoded = decodeRefreshTokenOrThrow(refreshToken);
-    const vendor = await Vendor.findById(decoded.id).select('+refreshTokenHash +refreshTokenExpiresAt status isVerified suspensionReason');
+    const accountType = accountTypeOf(req);
+    const vendor = await Vendor.findById(decoded.id).select('+refreshTokenHash +refreshTokenExpiresAt accountType status isVerified suspensionReason vendorCapabilities wholesaleCapability.status');
 
-    if (!vendor) throw new ApiError(401, 'Invalid refresh token.');
+    if (!vendor || decoded.role !== accountType || !matchesAccountType(req, vendor)) throw new ApiError(401, 'Invalid refresh token.');
     if (!vendor.isVerified) throw new ApiError(403, 'Please verify your email first.');
     if (vendor.status === 'pending') throw new ApiError(403, 'Your account is pending admin approval.');
     if (vendor.status === 'suspended') throw new ApiError(403, `Your account has been suspended. Reason: ${vendor.suspensionReason || 'Contact support.'}`);
-    if (vendor.status === 'rejected') throw new ApiError(403, 'Your vendor application was rejected.');
+    if (vendor.status === 'rejected') throw new ApiError(403, `Your ${accountType} application was rejected.`);
+    if (accountType === 'wholesaler' && !isVendorWholesaleApproved(vendor)) {
+        throw new ApiError(403, 'Wholesale access is not active for this account. Contact support.');
+    }
 
     const tokens = await rotateRefreshSession(
         vendor,
-        { id: vendor._id, role: 'vendor', email: vendor.email },
+        { id: vendor._id, role: accountType, email: vendor.email },
         refreshToken
     );
 
@@ -423,7 +462,8 @@ export const updateProfile = asyncHandler(async (req, res) => {
         'storeDescription',
         'storeLogo',
         'address',
-        'vendorCapabilities',
+        // Wholesaler capabilities are fixed by admin approval and never self-editable.
+        ...(accountTypeOf(req) === 'wholesaler' ? [] : ['vendorCapabilities']),
     ];
     const updates = Object.fromEntries(Object.entries(req.body).filter(([k]) => allowed.includes(k)));
 

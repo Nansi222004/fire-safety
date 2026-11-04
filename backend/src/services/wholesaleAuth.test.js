@@ -24,6 +24,7 @@ try {
         true
     );
     assert.equal(capturedFilter.email, 'approved@example.com');
+    assert.equal(capturedFilter.accountType, 'wholesaler', 'Only Wholesaler accounts may use same-credential buyer login.');
     assert.equal(capturedFilter.status, 'approved');
     assert.equal(capturedFilter['vendorCapabilities.wholesaleEnabled'], true);
     assert.equal(capturedFilter['wholesaleCapability.status'], 'approved');
@@ -48,6 +49,7 @@ try {
         resolveWholesaleLine(product, 10, {
             buyerVendorId: 'buyer-a',
             sellerVendor: {
+                accountType: 'wholesaler',
                 status: 'approved',
                 vendorCapabilities: { wholesaleEnabled: true },
                 wholesaleCapability: { status: 'approved' },
@@ -59,6 +61,19 @@ try {
     assert.throws(
         () => resolveWholesaleLine(product, 9, { buyerVendorId: 'buyer-a' }),
         /Minimum order quantity/
+    );
+    assert.throws(
+        () => resolveWholesaleLine(product, 10, {
+            buyerVendorId: 'buyer-a',
+            sellerVendor: {
+                accountType: 'vendor',
+                status: 'approved',
+                vendorCapabilities: { wholesaleEnabled: true },
+                wholesaleCapability: { status: 'approved' },
+            },
+        }),
+        /approved wholesale seller/,
+        'A retail vendor account must never sell wholesale, even with legacy wholesale flags.'
     );
     console.log('Wholesale same-credential verification tests passed.');
 } finally {

@@ -5,6 +5,7 @@ import { useCategoryStore } from "../../../shared/store/categoryStore";
 import { uploadVendorImage } from "../../../modules/Vendor/services/vendorService";
 import AnimatedSelect from "./AnimatedSelect";
 import toast from "react-hot-toast";
+import { isSellerPortalPath } from "../../../shared/utils/sellerPortal";
 
 const CategorySelector = ({
   value,
@@ -13,7 +14,7 @@ const CategorySelector = ({
   required = false,
   className = "",
 }) => {
-  const isVendorArea = typeof window !== "undefined" && window.location.pathname.startsWith("/vendor");
+  const isVendorArea = typeof window !== "undefined" && isSellerPortalPath(window.location.pathname);
   const {
     categories,
     getRootCategories,

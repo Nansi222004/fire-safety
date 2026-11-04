@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { FiSave, FiUpload, FiX } from "react-icons/fi";
 import { motion } from "framer-motion";
-import { useVendorAuthStore } from "../../store/vendorAuthStore";
+import { useSellerAuthStore } from "../../../../shared/store/sellerAuthStore";
 import { useVendorProductStore } from "../../store/vendorProductStore";
 import { useCategoryStore } from "../../../../shared/store/categoryStore";
 import { useBrandStore } from "../../../../shared/store/brandStore";
@@ -19,11 +19,12 @@ import {
   syncVariantPricesWithAxes,
   buildVariantPayload,
 } from "../../utils/variantHelpers";
+import { sellerPath } from "../../../../shared/utils/sellerPortal";
 
 const AddProduct = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { vendor } = useVendorAuthStore();
+  const { vendor } = useSellerAuthStore();
   const { addProduct, isSaving } = useVendorProductStore();
   const { initialize: initCategories } = useCategoryStore();
   const { brands, initialize: initBrands } = useBrandStore();
@@ -111,7 +112,7 @@ const AddProduct = () => {
   useEffect(() => {
     if (!vendorId) {
       toast.error("Please log in to add products");
-      navigate("/vendor/login");
+      navigate(sellerPath("/vendor/login"));
     }
   }, [vendorId, navigate]);
 
@@ -541,7 +542,7 @@ const AddProduct = () => {
     try {
       const result = await addProduct(payload);
       if (result) {
-        navigate(openedFromWholesale ? "/vendor/wholesale/products" : "/vendor/products/manage-products");
+        navigate(sellerPath(openedFromWholesale ? "/vendor/wholesale/products" : "/vendor/products/manage-products"));
       }
     } catch (err) {
       if (err?.response?.data?.errors && Array.isArray(err.response.data.errors)) {
@@ -1368,7 +1369,7 @@ const AddProduct = () => {
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-3 border-t border-gray-200">
           <button
             type="button"
-            onClick={() => navigate(openedFromWholesale ? "/vendor/wholesale/products" : "/vendor/products/manage-products")}
+            onClick={() => navigate(sellerPath(openedFromWholesale ? "/vendor/wholesale/products" : "/vendor/products/manage-products"))}
             className="w-full sm:w-auto px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-semibold text-sm">
             Cancel
           </button>

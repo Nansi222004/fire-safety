@@ -39,11 +39,14 @@ const toApiVendor = (vendorDoc) => {
 
 // GET /api/admin/vendors
 export const getAllVendors = asyncHandler(async (req, res) => {
-    const { status, page = 1, limit = 20, search } = req.query;
+    const { status, page = 1, limit = 20, search, accountType } = req.query;
     const numericPage = Math.max(parseInt(page, 10) || 1, 1);
     const numericLimit = Math.max(parseInt(limit, 10) || 20, 1);
     const skip = (numericPage - 1) * numericLimit;
-    const filter = {};
+    // Retail vendors by default; Wholesalers are managed in their own admin section.
+    const filter = accountType === 'wholesaler'
+        ? { accountType: 'wholesaler' }
+        : { accountType: { $ne: 'wholesaler' } };
 
     const allowedStatuses = new Set(['pending', 'approved', 'suspended', 'rejected']);
     if (typeof status === 'string' && status !== 'all' && allowedStatuses.has(status)) {
@@ -150,7 +153,7 @@ export const updateVendorStatus = asyncHandler(async (req, res) => {
 
     // A Wholesale/B2B request submitted at registration is reviewed together with the
     // account: approving a new vendor also approves that pending wholesale request.
-    if (status === 'approved' && previousStatus === 'pending' && vendor.wholesaleCapability?.status === 'pending') {
+    if (status === 'approved' && previousStatus === 'pending' && vendor.accountType === 'wholesaler' && vendor.wholesaleCapability?.status === 'pending') {
         vendor.vendorCapabilities.wholesaleEnabled = true;
         vendor.wholesaleCapability.status = 'approved';
         vendor.wholesaleCapability.reviewedBy = req.user.id;
@@ -165,25 +168,27 @@ export const updateVendorStatus = asyncHandler(async (req, res) => {
     }
 
     // 5. Tailored Notification Messages
+    const accountLabel = vendor.accountType === 'wholesaler' ? 'wholesaler' : 'vendor';
+    const accountTitle = accountLabel === 'wholesaler' ? 'Wholesaler' : 'Vendor';
     let vendorMessage = '';
     if (status === 'approved') {
         if (previousStatus === 'suspended') {
-            vendorMessage = 'Your vendor account has been reactivated. You may continue using the platform.';
+            vendorMessage = `Your ${accountLabel} account has been reactivated. You may continue using the platform.`;
         } else {
-            vendorMessage = 'Your vendor account has been approved. You can now start selling on the platform.';
+            vendorMessage = `Your ${accountLabel} account has been approved. You can now start selling on the platform.`;
         }
     } else if (status === 'rejected') {
-        vendorMessage = `Your vendor account has been rejected. Reason:\n${trimmedReason}`;
+        vendorMessage = `Your ${accountLabel} account has been rejected. Reason:\n${trimmedReason}`;
     } else if (status === 'suspended') {
-        vendorMessage = `Your vendor account has been suspended. Reason:\n${trimmedReason}`;
+        vendorMessage = `Your ${accountLabel} account has been suspended. Reason:\n${trimmedReason}`;
     } else if (status === 'pending') {
-        vendorMessage = 'Your vendor account has been moved back for review. Our team will review your updated information before making a final decision.';
+        vendorMessage = `Your ${accountLabel} account has been moved back for review. Our team will review your updated information before making a final decision.`;
     }
 
     await createNotification({
         recipientId: vendor._id,
         recipientType: 'vendor',
-        title: 'Vendor Account Status Updated',
+        title: `${accountTitle} Account Status Updated`,
         message: vendorMessage,
         type: 'system',
         data: {
@@ -195,7 +200,7 @@ export const updateVendorStatus = asyncHandler(async (req, res) => {
     try {
         await sendEmail({
             to: vendor.email,
-            subject: `Vendor Account Status: ${status[0].toUpperCase()}${status.slice(1)}`,
+            subject: `${accountTitle} Account Status: ${status[0].toUpperCase()}${status.slice(1)}`,
             text: vendorMessage,
             html: `<p>${vendorMessage.replace(/\n/g, '<br/>')}</p>`,
         });

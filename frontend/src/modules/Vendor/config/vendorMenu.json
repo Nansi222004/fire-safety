@@ -35,16 +35,6 @@
             "My Requests"
         ]
     },
-    {
-        "title": "Wholesale",
-        "route": "/vendor/wholesale",
-        "children": [
-            "Wholesale Products",
-            "Add Wholesale Product",
-            "Wholesale Pricing",
-            "Wholesale Orders"
-        ]
-    },
 
     {
         "title":  "Orders",

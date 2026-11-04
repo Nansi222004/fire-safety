@@ -6,7 +6,7 @@ import { formatPrice } from "../../../../shared/utils/helpers";
 import { useSettingsStore } from "../../../../shared/store/settingsStore";
 import { getOrderById } from "../../services/adminService";
 import toast from "react-hot-toast";
-import logoImage from "../../../../../data/logos/safefire_logo.png";
+import logoImage from "../../../../assets/logo-firesafety.png";
 
 const Invoice = () => {
   const navigate = useNavigate();
