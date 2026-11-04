@@ -1,9 +1,6 @@
 # Root GitIgnore for Safe Fire Multi-Vendor Project
 
 # Environment files (CRITICAL: Never commit .env or secrets)
-.env
-.env.*
-.env.local
 .env.development.local
 .env.test.local
 .env.production.local
@@ -46,7 +43,6 @@ lerna-debug.log*
 # OS & IDE
 .DS_Store
 Thumbs.db
-.vscode/
 .idea/
 *.suo
 *.ntvs*
@@ -80,3 +76,4 @@ frontend/test/
 **/test/
 tests/**
 test/**
+config.bat
