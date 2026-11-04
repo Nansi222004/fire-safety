@@ -253,6 +253,85 @@ const resolveVariantStock = (product, selectedVariant) => {
   return baseStock;
 };
 
+const BULLET_LINE_RE = /^\s*(?:[-*•●▪◦]|\d+[.)])\s+/;
+
+// Turns a plain-text description into { paragraphs, bullets } for the Highlights layout.
+// - Lines starting with -, *, •, or "1." become bullets
+// - Other lines become paragraphs (lines after the first bullet also become bullets)
+// - A single unformatted block with many sentences is split: first 2 sentences intro, rest bullets
+const parseDescription = (text) => {
+  const clean = String(text || "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|li|div)>/gi, "\n")
+    .replace(/<li[^>]*>/gi, "- ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/\r/g, "")
+    .trim();
+  if (!clean) return { paragraphs: [], bullets: [] };
+
+  const lines = clean.split("\n").map((l) => l.trim()).filter(Boolean);
+  const paragraphs = [];
+  const bullets = [];
+  let seenBullet = false;
+
+  lines.forEach((line) => {
+    if (BULLET_LINE_RE.test(line)) {
+      seenBullet = true;
+      bullets.push(line.replace(BULLET_LINE_RE, ""));
+    } else if (seenBullet) {
+      bullets.push(line);
+    } else {
+      paragraphs.push(line);
+    }
+  });
+
+  if (bullets.length === 0 && paragraphs.length === 1) {
+    const sentences = (paragraphs[0].match(/[^.!?]+[.!?]+(?=\s|$)|[^.!?]+$/g) || [])
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (sentences.length >= 4) {
+      return { paragraphs: [sentences.slice(0, 2).join(" ")], bullets: sentences.slice(2) };
+    }
+  }
+
+  return { paragraphs, bullets };
+};
+
+const DescriptionHighlights = ({ text }) => {
+  const { paragraphs, bullets } = useMemo(() => parseDescription(text), [text]);
+  const fallback =
+    "Certified fire protection equipment designed for optimal safety, rapid suppression, and reliable performance.";
+  const intro = paragraphs.length || bullets.length ? paragraphs : [fallback];
+
+  return (
+    <div className="space-y-4">
+      <h4 className="text-base font-bold text-slate-900">Highlights</h4>
+      {intro.map((para, idx) => (
+        <p key={`p-${idx}`} className="text-[13px] text-slate-600 leading-relaxed">
+          {para}
+        </p>
+      ))}
+      {bullets.length > 0 && (
+        <ul className="list-disc pl-5 space-y-1.5 marker:text-slate-500">
+          {bullets.map((item, idx) => (
+            <li key={`b-${idx}`} className="text-[13px] text-slate-600 leading-relaxed">
+              {item}
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="text-[12px] text-slate-500 italic leading-relaxed pt-2">
+        <span className="font-bold text-slate-700">Please Note</span> that Product may differ eg.
+        colour, size from the product Image displayed on website. Kindly check the specifications
+        provided to make better purchase decision. M.R.P Prices and specifications are subject to
+        change without notice.
+      </p>
+    </div>
+  );
+};
+
 const isMongoId = (value) => /^[a-fA-F0-9]{24}$/.test(String(value || ""));
 const normalizeProduct = (raw) => {
   if (!raw) return null;
@@ -1058,9 +1137,7 @@ const MobileProductDetail = () => {
                   <div className="px-6 py-6 min-h-[160px]">
                     {activeTab === "Description" && (
                       <div className="space-y-4">
-                        <p className="text-xs text-slate-700 font-medium leading-relaxed">
-                          {product.description || "Certified fire protection equipment designed for optimal safety, rapid suppression, and reliable performance."}
-                        </p>
+                        <DescriptionHighlights text={product.description} />
 
                         <motion.div
                           initial={false}
