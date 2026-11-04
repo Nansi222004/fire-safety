@@ -8,7 +8,7 @@ import PageTransition from '../../../shared/components/PageTransition';
 import { useAuthStore } from '../../../shared/store/authStore';
 import { useCartStore } from '../../../shared/store/useStore';
 import { useWishlistStore } from '../../../shared/store/wishlistStore';
-import { consumePostLoginAction } from '../../../shared/utils/postLoginAction';
+import { consumePostLoginAction, getPostLoginRedirect, clearPostLoginRedirect } from '../../../shared/utils/postLoginAction';
 
 const MobileVerification = () => {
   const navigate = useNavigate();
@@ -92,7 +92,10 @@ const MobileVerification = () => {
       await verifyOTP(email, verificationCode);
       replayPendingAction();
       toast.success('Verification successful!');
-      navigate('/home');
+      // Return a new customer to where sign-up started, e.g. checkout.
+      const redirectTo = getPostLoginRedirect();
+      clearPostLoginRedirect();
+      navigate(redirectTo, { replace: true });
     } catch (error) {
       toast.error('Invalid verification code. Please try again.');
     }

@@ -2,7 +2,6 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import toast from "react-hot-toast";
 import { useAuthStore } from "./authStore";
-import { setPostLoginAction, setPostLoginRedirect } from "../utils/postLoginAction";
 import { getVariantSignature } from "../utils/variant";
 import api from "../utils/api";
 
@@ -12,19 +11,6 @@ const getCartLineKey = (id, variant = {}) =>
 const getCurrentAuthUserId = () => {
   const authState = useAuthStore.getState();
   return String(authState?.user?.id || authState?.user?._id || "").trim();
-};
-
-const redirectToLogin = () => {
-  if (typeof window === "undefined") return;
-  const currentPath = window.location.pathname || "/home";
-  if (currentPath === "/login") return;
-
-  const fromPath = `${window.location.pathname || ""}${window.location.search || ""}${window.location.hash || ""}`;
-  setPostLoginRedirect(fromPath || "/home");
-
-  const nextState = { from: { pathname: fromPath || "/home" } };
-  window.history.pushState(nextState, "", "/login");
-  window.dispatchEvent(new PopStateEvent("popstate", { state: nextState }));
 };
 
 // Map backend cart item to frontend store item structure
@@ -43,6 +29,24 @@ const mapBackendItemToStore = (item) => ({
   vendorName: item.productId?.vendorName || "Vendor",
   taxRate: item.productId?.taxRate !== undefined ? item.productId.taxRate : 18,
   taxIncluded: !!item.productId?.taxIncluded,
+});
+
+// Cart line for a guest (not logged in) cart, same shape as mapBackendItemToStore.
+const mapGuestItemToStore = (item, quantity) => ({
+  id: item.id,
+  name: item.name,
+  image: item.image,
+  price: item.price,
+  originalPrice: item.originalPrice,
+  variant: item.variant,
+  quantity,
+  stockQuantity: item.stockQuantity,
+  stock: item.stock,
+  cartLineKey: getCartLineKey(item.id, item.variant),
+  vendorId: item.vendorId || 1,
+  vendorName: item.vendorName || "Vendor",
+  taxRate: item.taxRate !== undefined ? item.taxRate : 18,
+  taxIncluded: !!item.taxIncluded,
 });
 
 // Cart Store
@@ -77,7 +81,8 @@ export const useCartStore = create(
         const authState = useAuthStore.getState();
         if (!authState?.isAuthenticated) return;
 
-        const localItems = get().items;
+        // Only lines added while logged out (no server cart item id) need merging.
+        const localItems = get().items.filter((item) => !item.itemId);
         if (!localItems.length) {
           await get().fetchCart();
           return;
@@ -93,7 +98,6 @@ export const useCartStore = create(
           const cart = response?.data || response;
           const items = (cart.items || []).map(mapBackendItemToStore);
           set({ items, ownerUserId: getCurrentAuthUserId() });
-          toast.success("Guest cart merged with your account");
         } catch (error) {
           console.error("Failed to merge cart:", error);
           await get().fetchCart();
@@ -104,17 +108,6 @@ export const useCartStore = create(
         const authState = useAuthStore.getState();
         const currentUserId = getCurrentAuthUserId();
 
-        if (!authState?.isAuthenticated) {
-          toast.error("Please log in to add items to your cart");
-          setPostLoginAction({ type: "cart:add", payload: item });
-          const fromPath = typeof window !== "undefined"
-            ? `${window.location.pathname || ""}${window.location.search || ""}${window.location.hash || ""}`
-            : "/home";
-          setPostLoginRedirect(fromPath || "/home");
-          redirectToLogin();
-          return false;
-        }
-
         const quantityToAdd = item.quantity || 1;
         const lineKey = getCartLineKey(item.id, item.variant);
         const existingItem = get().items.find(i => i.cartLineKey === lineKey);
@@ -124,6 +117,19 @@ export const useCartStore = create(
         if (item.stockQuantity !== undefined && newQuantity > item.stockQuantity) {
             toast.error(`Only ${item.stockQuantity} items available in stock`);
             return false;
+        }
+
+        // Guests keep the cart on this device; it is merged into their account
+        // when they log in at checkout.
+        if (!authState?.isAuthenticated) {
+          set((state) => ({
+            items: existingItem
+              ? state.items.map(i => i.cartLineKey === lineKey ? { ...i, quantity: newQuantity } : i)
+              : [...state.items, mapGuestItemToStore(item, quantityToAdd)],
+          }));
+          toast.success("Added to cart");
+          useUIStore.getState().triggerCartAnimation?.();
+          return true;
         }
 
         try {

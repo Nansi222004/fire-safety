@@ -25,6 +25,7 @@ import MobileLayout from "../components/Layout/MobileLayout";
 import MobileCheckoutSteps from "../components/Mobile/MobileCheckoutSteps";
 import PageTransition from "../../../shared/components/PageTransition";
 import OrderSummary from "../components/Mobile/CheckoutOrderSummary";
+import { setPostLoginRedirect } from "../../../shared/utils/postLoginAction";
 
 // The last-used shipping address is remembered per account, so a new / different account
 // never sees another customer's details on a shared device.
@@ -38,6 +39,28 @@ const readSavedCheckoutAddress = (userId) => {
   } catch {
     return null;
   }
+};
+
+// Guests fill in shipping and payment without an account; at "Place Order" they log in
+// and come back here with what they entered.
+const GUEST_DRAFT_KEY = "safefire_checkout_guest_draft";
+const readGuestDraft = () => {
+  try {
+    const raw = sessionStorage.getItem(GUEST_DRAFT_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+const saveGuestDraft = (draft) => {
+  try {
+    sessionStorage.setItem(GUEST_DRAFT_KEY, JSON.stringify(draft));
+  } catch {}
+};
+const clearGuestDraft = () => {
+  try {
+    sessionStorage.removeItem(GUEST_DRAFT_KEY);
+  } catch {}
 };
 
 const MobileCheckout = () => {
@@ -54,20 +77,25 @@ const MobileCheckout = () => {
     [items, getItemsByVendor],
   );
 
-  const [step, setStep] = useState(1);
+  // Details a guest entered before logging in at "Place Order".
+  const [guestDraft] = useState(() => (isAuthenticated ? readGuestDraft() : null));
+  const [step, setStep] = useState(guestDraft ? 2 : 1);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [showAddressForm, setShowAddressForm] = useState(false);
-  const [couponCode, setCouponCode] = useState("");
+  const [couponCode, setCouponCode] = useState(guestDraft?.couponCode || "");
   const [availableCoupons, setAvailableCoupons] = useState([]);
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [appliedDiscount, setAppliedDiscount] = useState(0);
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
-  const [shippingOption, setShippingOption] = useState("standard");
+  const [shippingOption, setShippingOption] = useState(guestDraft?.shippingOption || "standard");
   const [estimatedShipping, setEstimatedShipping] = useState(null);
   const [isEstimatingShipping, setIsEstimatingShipping] = useState(false);
   const [shippingQuotes, setShippingQuotes] = useState(null);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [formData, setFormData] = useState(() => {
+    if (guestDraft?.formData) {
+      return { ...guestDraft.formData, email: guestDraft.formData.email || user?.email || "" };
+    }
     const savedAddr = readSavedCheckoutAddress(user?.id || user?._id);
     return {
       name: savedAddr?.name || user?.name || "",
@@ -81,6 +109,10 @@ const MobileCheckout = () => {
       paymentMethod: "cod",
     };
   });
+
+  useEffect(() => {
+    if (guestDraft) clearGuestDraft();
+  }, [guestDraft]);
 
   const [paymentSettings, setPaymentSettings] = useState(null);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
@@ -194,7 +226,8 @@ const MobileCheckout = () => {
   }, [activePaymentMethods, formData.paymentMethod, isLoadingSettings]);
 
   useEffect(() => {
-    if (isAuthenticated && user) {
+    // Keep the address a guest typed before logging in instead of the saved default.
+    if (isAuthenticated && user && !guestDraft) {
       const defaultAddress = getDefaultAddress();
       if (defaultAddress) {
         setSelectedAddressId(defaultAddress.id || defaultAddress._id);
@@ -225,7 +258,7 @@ const MobileCheckout = () => {
         }));
       }
     }
-  }, [isAuthenticated, user, getDefaultAddress, addresses]);
+  }, [isAuthenticated, user, getDefaultAddress, addresses, guestDraft]);
 
   const calculateShippingFallback = () => {
     const total = getTotal();
@@ -536,6 +569,18 @@ const MobileCheckout = () => {
     } else if (step === 2) {
       const paymentMethod = formData.paymentMethod;
 
+      if (!isAuthenticated) {
+        saveGuestDraft({
+          formData,
+          shippingOption,
+          couponCode: appliedCoupon?.code || couponCode.trim().toUpperCase(),
+        });
+        setPostLoginRedirect("/checkout");
+        toast("Log in to place your order. Your details are saved.", { icon: "🔒" });
+        navigate("/login", { state: { from: { pathname: "/checkout" } } });
+        return;
+      }
+
       if (paymentMethod === "wallet") {
         if (!isAuthenticated) {
           toast.error("Please login to pay with SafeFire Wallet.");
@@ -675,7 +720,8 @@ const MobileCheckout = () => {
             {/* Title Bar */}
             <div className="px-4 py-1.5 flex items-center gap-3">
               <button
-                onClick={() => navigate(-1)}
+                onClick={() => (step > 1 ? setStep(step - 1) : navigate(-1))}
+                aria-label={step > 1 ? "Back to shipping" : "Go back"}
                 className="p-2 hover:bg-gray-100 rounded-full transition-colors"
               >
                 <FiArrowLeft className="text-xl text-gray-700" />
@@ -1258,7 +1304,9 @@ const MobileCheckout = () => {
                             ? "Placing Order..."
                             : activePaymentMethods.length === 0
                               ? "Unavailable"
-                              : "Place Order"
+                              : isAuthenticated
+                                ? "Place Order"
+                                : "Log in to Place Order"
                           : "Continue to Payment"}
                       </button>
                       {step === 2 && (
@@ -1313,7 +1361,9 @@ const MobileCheckout = () => {
                     ? "Placing..."
                     : activePaymentMethods.length === 0
                       ? "Unavailable"
-                      : "Place Order"
+                      : isAuthenticated
+                        ? "Place Order"
+                        : "Log in to Place Order"
                   : "Continue"}
               </button>
             </div>

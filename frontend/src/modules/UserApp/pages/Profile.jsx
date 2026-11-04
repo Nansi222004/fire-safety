@@ -20,6 +20,7 @@ import {
   FiShield,
   FiTag,
   FiHelpCircle,
+  FiHeadphones,
   FiFileText,
   FiCheckCircle,
   FiGift,
@@ -407,6 +408,14 @@ const MobileProfile = () => {
     {
       title: 'Help & Compliance',
       items: [
+        {
+          label: '24x7 Customer Care',
+          description: 'Call, WhatsApp or email our support team',
+          icon: FiHeadphones,
+          iconColor: 'text-red-600',
+          iconBg: 'bg-red-50',
+          link: '/customer-care',
+        },
         {
           label: 'Support & Help Desk',
           description: '24/7 Fire safety support and service tickets',

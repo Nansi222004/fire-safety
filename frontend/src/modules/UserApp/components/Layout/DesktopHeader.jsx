@@ -30,6 +30,7 @@ import { HiOutlineUserCircle } from "react-icons/hi";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useUserNotificationStore } from "../../store/userNotificationStore";
+import CustomerCareMenu from "./CustomerCareMenu";
 
 const DesktopHeader = ({ onSearch }) => {
   const navigate = useNavigate();
@@ -333,6 +334,8 @@ const DesktopHeader = ({ onSearch }) => {
                 Notifications
               </span>
             </Link>
+
+            <CustomerCareMenu />
 
             {/* Become a Vendor Button */}
             <Link

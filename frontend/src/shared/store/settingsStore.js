@@ -12,6 +12,7 @@ const defaultSettings = {
     contactEmail: "contact@example.com",
     contactPhone: "",
     whatsappPhone: "",
+    supportHours: "",
     address: "",
     businessHours: "Mon-Fri 9AM-6PM",
     timezone: "UTC",

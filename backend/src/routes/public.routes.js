@@ -1305,6 +1305,7 @@ router.get('/settings/general', asyncHandler(async (req, res) => {
         contactPhone: primaryContactPhone,
         supportPhone: primaryContactPhone,
         whatsappPhone: value.whatsappPhone || primaryContactPhone,
+        supportHours: value.supportHours || "",
         address: value.address || "",
         socialMedia: value.socialMedia || {
             facebook: "",

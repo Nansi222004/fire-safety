@@ -168,6 +168,7 @@ import PolicyPage from "./modules/UserApp/pages/PolicyPage";
 import SafetyCenter from "./modules/UserApp/pages/SafetyCenter";
 import SimilarExplore from "./modules/UserApp/pages/SimilarExplore";
 import UserSupport from "./modules/UserApp/pages/Support";
+import CustomerCare from "./modules/UserApp/pages/CustomerCare";
 import ComingSoon from "./modules/UserApp/pages/ComingSoon";
 import ServicesPage from "./modules/UserApp/pages/ServicesPage";
 import ServiceDetailPage from "./modules/UserApp/pages/ServiceDetailPage";
@@ -334,9 +335,7 @@ const AppRoutes = () => {
         path="/checkout"
         element={
           <RouteWrapper>
-            <ProtectedRoute>
-              <MobileCheckout />
-            </ProtectedRoute>
+            <MobileCheckout />
           </RouteWrapper>
         }
       />
@@ -483,6 +482,14 @@ const AppRoutes = () => {
         element={
           <RouteWrapper>
             <MobileTrackOrder />
+          </RouteWrapper>
+        }
+      />
+      <Route
+        path="/customer-care"
+        element={
+          <RouteWrapper>
+            <CustomerCare />
           </RouteWrapper>
         }
       />

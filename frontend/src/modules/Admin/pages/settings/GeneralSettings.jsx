@@ -192,6 +192,23 @@ const GeneralSettings = () => {
                   </p>
                 </div>
 
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Customer Care Hours
+                  </label>
+                  <input
+                    type="text"
+                    name="supportHours"
+                    value={formData.supportHours || ""}
+                    onChange={handleChange}
+                    placeholder="Available 24x7"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Shown on the Customer Care page and header menu, for example "Available 24x7" or "9 AM – 9 PM, all days".
+                  </p>
+                </div>
+
                 <div className="md:col-span-2">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Address

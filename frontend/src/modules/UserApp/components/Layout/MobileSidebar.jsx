@@ -11,6 +11,7 @@ import {
   FiShoppingBag,
   FiCreditCard,
   FiBriefcase,
+  FiHeadphones,
 } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { appLogo } from "../../../../data/logos";
@@ -26,6 +27,7 @@ const MobileSidebar = ({ isOpen, onClose }) => {
     { label: "Categories", icon: FiGrid, path: "/categories" },
     { label: "Services", icon: FiTool, path: "/services" },
     { label: "Offers", icon: FiTag, path: "/offers" },
+    { label: "24x7 Customer Care", icon: FiHeadphones, path: "/customer-care" },
   ];
 
   return (
