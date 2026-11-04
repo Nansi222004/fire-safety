@@ -156,6 +156,9 @@ const MobileSidebar = ({ isOpen, onClose }) => {
                       <FiTool className="text-xl group-hover:scale-110 transition-transform" />
                       <span className="font-medium">My Service Bookings</span>
                     </Link>
+                    {/* TEMPORARILY DISABLED — USER WALLET FEATURE */}
+                    {/* DO NOT DELETE — RE-ENABLE WHEN WALLET FEATURE IS RESTORED */}
+                    {/*
                     <Link
                       to="/user/wallet"
                       onClick={onClose}
@@ -164,6 +167,7 @@ const MobileSidebar = ({ isOpen, onClose }) => {
                       <FiCreditCard className="text-xl group-hover:scale-110 transition-transform" />
                       <span className="font-medium">My Wallet</span>
                     </Link>
+                    */}
                   </>
                 )}
                 <Link
