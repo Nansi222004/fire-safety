@@ -253,6 +253,88 @@ const resolveVariantStock = (product, selectedVariant) => {
   return baseStock;
 };
 
+const BULLET_LINE_RE = /^\s*(?:[-*•●▪◦]|\d+[.)])\s+/;
+
+// Turns a plain-text description into { paragraphs, bullets }.
+// - Descriptive sentences are merged into one paragraph
+// - Lines starting with -, *, •, "1." and short Title-Case spec phrases become bullets
+const parseDescription = (text) => {
+  const clean = String(text || "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|li|div)>/gi, "\n")
+    .replace(/<li[^>]*>/gi, "- ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/\r/g, "")
+    .trim();
+  if (!clean) return { paragraphs: [], bullets: [] };
+
+  // Break into lines, then each line into sentences
+  const pieces = clean
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .flatMap((line) => {
+      if (BULLET_LINE_RE.test(line)) return [{ text: line.replace(BULLET_LINE_RE, ""), forced: true }];
+      return (line.match(/[^.!?]+[.!?]+(?=\s|$)|[^.!?]+$/g) || [line])
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((s) => ({ text: s, forced: false }));
+    });
+
+  const descriptive = [];
+  const bullets = [];
+
+  pieces.forEach(({ text: piece, forced }) => {
+    if (forced || isSpecPoint(piece)) bullets.push(piece.replace(/\.$/, ""));
+    else descriptive.push(piece);
+  });
+
+  return { paragraphs: descriptive.length ? [descriptive.join(" ")] : [], bullets };
+};
+
+// A spec/utility point is a short Title-Case phrase (e.g. "Liner Gauge 13G"),
+// while a descriptive sentence is mostly lowercase words.
+const isSpecPoint = (sentence) => {
+  const words = sentence.replace(/[.!?,:;]+/g, " ").split(/\s+/).filter(Boolean);
+  if (!words.length) return false;
+  const capitalised = words.filter((w) => /^[A-Z0-9]/.test(w)).length;
+  return capitalised / words.length >= 0.6;
+};
+
+const DescriptionHighlights = ({ text }) => {
+  const { paragraphs, bullets } = useMemo(() => parseDescription(text), [text]);
+  const fallback =
+    "Certified fire protection equipment designed for optimal safety, rapid suppression, and reliable performance.";
+  const intro = paragraphs.length || bullets.length ? paragraphs : [fallback];
+
+  return (
+    <div className="space-y-4">
+      {intro.map((para, idx) => (
+        <p key={`p-${idx}`} className="text-[13px] text-slate-600 leading-relaxed">
+          {para}
+        </p>
+      ))}
+      {bullets.length > 0 && (
+        <ul className="list-disc pl-5 space-y-1.5 marker:text-slate-500">
+          {bullets.map((item, idx) => (
+            <li key={`b-${idx}`} className="text-[13px] text-slate-600 leading-relaxed">
+              {item}
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="text-[12px] text-slate-500 italic leading-relaxed pt-2">
+        <span className="font-bold text-slate-700">Please Note</span> that Product may differ eg.
+        colour, size from the product Image displayed on website. Kindly check the specifications
+        provided to make better purchase decision. M.R.P Prices and specifications are subject to
+        change without notice.
+      </p>
+    </div>
+  );
+};
+
 const resolveVariantImage = (imageMap, selection) => {
   if (!imageMap || !selection || typeof selection !== "object") return "";
 
@@ -1093,9 +1175,7 @@ const MobileProductDetail = () => {
                   <div className="px-6 py-6 min-h-[160px]">
                     {activeTab === "Description" && (
                       <div className="space-y-4">
-                        <p className="text-xs text-slate-700 font-medium leading-relaxed">
-                          {product.description || "Certified fire protection equipment designed for optimal safety, rapid suppression, and reliable performance."}
-                        </p>
+                        <DescriptionHighlights text={product.description} />
 
                         <motion.div
                           initial={false}
