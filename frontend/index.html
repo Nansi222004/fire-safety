@@ -139,10 +139,23 @@
         else if (/^\/admin(\/|$)/.test(path)) label = 'Admin Console';
         tagline.textContent = label;
 
-        var shownAt = Date.now();
         var MIN_VISIBLE_MS = 700;   // avoid a flash on fast loads
         var MAX_VISIBLE_MS = 15000; // never block the app if something fails to report in
         var progress = 6;
+
+        // The page can load where nobody sees it: Chrome prerenders URLs typed in the address bar before
+        // Enter is pressed, and links opened in a background tab load hidden. If the splash finished there,
+        // the user would never see it. So its clock starts only when the page is actually on screen.
+        var shownAt = null;
+        function isOnScreen() {
+          return document.prerendering !== true && document.visibilityState !== 'hidden';
+        }
+        function markShown() {
+          if (shownAt !== null || !isOnScreen()) return;
+          shownAt = Date.now();
+          setTimeout(hide, MAX_VISIBLE_MS);
+          maybeHide();
+        }
         var appReady = false;
         var pageLoaded = document.readyState === 'complete';
         var finished = false;
@@ -174,7 +187,7 @@
         }
 
         function maybeHide() {
-          if (appReady && pageLoaded) hide();
+          if (appReady && pageLoaded && shownAt !== null) hide();
         }
 
         window.addEventListener('load', function () {
@@ -194,7 +207,9 @@
           hide: hide,
         };
 
-        setTimeout(hide, MAX_VISIBLE_MS);
+        document.addEventListener('prerenderingchange', markShown);
+        document.addEventListener('visibilitychange', markShown);
+        markShown();
         setProgress(15);
       })();
     </script>
