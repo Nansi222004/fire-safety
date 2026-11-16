@@ -20,6 +20,24 @@ import ManualDeliveryAssignment from '../../../../shared/components/Delivery/Man
 import DeliveryMethodSelector from '../../../../shared/components/Delivery/DeliveryMethodSelector';
 import { sellerPath, sellerTokenKey } from "../../../../shared/utils/sellerPortal";
 
+// Renders the backend's canonical payout status (getPayoutEligibility); no date is computed here.
+const describePayout = (payout) => {
+    const on = payout?.eligibleOn ? new Date(payout.eligibleOn).toLocaleDateString() : null;
+    switch (payout?.status) {
+        case 'paid': return 'Paid to wallet';
+        case 'processing': return 'Processing';
+        case 'eligible': return `Eligible since ${on} · released in the next scheduled payout run`;
+        case 'cancelled': return 'Cancelled (no payout)';
+        case 'refunded': return 'Refunded (no payout)';
+        case 'failed': return 'Release failed · contact support';
+        case 'held':
+            if (on) return `Held until ${on} (return window)`;
+            if (payout.reason === 'return_window_not_configured') return 'Held · return window not configured by admin';
+            return 'Held · starts after delivery';
+        default: return '—';
+    }
+};
+
 const OrderDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -222,6 +240,18 @@ const OrderDetail = () => {
     const vendorItems = vendorItem?.items ?? [];
     const vendorSubtotal = vendorItem?.subtotal ?? 0;
 
+    // Saved financials only (backend vendorFinancials = Commission record, else the checkout snapshot).
+    const pickNumber = (...values) => {
+        for (const v of values) {
+            if (v !== undefined && v !== null && v !== '' && Number.isFinite(Number(v))) return Number(v);
+        }
+        return null;
+    };
+    const savedCommission = pickNumber(order?.vendorFinancials?.commission, order?.commissionDetails?.commission, vendorItem?.commissionAmount);
+    const savedEarnings = pickNumber(order?.vendorFinancials?.earnings, order?.commissionDetails?.vendorEarnings, vendorItem?.vendorEarnings);
+    const savedCommissionRate = pickNumber(order?.vendorFinancials?.commissionRate, order?.commissionDetails?.commissionRate, vendorItem?.commissionRate);
+    const payout = order?.vendorFinancials?.payout || null;
+
     if (loading) {
         return (
             <div className="p-6 text-center">
@@ -368,25 +398,27 @@ const OrderDetail = () => {
                                         </span>
                                     </div>
                                     <div className="flex justify-between gap-4 text-xs sm:text-sm text-gray-500">
-                                        <span>Commission:</span>
+                                        {/* Commission and earnings are the values saved with this order (rate snapshot at
+                                            checkout). Never estimated from a default rate. */}
+                                        <span>
+                                            Commission{savedCommissionRate !== null ? ` (${savedCommissionRate}%)` : ""}:
+                                        </span>
                                         <span className="font-medium text-red-600">
-                                            -{formatPrice(
-                                                order.commissionDetails?.commission !== undefined
-                                                    ? order.commissionDetails.commission
-                                                    : parseFloat(((vendorSubtotal - (vendorItem?.discount || 0)) * (vendorItem?.commissionRate || 10) / 100).toFixed(2))
-                                            )}
+                                            {savedCommission !== null ? `-${formatPrice(savedCommission)}` : "Not available"}
                                         </span>
                                     </div>
                                     <div className="flex items-center justify-between gap-4 pt-2.5 border-t border-gray-200 text-xs sm:text-sm">
                                         <span className="font-bold text-gray-800">Vendor Earnings:</span>
                                         <span className="font-black text-primary-600 text-sm sm:text-base">
-                                            {formatPrice(
-                                                order.commissionDetails?.vendorEarnings !== undefined
-                                                    ? order.commissionDetails.vendorEarnings
-                                                    : parseFloat(((vendorSubtotal - (vendorItem?.discount || 0)) * (1 - (vendorItem?.commissionRate || 10) / 100)).toFixed(2))
-                                            )}
+                                            {savedEarnings !== null ? formatPrice(savedEarnings) : "Not available"}
                                         </span>
                                     </div>
+                                    {payout && (
+                                        <div className="flex justify-between gap-4 text-xs sm:text-sm text-gray-500">
+                                            <span>Payout:</span>
+                                            <span className="font-medium text-gray-700 text-right">{describePayout(payout)}</span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}

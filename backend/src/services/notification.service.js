@@ -99,6 +99,32 @@ export function buildCanonicalDeepLink(recipientType, data = {}) {
     return '/';
 }
 
+// Wholesalers share the Vendor model (and the "vendor" notification type) but use the /wholesaler portal.
+const WHOLESALER_LINK_ALIASES = [
+    ["/vendor/wholesale/", "/wholesaler/"],
+    ["/vendor/products/manage-products", "/wholesaler/products"],
+    ["/vendor/settings/profile", "/wholesaler/profile"],
+];
+const LINK_FIELDS = ["deepLink", "link", "url"];
+
+export function toWholesalerLink(link) {
+    if (typeof link !== "string" || !link.startsWith("/vendor")) return link;
+    for (const [from, to] of WHOLESALER_LINK_ALIASES) {
+        if (link.startsWith(from)) return to + link.slice(from.length);
+    }
+    return link === "/vendor" || link.startsWith("/vendor/") ? `/wholesaler${link.slice("/vendor".length)}` : link;
+}
+
+async function isWholesalerRecipient(recipientType, recipientId) {
+    if (recipientType !== "vendor" || !recipientId) return false;
+    try {
+        const seller = await Vendor.findById(recipientId).select("accountType").lean();
+        return seller?.accountType === "wholesaler";
+    } catch {
+        return false;
+    }
+}
+
 /**
  * Derive deterministic business event key if not explicitly passed
  */
@@ -192,10 +218,17 @@ export const createNotification = async (optionsOrRecipientId, ...rest) => {
 
     // 0. Compute deterministic eventKey and canonical deep link
     const effectiveEventKey = eventKey || deriveEventKey(normalizedRecipientType, recipientId, data, title, type);
-    const deepLink = buildCanonicalDeepLink(normalizedRecipientType, data);
+    let deepLink = buildCanonicalDeepLink(normalizedRecipientType, data);
+    const baseData = typeof data === 'object' && data !== null ? { ...data } : {};
+    if (await isWholesalerRecipient(normalizedRecipientType, recipientId)) {
+        deepLink = toWholesalerLink(deepLink);
+        LINK_FIELDS.forEach((field) => {
+            if (baseData[field]) baseData[field] = toWholesalerLink(baseData[field]);
+        });
+    }
 
     const enrichedData = {
-        ...(typeof data === 'object' ? data : {}),
+        ...baseData,
         deepLink,
         link: deepLink,
         recipientRole: normalizedRecipientType,

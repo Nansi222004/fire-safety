@@ -10,9 +10,11 @@ import crypto from 'crypto';
 const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:5001/api';
 const adminEmail = process.env.E2E_ADMIN_EMAIL;
 const adminPassword = process.env.E2E_ADMIN_PASSWORD;
+// Alternatively a ready admin access token (e.g. minted by a local test harness).
+const presetAdminToken = process.env.E2E_ADMIN_TOKEN;
 
-if (!adminEmail || !adminPassword) {
-    throw new Error('E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD are required.');
+if (!presetAdminToken && (!adminEmail || !adminPassword)) {
+    throw new Error('E2E_ADMIN_TOKEN, or E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD, are required.');
 }
 
 const pick = (alphabet, length) => Array.from({ length }, () => alphabet[crypto.randomInt(alphabet.length)]).join('');
@@ -114,11 +116,15 @@ try {
     });
     checks.pendingLoginBlocked = pendingLogin.status === 403;
 
-    const adminLogin = await request('/admin/auth/login', {
-        method: 'POST',
-        body: { email: adminEmail, password: adminPassword },
-    });
-    adminToken = adminLogin.data.accessToken;
+    if (presetAdminToken) {
+        adminToken = presetAdminToken;
+    } else {
+        const adminLogin = await request('/admin/auth/login', {
+            method: 'POST',
+            body: { email: adminEmail, password: adminPassword },
+        });
+        adminToken = adminLogin.data.accessToken;
+    }
 
     const pending = await request(`/admin/wholesale/applications?status=pending&search=${encodeURIComponent(credentials.email)}`, {
         token: adminToken,

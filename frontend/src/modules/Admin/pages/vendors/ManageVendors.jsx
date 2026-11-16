@@ -20,6 +20,7 @@ import { formatPrice } from "../../../../shared/utils/helpers";
 import { useVendorStore } from "../../store/vendorStore";
 import { getAllOrders } from "../../services/adminService";
 import toast from "react-hot-toast";
+import { formatCommissionRate, commissionRateInputValue } from "../../../../shared/utils/vendorFinance";
 
 const ManageVendors = () => {
   const navigate = useNavigate();
@@ -87,7 +88,7 @@ const ManageVendors = () => {
       totalOrders: vendorOrders.length,
       totalEarnings,
       pendingEarnings: 0,
-      commissionRate: vendor?.commissionRate || 0,
+      commissionRate: vendor?.commissionRate ?? null,
     };
   };
 
@@ -191,10 +192,9 @@ const ManageVendors = () => {
       label: "Commission",
       sortable: true,
       render: (value, row) => {
-        const rate = value || row.commissionRate || 0;
         return (
           <span className="text-sm font-semibold text-gray-800">
-            {(rate * 100).toFixed(1)}%
+            {formatCommissionRate(row.commissionRate, row.commissionRateSource)}
           </span>
         );
       },
@@ -312,9 +312,7 @@ const ManageVendors = () => {
             onClick={(e) => {
               e.stopPropagation();
               const vendor = vendors.find((v) => v.id === row.id);
-              setCommissionRate(
-                ((vendor?.commissionRate || 0) * 100).toFixed(1)
-              );
+              setCommissionRate(commissionRateInputValue(vendor?.commissionRate));
               setActionModal({
                 isOpen: true,
                 type: "commission",
@@ -618,8 +616,7 @@ const ManageVendors = () => {
                   { label: "Status", accessor: (row) => row.status },
                   {
                     label: "Commission Rate",
-                    accessor: (row) =>
-                      `${((row.commissionRate || 0) * 100).toFixed(1)}%`,
+                    accessor: (row) => formatCommissionRate(row.commissionRate, row.commissionRateSource),
                   },
                   {
                     label: "Join Date",

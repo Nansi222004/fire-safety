@@ -8,6 +8,7 @@ import ProductListItem from '../components/Mobile/ProductListItem';
 import SearchSuggestions from '../components/Mobile/SearchSuggestions';
 import { categories as fallbackCategories } from '../../../data/categories';
 import PageTransition from '../../../shared/components/PageTransition';
+import LazyImage from '../../../shared/components/LazyImage';
 import { useCategoryStore } from '../../../shared/store/categoryStore';
 import toast from 'react-hot-toast';
 import api from '../../../shared/utils/api';

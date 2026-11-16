@@ -150,9 +150,26 @@ const serviceBookingSchema = new mongoose.Schema(
         },
         refundStatus: {
             type: String,
-            enum: ['none', 'refunded'],
+            // 'failed' is set by the Razorpay refund.failed webhook (finance must refund manually)
+            enum: ['none', 'refunded', 'failed'],
             default: 'none',
             index: true,
+        },
+        // Job-completion code. Issued when the vendor starts the job and shown only to the customer; the
+        // vendor must enter it to mark the job completed (which releases the vendor payout). Hidden from
+        // every query unless explicitly selected, so vendor/admin endpoints never return it.
+        completionOtp: {
+            type: String,
+            select: false,
+        },
+        completionOtpAttempts: {
+            type: Number,
+            default: 0,
+            select: false,
+        },
+        completionVerifiedAt: {
+            type: Date,
+            default: null,
         },
         isReviewed: {
             type: Boolean,

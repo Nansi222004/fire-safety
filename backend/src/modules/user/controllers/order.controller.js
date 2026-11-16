@@ -23,8 +23,10 @@ import { sendOrderConfirmationEmail } from '../../../services/email.service.js';
 import { uploadLocalFileToCloudinaryAndCleanup } from '../../../services/upload.service.js';
 import crypto from 'crypto';
 import { notifyOrderUpdate, notifyReturnUpdate, emitToRoom } from '../../../services/socket.service.js';
-import { calculateOrderFinancials } from '../../../services/financial.service.js';
-import { getDefaultCommissionRate, isPaymentMethodEnabled, getReturnWindowDays } from '../../../services/settingsService.js';
+import { calculateOrderFinancials, getReturnRefundForItem, calculateExchangeDifference } from '../../../services/financial.service.js';
+import { stateCodeFromName } from '../../../services/gst.service.js';
+import Vendor from '../../../models/Vendor.model.js';
+import { isPaymentMethodEnabled, getReturnWindowDays, getConfiguredReturnWindowDays } from '../../../services/settingsService.js';
 import logisticsEventBus from '../../../events/logisticsEventBus.js';
 import LOGISTICS_EVENTS from '../../../events/logisticsEvents.js';
 import AuditLog from '../../../models/AuditLog.model.js';
@@ -32,6 +34,7 @@ import { cancelShipmentDeliveryAssignment } from '../../../services/assignmentSe
 import { isCodOnlyMode } from '../../../config/paymentConfig.js';
 import { initializePayment } from './payment.controller.js';
 import { buildOrderRoutingDecisions } from '../../../services/deliveryRouting.service.js';
+import { resolveVendorCommissionRates } from '../../../services/commission.service.js';
 
 import {
     encodeVariantKey,
@@ -228,7 +231,6 @@ export const placeOrder = asyncHandler(async (req, res) => {
     const idempotencyScope = userId
         ? `user:${String(userId)}`
         : `guest:${normalizedGuestEmail || normalizedGuestPhone || 'anonymous'}`;
-    const defaultRate = await getDefaultCommissionRate();
 
     if (idempotencyKey) {
         const existingOrder = await Order.findOne({ idempotencyScope, idempotencyKey })
@@ -284,7 +286,8 @@ export const placeOrder = asyncHandler(async (req, res) => {
             throw new ApiError(400, `Only ${variantStockValue} units available for selected variant of ${product.name}.`);
         }
         const itemSubtotal = itemPrice * item.quantity;
-        const itemTaxRate = Number(product.taxRate || 18);
+        // `??` keeps a legitimate 0% GST rate; `|| 18` used to turn exempt products into 18% ones.
+        const itemTaxRate = Number(product.taxRate ?? 18);
         const itemTax = parseFloat(((itemSubtotal * itemTaxRate) / 100).toFixed(2));
         subtotal += itemSubtotal;
 
@@ -301,6 +304,7 @@ export const placeOrder = asyncHandler(async (req, res) => {
             price: itemPrice,
             quantity: item.quantity,
             taxRate: itemTaxRate,
+            taxIncluded: product.taxIncluded === true,
             tax: itemTax,
             variant: item.variant,
             variantKey: variantKey || undefined,
@@ -313,7 +317,8 @@ export const placeOrder = asyncHandler(async (req, res) => {
             vendorMap[vid] = {
                 vendorId: product.vendorId._id,
                 vendorName: product.vendorId.storeName,
-                commissionRate: product.vendorId.commissionRate !== undefined && product.vendorId.commissionRate !== null ? product.vendorId.commissionRate : defaultRate,
+                vendorCommissionRate: product.vendorId.commissionRate,
+                commissionRate: null, // resolved below with the canonical rule
                 items: [],
                 subtotal: 0,
             };
@@ -358,10 +363,9 @@ export const placeOrder = asyncHandler(async (req, res) => {
     // 4. Calculate financial totals using centralized helper
     enrichedItems.sort((a, b) => String(a.productId).localeCompare(String(b.productId)));
 
-    const vendorCommissions = {};
-    Object.values(vendorMap).forEach(v => {
-        vendorCommissions[String(v.vendorId)] = v.commissionRate;
-    });
+    const vendorCommissions = await resolveVendorCommissionRates(
+        Object.values(vendorMap).map((v) => ({ _id: v.vendorId, commissionRate: v.vendorCommissionRate }))
+    );
 
     const financials = calculateOrderFinancials({
         items: enrichedItems,
@@ -420,7 +424,7 @@ export const placeOrder = asyncHandler(async (req, res) => {
             tax: vCalc.vendorTax,
             discount: vCalc.discountShare || 0,
             status: 'pending',
-            commissionRate: vCalc.commissionRate !== undefined && vCalc.commissionRate !== null ? vCalc.commissionRate : defaultRate,
+            commissionRate: vCalc.commissionRate,
             commissionAmount: vCalc.commission || 0,
             vendorEarnings: vCalc.vendorEarnings || 0,
             isOnHoldBalanceAdded: false,
@@ -942,6 +946,20 @@ export const getOrderDetail = asyncHandler(async (req, res) => {
         }
     }
 
+    // Return window for display, from the same Admin setting createReturnRequest enforces (no client-side 7-day
+    // assumption). days = null means Admin has not configured it; returns are then refused server-side.
+    const returnWindowDays = await getConfiguredReturnWindowDays();
+    const deliveredTime = orderObject.deliveredAt ? new Date(orderObject.deliveredAt).getTime() : NaN;
+    const expiresAt = returnWindowDays !== null && Number.isFinite(deliveredTime)
+        ? new Date(deliveredTime + returnWindowDays * 24 * 60 * 60 * 1000)
+        : null;
+    orderObject.returnWindow = {
+        days: returnWindowDays,
+        configured: returnWindowDays !== null,
+        expiresAt,
+        expired: expiresAt ? Date.now() > expiresAt.getTime() : false,
+    };
+
     res.status(200).json(new ApiResponse(200, orderObject, 'Order detail fetched.'));
 });
 
@@ -954,7 +972,8 @@ export const cancelOrder = asyncHandler(async (req, res) => {
 
     const order = await Order.findOne(query);
     if (!order) throw new ApiError(404, 'Order not found.');
-    if (!['pending', 'processing', 'payment_pending'].includes(order.status)) {
+    // payment_failed orders can be cancelled too, so any wallet share debited for them is returned.
+    if (!['pending', 'processing', 'payment_pending', 'payment_failed'].includes(order.status)) {
         throw new ApiError(400, 'Order cannot be cancelled at this stage.');
     }
 
@@ -1276,11 +1295,13 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
         }));
     }
 
-    const existingOpen = await ReturnRequest.findOne({
+    // One open return/exchange per vendor package. Requests were never saved with originalShipmentId, so the
+    // previous filter on it could not match an existing request and duplicates got through. A vendor has at most
+    // one forward shipment per order (enforced above), so order + user + vendor identifies the package.
+    const openRequestFilter = {
         orderId: order._id,
         userId: req.user.id,
         vendorId,
-        originalShipmentId: shipments[0]?._id,
         status: {
             $in: [
                 'pending', 'approved', 'pickup_pending', 'pickup_assigned', 'picked_up',
@@ -1288,7 +1309,8 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
                 'replacement_assigned', 'out_for_delivery',
             ],
         },
-    });
+    };
+    const existingOpen = await ReturnRequest.findOne(openRequestFilter);
     if (existingOpen) {
         throw new ApiError(409, 'An active return request already exists for this vendor in the selected order.');
     }
@@ -1324,8 +1346,10 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
 
     const requestType = req.body.requestType === 'exchange' ? 'exchange' : 'return';
     let exchangeDetails = undefined;
+    let exchangeLines = [];
+    let exchangeVariant = null;
 
-    // 3. Exchange validations & price delta calculation (EX-02)
+    // 3. Exchange validations (EX-02). The price difference is computed once, below, by calculateExchangeDifference.
     if (requestType === 'exchange') {
         let size = '';
         let color = '';
@@ -1364,7 +1388,7 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
             }
 
             // Prevent exchanging for the exact same variant
-            const orderItemMatch = order.items.find(it => String(it.productId) === String(product._id));
+            const orderItemMatch = vendorScopedItems.find(it => String(it.productId) === String(product._id));
             if (orderItemMatch) {
                 const purchasedSize = String(orderItemMatch.variant?.size || '').trim().toLowerCase();
                 const purchasedColor = String(orderItemMatch.variant?.color || '').trim().toLowerCase();
@@ -1381,20 +1405,15 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
                 throw new ApiError(400, `The requested variant (Size: ${size || 'N/A'}, Color: ${color || 'N/A'}) is currently out of stock for product ${product.name}.`);
             }
 
-            // Calculate replacement unit price and delta (EX-02)
+            // Replacement line: current price of the requested variant with the replacement product's own GST
+            // rate and inclusive/exclusive setting. The original line is the order item as bought (its snapshot).
             const { price: replacementUnitPrice } = resolveVariantSelection(product, { ...requestedVariantObj, size, color });
-            const originalUnitPrice = Number(orderItemMatch?.price != null ? orderItemMatch.price : product.price);
-            const exchangedQty = Number(item.quantity || 1);
-            const priceDelta = parseFloat(((replacementUnitPrice - originalUnitPrice) * exchangedQty).toFixed(2));
-            const priceDeltaStatus = priceDelta === 0 ? 'waived' : 'pending';
-
-            exchangeDetails = {
-                requestedVariant: { ...requestedVariantObj, size, color, variantKey },
-                newProductPrice: replacementUnitPrice,
-                oldProductPrice: originalUnitPrice,
-                priceDelta,
-                priceDeltaStatus,
-            };
+            exchangeLines.push({
+                orderItem: orderItemMatch,
+                quantity: Number(item.quantity || 1),
+                replacement: { price: replacementUnitPrice, taxRate: product.taxRate, taxIncluded: product.taxIncluded },
+            });
+            exchangeVariant = { ...requestedVariantObj, size, color, variantKey };
         }
     }
 
@@ -1408,12 +1427,55 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
         }
     }
 
+    // Exchange price difference, GST included (approved rule 1): one canonical calculation for all exchanged
+    // lines, saved on the request. payment.controller charges exactly this priceDelta; screens display it.
+    if (requestType === 'exchange') {
+        const vendorDoc = await Vendor.findById(vendorId).select('address').lean();
+        let difference;
+        try {
+            difference = calculateExchangeDifference(exchangeLines, {
+                discountRatio,
+                supplierStateCode: stateCodeFromName(vendorDoc?.address?.state),
+                placeOfSupplyStateCode: stateCodeFromName(order.shippingAddress?.state),
+            });
+        } catch (err) {
+            throw new ApiError(400, `Exchange price could not be calculated: ${err.message}`);
+        }
+        const { priceDelta } = difference;
+
+        // An upgrade needs an online payment for the difference, which COD-only mode cannot take; refuse
+        // up front instead of creating an exchange that can never be dispatched.
+        if (priceDelta > 0 && isCodOnlyMode()) {
+            throw new ApiError(400, `This variant costs ₹${priceDelta} more (GST included). Online payment for the difference is temporarily unavailable, so this exchange can't be placed right now. Please choose a variant of the same or lower price, or request a return.`);
+        }
+
+        const single = difference.lines.length === 1 ? difference.lines[0] : null;
+        exchangeDetails = {
+            requestedVariant: exchangeVariant,
+            // Unit prices are only meaningful for a single-line exchange; multi-line detail is in calculationLines.
+            newProductPrice: single ? single.replacementUnitPrice : undefined,
+            oldProductPrice: single ? single.originalUnitPrice : undefined,
+            priceDelta,
+            priceDeltaStatus: priceDelta === 0 ? 'waived' : 'pending',
+            originalAmount: difference.originalTotal,
+            replacementAmount: difference.replacementTotal,
+            taxableDifference: difference.taxableDelta,
+            taxDifference: difference.taxDelta,
+            gstSplit: {
+                supplyType: difference.gstSplit.supplyType,
+                cgst: difference.gstSplit.cgst,
+                sgst: difference.gstSplit.sgst,
+                igst: difference.gstSplit.igst,
+            },
+            calculationLines: difference.lines.map((line) => ({ ...line, productId: String(line.productId) })),
+        };
+    }
+
+    // Refund = what the customer paid for the returned units, GST included (business decision, Nov 2026;
+    // previously GST was kept, unlike cancellations). Shipping is not refunded on returns.
     const refundAmount = normalizedItems.reduce((sum, item) => {
         const orderItem = vendorScopedItems.find((it) => String(it?.productId || '') === String(item.productId || ''));
-        const unitPrice = Number(orderItem?.price || 0);
-        const originalAmount = unitPrice * Number(item.quantity || 0);
-        const itemRefundAmount = originalAmount * (1 - discountRatio);
-        return sum + itemRefundAmount;
+        return sum + getReturnRefundForItem(orderItem, item.quantity, discountRatio);
     }, 0);
 
     if (returnReason === "Other") {
@@ -1425,103 +1487,49 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
         }
     }
 
+    // Return refunds go back the way the customer paid (business rule, Nov 2026): card/UPI orders to the
+    // same card/UPI through Razorpay, COD and wallet orders to the SafeFire wallet. COD customers are no
+    // longer asked for bank or UPI details, and any sent are ignored.
     let returnRefundDetails = undefined;
     if (requestType === 'return' && String(order.paymentMethod || '').toLowerCase() === 'cod') {
-        const refundMethod = String(req.body.refundMethod || '').trim().toLowerCase();
-        if (!refundMethod || !['bank', 'upi', 'wallet'].includes(refundMethod)) {
-            throw new ApiError(400, 'Refund method is required for Cash on Delivery returns.');
-        }
-
-        order.refundMethod = refundMethod;
-
-        if (refundMethod === 'wallet') {
-            order.bankDetails = undefined;
-            order.upiId = undefined;
-            returnRefundDetails = { method: 'wallet' };
-        } else if (refundMethod === 'upi') {
-            const rawUpi = String(req.body.upiId || '').trim();
-            const upiRegex = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
-            if (!rawUpi || !rawUpi.includes('@') || !upiRegex.test(rawUpi)) {
-                throw new ApiError(400, 'A valid UPI ID is required (e.g. username@bank).');
-            }
-            order.upiId = rawUpi;
-            order.bankDetails = undefined;
-            returnRefundDetails = { method: 'upi', upiId: rawUpi };
-        } else if (refundMethod === 'bank') {
-            let details = req.body.bankDetails || {};
-            if (typeof details === 'string') {
-                try {
-                    details = JSON.parse(details);
-                } catch (e) {
-                    throw new ApiError(400, 'Invalid bank details JSON format.');
-                }
-            }
-            if ((!details || typeof details !== 'object' || !details.accountHolder) && req.body.bankDetailsJson) {
-                try {
-                    details = JSON.parse(req.body.bankDetailsJson);
-                } catch (e) {
-                    throw new ApiError(400, 'Invalid bank details JSON format.');
-                }
-            }
-
-            const accountHolder = String(details?.accountHolder || '').trim();
-            const accountNumber = String(details?.accountNumber || '').trim();
-            const ifsc = String(details?.ifsc || '').trim().toUpperCase();
-            const bankName = String(details?.bankName || '').trim();
-
-            if (!accountHolder || accountHolder.length < 2 || accountHolder.length > 100) {
-                throw new ApiError(400, 'Account holder name is required (2 to 100 characters).');
-            }
-
-            if (!accountNumber || !/^\d{8,20}$/.test(accountNumber)) {
-                throw new ApiError(400, 'A valid bank account number is required (8 to 20 numeric digits).');
-            }
-
-            const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
-            if (!ifsc || !ifscRegex.test(ifsc)) {
-                throw new ApiError(400, 'A valid 11-character IFSC code is required (e.g. HDFC0001234).');
-            }
-
-            if (!bankName || bankName.length < 2 || bankName.length > 100) {
-                throw new ApiError(400, 'Bank name is required (2 to 100 characters).');
-            }
-
-            order.bankDetails = {
-                accountHolder,
-                accountNumber,
-                ifsc,
-                bankName
-            };
-            order.upiId = undefined;
-            returnRefundDetails = {
-                method: 'bank',
-                bankDetails: {
-                    accountHolder,
-                    accountNumber,
-                    ifsc,
-                    bankName
-                }
-            };
-        }
+        order.refundMethod = 'wallet';
+        order.bankDetails = undefined;
+        order.upiId = undefined;
+        returnRefundDetails = { method: 'wallet' };
         await order.save();
     }
 
-    const request = await ReturnRequest.create({
-        orderId: order._id,
-        userId: req.user.id,
-        vendorId,
-        items: normalizedItems,
-        requestType,
-        exchangeDetails,
-        evidenceImages,
-        returnReason,
-            customReason,
-        status: 'pending',
-        refundAmount: Number(refundAmount.toFixed(2)),
-        refundStatus: 'pending',
-        images: evidenceImages.map(img => img.url),
-        refundDetails: returnRefundDetails,
-    });
+    // Duplicate-safe create: concurrent submissions for the same order both write the order document inside
+    // their transaction, so one aborts with a write conflict and, on retry, finds the other's open request.
+    let request;
+    const createSession = await mongoose.startSession();
+    try {
+        await createSession.withTransaction(async () => {
+            await Order.updateOne({ _id: order._id }, { $set: { updatedAt: new Date() } }, { session: createSession, timestamps: false });
+            if (await ReturnRequest.exists(openRequestFilter).session(createSession)) {
+                throw new ApiError(409, 'An active return request already exists for this vendor in the selected order.');
+            }
+            [request] = await ReturnRequest.create([{
+                orderId: order._id,
+                userId: req.user.id,
+                vendorId,
+                originalShipmentId: shipments[0]?._id,
+                items: normalizedItems,
+                requestType,
+                exchangeDetails,
+                evidenceImages,
+                returnReason,
+                customReason,
+                status: 'pending',
+                refundAmount: Number(refundAmount.toFixed(2)),
+                refundStatus: 'pending',
+                images: evidenceImages.map(img => img.url),
+                refundDetails: returnRefundDetails,
+            }], { session: createSession });
+        });
+    } finally {
+        await createSession.endSession();
+    }
 
     const requestTypeLabel = requestType === 'exchange' ? 'exchange' : 'return';
     const itemsText = buildExchangeSummary(request);

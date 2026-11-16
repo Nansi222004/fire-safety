@@ -2,7 +2,7 @@ import asyncHandler from '../../../utils/asyncHandler.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
 import Settings from '../../../models/Settings.model.js';
-import { clearSettingsCache } from '../../../services/settingsService.js';
+import { clearSettingsCache, assertValidCommissionPercent, assertValidReturnWindowDays } from '../../../services/settingsService.js';
 
 // GET /api/admin/settings/:key
 export const getSettings = asyncHandler(async (req, res) => {
@@ -56,6 +56,19 @@ export const updateSettings = asyncHandler(async (req, res) => {
                 }
             }
         }
+    }
+
+    // Approved financial configuration: invalid values must never be saved (no silent fallbacks downstream).
+    if (key === 'general' && value && typeof value === 'object') {
+        if (value.defaultCommissionRate !== undefined) {
+            value.defaultCommissionRate = assertValidCommissionPercent(value.defaultCommissionRate);
+        }
+        if (value.returnWindow !== undefined && value.returnWindow !== null && value.returnWindow !== '') {
+            value.returnWindow = assertValidReturnWindowDays(value.returnWindow);
+        }
+    }
+    if (key === 'orders' && value && typeof value === 'object' && value.returnWindow !== undefined) {
+        value.returnWindow = assertValidReturnWindowDays(value.returnWindow);
     }
 
     if (key === 'general' && value && typeof value === 'object') {

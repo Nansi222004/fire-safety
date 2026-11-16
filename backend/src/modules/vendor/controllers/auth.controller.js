@@ -18,13 +18,14 @@ import {
     persistRefreshSession,
     rotateRefreshSession,
 } from '../../../services/refreshToken.service.js';
-import { isVendorApprovalRequired } from '../../../services/settingsService.js';
+import { isVendorApprovalRequired, getConfiguredDefaultCommissionRate } from '../../../services/settingsService.js';
 import { queueVendorShiprocketPickupSync, syncVendorShiprocketPickup } from '../../../services/shiprocketPickup.service.js';
 
 import VendorDocument from '../../../models/VendorDocument.model.js';
 import { cleanupLocalFiles, uploadLocalFileToCloudinaryAndCleanupWithType } from '../../../services/upload.service.js';
 import { isTestOtpAllowed, TEST_OTP } from '../../../config/otpConfig.js';
 import { isVendorWholesaleApproved } from '../../../services/wholesale.service.js';
+import { getCommissionRateSource } from '../../../services/commission.service.js';
 
 // Retail vendors and Wholesalers share these auth handlers but never each other's login.
 // Wholesaler routes set req.accountType = 'wholesaler'; the JWT role equals the account type.
@@ -450,7 +451,12 @@ export const logout = asyncHandler(async (req, res) => {
 export const getProfile = asyncHandler(async (req, res) => {
     const vendor = await Vendor.findById(req.user.id).select('-password -otp -otpExpiry +bankDetails.accountName +bankDetails.accountNumber +bankDetails.bankName +bankDetails.ifscCode +upiId +paypalEmail');
     if (!vendor) throw new ApiError(404, 'Vendor not found.');
-    res.status(200).json(new ApiResponse(200, vendor, 'Profile fetched.'));
+    // Effective commission for new orders (percent): own Admin-set rate, else the platform default.
+    const commissionRateSource = getCommissionRateSource(vendor);
+    const effectiveCommissionRate = commissionRateSource === 'vendor'
+        ? Number(vendor.commissionRate)
+        : await getConfiguredDefaultCommissionRate();
+    res.status(200).json(new ApiResponse(200, { ...vendor.toObject(), effectiveCommissionRate, commissionRateSource }, 'Profile fetched.'));
 });
 
 // PUT /api/vendor/auth/profile

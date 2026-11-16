@@ -33,6 +33,7 @@ import {
   EXCHANGE_TRANSITIONS
 } from "../../../../shared/constants/returnExchangeConfig";
 import { sellerPath } from "../../../../shared/utils/sellerPortal";
+import ExchangeGstBreakdown from "@shared/components/ExchangeGstBreakdown";
 
 const ReturnRequestDetail = () => {
   const navigate = useNavigate();
@@ -506,6 +507,7 @@ const ReturnRequestDetail = () => {
                     if (diff > 0) return <p className="font-semibold text-amber-800 bg-amber-50 p-2.5 rounded-lg border border-amber-150">Customer owes: {formatPrice(diff)}</p>;
                     return <p className="font-semibold text-green-800 bg-green-50 p-2.5 rounded-lg border border-green-150">Refund customer: {formatPrice(Math.abs(diff))}</p>;
                   })()}
+                  <ExchangeGstBreakdown exchangeDetails={returnRequest.exchangeDetails} format={formatPrice} />
                 </div>
               </div>
             </div>

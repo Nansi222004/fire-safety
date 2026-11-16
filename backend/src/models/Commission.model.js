@@ -25,7 +25,8 @@ const commissionSchema = new mongoose.Schema(
         walletCredit: { type: Number, default: 0 },
         escrowStatus: {
             type: String,
-            enum: ['held', 'processing', 'released', 'failed', 'refund_processing', 'refunded'],
+            // 'cancelled' is written when the order/package is cancelled before release
+            enum: ['held', 'processing', 'released', 'failed', 'refund_processing', 'refunded', 'cancelled'],
             default: 'held',
             index: true,
         },

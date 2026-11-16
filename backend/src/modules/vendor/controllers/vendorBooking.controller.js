@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import asyncHandler from '../../../utils/asyncHandler.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
@@ -10,9 +11,25 @@ import PaymentAttempt from '../../../models/PaymentAttempt.model.js';
 import ServiceCapacity from '../../../models/ServiceCapacity.model.js';
 import { emitToRoom } from '../../../services/socket.service.js';
 import { createNotification } from '../../../services/notification.service.js';
-import { getDefaultCommissionRate } from '../../../services/settingsService.js';
 import { creditWallet } from '../../../services/wallet.service.js';
 import { processRazorpayRefund } from '../../../services/payment.service.js';
+import { istNow, generateCompletionOtp, isCompletionOtpMatch, COMPLETION_OTP_MAX_ATTEMPTS } from '../../../services/serviceBookingFlow.service.js';
+import { resolveVendorCommissionRates } from '../../../services/commission.service.js';
+
+const notifyCustomerCompletionCode = async (booking, otp) => {
+    try {
+        await createNotification({
+            recipientId: booking.userId?._id || booking.userId,
+            recipientType: 'user',
+            title: 'Service Completion Code',
+            message: `Your completion code for booking #${booking.bookingId} is ${otp}. Share it with the technician only after the work is done to your satisfaction.`,
+            type: 'service',
+            data: { bookingId: String(booking._id), bookingNumber: booking.bookingId },
+        });
+    } catch (err) {
+        console.error('[VENDOR_BOOKING] Failed to send completion code notification:', err.message);
+    }
+};
 
 // Allowed State Machine Transitions map
 const ALLOWED_TRANSITIONS = {
@@ -125,7 +142,7 @@ export const getVendorBookingById = asyncHandler(async (req, res) => {
 export const updateBookingStatus = asyncHandler(async (req, res) => {
     const vendorId = req.vendor?._id || req.vendor?.id || req.user?.id || req.user?._id;
     const { id } = req.params;
-    const { status, cancellationReason, note } = req.body;
+    const { status, cancellationReason, note, completionOtp } = req.body;
 
     if (!status) {
         throw new ApiError(400, 'Target status is required.');
@@ -150,6 +167,18 @@ export const updateBookingStatus = asyncHandler(async (req, res) => {
         );
     }
 
+    // Work can't start or finish before the scheduled day. Completion also releases the vendor payout,
+    // so allowing it early let a job be marked done (and paid out) before it could have happened.
+    if (['in_progress', 'completed'].includes(targetStatus)) {
+        const scheduledDate = new Date(booking.bookingDate).toISOString().slice(0, 10); // stored as IST date at 00:00Z
+        if (istNow().dateStr < scheduledDate) {
+            throw new ApiError(
+                400,
+                `This booking is scheduled for ${scheduledDate}. It can be started or completed only on or after that date.`
+            );
+        }
+    }
+
     // 3. Check cancellation reason if target status is cancelled
     if (targetStatus === 'cancelled' && (!cancellationReason || !cancellationReason.trim())) {
         throw new ApiError(400, 'Cancellation reason is mandatory when cancelling a service booking.');
@@ -164,6 +193,45 @@ export const updateBookingStatus = asyncHandler(async (req, res) => {
             400,
             'Cannot advance an online service booking until payment has been successfully captured.'
         );
+    }
+
+    // Customer-confirmed completion. Starting the job issues a code that only the customer sees; completing
+    // it (which pays the vendor) requires that code, so a job can't be marked done without the customer.
+    let issuedCompletionOtp = null;
+    if (targetStatus === 'in_progress') {
+        issuedCompletionOtp = generateCompletionOtp();
+    }
+    if (targetStatus === 'completed') {
+        const reissueCode = async () => {
+            const otp = generateCompletionOtp();
+            await ServiceBooking.updateOne({ _id: booking._id }, { $set: { completionOtp: otp, completionOtpAttempts: 0 } });
+            await notifyCustomerCompletionCode(booking, otp);
+        };
+        const stored = await ServiceBooking.findById(booking._id).select('+completionOtp +completionOtpAttempts').lean();
+        if (!stored?.completionOtp) {
+            // Job was started before completion codes existed: issue one now.
+            await reissueCode();
+            throw new ApiError(400, 'A completion code has been sent to the customer. Ask them for it and enter it to complete the service.');
+        }
+        const enteredCode = String(completionOtp || '').trim();
+        if (!enteredCode) {
+            throw new ApiError(400, "Enter the completion code shown in the customer's SafeFire app.");
+        }
+        if ((stored.completionOtpAttempts || 0) >= COMPLETION_OTP_MAX_ATTEMPTS) {
+            await reissueCode();
+            throw new ApiError(429, 'Too many incorrect codes. A new completion code has been sent to the customer.');
+        }
+        if (!isCompletionOtpMatch(stored.completionOtp, enteredCode)) {
+            const after = await ServiceBooking.findByIdAndUpdate(
+                booking._id,
+                { $inc: { completionOtpAttempts: 1 } },
+                { new: true }
+            ).select('+completionOtpAttempts').lean();
+            const attemptsLeft = COMPLETION_OTP_MAX_ATTEMPTS - (after?.completionOtpAttempts || 0);
+            throw new ApiError(400, attemptsLeft > 0
+                ? `Incorrect completion code. ${attemptsLeft} attempt(s) left.`
+                : 'Incorrect completion code. A new code will be sent to the customer on the next attempt.');
+        }
     }
 
     // 4. Perform atomic update with concurrency protection
@@ -190,7 +258,14 @@ export const updateBookingStatus = asyncHandler(async (req, res) => {
         updatePayload.$set.cancelledAt = new Date();
     }
 
+    if (issuedCompletionOtp) {
+        updatePayload.$set.completionOtp = issuedCompletionOtp;
+        updatePayload.$set.completionOtpAttempts = 0;
+    }
+
     if (targetStatus === 'completed') {
+        updatePayload.$set.completionVerifiedAt = new Date();
+        updatePayload.$unset = { completionOtp: '', completionOtpAttempts: '' };
         updatePayload.$set.settlementStatus = 'settled';
         if (booking.paymentMethod === 'cod') {
             updatePayload.$set.paymentStatus = 'paid';
@@ -219,77 +294,92 @@ export const updateBookingStatus = asyncHandler(async (req, res) => {
         }
 
         const vendorDoc = await Vendor.findById(vendorId);
-        const defaultRate = await getDefaultCommissionRate();
-        const commissionRate = Number.isFinite(vendorDoc?.commissionRate) ? vendorDoc.commissionRate : defaultRate;
+        // Canonical rule: vendor's own rate, else Admin default (fails clearly if unset).
+        const commissionRate = (await resolveVendorCommissionRates([vendorDoc]))[String(vendorDoc._id)];
 
         const totalAmount = Number(booking.pricing?.total || 0);
-        const commissionAmount = parseFloat(((totalAmount * commissionRate) / 100).toFixed(2));
+        const serviceTax = Number(booking.pricing?.tax || 0);
+        // Commission is charged on the pre-GST amount (service subtotal + visit charge), the same rule as
+        // products (business decision, Nov 2026). GST is not platform revenue; the vendor keeps it to remit,
+        // so earnings = total paid − commission = pre-GST amount − commission + GST.
+        const commissionBase = parseFloat(Math.max(0, totalAmount - serviceTax).toFixed(2));
+        const commissionAmount = parseFloat(((commissionBase * commissionRate) / 100).toFixed(2));
         const vendorEarnings = parseFloat((totalAmount - commissionAmount).toFixed(2));
 
-        // Check idempotency: ensure commission doesn't already exist for this booking
-        const existingCommission = await Commission.findOne({ serviceBookingId: booking._id });
-        if (!existingCommission) {
-            await Commission.create({
-                serviceBookingId: booking._id,
-                sourceType: 'service',
-                vendorId,
-                vendorName: vendorDoc?.storeName || vendorDoc?.name || '',
-                subtotal: booking.pricing?.subtotal || totalAmount,
-                vendorSubtotal: booking.pricing?.subtotal || totalAmount,
-                commissionRate,
-                commission: commissionAmount,
-                commissionAmount,
-                vendorEarnings,
-                vendorNetEarnings: vendorEarnings,
-                escrowAmount: vendorEarnings,
-                status: 'paid',
-                settlementStatus: 'paid',
-                escrowStatus: 'released',
-                paidAt: new Date(),
-                releasedAt: new Date(),
+        // Commission, wallet movement and ledger entry are written in one transaction. Previously they ran
+        // one by one after the booking was already marked 'settled', so a failure part-way left a completed
+        // booking with no vendor payout and no way to retry; the ledger's before/after also came from a
+        // stale read instead of the actual update.
+        const walletDelta = isCod ? -commissionAmount : vendorEarnings;
+        let settledNow = false;
+        const settleSession = await mongoose.startSession();
+        try {
+            await settleSession.withTransaction(async () => {
+                // Check idempotency: ensure commission doesn't already exist for this booking
+                const existingCommission = await Commission.findOne({ serviceBookingId: booking._id }).session(settleSession);
+                if (existingCommission) return;
+
+                await Commission.create([{
+                    serviceBookingId: booking._id,
+                    sourceType: 'service',
+                    vendorId,
+                    vendorName: vendorDoc?.storeName || vendorDoc?.name || '',
+                    subtotal: booking.pricing?.subtotal || totalAmount,
+                    vendorSubtotal: booking.pricing?.subtotal || totalAmount,
+                    effectiveSubtotal: commissionBase,
+                    vendorDiscountedSubtotal: commissionBase,
+                    vendorTax: serviceTax,
+                    vendorTotalPaidByCustomer: totalAmount,
+                    commissionRate,
+                    commission: commissionAmount,
+                    commissionAmount,
+                    vendorEarnings,
+                    vendorNetEarnings: vendorEarnings,
+                    escrowAmount: vendorEarnings,
+                    status: 'paid',
+                    settlementStatus: 'paid',
+                    escrowStatus: 'released',
+                    paidAt: new Date(),
+                    releasedAt: new Date(),
+                }], { session: settleSession });
+
+                // COD: vendor collected cash on site, so the platform commission is deducted from the vendor wallet.
+                // Prepaid/Online/Wallet: platform collected the money, so vendor earnings are credited.
+                const updatedVendor = await Vendor.findByIdAndUpdate(
+                    vendorId,
+                    { $inc: { walletBalance: walletDelta } },
+                    { new: true, session: settleSession }
+                );
+                const walletAfter = parseFloat(Number(updatedVendor?.walletBalance || 0).toFixed(2));
+
+                await VendorWalletTransaction.create([{
+                    vendorId,
+                    type: 'SERVICE_SETTLEMENT',
+                    amount: walletDelta,
+                    grossAmount: totalAmount,
+                    commissionAmount,
+                    netAmount: walletDelta,
+                    relatedServiceBookingId: booking._id,
+                    referenceId: isCod ? `SERVICE_SETTLEMENT_COD_${booking._id}` : `SERVICE_SETTLEMENT_${booking._id}`,
+                    walletBalanceBefore: parseFloat((walletAfter - walletDelta).toFixed(2)),
+                    walletBalanceAfter: walletAfter,
+                    performedBy: { role: 'system', id: null },
+                    notes: isCod
+                        ? `Platform commission deduction for COD Service Booking #${booking.bookingId} (Gross: ₹${totalAmount}, Comm: ₹${commissionAmount})`
+                        : `Payout credited for completed Service Booking #${booking.bookingId} (Gross: ₹${totalAmount}, Net: ₹${vendorEarnings}, Comm: ₹${commissionAmount})`,
+                }], { session: settleSession });
+                settledNow = true;
             });
+        } catch (settleErr) {
+            // Leave the booking visibly unsettled so finance can see and settle it, instead of 'settled' with no payout.
+            await ServiceBooking.updateOne({ _id: booking._id }, { $set: { settlementStatus: 'unsettled' } });
+            console.error('[VENDOR_BOOKING] Settlement failed:', settleErr.message);
+            throw new ApiError(500, 'Service marked completed but settlement failed. Support has been notified; please contact support.');
+        } finally {
+            await settleSession.endSession();
+        }
 
-            if (isCod) {
-                // For COD, vendor collected cash on site; platform commission is deducted from vendor wallet
-                const walletBefore = vendorDoc?.walletBalance || 0;
-                const walletAfter = parseFloat((walletBefore - commissionAmount).toFixed(2));
-                await Vendor.findByIdAndUpdate(vendorId, { $inc: { walletBalance: -commissionAmount } });
-
-                await VendorWalletTransaction.create({
-                    vendorId,
-                    type: 'SERVICE_SETTLEMENT',
-                    amount: -commissionAmount,
-                    grossAmount: totalAmount,
-                    commissionAmount,
-                    netAmount: -commissionAmount,
-                    relatedServiceBookingId: booking._id,
-                    referenceId: `SERVICE_SETTLEMENT_COD_${booking._id}`,
-                    walletBalanceBefore: walletBefore,
-                    walletBalanceAfter: walletAfter,
-                    performedBy: { role: 'system', id: null },
-                    notes: `Platform commission deduction for COD Service Booking #${booking.bookingId} (Gross: ₹${totalAmount}, Comm: ₹${commissionAmount})`,
-                });
-            } else {
-                // For Prepaid/Online/Wallet, platform collected cash; vendor earnings credited to vendor wallet
-                const walletBefore = vendorDoc?.walletBalance || 0;
-                const walletAfter = parseFloat((walletBefore + vendorEarnings).toFixed(2));
-                await Vendor.findByIdAndUpdate(vendorId, { $inc: { walletBalance: vendorEarnings } });
-
-                await VendorWalletTransaction.create({
-                    vendorId,
-                    type: 'SERVICE_SETTLEMENT',
-                    amount: vendorEarnings,
-                    grossAmount: totalAmount,
-                    commissionAmount,
-                    netAmount: vendorEarnings,
-                    relatedServiceBookingId: booking._id,
-                    referenceId: `SERVICE_SETTLEMENT_${booking._id}`,
-                    walletBalanceBefore: walletBefore,
-                    walletBalanceAfter: walletAfter,
-                    performedBy: { role: 'system', id: null },
-                    notes: `Payout credited for completed Service Booking #${booking.bookingId} (Gross: ₹${totalAmount}, Net: ₹${vendorEarnings}, Comm: ₹${commissionAmount})`,
-                });
-            }
+        if (settledNow) {
 
             // Dispatch notification to Vendor for completion and settlement
             try {
@@ -443,7 +533,7 @@ export const updateBookingStatus = asyncHandler(async (req, res) => {
 
     const statusMessages = {
         confirmed: `Your booking #${updatedBooking.bookingId} for "${updatedBooking.serviceName}" has been confirmed by the vendor.`,
-        in_progress: `Technician has started work on your booking #${updatedBooking.bookingId}.`,
+        in_progress: `Technician has started work on your booking #${updatedBooking.bookingId}. Your completion code is ${issuedCompletionOtp} — share it with the technician only after the work is done to your satisfaction.`,
         completed: `Service for booking #${updatedBooking.bookingId} has been completed. Thank you!`,
         cancelled: `Booking #${updatedBooking.bookingId} was cancelled by vendor. Reason: ${cancellationReason}.${refundNotice}`,
     };

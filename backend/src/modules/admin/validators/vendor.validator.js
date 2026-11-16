@@ -26,7 +26,8 @@ export const vendorUpdateSchema = Joi.object({
 }).min(1);
 
 export const vendorCommissionUpdateSchema = Joi.object({
-    commissionRate: Joi.number().min(0).max(100).required(),
+    // Fraction 0–1 (e.g. 0.12 = 12%), or null to follow the platform default commission.
+    commissionRate: Joi.number().min(0).max(1).allow(null).required(),
 });
 
 export const vendorCommissionsQuerySchema = Joi.object({

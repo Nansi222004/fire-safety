@@ -279,7 +279,14 @@ const WalletHistory = () => {
                     <div>
                       <span className="font-bold text-slate-800 block">Order #{rel.orderId}</span>
                       <span className="text-[10px] text-amber-600 font-bold uppercase tracking-wider">
-                        Releases in {rel.daysRemaining} days
+                        {/* Backend canonical status + saved release date (delivery + return window). */}
+                        {rel.payoutStatus === 'eligible'
+                          ? 'Eligible · next payout run'
+                          : rel.releaseDate
+                            ? `Held until ${new Date(rel.releaseDate).toLocaleDateString()} (${rel.daysRemaining} day${rel.daysRemaining === 1 ? '' : 's'})`
+                            : rel.payoutReason === 'return_window_not_configured'
+                              ? 'Held · return window not configured'
+                              : 'Held · starts after delivery'}
                       </span>
                     </div>
                     <span className="font-bold text-slate-700 font-mono">

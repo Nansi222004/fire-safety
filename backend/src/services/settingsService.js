@@ -1,5 +1,6 @@
 import logger from '../utils/logger.js';
 import Settings from '../models/Settings.model.js';
+import ApiError from '../utils/ApiError.js';
 import { isCodOnlyMode } from '../config/paymentConfig.js';
 
 let settingsCache = {};
@@ -29,24 +30,54 @@ export const clearSettingsCache = () => {
     cacheExpiry = {};
 };
 
+// ─── Approved financial configuration (docs/SAFEFIRE_APPROVED_FINANCIAL_RULES.md) ───────────────────────────
+// No hardcoded financial fallbacks: when Admin has not configured a value, money-moving code fails clearly
+// (or, for payouts, keeps funds held) instead of silently using 10% commission or a 7-day hold.
+
+const toCommissionPercent = (value) => {
+    if (value === null || value === undefined || value === '') return null;
+    const rate = Number(value);
+    return Number.isFinite(rate) && rate >= 0 && rate <= 100 ? rate : null;
+};
+
+const toReturnWindowDays = (value) => {
+    if (value === null || value === undefined || value === '') return null;
+    const days = Number(value);
+    return Number.isInteger(days) && days >= 0 && days <= 365 ? days : null;
+};
+
+export const MAX_RETURN_WINDOW_DAYS = 365;
+
+/** Admin-configured platform default commission (percent, 0–100), or null when not configured/invalid. */
+export const getConfiguredDefaultCommissionRate = async () => {
+    const general = await getCachedSettings('general', {});
+    return toCommissionPercent(general?.defaultCommissionRate);
+};
+
 /**
- * Retrieve the default platform commission rate configured in the admin dashboard settings.
- * Returns the configured rate as a number, or 10 as a default fallback.
- * @returns {Promise<number>}
+ * Platform default commission (percent) for vendors without their own rate.
+ * Throws 503 when Admin has not configured it — never falls back to a hardcoded rate.
  */
 export const getDefaultCommissionRate = async () => {
-    try {
-        const value = await getCachedSettings('general', {});
-        if (value && value.defaultCommissionRate !== undefined) {
-            const rate = Number(value.defaultCommissionRate);
-            if (Number.isFinite(rate)) {
-                return rate;
-            }
-        }
-    } catch (err) {
-        logger.error('Error fetching default commission rate:', err);
+    const rate = await getConfiguredDefaultCommissionRate();
+    if (rate === null) {
+        throw new ApiError(503, 'The platform default commission rate is not configured. An admin must set it in Settings → Vendors before this action can be completed.');
     }
-    return 10; // Default fallback
+    return rate;
+};
+
+/** Validates an Admin-entered commission percentage; throws 400 when invalid. */
+export const assertValidCommissionPercent = (value, label = 'Default commission rate') => {
+    const rate = toCommissionPercent(value);
+    if (rate === null) throw new ApiError(400, `${label} must be a number from 0 to 100.`);
+    return rate;
+};
+
+/** Validates an Admin-entered return window (whole days, 0–365); throws 400 when invalid. */
+export const assertValidReturnWindowDays = (value) => {
+    const days = toReturnWindowDays(value);
+    if (days === null) throw new ApiError(400, `Return window must be a whole number of days from 0 to ${MAX_RETURN_WINDOW_DAYS}.`);
+    return days;
 };
 
 /**
@@ -166,30 +197,28 @@ export const getPlatformShippingDefaults = async () => {
     };
 };
 
+/** Admin-configured return window in days (orders.returnWindow, then general.returnWindow), or null. */
+export const getConfiguredReturnWindowDays = async () => {
+    const orderSettings = await getCachedSettings('orders', {});
+    const fromOrders = toReturnWindowDays(orderSettings?.returnWindow);
+    if (fromOrders !== null) return fromOrders;
+    const general = await getCachedSettings('general', {});
+    return toReturnWindowDays(general?.returnWindow);
+};
+
 /**
- * Retrieve the configured return/exchange window in days (default: 7 days)
- * @returns {Promise<number>}
+ * Return window in days. Canonical for return eligibility AND the vendor payout hold (approved rule 3).
+ * Throws 503 when Admin has not configured it — never falls back to a hardcoded 7 days.
  */
 export const getReturnWindowDays = async () => {
-    try {
-        const orderSettings = await getCachedSettings('orders', {});
-        if (orderSettings && orderSettings.returnWindow !== undefined) {
-            const days = Number(orderSettings.returnWindow);
-            if (Number.isFinite(days) && days > 0) {
-                return days;
-            }
-        }
-        const general = await getCachedSettings('general', {});
-        if (general && general.returnWindow !== undefined) {
-            const days = Number(general.returnWindow);
-            if (Number.isFinite(days) && days > 0) {
-                return days;
-            }
-        }
-    } catch (err) {
-        logger.error('Error fetching return window setting:', err);
+    const days = await getConfiguredReturnWindowDays();
+    if (days === null) {
+        throw new ApiError(503, 'The return window is not configured. An admin must set it in Settings → Orders.');
     }
-    return 7;
+    return days;
 };
+
+/** Vendor payout hold = the configured return window (approved rule 3). Null when not configured. */
+export const getPayoutHoldDays = getConfiguredReturnWindowDays;
 
 

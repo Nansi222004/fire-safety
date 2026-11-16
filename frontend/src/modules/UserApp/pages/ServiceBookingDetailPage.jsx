@@ -355,6 +355,21 @@ const ServiceBookingDetailPage = () => {
                     </div>
                   </div>
 
+                  {/* Completion code: the technician needs it to mark the job done */}
+                  {booking.status === "in_progress" && booking.completionOtp && (
+                    <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="space-y-0.5">
+                        <h4 className="text-xs font-bold text-emerald-900">Service completion code</h4>
+                        <p className="text-[11px] text-emerald-800">
+                          Share this code with the technician only after the work is done to your satisfaction.
+                        </p>
+                      </div>
+                      <span className="self-start sm:self-auto text-2xl font-black tracking-[0.35em] text-emerald-900 bg-white border border-emerald-200 rounded-xl px-4 py-2">
+                        {booking.completionOtp}
+                      </span>
+                    </div>
+                  )}
+
                   {/* Status Timeline Progress Bar */}
                   {booking.status !== "cancelled" ? (
                     <div className="py-2">
@@ -404,7 +419,9 @@ const ServiceBookingDetailPage = () => {
                         </p>
                         {booking.paymentStatus === "refunded" && (
                           <p className="text-emerald-700 font-bold text-[11px] pt-1">
-                            ✓ Payment of ₹{booking.pricing?.total || 0} has been refunded to your SafeFire Wallet.
+                            {booking.paymentMethod === "wallet"
+                              ? `✓ Payment of ₹${booking.pricing?.total || 0} has been refunded to your SafeFire Wallet.`
+                              : `✓ Refund of ₹${booking.pricing?.total || 0} has been initiated to your original payment method.`}
                           </p>
                         )}
                       </div>
@@ -558,6 +575,13 @@ const ServiceBookingDetailPage = () => {
                       <span>Subtotal:</span>
                       <span className="font-bold text-slate-800">₹{booking.pricing?.subtotal || booking.pricing?.total || 0}</span>
                     </div>
+
+                    {booking.pricing?.visitCharge > 0 && (
+                      <div className="flex justify-between text-slate-600">
+                        <span>Visit Charge:</span>
+                        <span className="font-bold text-slate-800">₹{booking.pricing.visitCharge}</span>
+                      </div>
+                    )}
 
                     {booking.pricing?.tax > 0 && (
                       <div className="flex justify-between text-slate-600">

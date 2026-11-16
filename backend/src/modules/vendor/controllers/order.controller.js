@@ -18,13 +18,15 @@ import {
     ASSIGNMENT_ERROR_MESSAGES,
 } from '../../../services/assignmentService.js';
 import { notifyOrderUpdate } from '../../../services/socket.service.js';
-import { getDefaultCommissionRate, getDeliveryRoutingSettings } from '../../../services/settingsService.js';
+import { getDeliveryRoutingSettings, getConfiguredReturnWindowDays } from '../../../services/settingsService.js';
 import { processCancellationRefund } from '../../../services/cancellationRefundService.js';
 import { ensureDeliveryOtpForShipment } from '../../../services/deliveryOtp.service.js';
 import { createShiprocketShipmentOrFallback } from '../../../services/shiprocketShipment.service.js';
 import { resolveShiprocketPickupLocation, evaluateDeliveryRouting } from '../../../services/deliveryRouting.service.js';
 import Vendor from '../../../models/Vendor.model.js';
 import { buildVendorItemsSummary } from '../../../utils/notificationProductFormatter.js';
+import { getVendorGroupPayable } from '../../../services/financial.service.js';
+import { getPayoutEligibility } from '../../../services/orderFinancialHelper.js';
 
 // GET /api/vendor/delivery-partners/available?shipmentId=  (shipment must belong to the vendor)
 export const getAvailableDeliveryPartners = asyncHandler(async (req, res) => {
@@ -238,7 +240,6 @@ export const getVendorOrders = asyncHandler(async (req, res) => {
         vendorId: req.user.id
     }).lean();
 
-    const defaultRate = await getDefaultCommissionRate();
     const ordersWithCommissions = orders.map(order => {
         const comm = commissions.find(c => String(c.orderId) === String(order._id));
         const filteredItems = (order.items || []).filter(item => String(item.vendorId) === String(req.user.id));
@@ -264,16 +265,17 @@ export const getVendorOrders = asyncHandler(async (req, res) => {
         const vDiscount = vi.discount || 0;
         const vTax = vi.tax || 0;
         const vShipping = vi.shipping || 0;
-        const vCommissionRate = vi.commissionRate !== undefined && vi.commissionRate !== null ? vi.commissionRate : defaultRate;
+        const vCommissionRate = vi.commissionRate; // snapshot taken at checkout
         
         const commSubtotal = comm ? (comm.vendorSubtotal || comm.subtotal || vSubtotal) : vSubtotal;
         const commDiscount = comm ? (comm.vendorCouponDiscount !== undefined ? comm.vendorCouponDiscount : comm.discountShare || vDiscount) : vDiscount;
         const commDiscountedSub = comm ? (comm.vendorDiscountedSubtotal !== undefined ? comm.vendorDiscountedSubtotal : comm.effectiveSubtotal || (commSubtotal - commDiscount)) : (commSubtotal - commDiscount);
         const commTax = comm ? (comm.vendorTax || vTax) : vTax;
-        const commPaidAmount = comm ? (comm.vendorTotalPaidByCustomer || (commDiscountedSub + vShipping + commTax)) : (commDiscountedSub + vShipping + commTax);
+        // Fallback uses the shared package-payable rule (the old formula added GST twice for tax-inclusive items).
+        const commPaidAmount = comm?.vendorTotalPaidByCustomer || getVendorGroupPayable(vi);
         const commRate = comm ? comm.commissionRate : vCommissionRate;
-        const commAmount = comm ? (comm.commissionAmount !== undefined ? comm.commissionAmount : comm.commission) : parseFloat((commDiscountedSub * commRate / 100).toFixed(2));
-        const commEarnings = comm ? (comm.vendorNetEarnings !== undefined ? comm.vendorNetEarnings : comm.vendorEarnings) : parseFloat((commDiscountedSub - commAmount).toFixed(2));
+        const commAmount = comm ? (comm.commissionAmount !== undefined ? comm.commissionAmount : comm.commission) : Number(vi.commissionAmount || 0);
+        const commEarnings = comm ? (comm.vendorNetEarnings !== undefined ? comm.vendorNetEarnings : comm.vendorEarnings) : Number(vi.vendorEarnings || 0);
         const escrowStatus = comm ? (comm.escrowStatus || 'held') : 'held';
         const settlementStatus = comm ? (comm.settlementStatus || comm.status || 'pending') : 'pending';
 
@@ -332,7 +334,6 @@ export const getVendorOrderById = asyncHandler(async (req, res) => {
         vendorId: req.user.id
     }).lean();
 
-    const defaultRate = await getDefaultCommissionRate();
     const orderObj = order.toObject({ virtuals: true });
     const comm = commissionDoc;
     const filteredItems = (orderObj.items || []).filter(item => String(item.vendorId) === String(req.user.id));
@@ -380,16 +381,17 @@ export const getVendorOrderById = asyncHandler(async (req, res) => {
     const vDiscount = vi.discount || 0;
     const vTax = vi.tax || 0;
     const vShipping = vi.shipping || 0;
-    const vCommissionRate = vi.commissionRate !== undefined && vi.commissionRate !== null ? vi.commissionRate : defaultRate;
+    const vCommissionRate = vi.commissionRate; // snapshot taken at checkout
     
     const commSubtotal = comm ? (comm.vendorSubtotal || comm.subtotal || vSubtotal) : vSubtotal;
     const commDiscount = comm ? (comm.vendorCouponDiscount !== undefined ? comm.vendorCouponDiscount : comm.discountShare || vDiscount) : vDiscount;
     const commDiscountedSub = comm ? (comm.vendorDiscountedSubtotal !== undefined ? comm.vendorDiscountedSubtotal : comm.effectiveSubtotal || (commSubtotal - commDiscount)) : (commSubtotal - commDiscount);
     const commTax = comm ? (comm.vendorTax || vTax) : vTax;
-    const commPaidAmount = comm ? (comm.vendorTotalPaidByCustomer || (commDiscountedSub + vShipping + commTax)) : (commDiscountedSub + vShipping + commTax);
+    // Fallback uses the shared package-payable rule (the old formula added GST twice for tax-inclusive items).
+        const commPaidAmount = comm?.vendorTotalPaidByCustomer || getVendorGroupPayable(vi);
     const commRate = comm ? comm.commissionRate : vCommissionRate;
-    const commAmount = comm ? (comm.commissionAmount !== undefined ? comm.commissionAmount : comm.commission) : parseFloat((commDiscountedSub * commRate / 100).toFixed(2));
-    const commEarnings = comm ? (comm.vendorNetEarnings !== undefined ? comm.vendorNetEarnings : comm.vendorEarnings) : parseFloat((commDiscountedSub - commAmount).toFixed(2));
+    const commAmount = comm ? (comm.commissionAmount !== undefined ? comm.commissionAmount : comm.commission) : Number(vi.commissionAmount || 0);
+    const commEarnings = comm ? (comm.vendorNetEarnings !== undefined ? comm.vendorNetEarnings : comm.vendorEarnings) : Number(vi.vendorEarnings || 0);
     const escrowStatus = comm ? (comm.escrowStatus || 'held') : 'held';
     const settlementStatus = comm ? (comm.settlementStatus || comm.status || 'pending') : 'pending';
 
@@ -413,7 +415,11 @@ export const getVendorOrderById = asyncHandler(async (req, res) => {
         commission: parseFloat(commAmount.toFixed(2)),
         earnings: parseFloat(commEarnings.toFixed(2)),
         escrowStatus,
-        settlementStatus
+        settlementStatus,
+        // Commission rate saved at checkout (percent); null when no snapshot exists. Never a default.
+        commissionRate: commRate !== undefined && commRate !== null ? Number(commRate) : null,
+        // Canonical payout status/date (approved rule 3): the saved release date, not recomputed.
+        payout: getPayoutEligibility(comm, { returnWindowConfigured: (await getConfiguredReturnWindowDays()) !== null }),
     };
 
     res.status(200).json(new ApiResponse(200, orderObj, 'Order fetched.'));

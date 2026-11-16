@@ -223,9 +223,6 @@ const WholesalerRegister = () => {
               <input type="password" className={inputClass} value={formData.confirmPassword} onChange={(e) => setField("confirmPassword", e.target.value)} required />
             </Field>
           </div>
-          <p className="text-[11px] text-[#64748B] leading-relaxed">
-            Once approved, use the same email and password on the SafeFire app to buy from other wholesalers.
-          </p>
         </section>
 
         <button type="submit" disabled={isLoading} className={primaryButtonClass}>

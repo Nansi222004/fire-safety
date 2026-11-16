@@ -65,24 +65,28 @@ const ProfitLoss = () => {
 
   const financials = useMemo(() => {
     const list = Array.isArray(financialSummary) ? financialSummary : [];
-    const revenue = list.reduce((sum, item) => sum + (item.revenue || 0), 0);
-    const totalTax = list.reduce((sum, item) => sum + (item.tax || 0), 0);
-    const totalDelivery = list.reduce((sum, item) => sum + (item.delivery || 0), 0);
-    const totalDiscount = list.reduce((sum, item) => sum + (item.discount || 0), 0);
-    const grossProfit = revenue - totalDiscount;
-    const totalExpenses = totalTax + totalDelivery + totalDiscount;
-    const netProfit = revenue - totalExpenses;
-    const profitMargin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
+    const sum = (field) => list.reduce((total, item) => total + (Number(item[field]) || 0), 0);
+    // Customer payments (GMV) already exclude coupon discounts; subtracting the discount again double-counted it.
+    const revenue = sum("revenue");
+    const totalTax = sum("tax");
+    const totalDelivery = sum("delivery");
+    const totalDiscount = sum("discount");
+    // Most of each payment belongs to the vendor (their earnings include the GST they remit). The platform's
+    // own income is its commission plus the shipping it charges (it pays the courier/rider from that).
+    const vendorPayouts = sum("vendorPayouts");
+    const commission = sum("commission");
+    const platformRevenue = commission + totalDelivery;
+    const platformMargin = revenue > 0 ? (platformRevenue / revenue) * 100 : 0;
 
     return {
       revenue,
       totalTax,
       totalDelivery,
       totalDiscount,
-      totalExpenses,
-      grossProfit,
-      netProfit,
-      profitMargin,
+      vendorPayouts,
+      commission,
+      platformRevenue,
+      platformMargin,
     };
   }, [financialSummary]);
 
@@ -123,44 +127,44 @@ const ProfitLoss = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <h3 className="text-lg font-bold text-gray-800 mb-4">Income</h3>
+          <h3 className="text-lg font-bold text-gray-800 mb-4">Customer Payments</h3>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-gray-600">Total Revenue</span>
-              <span className="font-bold text-green-600">
+              <span className="text-gray-600">Total paid by customers (GMV)</span>
+              <span className="font-bold text-gray-800">
                 {formatPrice(financials.revenue)}
               </span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-500">Includes GST collected</span>
+              <span className="text-gray-600">{formatPrice(financials.totalTax)}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-500">Coupon discounts given (already excluded)</span>
+              <span className="text-gray-600">{formatPrice(financials.totalDiscount)}</span>
             </div>
           </div>
         </div>
 
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <h3 className="text-lg font-bold text-gray-800 mb-4">Deductions</h3>
+          <h3 className="text-lg font-bold text-gray-800 mb-4">Where It Goes</h3>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-gray-600">Discount</span>
+              <span className="text-gray-600">Owed to vendors (incl. GST they remit)</span>
               <span className="font-bold text-red-600">
-                {formatPrice(financials.totalDiscount)}
+                {formatPrice(financials.vendorPayouts)}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-gray-600">Tax</span>
-              <span className="font-bold text-red-600">
-                {formatPrice(financials.totalTax)}
+              <span className="text-gray-600">Platform commission</span>
+              <span className="font-bold text-green-600">
+                {formatPrice(financials.commission)}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-gray-600">Shipping</span>
-              <span className="font-bold text-red-600">
+              <span className="text-gray-600">Shipping charged to customers</span>
+              <span className="font-bold text-green-600">
                 {formatPrice(financials.totalDelivery)}
-              </span>
-            </div>
-            <div className="border-t border-gray-200 pt-4 flex items-center justify-between">
-              <span className="font-semibold text-gray-800">
-                Total Deductions
-              </span>
-              <span className="font-bold text-red-600">
-                {formatPrice(financials.totalExpenses)}
               </span>
             </div>
           </div>
@@ -170,29 +174,31 @@ const ProfitLoss = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-gray-600">Gross Profit</p>
+            <p className="text-sm text-gray-600">Platform Revenue</p>
             <FiTrendingUp className="text-green-600" />
           </div>
           <p className="text-2xl font-bold text-green-600">
-            {formatPrice(financials.grossProfit)}
+            {formatPrice(financials.platformRevenue)}
           </p>
+          <p className="text-[11px] text-gray-500 mt-1">Commission + shipping charged</p>
         </div>
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-gray-600">Net Profit</p>
+            <p className="text-sm text-gray-600">Commission Only</p>
             <FiDollarSign className="text-blue-600" />
           </div>
           <p className="text-2xl font-bold text-gray-800">
-            {formatPrice(financials.netProfit)}
+            {formatPrice(financials.commission)}
           </p>
+          <p className="text-[11px] text-gray-500 mt-1">Delivery costs (riders, courier) are not deducted here</p>
         </div>
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-gray-600">Profit Margin</p>
+            <p className="text-sm text-gray-600">Platform Share of GMV</p>
             <FiTrendingDown className="text-purple-600" />
           </div>
           <p className="text-2xl font-bold text-gray-800">
-            {financials.profitMargin.toFixed(2)}%
+            {financials.platformMargin.toFixed(2)}%
           </p>
         </div>
       </div>

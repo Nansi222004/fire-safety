@@ -11,6 +11,7 @@ import { motion } from "framer-motion";
 import { formatPrice } from "../../../../shared/utils/helpers";
 import { useVendorStore } from "../../store/vendorStore";
 import { getAllOrders } from "../../services/adminService";
+import { isRevenueOrder, getVendorNetSales, getVendorPackageEarnings } from "../../../../shared/utils/vendorFinance";
 
 const VendorAnalytics = () => {
   const navigate = useNavigate();
@@ -49,6 +50,7 @@ const VendorAnalytics = () => {
     return approvedVendors
       .map((vendor) => {
         const vendorOrders = orders.filter((order) => {
+          if (!isRevenueOrder(order)) return false;
           if (order.vendorItems && Array.isArray(order.vendorItems)) {
             return order.vendorItems.some((vi) =>
               isSameVendorId(vi.vendorId, vendor.id)
@@ -61,14 +63,20 @@ const VendorAnalytics = () => {
           const vendorItem = order.vendorItems?.find(
             (vi) => isSameVendorId(vi.vendorId, vendor.id)
           );
-          return sum + (vendorItem?.subtotal || 0);
+          return sum + getVendorNetSales(vendorItem);
+        }, 0);
+        const totalEarnings = vendorOrders.reduce((sum, order) => {
+          const vendorItem = order.vendorItems?.find(
+            (vi) => isSameVendorId(vi.vendorId, vendor.id)
+          );
+          return sum + getVendorPackageEarnings(vendorItem);
         }, 0);
 
         return {
           ...vendor,
           totalOrders: vendorOrders.length,
           totalRevenue,
-          totalEarnings: totalRevenue,
+          totalEarnings,
           pendingEarnings: 0,
           paidEarnings: 0,
         };

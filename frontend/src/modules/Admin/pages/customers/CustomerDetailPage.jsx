@@ -21,6 +21,7 @@ import { formatDateTime } from '../../utils/adminHelpers';
 import { getCustomerOrders } from '../../services/adminService';
 
 import toast from 'react-hot-toast';
+import { isRevenueOrder } from "../../../../shared/utils/vendorFinance";
 
 const CustomerDetailPage = () => {
   const { id } = useParams();
@@ -340,25 +341,12 @@ const CustomerDetailPage = () => {
       label: 'Phone',
       sortable: true,
     },
-    {
-      key: 'actions',
-      label: 'Actions',
-      sortable: false,
-      render: (_, row) => (
-        <div className="flex items-center gap-2">
-          <button
-            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-            title="Edit"
-          >
-            <FiEdit />
-          </button>
-        </div>
-      ),
-    },
+    // The "Edit" action was removed: it had no handler and there is no admin address-update endpoint.
   ];
 
+  // Only orders the customer actually paid for and kept (not unpaid, failed, cancelled or returned).
   const totalSpent = orders.reduce((sum, order) => {
-    if (order.status !== 'cancelled') {
+    if (isRevenueOrder(order)) {
       return sum + (order.total || 0);
     }
     return sum;

@@ -100,6 +100,17 @@ const startServer = async () => {
       console.error("📦 Failed to init gift card expiry cron:", err.message);
     }
 
+    // Expire unpaid online service bookings so abandoned checkouts don't hold capacity slots forever
+    try {
+      const { expireUnpaidServiceBookings } = await import("./cron/serviceBookingCron.js");
+      expireUnpaidServiceBookings().catch(err => console.error("Service booking expiry scan error:", err));
+      setInterval(() => {
+        expireUnpaidServiceBookings().catch(err => console.error("Service booking expiry scan error:", err));
+      }, 5 * 60 * 1000);
+    } catch (err) {
+      console.error("📦 Failed to init service booking expiry cron:", err.message);
+    }
+
     if (!httpServer.listening) {
       httpServer.listen(PORT, () => {
         console.log(`Server running on http://localhost:${PORT}`);

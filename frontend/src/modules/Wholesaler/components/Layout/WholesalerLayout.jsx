@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Outlet, NavLink, Link, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { FiMenu, FiX, FiBell, FiLogOut, FiBriefcase, FiArrowLeft } from "react-icons/fi";
+import { FiMenu, FiX, FiBell, FiLogOut, FiBriefcase, FiArrowLeft, FiTrash2 } from "react-icons/fi";
+import DeleteAccountModal from "../DeleteAccountModal";
 import toast from "react-hot-toast";
 import { useWholesalerAuthStore } from "../../store/wholesalerAuthStore";
 import { getWholesalerProfile } from "../../services/wholesalerService";
@@ -48,7 +49,7 @@ const navLinkClass = ({ isActive }) =>
     isActive ? "bg-[#FEF2F2] text-[#C8191E] font-semibold" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
   }`;
 
-const SidebarContent = ({ wholesaler, onNavigate, onLogout }) => (
+const SidebarContent = ({ wholesaler, onNavigate, onLogout, onDeleteAccount }) => (
   <div className="flex flex-col h-full">
     <div className="px-5 py-4 border-b border-slate-100">
       <Link to="/wholesaler/dashboard" onClick={onNavigate} className="flex items-center gap-2.5">
@@ -83,7 +84,7 @@ const SidebarContent = ({ wholesaler, onNavigate, onLogout }) => (
     </nav>
 
     {onLogout && (
-      <div className="border-t border-slate-100 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="border-t border-slate-100 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] space-y-1.5">
         <button
           type="button"
           onClick={onLogout}
@@ -91,6 +92,15 @@ const SidebarContent = ({ wholesaler, onNavigate, onLogout }) => (
         >
           <FiLogOut /> Logout
         </button>
+        {onDeleteAccount && (
+          <button
+            type="button"
+            onClick={onDeleteAccount}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-red-50 hover:bg-red-100 active:bg-red-100 text-red-600 border border-red-200 rounded-xl text-xs font-bold"
+          >
+            <FiTrash2 className="text-sm" /> Delete Account
+          </button>
+        )}
       </div>
     )}
   </div>
@@ -98,6 +108,7 @@ const SidebarContent = ({ wholesaler, onNavigate, onLogout }) => (
 
 const WholesalerLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { vendor: wholesaler, token, syncVendor, logout } = useWholesalerAuthStore();
@@ -173,10 +184,10 @@ const WholesalerLayout = () => {
   const showTabs = !screen.focus;
 
   return (
-    <div className="min-h-[100dvh] bg-slate-50 flex [-webkit-tap-highlight-color:transparent]">
+    <div className="no-pinch-zoom min-h-[100dvh] bg-slate-50 flex [-webkit-tap-highlight-color:transparent]">
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex lg:flex-col fixed inset-y-0 left-0 w-64 bg-white border-r border-slate-200 z-30">
-        <SidebarContent wholesaler={wholesaler} />
+        <SidebarContent wholesaler={wholesaler} onLogout={handleLogout} onDeleteAccount={() => setShowDeleteModal(true)} />
       </aside>
 
       {/* Mobile / tablet drawer */}
@@ -211,7 +222,15 @@ const WholesalerLayout = () => {
               >
                 <FiX />
               </button>
-              <SidebarContent wholesaler={wholesaler} onNavigate={() => setSidebarOpen(false)} onLogout={handleLogout} />
+              <SidebarContent
+                wholesaler={wholesaler}
+                onNavigate={() => setSidebarOpen(false)}
+                onLogout={handleLogout}
+                onDeleteAccount={() => {
+                  setSidebarOpen(false);
+                  setShowDeleteModal(true);
+                }}
+              />
             </motion.aside>
           </>
         )}
@@ -304,6 +323,8 @@ const WholesalerLayout = () => {
           </div>
         </nav>
       )}
+
+      <DeleteAccountModal open={showDeleteModal} onClose={() => setShowDeleteModal(false)} />
     </div>
   );
 };

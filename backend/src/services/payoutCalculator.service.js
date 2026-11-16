@@ -173,16 +173,20 @@ const calculatePayout = async ({ distanceKm, vehicleType, deliveredAt }) => {
     const dist     = Math.max(Number(distanceKm) || 0, 0);
     const vType    = vehicleType || 'all';
     const delAt    = deliveredAt instanceof Date ? deliveredAt : new Date(deliveredAt || Date.now());
-    const delHour  = delAt.getHours(); // 0–23 in LOCAL server time
+    // Hour of delivery in IST (UTC+5:30), the platform's business time zone, as used for service slots.
+    // getHours() used the server's own zone, so on a UTC host night/peak windows were shifted by 5h30.
+    const delHour  = new Date(delAt.getTime() + 5.5 * 60 * 60 * 1000).getUTCHours();
 
     // ── Config Resolution ──────────────────────────────────────────────────────
     const { config, source } = await resolveRateConfig(vType, delAt);
 
     // ── Base Pay ───────────────────────────────────────────────────────────────
-    const basePay         = Number(config.basePayAmount) || 50;
-    const baseDistanceKm  = Number(config.baseDistanceKm) || 5;
-    const perKmRate       = Number(config.perKmRate) || 5;
-    const maximumPayAmount= Number(config.maximumPayAmount) || 500;
+    // A configured 0 is a real setting (e.g. no free-distance allowance); only missing values fall back.
+    const configNumber    = (value, fallback) => (Number.isFinite(Number(value)) && value !== null && value !== '' ? Number(value) : fallback);
+    const basePay         = configNumber(config.basePayAmount, 50);
+    const baseDistanceKm  = configNumber(config.baseDistanceKm, 5);
+    const perKmRate       = configNumber(config.perKmRate, 5);
+    const maximumPayAmount= Number(config.maximumPayAmount) > 0 ? Number(config.maximumPayAmount) : 500;
 
     const extraDistanceKm  = Math.max(0, dist - baseDistanceKm);
     const extraDistancePay = parseFloat((extraDistanceKm * perKmRate).toFixed(2));

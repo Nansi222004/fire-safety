@@ -8,6 +8,8 @@ import ServiceBooking from '../models/ServiceBooking.model.js';
 import { createNotification } from './notification.service.js';
 import ApiError from '../utils/ApiError.js';
 
+const roundExpr = (expr) => ({ $round: [expr, 2] });
+
 /**
  * Ensures a wallet exists for the user. Creates it if missing.
  */
@@ -84,23 +86,25 @@ export const creditWallet = async (userId, amount, transactionType, details = {}
         }
     }
 
-    let wallet = await UserWallet.findOne({ userId }).session(session);
-    if (!wallet) {
-        wallet = await createWalletIfMissing(userId, session);
-    }
+    const existingWallet = await createWalletIfMissing(userId, session);
 
-    const balanceBefore = wallet.balance;
-    const balanceAfter = Number((balanceBefore + amount).toFixed(2));
-
-    wallet.balance = balanceAfter;
-    wallet.totalCredits = Number((wallet.totalCredits + amount).toFixed(2));
-    
-    // If transaction is cashback, also add to cashbackBalance
-    if (transactionType === 'cashback') {
-        wallet.cashbackBalance = Number((wallet.cashbackBalance + amount).toFixed(2));
-    }
-    
-    await wallet.save({ session });
+    // Single atomic update: a read-then-save here could overwrite a concurrent debit or credit.
+    const wallet = await UserWallet.findOneAndUpdate(
+        { _id: existingWallet._id },
+        [{
+            $set: {
+                balance: roundExpr({ $add: ['$balance', amount] }),
+                totalCredits: roundExpr({ $add: ['$totalCredits', amount] }),
+                // If transaction is cashback, also add to cashbackBalance
+                cashbackBalance: transactionType === 'cashback'
+                    ? roundExpr({ $add: ['$cashbackBalance', amount] })
+                    : '$cashbackBalance',
+            },
+        }],
+        { new: true, session }
+    );
+    const balanceAfter = wallet.balance;
+    const balanceBefore = Number((balanceAfter - amount).toFixed(2));
 
     const [transaction] = await WalletTransaction.create(
         [{
@@ -235,36 +239,36 @@ export const debitWallet = async (userId, amount, transactionType, details = {},
         }
     }
 
-    let wallet = await UserWallet.findOne({ userId }).session(session);
+    const existingWallet = await createWalletIfMissing(userId, session);
+    const isPurchase = transactionType === 'wallet_payment' || transactionType === 'purchase';
+
+    // 2 + 3. The active-wallet check and zero-balance floor are part of the update filter, so two concurrent
+    // debits cannot both pass a stale balance check and spend the same money twice.
+    const wallet = await UserWallet.findOneAndUpdate(
+        { _id: existingWallet._id, status: { $ne: 'locked' }, balance: { $gte: amount } },
+        [{
+            $set: {
+                balance: roundExpr({ $subtract: ['$balance', amount] }),
+                totalDebits: roundExpr({ $add: ['$totalDebits', amount] }),
+                // Deduct cashbackBalance first if payment, then remaining from standard balance
+                cashbackBalance: isPurchase
+                    ? roundExpr({ $max: [0, { $subtract: ['$cashbackBalance', amount] }] })
+                    : '$cashbackBalance',
+            },
+        }],
+        { new: true, session }
+    );
+
     if (!wallet) {
-        wallet = await createWalletIfMissing(userId, session);
-    }
-
-    // 2. Verify wallet is active. Locked wallets block debits/payments
-    if (wallet.status === 'locked') {
-        throw new ApiError(403, "Your wallet is temporarily locked. Wallet balance cannot be used for purchases at the moment. Any eligible refunds will still be credited to your wallet.");
-    }
-
-    // 3. Enforce zero balance floor
-    const balanceBefore = wallet.balance;
-    if (balanceBefore < amount) {
+        const current = await UserWallet.findById(existingWallet._id).session(session).lean();
+        if (current?.status === 'locked') {
+            throw new ApiError(403, "Your wallet is temporarily locked. Wallet balance cannot be used for purchases at the moment. Any eligible refunds will still be credited to your wallet.");
+        }
         throw new ApiError(400, 'Insufficient wallet balance');
     }
 
-    const balanceAfter = Number((balanceBefore - amount).toFixed(2));
-
-    wallet.balance = balanceAfter;
-    wallet.totalDebits = Number((wallet.totalDebits + amount).toFixed(2));
-    
-    // Deduct cashbackBalance first if payment, then remaining from standard balance
-    if (transactionType === 'wallet_payment' || transactionType === 'purchase') {
-        if (wallet.cashbackBalance > 0) {
-            const cashbackDeducted = Math.min(wallet.cashbackBalance, amount);
-            wallet.cashbackBalance = Number((wallet.cashbackBalance - cashbackDeducted).toFixed(2));
-        }
-    }
-
-    await wallet.save({ session });
+    const balanceAfter = wallet.balance;
+    const balanceBefore = Number((balanceAfter + amount).toFixed(2));
 
     const [transaction] = await WalletTransaction.create(
         [{

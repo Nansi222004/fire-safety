@@ -30,7 +30,9 @@ const vendorSchema = new mongoose.Schema(
             index: true,
         },
         suspensionReason: { type: String },
-        commissionRate: { type: Number, default: 10, min: 0, max: 100 },
+        // Vendor-specific commission (percent) set by Admin. null = use the Admin-configured platform default
+        // (approved rule 2). No schema default: a hardcoded 10% here silently overrode the platform setting.
+        commissionRate: { type: Number, default: null, min: 0, max: 100 },
         isVerified: { type: Boolean, default: false },
         rating: { type: Number, default: 0 },
         reviewCount: { type: Number, default: 0 },

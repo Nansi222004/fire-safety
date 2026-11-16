@@ -26,6 +26,9 @@ const VendorServiceBookingModal = ({ booking, onClose, onStatusUpdated, onNotesU
   const [updating, setUpdating] = useState(false);
   const [cancellationReason, setCancellationReason] = useState('');
   const [showCancelPrompt, setShowCancelPrompt] = useState(false);
+  // Completing a job needs the code shown in the customer's app (it releases the vendor payout).
+  const [showCompletePrompt, setShowCompletePrompt] = useState(false);
+  const [completionCode, setCompletionCode] = useState('');
   const [vendorNotesInput, setVendorNotesInput] = useState(booking?.vendorNotes || '');
   const [savingNotes, setSavingNotes] = useState(false);
 
@@ -33,11 +36,13 @@ const VendorServiceBookingModal = ({ booking, onClose, onStatusUpdated, onNotesU
 
   const currentStatus = String(booking.status || 'pending').toLowerCase();
 
-  const handleStatusChange = async (targetStatus, reason = '') => {
+  const handleStatusChange = async (targetStatus, reason = '', extra = {}) => {
     setUpdating(true);
     try {
-      await onStatusUpdated(booking._id, targetStatus, reason);
+      await onStatusUpdated(booking._id, targetStatus, reason, extra);
       setShowCancelPrompt(false);
+      setShowCompletePrompt(false);
+      setCompletionCode('');
     } catch (err) {
       toast.error(err?.response?.data?.message || err?.message || 'Failed to update status.');
     } finally {
@@ -377,7 +382,40 @@ const VendorServiceBookingModal = ({ booking, onClose, onStatusUpdated, onNotesU
 
         {/* Modal Action Footer */}
         <div className="p-4 sm:p-5 bg-white border-t border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          {showCancelPrompt ? (
+          {showCompletePrompt ? (
+            <div className="w-full flex flex-col gap-2">
+              <p className="text-[11px] text-slate-600">
+                Ask the customer for the 4-digit completion code shown in their SafeFire app for this booking.
+              </p>
+              <div className="w-full flex flex-col sm:flex-row items-center gap-2">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={4}
+                  value={completionCode}
+                  onChange={(e) => setCompletionCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  placeholder="Enter completion code"
+                  className="w-full sm:flex-1 text-sm tracking-[0.3em] px-3.5 py-2.5 border border-emerald-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-emerald-50/30"
+                />
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <button
+                    onClick={() => handleStatusChange('completed', '', { completionOtp: completionCode })}
+                    disabled={updating || completionCode.length !== 4}
+                    className="flex-1 sm:flex-none px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50 cursor-pointer shadow-xs"
+                  >
+                    {updating ? 'Verifying...' : 'Verify & Complete'}
+                  </button>
+                  <button
+                    onClick={() => { setShowCompletePrompt(false); setCompletionCode(''); }}
+                    className="flex-1 sm:flex-none px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all cursor-pointer"
+                  >
+                    Back
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : showCancelPrompt ? (
             <div className="w-full flex flex-col sm:flex-row items-center gap-2">
               <input
                 type="text"
@@ -455,7 +493,7 @@ const VendorServiceBookingModal = ({ booking, onClose, onStatusUpdated, onNotesU
                 {currentStatus === 'in_progress' && (
                   <>
                     <button
-                      onClick={() => handleStatusChange('completed')}
+                      onClick={() => setShowCompletePrompt(true)}
                       disabled={updating}
                       className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-50"
                     >

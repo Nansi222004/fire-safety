@@ -30,7 +30,8 @@ import Badge from "../../../../shared/components/Badge";
 import DataTable from "../../components/DataTable";
 import { formatPrice } from "../../../../shared/utils/helpers";
 // import { formatDateTime } from '../../../utils/adminHelpers';
-import toast from "react-hot-toast";
+import toast from "react-hot-toast";
+import { formatCommissionRate, commissionRateInputValue } from "../../../../shared/utils/vendorFinance";
 
 const VendorDetail = () => {
   const { id } = useParams();
@@ -79,7 +80,7 @@ const VendorDetail = () => {
       const data = await getVendor(id);
       if (data) {
         setVendor(data);
-        setCommissionRate(((data.commissionRate || 0) * 100).toFixed(1));
+        setCommissionRate(commissionRateInputValue(data.commissionRate));
 
         // 2. Fetch Vendor Orders (all pages)
         try {
@@ -711,7 +712,7 @@ const VendorDetail = () => {
                         Commission Rate
                       </p>
                       <p className="text-2xl font-bold text-purple-800">
-                        {((vendor.commissionRate || 0) * 100).toFixed(1)}%
+                        {formatCommissionRate(vendor.commissionRate, vendor.commissionRateSource)}
                       </p>
                     </div>
                   </div>
@@ -1270,9 +1271,7 @@ const VendorDetail = () => {
                       <button
                         onClick={() => {
                           setIsEditingCommission(false);
-                          setCommissionRate(
-                            ((vendor.commissionRate || 0) * 100).toFixed(1)
-                          );
+                          setCommissionRate(commissionRateInputValue(vendor.commissionRate));
                         }}
                         className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
                         Cancel
@@ -1281,7 +1280,7 @@ const VendorDetail = () => {
                   ) : (
                     <>
                       <p className="text-2xl font-bold text-gray-800">
-                        {((vendor.commissionRate || 0) * 100).toFixed(1)}%
+                        {formatCommissionRate(vendor.commissionRate, vendor.commissionRateSource)}
                       </p>
                       <button
                         onClick={() => setIsEditingCommission(true)}

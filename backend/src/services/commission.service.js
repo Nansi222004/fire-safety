@@ -2,6 +2,41 @@ import Commission from '../models/Commission.model.js';
 import Vendor from '../models/Vendor.model.js';
 import { getDefaultCommissionRate } from './settingsService.js';
 
+const ownRatePercent = (vendor) => {
+    const value = vendor?.commissionRate;
+    if (value === null || value === undefined || value === '') return null;
+    const rate = Number(value);
+    return Number.isFinite(rate) && rate >= 0 && rate <= 100 ? rate : null;
+};
+
+/**
+ * Canonical commission-rate rule (approved rule 2): a vendor's own Admin-set rate when present, otherwise the
+ * Admin-configured platform default. There is no hardcoded rate: if a vendor has no own rate and the platform
+ * default is not configured, getDefaultCommissionRate throws a clear 503 instead of guessing.
+ * The resolved rate is snapshotted on each order/commission, so later changes never touch history.
+ *
+ * @param {Array<{_id, commissionRate}>} vendors
+ * @returns {Promise<Record<string, number>>} percent by vendor id
+ */
+export const resolveVendorCommissionRates = async (vendors = []) => {
+    const rates = {};
+    const needDefault = [];
+    for (const vendor of vendors) {
+        const id = String(vendor?._id || vendor?.id || '');
+        const own = ownRatePercent(vendor);
+        if (own !== null) rates[id] = own;
+        else needDefault.push(id);
+    }
+    if (needDefault.length) {
+        const platformDefault = await getDefaultCommissionRate();
+        for (const id of needDefault) rates[id] = platformDefault;
+    }
+    return rates;
+};
+
+/** Which rule supplied a vendor's rate, for display: 'vendor' (own rate) or 'platform_default'. */
+export const getCommissionRateSource = (vendor) => (ownRatePercent(vendor) !== null ? 'vendor' : 'platform_default');
+
 /**
  * Calculate commission for a vendor order item group.
  * 4.2 — Unified with financial.service.js logic:
@@ -18,8 +53,7 @@ export const calculateCommission = async (vendorId, subtotal, taxRate = 18, taxI
     const vendor = await Vendor.findById(vendorId).select('commissionRate');
     if (!vendor) throw new Error(`Vendor not found: ${vendorId}`);
 
-    const defaultRate = await getDefaultCommissionRate();
-    const commissionRate = vendor.commissionRate !== undefined && vendor.commissionRate !== null ? vendor.commissionRate : defaultRate;
+    const commissionRate = (await resolveVendorCommissionRates([vendor]))[String(vendor._id)];
 
     // If precalculated base is provided, use it directly (target architecture snapshot base)
     const commissionBase = precalculatedBase !== null && precalculatedBase !== undefined

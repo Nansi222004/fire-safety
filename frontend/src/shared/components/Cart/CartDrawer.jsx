@@ -272,7 +272,17 @@ const CartDrawer = () => {
                           </div>
                           <div className="flex items-center justify-between text-gray-700">
                             <span>Coupon savings</span>
-                            <button type="button" className="text-sky-500 font-medium">Apply coupon</button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                // Coupons are entered and validated on the checkout page.
+                                toggleCart();
+                                navigate("/checkout");
+                              }}
+                              className="text-sky-500 font-medium"
+                            >
+                              Apply coupon
+                            </button>
                           </div>
                           <div className="flex items-center justify-between text-gray-700">
                             <div className="flex items-center gap-2">

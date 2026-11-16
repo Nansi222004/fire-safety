@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
-import { FiSave, FiFileText, FiCreditCard } from "react-icons/fi";
+import { FiSave, FiFileText, FiCreditCard, FiTrash2 } from "react-icons/fi";
 import { useWholesalerAuthStore } from "../store/wholesalerAuthStore";
+import DeleteAccountModal from "../components/DeleteAccountModal";
 import { getWholesalerProfile } from "../services/wholesalerService";
 
 const inputClass =
@@ -35,6 +36,7 @@ const WholesalerProfile = () => {
   const { updateProfile, isLoading } = useWholesalerAuthStore();
   const [profile, setProfile] = useState(null);
   const [form, setForm] = useState(toForm(null));
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
     getWholesalerProfile()
@@ -146,6 +148,24 @@ const WholesalerProfile = () => {
           </button>
         </div>
       </form>
+
+      <div className="bg-white rounded-xl border border-red-200 shadow-sm p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-bold text-red-700">Delete Account</h2>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Permanently delete your wholesaler account and business profile. Not possible while orders are still active.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowDeleteModal(true)}
+          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg text-sm font-semibold shrink-0"
+        >
+          <FiTrash2 /> Delete Account
+        </button>
+      </div>
+
+      <DeleteAccountModal open={showDeleteModal} onClose={() => setShowDeleteModal(false)} />
     </motion.div>
   );
 };

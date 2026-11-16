@@ -441,6 +441,15 @@ const DeliveryOrderDetail = () => {
               <span className="font-bold text-gray-800">Total</span>
               <span className="font-bold text-primary-600 text-lg">{formatPrice(order.total)}</span>
             </div>
+            {/* COD: on multi-vendor orders each package collects only its own share of the order total */}
+            {["cod", "cash"].includes(String(order.paymentMethod || "").toLowerCase()) && (
+              <div className="pt-2 flex items-center justify-between">
+                <span className="font-bold text-amber-700">Cash to collect (this package)</span>
+                <span className="font-black text-amber-700 text-lg">
+                  {formatPrice(order._shipment?.codAmount ?? order.total)}
+                </span>
+              </div>
+            )}
           </div>
         </motion.div>
 

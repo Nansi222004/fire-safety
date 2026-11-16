@@ -180,7 +180,8 @@ const AppBootstrap = () => {
           const list = Array.isArray(payload?.products)
             ? payload.products.map(normalizeProduct)
             : [];
-          if (list.length) {
+          // Always store the live result (even an empty catalog) so removed products don't linger in the cache.
+          if (Array.isArray(payload?.products)) {
             localStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify(list));
             updated = true;
           }
@@ -210,7 +211,7 @@ const AppBootstrap = () => {
           window.dispatchEvent(new Event("catalog-cache-updated"));
         }
       } catch {
-        // Keep static fallback silently.
+        // Keep the last cached catalog (if any) silently.
       }
     };
 

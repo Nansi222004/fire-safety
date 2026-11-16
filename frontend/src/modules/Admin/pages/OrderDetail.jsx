@@ -25,6 +25,7 @@ import { getSocket, joinRoom, leaveRoom } from '../../../shared/utils/socket';
 import toast from 'react-hot-toast';
 import ManualDeliveryAssignment from '../../../shared/components/Delivery/ManualDeliveryAssignment';
 import DeliveryMethodSelector from '../../../shared/components/Delivery/DeliveryMethodSelector';
+import { getOrderPriceBreakdown } from "../../../shared/utils/orderFinance";
 
 const ORDER_PRODUCT_PLACEHOLDER = getPlaceholderImage(100, 100, 'Product');
 
@@ -153,10 +154,10 @@ const OrderDetail = () => {
   const itemsArray = Array.isArray(order.items) ? order.items : [];
 
   // Calculate order breakdown
-  const subtotal = order.subtotal ?? (order.total * 0.95);
-  const shipping = order.shipping ?? (order.total * 0.05);
-  const tax = order.tax ?? 0;
-  const discount = order.discount ?? 0;
+  // Shared breakdown from the item snapshots (no more invented 95% / 5% split when a field was missing).
+  const priceBreakdown = getOrderPriceBreakdown(order);
+  const { subtotal, shipping, discount } = priceBreakdown;
+  const tax = priceBreakdown.taxAdded;
 
   // Get payment method display name
   const getPaymentMethodName = (method) => {
@@ -472,6 +473,18 @@ const OrderDetail = () => {
                 <span className="text-gray-600">Shipping</span>
                 <span className="font-semibold">{formatCurrency(shipping)}</span>
               </div>
+              {priceBreakdown.taxIncludedInPrice > 0 && (
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>GST included in item prices</span>
+                  <span>{formatCurrency(priceBreakdown.taxIncludedInPrice)}</span>
+                </div>
+              )}
+              {priceBreakdown.rounding !== 0 && (
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>Rounding</span>
+                  <span>{formatCurrency(priceBreakdown.rounding)}</span>
+                </div>
+              )}
               <div className="border-t border-gray-200 pt-2 mt-2 flex justify-between">
                 <span className="font-bold text-gray-800">Total</span>
                 <span className="font-bold text-lg text-gray-800">{formatCurrency(order.total)}</span>

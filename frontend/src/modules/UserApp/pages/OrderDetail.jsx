@@ -33,6 +33,7 @@ import LazyImage from "../../../shared/components/LazyImage";
 import VariantSelector from "../../../shared/components/Product/VariantSelector";
 import api from "../../../shared/utils/api";
 import PackageCard from "../components/Mobile/PackageCard";
+import { getOrderPriceBreakdown } from "../../../shared/utils/orderFinance";
 const RETURN_REASONS = [
   "Wrong Size",
   "Wrong Color",
@@ -74,29 +75,6 @@ const MobileOrderDetail = () => {
   const [evidencePreviews, setEvidencePreviews] = useState([]);
   const [isRetryingPayment, setIsRetryingPayment] = useState(false);
 
-  // COD Refund Destination State
-  const [refundMethod, setRefundMethod] = useState("");
-  const [upiId, setUpiId] = useState("");
-  const [bankDetails, setBankDetails] = useState({
-    accountHolder: "",
-    accountNumber: "",
-    confirmAccountNumber: "",
-    ifsc: "",
-    bankName: "",
-  });
-
-  const resetRefundInputs = () => {
-    setRefundMethod("");
-    setUpiId("");
-    setBankDetails({
-      accountHolder: "",
-      accountNumber: "",
-      confirmAccountNumber: "",
-      ifsc: "",
-      bankName: "",
-    });
-  };
-
   // Cancellation Modal State (handles both full order and vendor package cancellations)
   const [cancelModalTarget, setCancelModalTarget] = useState(null); // 'order' or vendorGroup object
   const [cancelReason, setCancelReason] = useState("Ordered by mistake");
@@ -128,7 +106,7 @@ const MobileOrderDetail = () => {
   ];
 
   const handleCancel = () => {
-    if (!['pending', 'processing', 'payment_pending'].includes(order?.status)) {
+    if (!['pending', 'processing', 'payment_pending', 'payment_failed'].includes(order?.status)) {
       toast.error("This order cannot be cancelled at this stage.");
       return;
     }
@@ -180,6 +158,8 @@ const MobileOrderDetail = () => {
     }
   };
   const order = getOrder(orderId);
+  // Subtotal / discount / tax / shipping lines that always add up to the charged total (shared with admin views).
+  const priceBreakdown = order ? getOrderPriceBreakdown(order) : null;
   const [selectedItems, setSelectedItems] = useState({});
 
   const allOrderItems = useMemo(() => {
@@ -258,12 +238,16 @@ const MobileOrderDetail = () => {
   const hasPendingOrCompletedReturn =
     Array.isArray(order?.returnRequests) &&
     order.returnRequests.some((req) => !["rejected"].includes(req.status));
-  const hasSevenDaysPassed = useMemo(() => {
-    if (!order?.deliveredAt) return false;
-    const deliveredTime = new Date(order.deliveredAt).getTime();
-    const timeLimit = 7 * 24 * 60 * 60 * 1000;
-    return Date.now() - deliveredTime > timeLimit;
-  }, [order?.deliveredAt]);
+  // Return window comes from the backend (Admin setting, same rule the return endpoint enforces); no local 7-day
+  // assumption. Not configured → returns are unavailable (the server would refuse them).
+  const returnWindow = order?.returnWindow || null;
+  const returnWindowConfigured = Boolean(returnWindow?.configured);
+  const returnWindowClosed = !returnWindowConfigured || Boolean(returnWindow?.expired);
+  const returnWindowLabel = !returnWindowConfigured
+    ? "Return window not available"
+    : returnWindow.expired
+      ? `Return window closed (${returnWindow.days} days after delivery)`
+      : `🛡️ Covered by ${returnWindow.days}-day return policy${returnWindow.expiresAt ? ` · until ${new Date(returnWindow.expiresAt).toLocaleDateString()}` : ""}`;
   const vendorOptions = Array.isArray(order?.vendorItems)
     ? order.vendorItems
       .map((group) => ({
@@ -583,7 +567,6 @@ const MobileOrderDetail = () => {
 
   const resetReturnModal = () => {
     setRequestType("return");
-    resetRefundInputs();
     setExchangeVariants({});
     setReturnReason(RETURN_REASONS[0]);
     setCustomReason("");
@@ -680,56 +663,6 @@ const MobileOrderDetail = () => {
     }
 
     const isCodOrder = String(order?.paymentMethod || "").toLowerCase() === "cod";
-    if (requestType === "return" && isCodOrder) {
-      if (!refundMethod) {
-        toast.error("Refund method is required for Cash on Delivery returns.");
-        return;
-      }
-      if (!["wallet", "upi", "bank"].includes(refundMethod)) {
-        toast.error("Invalid refund method selected.");
-        return;
-      }
-      if (refundMethod === "upi") {
-        const trimmedUpi = upiId.trim();
-        if (!trimmedUpi) {
-          toast.error("Please enter your UPI ID.");
-          return;
-        }
-        const upiRegex = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
-        if (!trimmedUpi.includes("@") || !upiRegex.test(trimmedUpi)) {
-          toast.error("Please enter a valid UPI ID (e.g. username@bank).");
-          return;
-        }
-      } else if (refundMethod === "bank") {
-        const accountHolder = bankDetails.accountHolder.trim();
-        const accountNumber = bankDetails.accountNumber.trim();
-        const confirmAccountNumber = bankDetails.confirmAccountNumber.trim();
-        const ifsc = bankDetails.ifsc.trim().toUpperCase();
-        const bankName = bankDetails.bankName.trim();
-
-        if (!accountHolder || accountHolder.length < 2 || accountHolder.length > 100) {
-          toast.error("Please enter account holder name (2 to 100 characters).");
-          return;
-        }
-        if (!accountNumber || !/^\d{8,20}$/.test(accountNumber)) {
-          toast.error("Account number must be between 8 and 20 numeric digits.");
-          return;
-        }
-        if (accountNumber !== confirmAccountNumber) {
-          toast.error("Account number and confirm account number do not match.");
-          return;
-        }
-        const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
-        if (!ifsc || !ifscRegex.test(ifsc)) {
-          toast.error("Please enter a valid 11-character IFSC code (e.g. HDFC0001234).");
-          return;
-        }
-        if (!bankName || bankName.length < 2 || bankName.length > 100) {
-          toast.error("Please enter bank name (2 to 100 characters).");
-          return;
-        }
-      }
-    }
 
     const itemsByVendor = {};
     checkedItemsList.forEach((item) => {
@@ -765,19 +698,8 @@ const MobileOrderDetail = () => {
             );
             formData.append("exchangeVariantJson", JSON.stringify(variant));
           } else if (requestType === "return" && isCodOrder) {
-            formData.append("refundMethod", refundMethod);
-            if (refundMethod === "upi") {
-              formData.append("upiId", upiId.trim());
-            } else if (refundMethod === "bank") {
-              const bankPayload = {
-                accountHolder: bankDetails.accountHolder.trim(),
-                accountNumber: bankDetails.accountNumber.trim(),
-                ifsc: bankDetails.ifsc.trim().toUpperCase(),
-                bankName: bankDetails.bankName.trim(),
-              };
-              formData.append("bankDetailsJson", JSON.stringify(bankPayload));
-              formData.append("bankDetails", JSON.stringify(bankPayload));
-            }
+            // COD returns are always refunded to the SafeFire wallet.
+            formData.append("refundMethod", "wallet");
           }
 
           evidenceFiles.forEach((file) => {
@@ -1231,22 +1153,34 @@ const MobileOrderDetail = () => {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between text-gray-600">
                     <span>Subtotal</span>
-                    <span>{formatPrice(order.subtotal)}</span>
+                    <span>{formatPrice(priceBreakdown.subtotal)}</span>
                   </div>
-                  {order.discount > 0 && (
+                  {priceBreakdown.discount > 0 && (
                     <div className="flex justify-between text-green-600">
                       <span>Discount</span>
-                      <span>-{formatPrice(order.discount)}</span>
+                      <span>-{formatPrice(priceBreakdown.discount)}</span>
                     </div>
                   )}
                   <div className="flex justify-between text-gray-600">
                     <span>Shipping</span>
-                    <span>{formatPrice(order.shipping)}</span>
+                    <span>{formatPrice(priceBreakdown.shipping)}</span>
                   </div>
                   <div className="flex justify-between text-gray-600">
                     <span>Tax</span>
-                    <span>{formatPrice(order.tax)}</span>
+                    <span>{formatPrice(priceBreakdown.taxAdded)}</span>
                   </div>
+                  {priceBreakdown.taxIncludedInPrice > 0 && (
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>GST included in item prices</span>
+                      <span>{formatPrice(priceBreakdown.taxIncludedInPrice)}</span>
+                    </div>
+                  )}
+                  {priceBreakdown.rounding !== 0 && (
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Rounding</span>
+                      <span>{priceBreakdown.rounding > 0 ? "+" : "-"}{formatPrice(Math.abs(priceBreakdown.rounding))}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-lg font-bold text-gray-800 pt-2 border-t border-gray-200">
                     <span>Total</span>
                     <span className="text-primary-600">
@@ -1281,7 +1215,7 @@ const MobileOrderDetail = () => {
                   {Array.isArray(order.returnRequests) && order.returnRequests.some(r => r.status === 'completed' && r.requestType !== 'exchange') && (
                     <div className="flex justify-between text-xs text-green-700 font-black pt-2 border-t border-dashed border-gray-200 uppercase tracking-wide">
                       <span>Refund Method</span>
-                      <span>Wallet Credit</span>
+                      <span>{["cod", "cash", "wallet"].includes(String(order.paymentMethod || "").toLowerCase()) ? "Wallet Credit" : "Original Payment Method"}</span>
                     </div>
                   )}
                 </div>
@@ -1299,7 +1233,7 @@ const MobileOrderDetail = () => {
                     {isRetryingPayment ? 'Opening Payment...' : 'Complete Payment (Pay Now)'}
                   </button>
                 )}
-                {['pending', 'processing', 'payment_pending'].includes(order.status) && (
+                {['pending', 'processing', 'payment_pending', 'payment_failed'].includes(order.status) && (
                   <button
                     onClick={handleCancel}
                     className="w-full py-3 bg-red-50 text-red-600 rounded-xl font-semibold hover:bg-red-100 transition-colors"
@@ -1316,14 +1250,14 @@ const MobileOrderDetail = () => {
                   Reorder
                 </button>
                 {order.status === 'delivered' && (
-                  <div className={`w-full py-2.5 px-4 rounded-xl border text-center font-bold text-[11px] uppercase tracking-wider ${hasSevenDaysPassed
+                  <div className={`w-full py-2.5 px-4 rounded-xl border text-center font-bold text-[11px] uppercase tracking-wider ${returnWindowClosed
                       ? 'bg-red-50/50 border-red-100 text-red-600'
                       : 'bg-green-50/50 border-green-100 text-green-700'
                     }`}>
-                    {hasSevenDaysPassed ? "Return policy expired (7 days elapsed)" : "🛡️ Covered by 7-Day Return Policy"}
+                    {returnWindowLabel}
                   </div>
                 )}
-                {order.status === 'delivered' && !hasPendingOrCompletedReturn && !hasSevenDaysPassed && !['returned', 'refunded', 'return_in_progress', 'exchange_in_progress'].includes(order.status) ? (
+                {order.status === 'delivered' && !hasPendingOrCompletedReturn && !returnWindowClosed && !['returned', 'refunded', 'return_in_progress', 'exchange_in_progress'].includes(order.status) ? (
                   <button
                     onClick={openReturnModal}
                     className="w-full py-3 bg-amber-50 text-amber-700 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-amber-100 transition-colors"
@@ -1479,7 +1413,6 @@ const MobileOrderDetail = () => {
                           type="button"
                           onClick={() => {
                             setRequestType("exchange");
-                            resetRefundInputs();
                           }}
                           className={`py-2 rounded-lg text-xs font-bold transition-all ${requestType === "exchange"
                               ? "bg-white text-slate-800 shadow-sm border border-slate-100"
@@ -1704,160 +1637,15 @@ const MobileOrderDetail = () => {
                       </div>
                     )}
 
-                    {/* COD Refund Destination Selector (Shown only for COD returns) */}
-                    {requestType === "return" && String(order?.paymentMethod || "").toLowerCase() === "cod" && (
-                      <div className="space-y-3 p-3.5 bg-amber-50/50 border border-amber-200 rounded-2xl animate-fadeIn">
-                        <div>
-                          <label className="block text-xs font-bold text-gray-800 uppercase tracking-wider mb-1">
-                            Refund Destination <span className="text-red-500">*</span>
-                          </label>
-                          <p className="text-[11px] text-gray-600 mb-2.5">
-                            Because this order was paid via Cash on Delivery, please select where your refund should be sent:
-                          </p>
-                          <div className="grid grid-cols-3 gap-2">
-                            <button
-                              type="button"
-                              onClick={() => setRefundMethod("wallet")}
-                              className={`p-2.5 rounded-xl border flex flex-col items-center justify-center text-center transition-all ${
-                                refundMethod === "wallet"
-                                  ? "bg-amber-600 text-white border-amber-700 shadow-sm font-bold"
-                                  : "bg-white text-gray-700 border-gray-200 hover:border-amber-300 font-medium"
-                              }`}
-                            >
-                              <span className="text-xs">SafeFire Wallet</span>
-                              <span className={`text-[10px] mt-0.5 ${refundMethod === "wallet" ? "text-amber-100" : "text-emerald-600 font-semibold"}`}>
-                                Instant Credit
-                              </span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => setRefundMethod("upi")}
-                              className={`p-2.5 rounded-xl border flex flex-col items-center justify-center text-center transition-all ${
-                                refundMethod === "upi"
-                                  ? "bg-amber-600 text-white border-amber-700 shadow-sm font-bold"
-                                  : "bg-white text-gray-700 border-gray-200 hover:border-amber-300 font-medium"
-                              }`}
-                            >
-                              <span className="text-xs">UPI Transfer</span>
-                              <span className={`text-[10px] mt-0.5 ${refundMethod === "upi" ? "text-amber-100" : "text-gray-400"}`}>
-                                Direct to UPI ID
-                              </span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => setRefundMethod("bank")}
-                              className={`p-2.5 rounded-xl border flex flex-col items-center justify-center text-center transition-all ${
-                                refundMethod === "bank"
-                                  ? "bg-amber-600 text-white border-amber-700 shadow-sm font-bold"
-                                  : "bg-white text-gray-700 border-gray-200 hover:border-amber-300 font-medium"
-                              }`}
-                            >
-                              <span className="text-xs">Bank Transfer</span>
-                              <span className={`text-[10px] mt-0.5 ${refundMethod === "bank" ? "text-amber-100" : "text-gray-400"}`}>
-                                NEFT / IMPS
-                              </span>
-                            </button>
-                          </div>
-                        </div>
-
-                        {refundMethod === "wallet" && (
-                          <div className="p-3 bg-white border border-amber-200/80 rounded-xl text-xs text-amber-900 leading-relaxed font-sans shadow-sm">
-                            <span className="font-bold">⚡ Instant SafeFire Wallet Credit:</span> Once your return is received and inspected by the vendor, your refund is credited directly to your SafeFire Wallet. You can use your wallet balance immediately at checkout for any future order.
-                          </div>
-                        )}
-
-                        {refundMethod === "upi" && (
-                          <div className="space-y-2 p-3 bg-white border border-amber-200/80 rounded-xl shadow-sm animate-fadeIn">
-                            <label className="block text-xs font-bold text-gray-700">
-                              UPI ID (VPA) <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                              type="text"
-                              value={upiId}
-                              onChange={(e) => setUpiId(e.target.value)}
-                              placeholder="e.g. mobileNumber@upi or user@okaxis"
-                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
-                            />
-                            <p className="text-[10px] text-gray-500">
-                              Refund will be queued for transfer to this UPI ID upon return completion.
-                            </p>
-                          </div>
-                        )}
-
-                        {refundMethod === "bank" && (
-                          <div className="space-y-2.5 p-3 bg-white border border-amber-200/80 rounded-xl shadow-sm animate-fadeIn">
-                            <div>
-                              <label className="block text-[11px] font-bold text-gray-700 mb-1">
-                                Account Holder Name <span className="text-red-500">*</span>
-                              </label>
-                              <input
-                                type="text"
-                                value={bankDetails.accountHolder}
-                                onChange={(e) => setBankDetails((prev) => ({ ...prev, accountHolder: e.target.value }))}
-                                placeholder="Full Name as on Bank Account"
-                                className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-amber-500"
-                              />
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <label className="block text-[11px] font-bold text-gray-700 mb-1">
-                                  Account Number <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                  type="password"
-                                  value={bankDetails.accountNumber}
-                                  onChange={(e) => setBankDetails((prev) => ({ ...prev, accountNumber: e.target.value }))}
-                                  placeholder="8 to 20 Digits"
-                                  className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-amber-500"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-[11px] font-bold text-gray-700 mb-1">
-                                  Confirm Account Number <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                  type="text"
-                                  value={bankDetails.confirmAccountNumber}
-                                  onChange={(e) => setBankDetails((prev) => ({ ...prev, confirmAccountNumber: e.target.value }))}
-                                  placeholder="Re-enter Account No."
-                                  className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-amber-500"
-                                />
-                              </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <label className="block text-[11px] font-bold text-gray-700 mb-1">
-                                  IFSC Code <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                  type="text"
-                                  value={bankDetails.ifsc}
-                                  onChange={(e) => setBankDetails((prev) => ({ ...prev, ifsc: e.target.value.toUpperCase() }))}
-                                  placeholder="e.g. SBIN0001234"
-                                  maxLength={11}
-                                  className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs uppercase focus:outline-none focus:ring-2 focus:ring-amber-500"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-[11px] font-bold text-gray-700 mb-1">
-                                  Bank Name <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                  type="text"
-                                  value={bankDetails.bankName}
-                                  onChange={(e) => setBankDetails((prev) => ({ ...prev, bankName: e.target.value }))}
-                                  placeholder="e.g. State Bank of India"
-                                  className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-amber-500"
-                                />
-                              </div>
-                            </div>
-                            <p className="text-[10px] text-gray-400">
-                              Bank details are securely handled and used strictly for payout processing upon return completion.
-                            </p>
-                          </div>
-                        )}
+                    {/* Where the refund goes: card/UPI orders back to the same card/UPI, COD and wallet orders to the wallet */}
+                    {requestType === "return" && (
+                      <div className="p-3.5 bg-amber-50/50 border border-amber-200 rounded-2xl">
+                        <p className="text-xs font-bold text-gray-800 uppercase tracking-wider mb-1">Refund Destination</p>
+                        <p className="text-[11px] text-gray-600">
+                          {["cod", "cash", "wallet"].includes(String(order?.paymentMethod || "").toLowerCase())
+                            ? "Your refund will be credited to your SafeFire Wallet once the return is completed."
+                            : "Your refund will be sent back to the card/UPI you paid with once the return is completed. Your bank may take a few days to show it."}
+                        </p>
                       </div>
                     )}
 

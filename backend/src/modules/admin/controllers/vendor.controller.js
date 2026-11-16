@@ -17,23 +17,31 @@ import ServiceBooking from '../../../models/ServiceBooking.model.js';
 import { sendEmail } from '../../../services/email.service.js';
 import { createNotification } from '../../../services/notification.service.js';
 import { queueVendorShiprocketPickupSync, syncVendorShiprocketPickup } from '../../../services/shiprocketPickup.service.js';
+import { getConfiguredDefaultCommissionRate } from '../../../services/settingsService.js';
+import { getCommissionRateSource } from '../../../services/commission.service.js';
 
 const escapeRegex = (value = '') => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-const toApiVendor = (vendorDoc) => {
+// API contract: commission rates are FRACTIONS (0–1).
+//   commissionRate        effective rate applied to new orders (own rate, else platform default; null if neither is set)
+//   customCommissionRate  the vendor's own Admin-set rate, or null when it follows the platform default
+//   commissionRateSource  'vendor' | 'platform_default'
+const toApiVendor = (vendorDoc, platformDefaultPercent = null) => {
     const vendor = typeof vendorDoc?.toObject === 'function'
         ? vendorDoc.toObject()
         : (vendorDoc || {});
 
     const normalizedId = vendor?._id ? String(vendor._id) : String(vendor?.id || '');
-    const normalizedCommissionRate = Number(vendor.commissionRate);
+    const source = getCommissionRateSource(vendor);
+    const ownPercent = source === 'vendor' ? Number(vendor.commissionRate) : null;
+    const effectivePercent = ownPercent ?? platformDefaultPercent;
     return {
         ...vendor,
         id: normalizedId,
         vendorCapabilities: vendor.vendorCapabilities || { sellsProducts: true, providesServices: false },
-        commissionRate: Number.isFinite(normalizedCommissionRate)
-            ? normalizedCommissionRate / 100
-            : 0
+        commissionRate: effectivePercent === null ? null : effectivePercent / 100,
+        customCommissionRate: ownPercent === null ? null : ownPercent / 100,
+        commissionRateSource: source,
     };
 };
 
@@ -68,9 +76,10 @@ export const getAllVendors = asyncHandler(async (req, res) => {
             .lean(),
         Vendor.countDocuments(filter),
     ]);
+    const platformDefaultPercent = await getConfiguredDefaultCommissionRate();
     res.status(200).json(
         new ApiResponse(200, {
-            vendors: vendors.map(toApiVendor),
+            vendors: vendors.map((v) => toApiVendor(v, platformDefaultPercent)),
             total,
             page: numericPage,
             pages: Math.ceil(total / numericLimit)
@@ -84,7 +93,7 @@ export const getVendorDetail = asyncHandler(async (req, res) => {
         .select('-password -otp -otpExpiry +bankDetails.accountName +bankDetails.accountNumber +bankDetails.bankName +bankDetails.ifscCode +upiId +paypalEmail')
         .lean();
     if (!vendor) throw new ApiError(404, 'Vendor not found.');
-    res.status(200).json(new ApiResponse(200, toApiVendor(vendor), 'Vendor detail fetched.'));
+    res.status(200).json(new ApiResponse(200, toApiVendor(vendor, await getConfiguredDefaultCommissionRate()), 'Vendor detail fetched.'));
 });
 
 // PATCH /api/admin/vendors/:id/status
@@ -208,7 +217,7 @@ export const updateVendorStatus = asyncHandler(async (req, res) => {
         console.warn(`Vendor status email failed for ${vendor.email}: ${err.message}`);
     }
 
-    res.status(200).json(new ApiResponse(200, toApiVendor(vendor), `Vendor ${status} successfully.`));
+    res.status(200).json(new ApiResponse(200, toApiVendor(vendor, await getConfiguredDefaultCommissionRate()), `Vendor ${status} successfully.`));
 });
 
 // PATCH /api/admin/vendors/:id
@@ -226,7 +235,7 @@ export const updateVendor = asyncHandler(async (req, res) => {
     });
     if (!vendor) throw new ApiError(404, 'Vendor not found.');
 
-    res.status(200).json(new ApiResponse(200, toApiVendor(vendor), 'Vendor updated successfully.'));
+    res.status(200).json(new ApiResponse(200, toApiVendor(vendor, await getConfiguredDefaultCommissionRate()), 'Vendor updated successfully.'));
 });
 
 // DELETE /api/admin/vendors/:id
@@ -263,18 +272,24 @@ export const syncShiprocketPickup = asyncHandler(async (req, res) => {
 
 // PATCH /api/admin/vendors/:id/commission
 export const updateCommissionRate = asyncHandler(async (req, res) => {
+    // commissionRate is a FRACTION 0–1 (as returned by this API), or null to follow the platform default.
+    // The old "≤ 1 means fraction, otherwise percent" guess stored a request for 1% as 100%.
     const { commissionRate } = req.body;
-    const parsedRate = Number(commissionRate);
-    if (Number.isNaN(parsedRate) || parsedRate < 0) {
-        throw new ApiError(400, 'Commission rate must be a valid non-negative number.');
+    const useDefault = commissionRate === null;
+    const dbCommissionRate = useDefault ? null : parseFloat((Number(commissionRate) * 100).toFixed(4));
+    if (!useDefault && (!Number.isFinite(dbCommissionRate) || dbCommissionRate < 0 || dbCommissionRate > 100)) {
+        throw new ApiError(400, 'Commission rate must be a fraction from 0 to 1 (e.g. 0.12 for 12%), or null to use the platform default.');
     }
-    const dbCommissionRate = parsedRate <= 1 ? parsedRate * 100 : parsedRate;
-    if (dbCommissionRate > 100) throw new ApiError(400, 'Commission rate must be between 0 and 100.');
+    const platformDefaultPercent = await getConfiguredDefaultCommissionRate();
+    if (useDefault && platformDefaultPercent === null) {
+        throw new ApiError(400, 'The platform default commission rate is not configured yet. Set it in Settings → Vendors first.');
+    }
 
     const vendor = await Vendor.findByIdAndUpdate(req.params.id, { commissionRate: dbCommissionRate }, { new: true });
     if (!vendor) throw new ApiError(404, 'Vendor not found.');
 
-    const formattedRate = `${dbCommissionRate.toFixed(1)}%`;
+    const effectivePercent = useDefault ? platformDefaultPercent : dbCommissionRate;
+    const formattedRate = `${effectivePercent.toFixed(1)}%${useDefault ? ' (platform default)' : ''}`;
     const vendorMessage = `Your store's commission rate has been updated to ${formattedRate} by Admin.`;
 
     // 1. In-app notification with clickable route to profile settings
@@ -311,7 +326,7 @@ export const updateCommissionRate = asyncHandler(async (req, res) => {
         console.warn(`Commission update email failed for ${vendor.email}: ${err.message}`);
     }
 
-    res.status(200).json(new ApiResponse(200, toApiVendor(vendor), 'Commission rate updated.'));
+    res.status(200).json(new ApiResponse(200, toApiVendor(vendor, await getConfiguredDefaultCommissionRate()), 'Commission rate updated.'));
 });
 
 // GET /api/admin/vendors/:id/commissions

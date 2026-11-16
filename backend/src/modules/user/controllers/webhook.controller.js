@@ -223,11 +223,20 @@ async function handleRefundProcessed(payload) {
     if (refund.orderId) {
         order = await Order.findById(refund.orderId);
         if (order) {
-            const isFullRefund = refund.amount >= order.total;
+            // Fully refunded when ALL completed refunds (gateway + wallet shares, earlier partial refunds)
+            // cover the order total; comparing only this one refund left multi-part refunds "partially_refunded".
+            const completed = await Refund.find({ orderId: order._id, status: 'completed' }).select('amount').lean();
+            const refundedSoFar = completed.reduce((sum, r) => sum + Number(r.amount || 0), 0);
+            const isFullRefund = refundedSoFar + 0.01 >= Number(order.total || 0);
             await Order.findByIdAndUpdate(order._id, {
                 paymentStatus: isFullRefund ? 'refunded' : 'partially_refunded',
             });
         }
+    }
+
+    // Card/UPI return refunds are sent through Razorpay; mark the return refunded once the gateway confirms.
+    if (refund.returnRequestId) {
+        await ReturnRequest.findByIdAndUpdate(refund.returnRequestId, { $set: { refundStatus: 'processed' } });
     }
 
     // Update service booking paymentStatus if applicable
@@ -275,6 +284,10 @@ async function handleRefundFailed(payload) {
         await ServiceBooking.findByIdAndUpdate(refund.serviceBookingId, {
             $set: { refundStatus: 'failed' },
         });
+    }
+
+    if (refund.returnRequestId) {
+        await ReturnRequest.findByIdAndUpdate(refund.returnRequestId, { $set: { refundStatus: 'failed' } });
     }
 
     // Notify admins idempotently (skip if already failed before)

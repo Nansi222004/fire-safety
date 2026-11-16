@@ -1,10 +1,11 @@
 import React, { useMemo } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { FiChevronLeft, FiSearch, FiFilter, FiHeart, FiStar } from "react-icons/fi";
+import { FiChevronLeft, FiSearch, FiFilter, FiStar } from "react-icons/fi";
 import { getSimilarProducts, getProductById } from "../data/catalogData";
 import { formatPrice } from "../../../shared/utils/helpers";
 import PageTransition from "../../../shared/components/PageTransition";
 import MobileLayout from "../components/Layout/MobileLayout";
+import CompactWishlistButton from "../../../shared/components/Product/CompactWishlistButton";
 
 const FlipkartCompactCard = ({ product }) => {
   const navigate = useNavigate();
@@ -14,9 +15,10 @@ const FlipkartCompactCard = ({ product }) => {
       className="bg-white rounded-xl border border-gray-100 overflow-hidden active:scale-95 transition-transform h-full"
     >
       <div className="relative aspect-square bg-gray-50 flex items-center justify-center">
-        <button className="absolute top-2 right-2 p-1.5 bg-white/80 backdrop-blur-md rounded-full shadow-sm z-10">
-          <FiHeart className="text-xs text-gray-400" />
-        </button>
+        <CompactWishlistButton
+          product={product}
+          className="absolute top-2 right-2 p-1.5 bg-white/80 backdrop-blur-md rounded-full shadow-sm z-10"
+        />
         <img src={product.image} className="w-full h-full object-cover" alt={product.name} />
       </div>
       

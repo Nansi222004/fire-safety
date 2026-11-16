@@ -14,18 +14,12 @@ export const primaryButtonClass =
  * Page frame for the Wholesaler portal's public pages (login, registration, OTP, password reset).
  */
 const AuthShell = ({ icon: Icon, title, subtitle, children, wide = false }) => (
-  <div className="min-h-[100dvh] bg-white sm:bg-[#F8FAFC] text-[#1F2937] flex flex-col justify-between [-webkit-tap-highlight-color:transparent]">
+  <div className="no-pinch-zoom min-h-[100dvh] bg-white sm:bg-[#F8FAFC] text-[#1F2937] flex flex-col justify-between [-webkit-tap-highlight-color:transparent]">
     <header className="sticky top-0 z-30 bg-white border-b border-[#E5E7EB] px-4 lg:px-8 py-3 sm:py-3.5 pt-[max(0.75rem,env(safe-area-inset-top))] shadow-sm">
-      <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
-        <Link to="/" className="flex items-center gap-2.5 sm:gap-3 group min-w-0">
-          <img src={appLogo} alt="Fire Safety Shop Logo" className="h-8 sm:h-9 w-auto object-contain" />
-          <div className="min-w-0">
-            <span className="text-[11px] sm:text-xs text-[#64748B] font-medium block">Wholesaler Portal · B2B</span>
-          </div>
-        </Link>
-        <Link to="/vendor/login" className="text-xs font-semibold text-[#64748B] hover:text-[#0F172A] whitespace-nowrap">
-          Retail seller?
-        </Link>
+      {/* The wholesaler app is self-contained: no links out to the shop or the retail seller portal. */}
+      <div className="max-w-7xl mx-auto flex items-center gap-2.5 sm:gap-3 min-w-0">
+        <img src={appLogo} alt="Fire Safety Shop Logo" className="h-8 sm:h-9 w-auto object-contain" />
+        <span className="text-[11px] sm:text-xs text-[#64748B] font-medium block">Wholesaler Portal · B2B</span>
       </div>
     </header>
 
@@ -51,9 +45,14 @@ const AuthShell = ({ icon: Icon, title, subtitle, children, wide = false }) => (
     <footer className="py-3.5 sm:py-4 pb-[max(0.875rem,env(safe-area-inset-bottom))] text-center text-xs text-[#64748B] border-t border-[#E5E7EB] bg-white px-4">
       <div className="max-w-md mx-auto flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-4">
         <span>© {new Date().getFullYear()} SafeFire Marketplace.</span>
-        <Link to="/vendor/privacy-policy" className="text-[#E31E24] hover:underline font-semibold">
-          Privacy Policy
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link to="/wholesaler/support" className="text-[#E31E24] hover:underline font-semibold">
+            Support
+          </Link>
+          <Link to="/wholesaler/privacy-policy" className="text-[#E31E24] hover:underline font-semibold">
+            Privacy Policy
+          </Link>
+        </div>
       </div>
     </footer>
   </div>

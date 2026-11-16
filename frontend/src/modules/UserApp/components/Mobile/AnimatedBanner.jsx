@@ -136,7 +136,7 @@ const AnimatedBanner = ({ banners = null, showPadding = true, className = "" }) 
             banner.gradient || gradientPalette[index % gradientPalette.length],
           link: resolveBannerLink(banner),
           icon: banner.icon || FiTag,
-          heroImage: banner.image || banner.heroImage || watchImg,
+          heroImage: banner.image || banner.heroImage || heroBanner1,
           mobileImage: banner.mobileImage || null,
           altText: banner.altText || "",
           openInNewTab: !!banner.openInNewTab,

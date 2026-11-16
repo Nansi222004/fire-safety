@@ -5,6 +5,10 @@ import User from '../../../models/User.model.js';
 import Vendor from '../../../models/Vendor.model.js';
 import Product from '../../../models/Product.model.js';
 
+// Orders that never produced (or no longer hold) customer money: unpaid online orders, failed payments,
+// cancellations and fully returned orders. Counting them inflated revenue, sales and top-product figures.
+const NON_REVENUE_STATUSES = ['cancelled', 'payment_pending', 'payment_failed', 'returned'];
+
 // GET /api/admin/analytics/dashboard
 export const getDashboardStats = asyncHandler(async (req, res) => {
     const activeOrderFilter = { isDeleted: { $ne: true } };
@@ -13,7 +17,7 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
         User.countDocuments({ role: 'customer' }),
         Vendor.countDocuments({ status: 'approved', accountType: { $ne: 'wholesaler' } }),
         Product.countDocuments({ isActive: true }),
-        Order.aggregate([{ $match: { ...activeOrderFilter, status: { $ne: 'cancelled' } } }, { $group: { _id: null, total: { $sum: '$total' } } }]),
+        Order.aggregate([{ $match: { ...activeOrderFilter, status: { $nin: NON_REVENUE_STATUSES } } }, { $group: { _id: null, total: { $sum: '$total' } } }]),
         Order.countDocuments({ ...activeOrderFilter, status: 'pending' }),
     ]);
 
@@ -31,7 +35,7 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
 export const getRevenueData = asyncHandler(async (req, res) => {
     const { period = 'monthly', startDate, endDate } = req.query;
     const groupFormat = period === 'daily' ? '%Y-%m-%d' : period === 'weekly' ? '%Y-%U' : '%Y-%m';
-    const match = { isDeleted: { $ne: true }, status: { $ne: 'cancelled' } };
+    const match = { isDeleted: { $ne: true }, status: { $nin: NON_REVENUE_STATUSES } };
     if (startDate || endDate) {
         match.createdAt = {};
         if (startDate) match.createdAt.$gte = new Date(startDate);
@@ -67,7 +71,7 @@ export const getOrderStatusBreakdown = asyncHandler(async (req, res) => {
 // GET /api/admin/analytics/top-products
 export const getTopProducts = asyncHandler(async (req, res) => {
     const topProducts = await Order.aggregate([
-        { $match: { isDeleted: { $ne: true }, status: { $ne: 'cancelled' } } },
+        { $match: { isDeleted: { $ne: true }, status: { $nin: NON_REVENUE_STATUSES } } },
         { $unwind: '$items' },
         { $group: { _id: '$items.productId', totalSold: { $sum: '$items.quantity' }, revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } } } },
         { $sort: { totalSold: -1 } },
@@ -120,7 +124,7 @@ export const getRecentOrders = asyncHandler(async (req, res) => {
 export const getSalesData = asyncHandler(async (req, res) => {
     const { period = 'monthly', startDate, endDate } = req.query;
     const groupFormat = period === 'daily' ? '%Y-%m-%d' : period === 'weekly' ? '%Y-%U' : '%Y-%m';
-    const match = { isDeleted: { $ne: true }, status: { $ne: 'cancelled' } };
+    const match = { isDeleted: { $ne: true }, status: { $nin: NON_REVENUE_STATUSES } };
     if (startDate || endDate) {
         match.createdAt = {};
         if (startDate) match.createdAt.$gte = new Date(startDate);
@@ -145,7 +149,7 @@ export const getSalesData = asyncHandler(async (req, res) => {
 export const getFinancialSummary = asyncHandler(async (req, res) => {
     const { period = 'monthly', startDate, endDate } = req.query;
     const groupFormat = period === 'daily' ? '%Y-%m-%d' : period === 'weekly' ? '%Y-%U' : '%Y-%m';
-    const match = { isDeleted: { $ne: true }, status: { $ne: 'cancelled' } };
+    const match = { isDeleted: { $ne: true }, status: { $nin: NON_REVENUE_STATUSES } };
     if (startDate || endDate) {
         match.createdAt = {};
         if (startDate) match.createdAt.$gte = new Date(startDate);
@@ -162,6 +166,9 @@ export const getFinancialSummary = asyncHandler(async (req, res) => {
                 tax: { $sum: '$tax' },
                 delivery: { $sum: '$shipping' },
                 discount: { $sum: '$discount' },
+                // Platform's own income vs money owed to vendors (vendor earnings include the GST they remit)
+                commission: { $sum: { $ifNull: ['$commissionAmount', 0] } },
+                vendorPayouts: { $sum: { $ifNull: ['$vendorEarnings', 0] } },
                 orders: { $sum: 1 }
             }
         },

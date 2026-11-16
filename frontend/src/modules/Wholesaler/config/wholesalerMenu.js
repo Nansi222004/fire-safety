@@ -12,6 +12,7 @@ import {
   FiHelpCircle,
   FiUser,
   FiSettings,
+  FiShield,
 } from "react-icons/fi";
 
 export const WHOLESALER_MENU = [
@@ -51,6 +52,7 @@ export const WHOLESALER_MENU = [
       { label: "Documents", path: "/wholesaler/documents", icon: FiFileText },
       { label: "Notifications", path: "/wholesaler/notifications", icon: FiBell },
       { label: "Support", path: "/wholesaler/support-tickets", icon: FiHelpCircle },
+      { label: "Privacy Policy", path: "/wholesaler/privacy-policy", icon: FiShield },
     ],
   },
 ];

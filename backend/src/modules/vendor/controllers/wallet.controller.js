@@ -9,6 +9,8 @@ import Withdrawal from '../../../models/Withdrawal.model.js';
 import VendorWalletTransaction from '../../../models/VendorWalletTransaction.model.js';
 import Admin from '../../../models/Admin.model.js';
 import { createNotification } from '../../../services/notification.service.js';
+import { getPayoutEligibility } from '../../../services/orderFinancialHelper.js';
+import { getConfiguredReturnWindowDays } from '../../../services/settingsService.js';
 import mongoose from 'mongoose';
 
 // GET /api/vendor/wallet/stats
@@ -25,17 +27,23 @@ export const getWalletStats = asyncHandler(async (req, res) => {
         vendorId: vendorId,
         escrowStatus: 'held',
         status: { $ne: 'cancelled' },
-    }).populate('orderId', 'orderId escrowReleaseDate').lean();
+    }).populate('orderId', 'orderId').lean();
 
+    // Canonical payout status (approved rule 3): the commission's saved release date (delivery + return window),
+    // the same date the escrow cron pays on. The order-level escrowReleaseDate is not used by the cron, so it is
+    // no longer shown as a fallback.
+    const returnWindowConfigured = (await getConfiguredReturnWindowDays()) !== null;
     const expectedReleases = heldCommissions.map(comm => {
         const amount = comm.vendorNetEarnings !== undefined ? comm.vendorNetEarnings : (comm.vendorEarnings || 0);
-        const releaseDate = comm.escrowReleaseDate || (comm.orderId && comm.orderId.escrowReleaseDate);
+        const payout = getPayoutEligibility(comm, { returnWindowConfigured });
         return {
             orderId: comm.orderId?.orderId || String(comm.orderId?._id || comm.orderId),
             amount: parseFloat((amount || 0).toFixed(2)),
-            releaseDate: releaseDate || null,
-            daysRemaining: releaseDate
-                ? Math.max(0, Math.ceil((new Date(releaseDate).getTime() - Date.now()) / (24 * 60 * 60 * 1000)))
+            releaseDate: payout.eligibleOn,
+            payoutStatus: payout.status,
+            payoutReason: payout.reason,
+            daysRemaining: payout.eligibleOn
+                ? Math.max(0, Math.ceil((payout.eligibleOn.getTime() - Date.now()) / (24 * 60 * 60 * 1000)))
                 : null,
         };
     });

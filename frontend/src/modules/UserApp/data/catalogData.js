@@ -1,9 +1,6 @@
-import {
-  products as staticProducts,
-  getRecommendedProducts as getStaticRecommendedProducts,
-} from "../../../data/products";
-import { vendors as staticVendors } from "../../../data/vendors";
-import { brands as staticBrands } from "../../../data/brands";
+// No built-in demo catalog: when the live catalog hasn't loaded (first visit, API failure) these return
+// empty lists. The old demo products (numeric ids, sample prices) were shown to real customers and could
+// not be ordered.
 
 const PRODUCTS_CACHE_KEY = "user-catalog-products-cache";
 const VENDORS_CACHE_KEY = "user-catalog-vendors-cache";
@@ -109,7 +106,7 @@ export const getCatalogProducts = () => {
   if (Array.isArray(cached) && cached.length > 0) {
     return cached.map(normalizeProduct).filter((p) => p.id);
   }
-  return staticProducts;
+  return [];
 };
 
 export const getCatalogVendors = () => {
@@ -117,7 +114,7 @@ export const getCatalogVendors = () => {
   if (Array.isArray(cached) && cached.length > 0) {
     return cached.map(normalizeVendor).filter((v) => v.id);
   }
-  return staticVendors;
+  return [];
 };
 
 export const getCatalogBrands = () => {
@@ -125,7 +122,7 @@ export const getCatalogBrands = () => {
   if (Array.isArray(cached) && cached.length > 0) {
     return cached.map(normalizeBrand).filter((b) => b.id);
   }
-  return staticBrands;
+  return [];
 };
 
 export const getProductById = (id) =>
@@ -207,7 +204,7 @@ export const getSimilarProducts = (currentProductId, limit = 6) => {
 
 export const getRecommendedProducts = (limit = 6) => {
   const products = getCatalogProducts();
-  if (!products.length) return getStaticRecommendedProducts(limit);
+  if (!products.length) return [];
   return [...products].sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, limit);
 };
 

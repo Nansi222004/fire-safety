@@ -36,6 +36,7 @@ import PageTransition from "../../../shared/components/PageTransition";
 import Badge from "../../../shared/components/Badge";
 import ProductCard from "../../../shared/components/ProductCard";
 import { getVariantSignature } from "../../../shared/utils/variant";
+import CompactWishlistButton from "../../../shared/components/Product/CompactWishlistButton";
 
 
 const FlipkartCompactCard = ({ product }) => {
@@ -46,9 +47,10 @@ const FlipkartCompactCard = ({ product }) => {
       className="min-w-[140px] w-[140px] bg-white rounded-xl border border-gray-100 overflow-hidden shrink-0 active:scale-95 transition-transform"
     >
       <div className="relative h-[140px] bg-gray-50 flex items-center justify-center">
-        <button className="absolute top-2 right-2 p-1.5 bg-white/80 backdrop-blur-md rounded-full shadow-sm z-10">
-          <FiHeart className="text-xs text-gray-400" />
-        </button>
+        <CompactWishlistButton
+          product={product}
+          className="absolute top-2 right-2 p-1.5 bg-white/80 backdrop-blur-md rounded-full shadow-sm z-10"
+        />
         <img src={product.image} className="w-full h-full object-cover" alt={product.name} />
       </div>
       
@@ -972,7 +974,11 @@ const MobileProductDetail = () => {
                   />
                   {/* Similar Button Overlay (Mobile Only) */}
                   <div className="absolute bottom-4 right-4 lg:hidden">
-                    <button className="w-14 h-14 bg-white rounded-full shadow-lg flex flex-col items-center justify-center border border-gray-50 p-2">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/similar-explore/${product.id}?title=Similar Products`)}
+                      className="w-14 h-14 bg-white rounded-full shadow-lg flex flex-col items-center justify-center border border-gray-50 p-2"
+                    >
                       <svg className="w-5 h-5 text-slate-700 mb-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                         <rect x="3" y="8" width="12" height="12" rx="2"></rect>
                         <path d="M8 3h11a2 2 0 0 1 2 2v11"></path>

@@ -19,12 +19,12 @@
  *   2. ESCROW UNLOCK:
  *      → Find Commission for orderId
  *      → Set Commission.escrowStatus = 'release_pending'
- *      → Set Shipment.escrowReleaseDate = deliveredAt + 7 days
+ *      → Set Shipment.escrowReleaseDate = deliveredAt + configured return window
  *      (Cron handles actual wallet credit; this listener makes it eligible)
  *
  *   3. NOTIFICATIONS:
  *      → Notify customer: "Your order has been delivered!"
- *      → Notify vendor: "Order delivered. Earnings releasing in 7 days."
+ *      → Notify vendor with the payout eligibility date
  *
  * ─── Expected Payload ────────────────────────────────────────────────────────
  * {
@@ -91,20 +91,23 @@ const shipmentDeliveredListener = async (payload) => {
             }
         }
 
-        // 2. ESCROW UNLOCK
-        if (payload.paymentMethod !== 'cod') {
-            const Commission = (await import('../../models/Commission.model.js')).default;
-            const commission = await Commission.findOne({ orderId: payload.orderId });
-            if (commission && commission.escrowStatus === 'held') {
-                commission.escrowStatus = 'release_pending';
-                await commission.save();
-                logger.info(`[SHIPMENT_DELIVERED] Escrow set to release_pending for commission ${commission._id}`);
-            }
-
-            const shipment = await Shipment.findOne({ orderId: payload.orderId });
-            if (shipment) {
-                shipment.escrowReleaseDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-                await shipment.save();
+        // 2. ESCROW START for the delivered package (rider OTP, Shiprocket and Delhivery all arrive here).
+        // Marks this vendor's package delivered in the Order, sets the commission's release date and credits
+        // on-hold exactly once. The old block wrote escrowStatus 'release_pending' (rejected by the Commission
+        // schema, which threw and also skipped the notifications below) on an arbitrary vendor's commission, and
+        // nothing marked the package delivered, so the escrow cron never paid these vendors.
+        const deliveredShipment = payload.shipmentId
+            ? await Shipment.findById(payload.shipmentId).select('orderId vendorId type deliveredAt').lean()
+            : null;
+        let escrowReleaseDate = null;
+        if (deliveredShipment && (!deliveredShipment.type || deliveredShipment.type === 'forward')) {
+            const { markVendorPackageDelivered } = await import('../../services/orderFinancialHelper.js');
+            // Release date = delivery + Admin-configured return window (approved rule 3), same value as the commission.
+            ({ escrowReleaseDate } = await markVendorPackageDelivered(deliveredShipment.orderId, deliveredShipment.vendorId, {
+                deliveredAt: deliveredShipment.deliveredAt || payload.deliveredAt || new Date(),
+            }));
+            if (escrowReleaseDate) {
+                await Shipment.updateOne({ _id: deliveredShipment._id }, { $set: { escrowReleaseDate } });
             }
         }
 
@@ -139,7 +142,9 @@ const shipmentDeliveredListener = async (payload) => {
                 recipientType: 'vendor',
                 type: 'order',
                 title: 'Order Delivered',
-                message: `Order #${orderHumanId} delivered. Earnings releasing in 7 days.`,
+                message: escrowReleaseDate
+                    ? `Order #${orderHumanId} delivered. Earnings become eligible for release on ${escrowReleaseDate.toISOString().slice(0, 10)}, after the return window.`
+                    : `Order #${orderHumanId} delivered. Earnings will be released after the return window.`,
                 eventKey: `order:${orderHumanId}:status:delivered:vendor:${payload.vendorId}`,
                 data: {
                     orderId: orderHumanId,

@@ -7,6 +7,7 @@ import DeliveryBoy from '../../../models/DeliveryBoy.model.js';
 import DeliveryWalletTransaction from '../../../models/DeliveryWalletTransaction.model.js';
 import mongoose from 'mongoose';
 import { processDeliveryBoyPayout } from '../../../services/deliveryPayout.service.js';
+import { getShipmentCodAmount } from '../../../services/financial.service.js';
 import crypto from 'crypto';
 import { sendEmail } from '../../../services/email.service.js';
 import { createNotification } from '../../../services/notification.service.js';
@@ -378,6 +379,8 @@ export const getOrderDetail = asyncHandler(async (req, res) => {
             deliveryOtpVerifiedAt: shipment.deliveryOtpVerifiedAt,
             pickupOtpSentAt:       shipment.pickupOtpSentAt,
             status:                shipment.status,
+            // Cash to collect at the door for THIS package (0 for prepaid orders and cancelled packages)
+            codAmount:             getShipmentCodAmount(order, shipment.vendorId),
         };
         
         // The pickup OTP is the rider's own code (shown to the vendor at pickup). The delivery OTP belongs to the
@@ -455,7 +458,7 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
         LogisticsEventBus.emit(LOGISTICS_EVENTS.SHIPMENT_DELIVERED, {
             shipmentId:    shipment._id,
             orderId:       order._id,
-            vendorId:      order.vendorItems?.[0]?.vendorId || null,
+            vendorId:      shipment.vendorId, // the delivered package's vendor, not always the first vendor
             deliveredAt:   new Date(),
             providerId:    shipment.providerId,
             paymentMethod: order.paymentMethod,
@@ -537,6 +540,8 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
             deliveryOtpVerifiedAt: shipment.deliveryOtpVerifiedAt,
             pickupOtpSentAt:       shipment.pickupOtpSentAt,
             status:                shipment.status,
+            // Cash to collect at the door for THIS package (0 for prepaid orders and cancelled packages)
+            codAmount:             getShipmentCodAmount(order, shipment.vendorId),
         };
         
         doc.pickupOtpDebug = shipment.pickupOtpDebug; // rider's own code; never the customer's delivery OTP

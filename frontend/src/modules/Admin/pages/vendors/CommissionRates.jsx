@@ -7,7 +7,8 @@ import ExportButton from "../../components/ExportButton";
 import Badge from "../../../../shared/components/Badge";
 import ConfirmModal from "../../components/ConfirmModal";
 import { useVendorStore } from "../../store/vendorStore";
-import toast from "react-hot-toast";
+import toast from "react-hot-toast";
+import { formatCommissionRate, commissionRateInputValue } from "../../../../shared/utils/vendorFinance";
 
 const CommissionRates = () => {
   const navigate = useNavigate();
@@ -83,10 +84,9 @@ const CommissionRates = () => {
       label: "Current Rate",
       sortable: true,
       render: (value, row) => {
-        const rate = value || row.commissionRate || 0;
         return (
           <span className="text-lg font-bold text-gray-800">
-            {(rate * 100).toFixed(1)}%
+            {formatCommissionRate(row.commissionRate, row.commissionRateSource)}
           </span>
         );
       },
@@ -109,12 +109,12 @@ const CommissionRates = () => {
         <button
           onClick={(e) => {
             e.stopPropagation();
-            setNewRate(((row.commissionRate || 0) * 100).toFixed(1));
+            setNewRate(commissionRateInputValue(row.commissionRate));
             setCommissionModal({
               isOpen: true,
               vendorId: row.id,
               vendorName: row.storeName || row.name,
-              currentRate: ((row.commissionRate || 0) * 100).toFixed(1),
+              currentRate: commissionRateInputValue(row.commissionRate) || "Not configured",
             });
           }}
           className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
@@ -168,8 +168,7 @@ const CommissionRates = () => {
                   { label: "Email", accessor: (row) => row.email },
                   {
                     label: "Commission Rate",
-                    accessor: (row) =>
-                      `${((row.commissionRate || 0) * 100).toFixed(1)}%`,
+                    accessor: (row) => formatCommissionRate(row.commissionRate, row.commissionRateSource),
                   },
                 ]}
                 filename="vendor-commission-rates"

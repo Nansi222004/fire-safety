@@ -9,7 +9,6 @@ import {
   FiCreditCard,
   FiAlertTriangle,
   FiPlus,
-  FiShoppingCart,
   FiChevronRight,
 } from "react-icons/fi";
 import { getWholesalerDashboard } from "../services/wholesalerService";
@@ -129,17 +128,6 @@ const WholesalerDashboard = () => {
             )}
             <Link to="/wholesaler/products" className="mt-3 flex items-center gap-2 text-xs font-semibold text-[#E31E24] hover:underline">
               <FiPackage /> Manage products
-            </Link>
-          </div>
-
-          <div className="bg-gradient-to-br from-[#E31E24] to-[#9F1418] rounded-xl p-4 sm:p-5 text-white shadow-sm">
-            <FiShoppingCart className="text-xl" />
-            <h2 className="font-bold mt-2">Buy wholesale too</h2>
-            <p className="text-xs text-red-100 mt-1 leading-relaxed">
-              Sign in to the SafeFire app with your wholesaler email and password to buy from other wholesalers at B2B prices.
-            </p>
-            <Link to="/wholesale" className="inline-block mt-3 text-xs font-bold bg-white text-[#C8191E] rounded-lg px-3 py-1.5 hover:bg-[#FEF2F2]">
-              Open wholesale catalog
             </Link>
           </div>
         </div>

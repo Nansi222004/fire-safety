@@ -2,6 +2,7 @@ import asyncHandler from '../../../utils/asyncHandler.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
 import Order from '../../../models/Order.model.js';
+import { getVendorGroupPayable } from '../../../services/financial.service.js';
 
 const toPositiveNumber = (value) => {
     const parsed = Number(value);
@@ -44,11 +45,7 @@ const getVendorItemTotal = (order, vendorId) => {
         (vi) => String(vi?.vendorId) === String(vendorId)
     );
     if (!vendorItem) return 0;
-    const subtotal = toPositiveNumber(vendorItem?.subtotal);
-    const shipping = toPositiveNumber(vendorItem?.shipping);
-    const tax = toPositiveNumber(vendorItem?.tax);
-    const discount = toPositiveNumber(vendorItem?.discount);
-    return Math.max(0, subtotal + shipping + tax - discount);
+    return getVendorGroupPayable(vendorItem);
 };
 
 const getVendorItemStatus = (order, vendorId) => {

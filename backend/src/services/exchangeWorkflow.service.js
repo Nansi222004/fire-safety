@@ -26,6 +26,33 @@ const pushStatusHistory = (request, status, actor, notes = '') => {
 };
 
 /**
+ * An upgrade exchange (replacement costs more) may only be dispatched or completed once the customer has
+ * paid the difference. Before this guard nothing checked it, so the pricier replacement shipped for free
+ * (and in COD-only mode the difference can't be paid online at all).
+ */
+const PRICE_DIFFERENCE_SETTLED = {
+    $or: [
+        { requestType: { $ne: 'exchange' } },
+        { 'exchangeDetails.priceDelta': { $not: { $gt: 0 } } },
+        { 'exchangeDetails.priceDeltaStatus': { $in: ['collected', 'waived'] } },
+    ],
+};
+
+const lockWithPriceGuard = async (requestId, expectedStatus, nextStatus, session) => {
+    const request = await ReturnRequest.findOneAndUpdate(
+        { _id: requestId, status: expectedStatus, ...PRICE_DIFFERENCE_SETTLED },
+        { $set: { status: nextStatus } },
+        { new: true, session }
+    );
+    if (request) return request;
+    const unpaid = await ReturnRequest.findOne({ _id: requestId, status: expectedStatus }).session(session).lean();
+    if (unpaid) {
+        throw new ApiError(402, `The customer must pay the exchange price difference of ₹${unpaid.exchangeDetails?.priceDelta} before the replacement can be dispatched.`);
+    }
+    throw new ApiError(409, `Conflict: Return request was not found or has already transitioned from state '${expectedStatus}'.`);
+};
+
+/**
  * Approve a return or exchange request
  * Expected status: 'pending' -> Transitions to 'pickup_pending'
  */
@@ -124,16 +151,8 @@ export const prepareReplacement = async (requestId, expectedStatus, order, actor
  * Expected status: 'replacement_preparing' -> Transitions to 'replacement_ready'
  */
 export const markReplacementReady = async (requestId, expectedStatus, actor, session) => {
-    // 1. Concurrency lock
-    const request = await ReturnRequest.findOneAndUpdate(
-        { _id: requestId, status: expectedStatus },
-        { $set: { status: 'replacement_ready' } },
-        { new: true, session }
-    );
-
-    if (!request) {
-        throw new ApiError(409, `Conflict: Return request was not found or has already transitioned from state '${expectedStatus}'.`);
-    }
+    // 1. Concurrency lock (+ upgrade price difference must be paid before dispatch)
+    const request = await lockWithPriceGuard(requestId, expectedStatus, 'replacement_ready', session);
 
     // 2. Log history
     pushStatusHistory(request, 'replacement_ready', actor, 'Replacement marked ready for rider pickup.');
@@ -147,16 +166,8 @@ export const markReplacementReady = async (requestId, expectedStatus, actor, ses
  * Expected status: 'out_for_delivery' -> Transitions to 'completed'
  */
 export const completeExchange = async (requestId, expectedStatus, actor, session) => {
-    // 1. Concurrency lock
-    const request = await ReturnRequest.findOneAndUpdate(
-        { _id: requestId, status: expectedStatus },
-        { $set: { status: 'completed' } },
-        { new: true, session }
-    );
-
-    if (!request) {
-        throw new ApiError(409, `Conflict: Return request was not found or has already transitioned from state '${expectedStatus}'.`);
-    }
+    // 1. Concurrency lock (+ upgrade price difference must be paid)
+    const request = await lockWithPriceGuard(requestId, expectedStatus, 'completed', session);
 
     // 2. Log history
     pushStatusHistory(request, 'completed', actor, 'Exchange delivery completed successfully.');

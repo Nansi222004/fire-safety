@@ -66,7 +66,8 @@ const defaultSettings = {
       "cancelled",
     ],
     refundModes: ["wallet", "gateway", "manual"],
-    returnWindow: 7, // days
+    // returnWindow (days) is deliberately absent: it is a financial setting (return eligibility AND vendor payout
+    // hold, approved rule 3) that only Admin may set. A default here was silently saved as 7 days.
   },
   customers: {
     guestCheckoutEnabled: true,

@@ -11,6 +11,8 @@ const GeneralSettings = () => {
   const [formData, setFormData] = useState({});
   const [activeSection, setActiveSection] = useState("identity");
   const [loading, setLoading] = useState(true);
+  // Default commission as last saved on the server (null = not configured), to stop it being blanked out.
+  const [savedCommissionRate, setSavedCommissionRate] = useState(null);
 
   useEffect(() => {
     initialize();
@@ -20,6 +22,8 @@ const GeneralSettings = () => {
         const config = response?.value ?? response?.data?.value ?? (response && typeof response === 'object' && !response.key ? response : {});
         if (config && typeof config === 'object' && Object.keys(config).length > 0) {
           setFormData(config);
+          const saved = config.defaultCommissionRate;
+          setSavedCommissionRate(saved === undefined || saved === null || saved === "" ? null : Number(saved));
         }
       } catch (err) {
         console.error("Error loading general settings:", err);
@@ -47,12 +51,31 @@ const GeneralSettings = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // Default commission: a number 0–100, same rule as the backend (settingsService.assertValidCommissionPercent).
+    // Never defaulted: blank stays "not configured" (the backend then refuses orders that would need it).
+    const payload = { ...formData };
+    const raw = payload.defaultCommissionRate;
+    if (raw === undefined || raw === null || String(raw).trim() === "") {
+      if (savedCommissionRate !== null) {
+        toast.error("Default commission rate is required once configured (0–100%).");
+        return;
+      }
+      delete payload.defaultCommissionRate;
+    } else {
+      const rate = Number(raw);
+      if (!Number.isFinite(rate) || rate < 0 || rate > 100) {
+        toast.error("Default commission rate must be a number from 0 to 100.");
+        return;
+      }
+      payload.defaultCommissionRate = rate;
+    }
     try {
-      await updateGeneralSettings(formData);
-      updateSettings("general", formData);
+      await updateGeneralSettings(payload);
+      updateSettings("general", payload, true).catch(() => {});
+      if (payload.defaultCommissionRate !== undefined) setSavedCommissionRate(payload.defaultCommissionRate);
       toast.success("Settings saved successfully");
     } catch (err) {
-      toast.error("Failed to save settings");
+      toast.error(err?.response?.data?.message || err?.message || "Failed to save settings");
     }
   };
 
@@ -355,15 +378,19 @@ const GeneralSettings = () => {
                   <input
                     type="number"
                     name="defaultCommissionRate"
-                    value={formData.defaultCommissionRate || 10}
+                    value={formData.defaultCommissionRate ?? ""}
                     onChange={handleChange}
                     min="0"
-                    max="50"
+                    max="100"
                     step="0.1"
+                    placeholder="Not configured"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Default commission rate for new vendors
+                    Applied to orders of every vendor without their own rate. Each order keeps the rate it was
+                    placed with, so changes affect only new orders.
+                    {(formData.defaultCommissionRate === undefined || formData.defaultCommissionRate === null || formData.defaultCommissionRate === "") &&
+                      " Not configured: orders from vendors without their own rate cannot be placed until this is set."}
                   </p>
                 </div>
               </div>

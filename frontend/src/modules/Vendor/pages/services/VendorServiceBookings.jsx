@@ -79,10 +79,11 @@ const VendorServiceBookings = () => {
     }
   };
 
-  const handleStatusUpdated = async (bookingId, targetStatus, cancellationReason = '') => {
+  const handleStatusUpdated = async (bookingId, targetStatus, cancellationReason = '', extra = {}) => {
     const res = await updateVendorServiceBookingStatus(bookingId, {
       status: targetStatus,
       cancellationReason,
+      ...extra,
     });
 
     toast.success(`Booking status updated to ${targetStatus.toUpperCase()}!`);

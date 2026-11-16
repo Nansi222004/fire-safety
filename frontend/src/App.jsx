@@ -245,6 +245,7 @@ import WholesalerLogin from "./modules/Wholesaler/pages/Login";
 import WholesalerRegister from "./modules/Wholesaler/pages/Register";
 import WholesalerVerification from "./modules/Wholesaler/pages/Verification";
 import WholesalerForgotPassword from "./modules/Wholesaler/pages/ForgotPassword";
+import WholesalerSupport from "./modules/Wholesaler/pages/Support";
 import WholesalerProtectedRoute from "./modules/Wholesaler/components/WholesalerProtectedRoute";
 import WholesalerLayout from "./modules/Wholesaler/components/Layout/WholesalerLayout";
 import WholesalerDashboard from "./modules/Wholesaler/pages/Dashboard";
@@ -1011,6 +1012,10 @@ const AppRoutes = () => {
       <Route path="/wholesaler/register" element={<WholesalerRegister />} />
       <Route path="/wholesaler/verification" element={<WholesalerVerification />} />
       <Route path="/wholesaler/forgot-password" element={<WholesalerForgotPassword />} />
+      {/* Public (no sign-in): required by the app stores and linked from the login screen */}
+      <Route path="/wholesaler/privacy-policy" element={<VendorPrivacyPolicy />} />
+      <Route path="/wholesaler/privacy" element={<Navigate to="/wholesaler/privacy-policy" replace />} />
+      <Route path="/wholesaler/support" element={<WholesalerSupport />} />
       <Route
         path="/wholesaler"
         element={

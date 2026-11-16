@@ -62,7 +62,7 @@ export const getAnalyticsOverview = asyncHandler(async (req, res) => {
         Order.find({
             'vendorItems.vendorId': req.user.id,
             isDeleted: { $ne: true },
-            status: { $nin: ['cancelled', 'returned'] },
+            status: { $nin: ['cancelled', 'returned', 'payment_pending', 'payment_failed'] },
             createdAt: { $gte: start, $lte: end },
         })
             .select('createdAt date status vendorItems')

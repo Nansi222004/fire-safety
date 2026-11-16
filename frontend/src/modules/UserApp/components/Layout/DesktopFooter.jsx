@@ -4,7 +4,6 @@ import {
   FiFacebook,
   FiInstagram,
   FiTwitter,
-  FiArrowRight,
 } from "react-icons/fi";
 import { FaApple, FaGooglePlay } from "react-icons/fa";
 import { useSettingsStore } from "../../../../shared/store/settingsStore";
@@ -137,33 +136,8 @@ const DesktopFooter = () => {
           </ul>
         </div>
 
-        {/* Newsletter + App Downloads Column */}
+        {/* App Downloads Column. The newsletter sign-up was removed: it had no backend and its button did nothing. */}
         <div className="col-span-2 lg:col-span-3 space-y-8">
-          <div className="space-y-4">
-            <h4 className="text-sm font-bold uppercase text-white tracking-widest">
-              Join Our Newsletter
-            </h4>
-            <p className="text-sm text-slate-400 font-medium">
-              Subscribe to get notifications about new releases, special sales,
-              and vendor events.
-            </p>
-            <div className="flex gap-2">
-              <input
-                type="email"
-                placeholder="Your email address"
-                aria-label="Email address"
-                className="flex-1 min-w-0 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-white transition-all"
-              />
-              <button
-                type="button"
-                aria-label="Subscribe"
-                className="flex-shrink-0 px-4 py-2.5 bg-[#E31E24] hover:bg-[#C8191E] text-white rounded-xl text-sm font-bold transition-all flex items-center justify-center"
-              >
-                <FiArrowRight />
-              </button>
-            </div>
-          </div>
-
           {hasAppLinks && (
           <div className="space-y-4">
             <h4 className="text-sm font-bold uppercase text-white tracking-widest">

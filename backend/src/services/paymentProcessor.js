@@ -11,15 +11,50 @@ import Vendor from '../models/Vendor.model.js';
 import Admin from '../models/Admin.model.js';
 import ReturnRequest from '../models/ReturnRequest.model.js';
 import ServiceBooking from '../models/ServiceBooking.model.js';
+import ServiceCapacity from '../models/ServiceCapacity.model.js';
 import logger from '../utils/logger.js';
 import { initiateRefund } from './payment.service.js';
 import { creditWallet } from './wallet.service.js';
-import { calculateOrderFinancials } from './financial.service.js';
 import { createNotification } from './notification.service.js';
 import { sendOrderConfirmationEmail } from './email.service.js';
 import { notifyOrderUpdate } from './socket.service.js';
-import { getDefaultCommissionRate } from './settingsService.js';
 import { findMatchingVariantKey, encodeVariantKey } from '../utils/variantKeyHelper.js';
+import { buildCommissionDocsFromOrder } from './orderFinancialHelper.js';
+
+/**
+ * Refunds a gateway capture that no longer has anything to pay for (the order/booking was cancelled
+ * or already paid by another attempt). Recorded as a Refund so finance can reconcile it.
+ */
+async function refundUnexpectedCapture({ attempt, razorpayPaymentId, amount, userId, orderId, serviceBookingId, reason }) {
+    const referenceId = `UNEXPECTED_CAPTURE_REFUND_${razorpayPaymentId}`;
+    await PaymentAttempt.findByIdAndUpdate(attempt._id, { $set: { status: 'captured_refunded' } });
+    if (await Refund.findOne({ referenceId })) return;
+
+    const base = {
+        ...(orderId ? { orderId } : {}),
+        ...(serviceBookingId ? { serviceBookingId } : {}),
+        userId,
+        amount,
+        referenceId,
+        method: 'razorpay_auto',
+        destination: 'original_source',
+        paymentAttemptId: attempt._id,
+        razorpayPaymentId,
+        notes: `Auto-refund: ${reason}`,
+    };
+    logger.warn('[PAYMENT_PROCESSOR] Refunding unexpected capture', { razorpayPaymentId, amount, reason });
+    if (!(amount > 0)) {
+        await Refund.create({ ...base, status: 'failed', failureReason: 'Capture amount could not be determined; refund manually.' });
+        return;
+    }
+    try {
+        const rzpRefund = await initiateRefund(razorpayPaymentId, amount, { reason: 'capture_after_cancel' });
+        await Refund.create({ ...base, status: 'processing', razorpayRefundId: rzpRefund.id });
+    } catch (err) {
+        logger.error('[REFUND_ERROR] Unexpected-capture refund failed:', { message: err.message });
+        await Refund.create({ ...base, status: 'failed', failureReason: err.message || 'Razorpay refund failed' });
+    }
+}
 
 /**
  * Reusable core payment processor.
@@ -31,38 +66,69 @@ export async function processCapturedPayment({ razorpayOrderId, razorpayPaymentI
         throw new Error('Missing razorpayOrderId or razorpayPaymentId.');
     }
 
-    // Atomic idempotency lock: only proceed if status is 'created'
+    // Atomic idempotency lock. A 'failed' attempt is claimable too: Razorpay lets the customer retry inside
+    // the same checkout (same order_id), so a payment.failed for the first try can be followed by a capture.
+    // Ignoring that capture left the customer charged with no order/booking and no refund.
     const attempt = await PaymentAttempt.findOneAndUpdate(
-        { razorpayOrderId, status: 'created' },
+        { razorpayOrderId, status: { $in: ['created', 'failed'] } },
         { $set: { status: 'processing', razorpayPaymentId, webhookPayload: payload } },
-        { new: true }
+        { new: false }
     );
     if (!attempt) {
         // Already processing or paid — exit safely to avoid double stock deduction
         console.warn(`[PAYMENT_PROCESSOR] Attempt ${razorpayOrderId} already processed or processing.`);
         return;
     }
+    const attemptHadFailed = attempt.status === 'failed';
+    attempt.status = 'processing';
 
     // ─── Handle SERVICE_BOOKING payment ───────────────────────────────────────
     if (attempt.purpose === 'SERVICE_BOOKING') {
         const booking = await ServiceBooking.findById(attempt.serviceBookingId);
         if (!booking) throw new Error(`Service booking not found for attempt ${attempt._id}`);
 
-        await ServiceBooking.findByIdAndUpdate(booking._id, {
-            $set: {
-                paymentStatus: 'paid',
-                status: 'confirmed',
-            },
-            $push: {
-                statusHistory: {
-                    previousStatus: booking.status,
-                    newStatus: 'confirmed',
-                    changedByRole: 'system',
-                    note: `Online payment captured via Razorpay (${method || 'online'})`,
-                    changedAt: new Date(),
+        // Only an unpaid, still-open booking can be confirmed by this payment.
+        const confirmed = await ServiceBooking.findOneAndUpdate(
+            { _id: booking._id, status: 'pending', paymentStatus: { $ne: 'paid' } },
+            {
+                $set: {
+                    paymentStatus: 'paid',
+                    status: 'confirmed',
+                },
+                $push: {
+                    statusHistory: {
+                        previousStatus: booking.status,
+                        newStatus: 'confirmed',
+                        changedByRole: 'system',
+                        note: `Online payment captured via Razorpay (${method || 'online'})`,
+                        changedAt: new Date(),
+                    },
                 },
             },
-        });
+            { new: true }
+        );
+
+        if (!confirmed) {
+            // Booking was cancelled (or already paid) before this capture arrived: return the money.
+            await refundUnexpectedCapture({
+                attempt,
+                razorpayPaymentId,
+                amount: Number(booking.pricing?.total || 0),
+                userId: booking.userId,
+                serviceBookingId: booking._id,
+                reason: `Payment captured for service booking #${booking.bookingId} in '${booking.status}' state`,
+            });
+            return;
+        }
+
+        if (attemptHadFailed) {
+            // The payment.failed webhook released the capacity slot; the booking is now live again.
+            const dateStr = new Date(booking.bookingDate).toISOString().slice(0, 10);
+            await ServiceCapacity.updateOne(
+                { vendorServiceId: booking.vendorServiceId, dateStr },
+                { $inc: { bookedCount: 1 } }
+            );
+        }
 
         await PaymentAttempt.findByIdAndUpdate(attempt._id, { $set: { status: 'paid' } });
 
@@ -97,27 +163,70 @@ export async function processCapturedPayment({ razorpayOrderId, razorpayPaymentI
     if (attempt.purpose === 'EXCHANGE_UPGRADE') {
         // T4.2: Both writes must be atomic — if server crashes between them,
         // the PaymentAttempt would show 'paid' but priceDeltaStatus stays 'pending'.
-        const xSess = await mongoose.startSession();
-        try {
-            await xSess.withTransaction(async () => {
-                await PaymentAttempt.findByIdAndUpdate(
-                    attempt._id,
-                    { status: 'paid' },
-                    { session: xSess }
-                );
-                await ReturnRequest.findByIdAndUpdate(
-                    attempt.relatedReturnId,
-                    { 'exchangeDetails.priceDeltaStatus': 'collected' },
-                    { session: xSess }
-                );
+        // Collect at most once and only the exact saved difference (approved rule 1). A failed first try can be
+        // followed by a retry on a new gateway order, and the late capture of the old one would otherwise mark
+        // the difference collected twice (customer charged twice) — any capture that cannot be applied is refunded.
+        const request = await ReturnRequest.findById(attempt.relatedReturnId).select('status exchangeDetails userId').lean();
+        const expected = Number(request?.exchangeDetails?.priceDelta);
+        const attemptAmount = attempt.amount !== undefined && attempt.amount !== null ? Number(attempt.amount) : expected;
+        const amountMatches = Number.isFinite(expected) && expected > 0 && Math.abs(attemptAmount - expected) < 0.005;
+        const requestOpen = request && !['rejected', 'completed'].includes(request.status);
+
+        let collected = false;
+        if (amountMatches && requestOpen) {
+            const xSess = await mongoose.startSession();
+            try {
+                await xSess.withTransaction(async () => {
+                    collected = false;
+                    const claimed = await ReturnRequest.findOneAndUpdate(
+                        { _id: attempt.relatedReturnId, 'exchangeDetails.priceDeltaStatus': 'pending' },
+                        { $set: { 'exchangeDetails.priceDeltaStatus': 'collected', 'exchangeDetails.exchangePaymentId': attempt._id } },
+                        { new: true, session: xSess }
+                    );
+                    if (!claimed) return;
+                    await PaymentAttempt.findByIdAndUpdate(attempt._id, { status: 'paid' }, { session: xSess });
+                    collected = true;
+                });
+            } finally {
+                await xSess.endSession();
+            }
+        }
+
+        if (!collected) {
+            const reason = !request
+                ? 'exchange request not found'
+                : !requestOpen
+                    ? `exchange request is ${request.status}`
+                    : !amountMatches
+                        ? `captured ₹${attemptAmount} does not match the exchange difference ₹${expected}`
+                        : 'exchange difference already collected by another payment';
+            await refundUnexpectedCapture({
+                attempt,
+                razorpayPaymentId,
+                amount: attemptAmount,
+                userId: request?.userId || order.userId,
+                orderId: order._id,
+                reason: `Exchange upgrade capture: ${reason}`,
             });
-        } finally {
-            await xSess.endSession();
         }
         return;
     }
 
     // ─── Handle ORDER_PAYMENT ─────────────────────────────────────────────────
+    // Only an unpaid order can be completed by a capture. A cancelled order, or one already paid through
+    // another attempt, must not be revived (stock and coupon would be taken twice): refund instead.
+    if (!['payment_pending', 'payment_failed'].includes(order.status) || order.paymentStatus === 'paid') {
+        await refundUnexpectedCapture({
+            attempt,
+            razorpayPaymentId,
+            amount: Number((Number(order.total || 0) - Number(order.walletAmountUsed || 0)).toFixed(2)),
+            userId: order.userId,
+            orderId: order._id,
+            reason: `Payment captured for order #${order.orderId} in '${order.status}' state`,
+        });
+        return;
+    }
+
     const session = await mongoose.startSession();
     let stockFailed = false;
 
@@ -173,29 +282,8 @@ export async function processCapturedPayment({ razorpayOrderId, razorpayPaymentI
             // IDEMPOTENCY: only create commissions if none exist for this order yet
             const existingCount = await Commission.countDocuments({ orderId: order._id }).session(session);
             if (existingCount === 0) {
-                const commissionDocs = (order.vendorItems || []).map(vc => ({
-                    orderId:                   order._id,
-                    vendorId:                  vc.vendorId,
-                    vendorName:                vc.vendorName || '',
-                    subtotal:                  vc.subtotal,
-                    vendorSubtotal:            vc.subtotal,
-                    discountShare:             vc.discount || 0,
-                    vendorCouponDiscount:      vc.discount || 0,
-                    effectiveSubtotal:         parseFloat((vc.subtotal - (vc.discount || 0)).toFixed(2)),
-                    vendorDiscountedSubtotal:  parseFloat((vc.subtotal - (vc.discount || 0)).toFixed(2)),
-                    commissionRate:            vc.commissionRate,
-                    commission:                vc.commissionAmount || 0,
-                    commissionAmount:          vc.commissionAmount || 0,
-                    vendorEarnings:            vc.vendorEarnings || 0,
-                    vendorNetEarnings:         vc.vendorEarnings || 0,
-                    escrowAmount:              vc.vendorEarnings || 0,
-                    walletCredit:              0,
-                    escrowStatus:              'held',
-                    settlementStatus:          'pending',
-                    vendorTax:                 vc.tax || 0,
-                    vendorTotalPaidByCustomer: parseFloat((vc.subtotal - (vc.discount || 0) + (vc.shipping || 0) + (vc.tax || 0)).toFixed(2)),
-                    ...(order.couponId ? { couponId: order.couponId, couponCode: order.couponCode } : {}),
-                }));
+                // Built from the checkout snapshot (same builder as wallet pay).
+                const commissionDocs = buildCommissionDocsFromOrder(order);
                 await Commission.insertMany(commissionDocs, { session });
 
                 console.log('[FINANCIAL_EVENT] Commission created via shared processor', {

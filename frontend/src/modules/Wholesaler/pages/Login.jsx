@@ -99,10 +99,6 @@ const WholesalerLogin = () => {
           {isLoading ? <span>Logging in...</span> : (<><FiLogIn /> <span>Access Wholesaler Dashboard</span></>)}
         </button>
 
-        <p className="text-[11px] text-[#64748B] text-center leading-relaxed bg-[#FEF2F2]/60 border border-red-100 rounded-xl px-3 py-2">
-          Buying in bulk? Sign in on the SafeFire app with these same credentials to shop the wholesale catalog.
-        </p>
-
         <div className="text-center pt-2.5 border-t border-[#E5E7EB]">
           <p className="text-xs text-[#64748B]">
             Don't have a wholesaler account?{" "}

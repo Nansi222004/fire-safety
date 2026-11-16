@@ -7,15 +7,13 @@ import PaymentAttempt from '../../../models/PaymentAttempt.model.js';
 import Commission from '../../../models/Commission.model.js';
 import Product from '../../../models/Product.model.js';
 import Coupon from '../../../models/Coupon.model.js';
-import Vendor from '../../../models/Vendor.model.js';
 import mongoose from 'mongoose';
 import { getWallet, debitWallet, getWalletTransactions } from '../../../services/wallet.service.js';
-import { calculateOrderFinancials } from '../../../services/financial.service.js';
-import { getDefaultCommissionRate } from '../../../services/settingsService.js';
 import { createNotification } from '../../../services/notification.service.js';
 import { sendOrderConfirmationEmail } from '../../../services/email.service.js';
 import { notifyOrderUpdate } from '../../../services/socket.service.js';
 import { findMatchingVariantKey, encodeVariantKey } from '../../../utils/variantKeyHelper.js';
+import { buildCommissionDocsFromOrder } from '../../../services/orderFinancialHelper.js';
 
 /**
  * @desc    Get logged-in user's wallet
@@ -69,18 +67,26 @@ export const payWithWallet = asyncHandler(async (req, res) => {
         throw new ApiError(400, `Order is not in payment_pending status (current: ${order.status})`);
     }
 
+    // Only the unpaid part is due: a wallet share may already have been debited when the order was created
+    // (debiting order.total again charged that share twice).
+    const alreadyFromWallet = Number(order.walletAmountUsed || 0);
+    const amountDue = Number((Number(order.total || 0) - alreadyFromWallet).toFixed(2));
+    if (amountDue <= 0) {
+        throw new ApiError(400, 'Nothing is left to pay on this order.');
+    }
     const wallet = await getWallet(userId);
-    if (wallet.balance < order.total) {
-        throw new ApiError(400, `Insufficient wallet balance to cover total ₹${order.total}`);
+    if (wallet.balance < amountDue) {
+        throw new ApiError(400, `Insufficient wallet balance to cover ₹${amountDue}`);
     }
 
     const session = await mongoose.startSession();
     try {
         await session.withTransaction(async () => {
             // 1. Debit wallet fully
-            await debitWallet(userId, order.total, 'wallet_payment', {
+            await debitWallet(userId, amountDue, 'wallet_payment', {
                 orderId: order._id,
-                description: `Paid fully using wallet for order #${order.orderId}`
+                reference: `ORDER_WALLET_PAY_${order._id}`,
+                description: `Paid ₹${amountDue} using wallet for order #${order.orderId}`
             }, session);
 
             // 2. Deduct product variant stock atomically
@@ -127,59 +133,10 @@ export const payWithWallet = asyncHandler(async (req, res) => {
                 await Product.updateOne({ _id: updatedProduct._id }, { $set: { stock: nextStock } }, { session });
             }
 
-            // 3. Setup vendor commissions
-            const vendorIds = [...new Set(order.items.map(i => String(i.vendorId)).filter(Boolean))];
-            const vendors = await Vendor.find({ _id: { $in: vendorIds } })
-                .select('_id commissionRate vendorName name')
-                .session(session)
-                .lean();
-
-            const defaultRate = await getDefaultCommissionRate();
-            const vendorCommissionMap = Object.fromEntries(vendors.map(v => [
-                String(v._id),
-                v.commissionRate !== undefined && v.commissionRate !== null ? v.commissionRate : defaultRate
-            ]));
-            const vendorNameMap = Object.fromEntries(vendors.map(v => [String(v._id), v.vendorName || v.name || '']));
-
-            const financials = calculateOrderFinancials({
-                items: order.items.map(i => ({
-                    productId:   i.productId,
-                    price:       i.price,
-                    quantity:    i.quantity,
-                    taxRate:     i.taxRate     ?? 18,
-                    taxIncluded: i.taxIncluded ?? false,
-                    vendorId:    i.vendorId,
-                })),
-                couponDiscount:    order.couponDiscount || 0,
-                shipping:          order.shipping       || 0,
-                vendorCommissions: vendorCommissionMap,
-            });
-
+            // 3. Vendor commissions from the checkout snapshot (never recomputed with current vendor rates)
             const existingCount = await Commission.countDocuments({ orderId: order._id }).session(session);
             if (existingCount === 0) {
-                const commissionDocs = financials.vendorCalculations.map(vc => ({
-                    orderId:                   order._id,
-                    vendorId:                  vc.vendorId,
-                    vendorName:                vendorNameMap[String(vc.vendorId)] || '',
-                    subtotal:                  vc.subtotal,
-                    vendorSubtotal:            vc.subtotal,
-                    discountShare:             vc.discountShare,
-                    vendorCouponDiscount:      vc.discountShare,
-                    effectiveSubtotal:         vc.effectiveSubtotal,
-                    vendorDiscountedSubtotal:  vc.effectiveSubtotal,
-                    commissionRate:            vc.commissionRate,
-                    commission:                vc.commission,
-                    commissionAmount:          vc.commission,
-                    vendorEarnings:            vc.vendorEarnings,
-                    vendorNetEarnings:         vc.vendorEarnings,
-                    escrowAmount:              vc.vendorEarnings,
-                    walletCredit:              0,
-                    escrowStatus:              'held',
-                    settlementStatus:          'pending',
-                    vendorTax:                 vc.vendorTax || 0,
-                    vendorTotalPaidByCustomer: vc.vendorTotalPaidByCustomer || vc.subtotal,
-                    ...(order.couponId ? { couponId: order.couponId, couponCode: order.couponCode } : {}),
-                }));
+                const commissionDocs = buildCommissionDocsFromOrder(order);
                 await Commission.insertMany(commissionDocs, { session });
             }
 
@@ -192,7 +149,8 @@ export const payWithWallet = asyncHandler(async (req, res) => {
             }
 
             // 5. Update Order status
-            order.status = 'processing';
+            // Paid orders wait for vendor acceptance, as after an online capture.
+            order.status = 'pending';
             order.paymentStatus = 'paid';
             order.paymentMethod = 'wallet';
             order.walletAmountUsed = order.total;

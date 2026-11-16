@@ -46,6 +46,7 @@ const paymentAttemptSchema = new mongoose.Schema(
                 'paid',                  // Stock deducted, commission created
                 'failed',                // User failed/abandoned payment
                 'stock_failed_refunding',// Paid but stock out, refund triggered
+                'captured_refunded',     // Captured after the order/booking was cancelled or already paid; auto-refunded
             ],
             default: 'created',
             index: true,
@@ -60,7 +61,11 @@ const paymentAttemptSchema = new mongoose.Schema(
         relatedReturnId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'ReturnRequest',
+            index: true,
         },
+        // Rupee amount the gateway order was created for (EXCHANGE_UPGRADE: the request's saved priceDelta).
+        // Compared with the request on capture so a stale or mismatched capture is refunded, not accepted.
+        amount: { type: Number },
     },
     { timestamps: true }
 );

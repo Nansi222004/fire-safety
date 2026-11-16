@@ -4,16 +4,10 @@
  * Fires when admin confirms that a courier has remitted COD cash to the platform.
  * This is the HARD GATE that unblocks vendor escrow release for courier COD orders.
  *
- * ─── Phase 3 (Current) ───────────────────────────────────────────────────────
- * STUB: Logs event receipt.
+ * Escrow: courierRemittance marks the package Shipment.isCashSettled before emitting this event; the escrow
+ * cron then releases that vendor's held commission on its normal schedule (see cron/escrowCron.js).
  *
- * ─── Phase 6 Business Logic (to implement) ───────────────────────────────────
- *   1. ESCROW GATE CLEARANCE:
- *      → Find Commission for orderId
- *      → Verify CourierCODRemittance.remittanceStatus === 'received'
- *      → Set Commission.escrowStatus = 'release_pending' (now eligible for cron)
- *      → Set Shipment.escrowReleaseDate = confirmedAt + 7 days
- *
+ * Steps here:
  *   2. NOTIFICATION:
  *      → Notify vendor: "COD amount received by platform. Earnings releasing soon."
  *
@@ -39,8 +33,6 @@
  */
 
 import LOGISTICS_EVENTS from '../logisticsEvents.js';
-import Commission from '../../models/Commission.model.js';
-import Shipment from '../../models/Shipment.model.js';
 import logger from '../../utils/logger.js';
 import { createNotification } from '../../services/notification.service.js';
 
@@ -54,18 +46,12 @@ const codReceivedListener = async (payload) => {
         );
 
         // 1. ESCROW GATE CLEARANCE
-        const commission = await Commission.findOne({ orderId: payload.orderId });
-        if (commission) {
-            commission.escrowStatus = 'release_pending';
-            await commission.save();
-            logger.info(`[COD_RECEIVED] Escrow cleared for commission ${commission._id}`);
-        }
-
-        const shipment = await Shipment.findOne({ orderId: payload.orderId });
-        if (shipment) {
-            shipment.escrowReleaseDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-            await shipment.save();
-        }
+        // courierRemittance has already marked this package's Shipment.isCashSettled; the escrow cron
+        // releases this vendor's commission (still 'held') on its normal schedule once that flag is set.
+        // The old code set escrowStatus 'release_pending', which the Commission schema rejects (so the save
+        // always failed), picked any vendor's commission on multi-vendor orders, and the cron never looked
+        // at that status anyway.
+        logger.info(`[COD_RECEIVED] COD remitted for order ${payload.orderId}, vendor ${payload.vendorId}; escrow eligible via cron.`);
 
         // 2. NOTIFICATION
         if (payload.vendorId) {

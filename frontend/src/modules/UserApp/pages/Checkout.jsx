@@ -260,22 +260,27 @@ const MobileCheckout = () => {
     }
   }, [isAuthenticated, user, getDefaultAddress, addresses, guestDraft]);
 
+  // Used only if /shipping/estimate fails. Mirrors backend calculateVendorShippingForGroups: one charge per
+  // vendor package, free when that vendor's subtotal reaches the threshold, express = 2× the platform rate,
+  // and a ₹0 platform rate means free (the old fallback invented ₹50/₹100 and applied the threshold to the whole cart).
   const calculateShippingFallback = () => {
-    const total = getTotal();
     const defaults = paymentSettings?.shipping || { defaultShippingRate: 0, freeShippingThreshold: 0 };
-    const defaultRate = defaults.defaultShippingRate;
-    const threshold = defaults.freeShippingThreshold;
+    const defaultRate = Math.max(0, Number(defaults.defaultShippingRate) || 0);
+    const threshold = Number(defaults.freeShippingThreshold) || 0;
 
     if (appliedCoupon?.type === "freeship") {
       return 0;
     }
-    if (threshold > 0 && total >= threshold) {
-      return 0;
-    }
-    if (shippingOption === "express") {
-      return defaultRate > 0 ? defaultRate * 2 : 100;
-    }
-    return defaultRate > 0 ? defaultRate : 50;
+    const subtotalByVendor = items.reduce((acc, item) => {
+      const vendorKey = String(item.vendorId || "unknown");
+      acc[vendorKey] = (acc[vendorKey] || 0) + (item.price ?? 0) * (item.quantity ?? 1);
+      return acc;
+    }, {});
+    const perVendorRate = shippingOption === "express" ? defaultRate * 2 : defaultRate;
+    return Object.values(subtotalByVendor).reduce(
+      (sum, vendorSubtotal) => sum + (threshold > 0 && vendorSubtotal >= threshold ? 0 : perVendorRate),
+      0,
+    );
   };
 
   const total = getTotal();
@@ -309,6 +314,21 @@ const MobileCheckout = () => {
       setFormData((prev) => ({ ...prev, paymentMethod: "cod" }));
     }
   }, [walletBalance, finalTotal, formData.paymentMethod]);
+
+  // One idempotency key per order attempt: a double tap or a network retry reuses it, so the backend returns
+  // the order already created instead of placing a duplicate. A changed cart/total/payment method/address is a
+  // new attempt and gets a new key.
+  const idempotencyKeyRef = useRef(null);
+  const idempotencySignature = JSON.stringify([
+    items.map((i) => [i.id || i._id || i.productId, i.quantity, i.variantKey || null]),
+    formData.paymentMethod,
+    formData.zipCode,
+    formData.address,
+    appliedCoupon?.code || null,
+  ]);
+  useEffect(() => {
+    idempotencyKeyRef.current = null;
+  }, [idempotencySignature]);
 
   const prevTotalRef = useRef(total);
   useEffect(() => {
@@ -614,6 +634,7 @@ const MobileCheckout = () => {
           shippingOption,
           shippingQuotes,
           useWallet: paymentMethod === "wallet",
+          idempotencyKey: (idempotencyKeyRef.current ||= (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`)),
         });
 
         const payload = initData?.data ?? initData;

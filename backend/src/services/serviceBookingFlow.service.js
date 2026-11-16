@@ -1,5 +1,7 @@
+import crypto from 'crypto';
 import ApiError from '../utils/ApiError.js';
 import ServiceCapacity from '../models/ServiceCapacity.model.js';
+import { generateDeliveryOtpValue } from './otp.service.js';
 
 /**
  * Single source of truth for the customer service-booking flow:
@@ -47,6 +49,31 @@ const mapGet = (map, key) => {
     if (!map) return undefined;
     if (typeof map.get === 'function') return map.get(key);
     return map[key];
+};
+
+/**
+ * Customer-facing booking number, e.g. SRV-845120-4F7K2Q. The old 6 timestamp digits + 3 Math.random digits
+ * gave only 900 values per millisecond window and repeated every ~16 minutes; 6 random base-36 characters
+ * (~2 billion values) make a clash negligible, and createBooking still retries if one happens.
+ */
+export const generateServiceBookingId = () => {
+    const alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const random = Array.from({ length: 6 }, () => alphabet[crypto.randomInt(alphabet.length)]).join('');
+    return `SRV-${Date.now().toString().slice(-6)}-${random}`;
+};
+
+// ─── Job-completion code (customer confirms the work was done) ──────────────
+
+export const COMPLETION_OTP_MAX_ATTEMPTS = 5;
+
+/** 4-digit code; DELIVERY_OTP_TEST_MODE=true gives a fixed 9999 outside production, same as delivery OTPs. */
+export const generateCompletionOtp = () => generateDeliveryOtpValue();
+
+/** Constant-time comparison of the code the vendor typed with the stored one. */
+export const isCompletionOtpMatch = (stored, entered) => {
+    const a = Buffer.from(String(stored || ''));
+    const b = Buffer.from(String(entered || '').trim());
+    return a.length > 0 && a.length === b.length && crypto.timingSafeEqual(a, b);
 };
 
 // ─── Category types (variants) ──────────────────────────────────────────────
@@ -181,7 +208,8 @@ export const buildSchedule = async (service, vendorService, { days } = {}) => {
         .select('dateStr bookedCount')
         .lean();
     const booked = Object.fromEntries(capacityDocs.map((c) => [c.dateStr, c.bookedCount || 0]));
-    const dailyCapacity = Math.max(0, Number(vendorService.dailyCapacity) || 0);
+    // Same default as booking creation (schema default 10); a configured 0 means closed.
+    const dailyCapacity = Math.max(0, Number(vendorService.dailyCapacity ?? 10) || 0);
 
     return dates.map((dateStr) => {
         const open = Boolean(getDayWindow(vendorService, dateStr));

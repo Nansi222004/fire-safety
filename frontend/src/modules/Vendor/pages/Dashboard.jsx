@@ -13,6 +13,7 @@ import {
   FiCalendar,
   FiClock,
   FiUser,
+  FiAlertCircle,
 } from "react-icons/fi";
 import { useVendorAuthStore } from "../store/vendorAuthStore";
 import { useVendorProductStore } from "../store/vendorProductStore";
@@ -686,15 +687,21 @@ const VendorDashboard = () => {
                 {recentBookings.map((booking) => {
                   const status = String(booking.status || '').toLowerCase();
                   const serviceTitle =
+                    booking.serviceName ||
                     booking.serviceTitle ||
                     booking.service?.title ||
                     booking.service?.name ||
                     "Fire Safety Service";
                   const customerName =
+                    booking.serviceAddress?.fullName ||
+                    booking.userId?.name ||
                     booking.contactDetails?.name ||
                     booking.user?.name ||
                     "Customer";
+                  // ServiceBooking stores the charged amount in pricing.total; the other names never exist,
+                  // so every booking used to show ₹0 here.
                   const bookingAmount =
+                    booking.pricing?.total ||
                     booking.pricing?.totalPrice ||
                     booking.totalPrice ||
                     booking.pricing?.basePrice ||

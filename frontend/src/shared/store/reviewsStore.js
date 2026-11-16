@@ -186,7 +186,8 @@ export const useReviewsStore = create(
 
         if (isMongoObjectId(normalizedProductId) && isMongoObjectId(String(reviewId))) {
           try {
-            const response = await api.post(`/user/reviews/${reviewId}/helpful`);
+            // Backend route is POST /user/reviews/:id/vote { type }; "/helpful" never existed, so votes were lost.
+            const response = await api.post(`/user/reviews/${reviewId}/vote`, { type: 'helpful' });
             const payload = response?.data;
             const helpfulCount = payload?.helpfulCount;
             set((state) => ({

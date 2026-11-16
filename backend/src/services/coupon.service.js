@@ -32,3 +32,17 @@ export const validateCoupon = async (code, cartTotal) => {
 export const incrementCouponUsage = async (couponId) => {
     await Coupon.findByIdAndUpdate(couponId, { $inc: { usedCount: 1 } });
 };
+
+/**
+ * Consume one usage slot inside the order transaction. When the coupon has a usage limit the
+ * increment is conditional, so two concurrent checkouts cannot both take the last slot.
+ */
+export const consumeCouponUsage = async (coupon, session = null) => {
+    if (!coupon?._id) return;
+    const filter = { _id: coupon._id };
+    if (coupon.usageLimit) filter.usedCount = { $lt: coupon.usageLimit };
+    const result = await Coupon.updateOne(filter, { $inc: { usedCount: 1 } }, { session });
+    if (coupon.usageLimit && !result?.modifiedCount) {
+        throw new ApiError(409, 'Coupon usage limit reached.');
+    }
+};

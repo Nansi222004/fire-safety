@@ -33,6 +33,19 @@ const returnRequestSchema = new mongoose.Schema(
             newProductPrice:   { type: Number },
             oldProductPrice:   { type: Number },
             priceDelta:        { type: Number }, // positive = customer owes extra; negative = customer gets refund
+            // Canonical GST-inclusive breakdown from calculateExchangeDifference (approved rule 1), saved once at
+            // request time. priceDelta above is exactly what the customer is charged or refunded.
+            originalAmount:    { type: Number },   // exchanged units as bought, GST included
+            replacementAmount: { type: Number },   // same units of the replacement, GST included
+            taxableDifference: { type: Number },
+            taxDifference:     { type: Number },
+            gstSplit: {
+                supplyType: { type: String, enum: ['intra_state', 'inter_state', 'undetermined'] },
+                cgst: { type: Number },
+                sgst: { type: Number },
+                igst: { type: Number },
+            },
+            calculationLines:  { type: [mongoose.Schema.Types.Mixed], default: undefined },
             priceDeltaStatus:  { type: String, enum: ['pending', 'collected', 'refunded', 'waived'], default: 'pending' },
             exchangePaymentId: { type: mongoose.Schema.Types.ObjectId, ref: 'PaymentAttempt' },
         },

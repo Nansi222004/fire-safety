@@ -96,13 +96,20 @@ textarea {
   }
 }
 
-/* Allow single-finger horizontal scroll inside dedicated scroll containers while keeping multi-touch zoom disabled */
+/* Allow single-finger horizontal scroll inside dedicated scroll containers while keeping multi-touch zoom disabled.
+   ("pan-x pan-y manipulation" is not a valid touch-action value, so browsers dropped it and these containers
+   fell back to "auto", which allows pinch-zoom. "pan-x pan-y" allows scrolling only.) */
 .overflow-x-auto,
 .overflow-x-scroll,
 [class*="overflow-x-auto"],
 [class*="overflow-x-scroll"] {
-  touch-action: pan-x pan-y manipulation;
+  touch-action: pan-x pan-y;
   overscroll-behavior-x: contain;
+}
+
+/* App-style screens: scrolling only, no pinch-zoom or double-tap zoom for touches inside this element. */
+.no-pinch-zoom {
+  touch-action: pan-x pan-y;
 }
 
 /* Prevent iOS Safari from auto-zooming into inputs on focus */

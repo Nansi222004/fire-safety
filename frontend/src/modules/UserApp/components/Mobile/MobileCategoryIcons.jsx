@@ -271,7 +271,7 @@ const MobileCategoryIcons = () => {
           WebkitOverflowScrolling: "touch",
         }}>
         {categories.map((category, index) => {
-          const IconComponent = categoryIcons[category.name] || IoShirtOutline;
+          const IconComponent = categoryIcons[category.name] || FiPackage;
           const isActive = isActiveCategory(category.id);
           const activeColors =
             currentCategoryId && String(currentCategoryId) === String(category.id)

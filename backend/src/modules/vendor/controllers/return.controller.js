@@ -1,3 +1,4 @@
+import { recordReturnRefund, executePendingGatewayRefund } from '../../../services/returnRefund.service.js';
 import mongoose from 'mongoose';
 import asyncHandler from '../../../utils/asyncHandler.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
@@ -11,6 +12,7 @@ import crypto from 'crypto';
 import Order from '../../../models/Order.model.js';
 import Product from '../../../models/Product.model.js';
 import Commission from '../../../models/Commission.model.js';
+import VendorWalletTransaction from '../../../models/VendorWalletTransaction.model.js';
 import User from '../../../models/User.model.js';
 import Admin from '../../../models/Admin.model.js';
 import { createNotification } from '../../../services/notification.service.js';
@@ -275,6 +277,7 @@ export const updateVendorReturnRequestStatus = asyncHandler(async (req, res) => 
 
     const session = await mongoose.startSession();
     let updatedRequest = request;
+    let pendingGatewayRefund = null;
 
     try {
         await session.withTransaction(async () => {
@@ -586,8 +589,29 @@ export const updateVendorReturnRequestStatus = asyncHandler(async (req, res) => 
                                 }
                             }
                             const decrementAmount = parseFloat(Math.max(0, originalEarnings - newEarnings).toFixed(2));
+                            // Once escrow is released the earnings sit in walletBalance, not onHoldBalance; take
+                            // them back from where they are (same rule as the admin completion path).
+                            const isEscrowReleased = commRecord?.escrowStatus === 'released' || order.escrowStatus === 'released';
 
-                            if (decrementAmount > 0) {
+                            if (decrementAmount > 0 && isEscrowReleased) {
+                                const vendorAfter = await Vendor.findByIdAndUpdate(
+                                    req.user.id,
+                                    { $inc: { walletBalance: -decrementAmount } },
+                                    { new: true, session }
+                                );
+                                if (vendorAfter) {
+                                    await VendorWalletTransaction.create([{
+                                        vendorId:            req.user.id,
+                                        type:                'RETURN_CLAWBACK',
+                                        amount:              -decrementAmount,
+                                        referenceId:         `RETURN_CLAWBACK_${request._id}`,
+                                        walletBalanceBefore: vendorAfter.walletBalance + decrementAmount,
+                                        walletBalanceAfter:  vendorAfter.walletBalance,
+                                        performedBy:         { role: 'vendor', id: req.user.id },
+                                        relatedOrderId:      order._id,
+                                    }], { session });
+                                }
+                            } else if (decrementAmount > 0) {
                                 await Vendor.findByIdAndUpdate(
                                     req.user.id,
                                     { $inc: { onHoldBalance: -decrementAmount } },
@@ -638,78 +662,19 @@ export const updateVendorReturnRequestStatus = asyncHandler(async (req, res) => 
                                 }
                             }
 
-                            const refundAmount = request.refundAmount || 0;
-                            const refundMethodChoice = request.refundDetails?.method || order.refundMethod || 'wallet';
-                            const isWalletRefund = !order.paymentMethod || String(order.paymentMethod).toLowerCase() !== 'cod' || refundMethodChoice === 'wallet';
-                            const refundRef = `RETURN_REFUND_${request._id}`;
-
-                            // Idempotency: verify if refund was already created
-                            const existingRefund = await Refund.findOne({ referenceId: refundRef }).session(session);
-
-                            if (existingRefund) {
-                                updatedRequest.refundId = existingRefund._id;
-                                updatedRequest.refundStatus = existingRefund.status === 'completed' ? 'processed' : 'pending';
-                            } else if (refundAmount > 0) {
-                                if (isWalletRefund) {
-                                    await creditWallet(
-                                        request.userId?._id || request.userId,
-                                        refundAmount,
-                                        'return_refund',
-                                        {
-                                            returnRequestId: request._id,
-                                            orderId: order._id,
-                                            description: `Refunded ₹${refundAmount} to wallet for Return #${request._id}`,
-                                            reference: refundRef
-                                        },
-                                        session
-                                    );
-
-                                    const refund = (await Refund.create([{
-                                        orderId: order._id,
-                                        returnRequestId: request._id,
-                                        userId: request.userId?._id || request.userId,
-                                        amount: refundAmount,
-                                        referenceId: refundRef,
-                                        method: 'wallet_credit',
-                                        destination: 'wallet',
-                                        status: 'completed',
-                                        notes: 'Refund credited to customer wallet'
-                                    }], { session }))[0];
-
-                                    updatedRequest.refundId = refund._id;
-                                    updatedRequest.refundStatus = 'processed';
-                                } else if (refundMethodChoice === 'bank') {
-                                    const refund = (await Refund.create([{
-                                        orderId: order._id,
-                                        returnRequestId: request._id,
-                                        userId: request.userId?._id || request.userId,
-                                        amount: refundAmount,
-                                        referenceId: refundRef,
-                                        method: 'bank_transfer',
-                                        destination: 'bank',
-                                        status: 'processing',
-                                        notes: `COD Return Refund: Bank transfer to ${order.bankDetails?.accountHolder || ''} (A/C: ${maskAccountNumber(order.bankDetails?.accountNumber)}, IFSC: ${order.bankDetails?.ifsc || ''})`
-                                    }], { session }))[0];
-
-                                    updatedRequest.refundId = refund._id;
-                                    updatedRequest.refundStatus = 'pending';
-                                } else if (refundMethodChoice === 'upi') {
-                                    const refund = (await Refund.create([{
-                                        orderId: order._id,
-                                        returnRequestId: request._id,
-                                        userId: request.userId?._id || request.userId,
-                                        amount: refundAmount,
-                                        referenceId: refundRef,
-                                        method: 'upi',
-                                        destination: 'upi',
-                                        status: 'processing',
-                                        notes: `COD Return Refund: UPI transfer to ${order.upiId || ''}`
-                                    }], { session }))[0];
-
-                                    updatedRequest.refundId = refund._id;
-                                    updatedRequest.refundStatus = 'pending';
-                                }
+                            // Card/UPI (Razorpay) orders are refunded to the same card/UPI; COD and wallet orders to the
+                            // SafeFire wallet (business rule, Nov 2026). The Razorpay call itself runs after commit.
+                            const returnRefund = await recordReturnRefund({
+                                order,
+                                request,
+                                refundAmount: request.refundAmount || 0,
+                                session,
+                            });
+                            if (returnRefund.refundId) {
+                                updatedRequest.refundId = returnRefund.refundId;
+                                updatedRequest.refundStatus = returnRefund.refundStatus;
                             }
+                            pendingGatewayRefund = returnRefund.pendingGatewayRefund;
 
                             if (allItemsReturned) {
                                 if (order.status !== 'cancelled') {
@@ -740,6 +705,9 @@ export const updateVendorReturnRequestStatus = asyncHandler(async (req, res) => 
     } finally {
         await session.endSession();
     }
+
+    // Razorpay refund for card/UPI orders, sent only once the return completion has committed.
+    await executePendingGatewayRefund(pendingGatewayRefund);
 
     const freshRequest = await ReturnRequest.findById(request._id)
         .populate('userId', 'name email phone')

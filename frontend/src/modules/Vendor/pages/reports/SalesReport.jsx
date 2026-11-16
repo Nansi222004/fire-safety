@@ -7,6 +7,7 @@ import AnimatedSelect from '../../../Admin/components/AnimatedSelect';
 import { formatPrice } from '../../../../shared/utils/helpers';
 import { useVendorAuthStore } from '../../store/vendorAuthStore';
 import { getVendorOrders } from '../../services/vendorService';
+import { isRevenueOrder, getVendorNetSales } from "../../../../shared/utils/vendorFinance";
 
 const SalesReport = () => {
   const { vendor } = useVendorAuthStore();
@@ -77,11 +78,11 @@ const SalesReport = () => {
   }, [orders, dateRange, periodFilter]);
 
   const totalSales = useMemo(() => {
-    return filteredOrders.reduce((sum, order) => {
+    return filteredOrders.filter(isRevenueOrder).reduce((sum, order) => {
       const vendorItem = order.vendorItems?.find(
         (vi) => vi.vendorId?.toString() === vendorId?.toString()
       );
-      return sum + (vendorItem?.subtotal || vendorItem?.vendorEarnings || 0);
+      return sum + (getVendorNetSales(vendorItem));
     }, 0);
   }, [filteredOrders, vendorId]);
 
@@ -132,7 +133,7 @@ const SalesReport = () => {
         );
         return (
           <span className="font-bold text-gray-800">
-            {formatPrice(vendorItem?.subtotal || vendorItem?.vendorEarnings || 0)}
+            {formatPrice(getVendorNetSales(vendorItem))}
           </span>
         );
       },
@@ -235,7 +236,7 @@ const SalesReport = () => {
                   const vendorItem = row.vendorItems?.find(
                     (vi) => vi.vendorId?.toString() === vendorId?.toString()
                   );
-                  return formatPrice(vendorItem?.subtotal || vendorItem?.vendorEarnings || 0);
+                  return formatPrice(getVendorNetSales(vendorItem));
                 }
               },
               { label: 'Status', accessor: (row) => row.status },

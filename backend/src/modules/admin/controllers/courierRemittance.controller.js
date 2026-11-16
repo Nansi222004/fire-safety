@@ -1,3 +1,4 @@
+import { getShipmentCodAmount } from '../../../services/financial.service.js';
 import asyncHandler from '../../../utils/asyncHandler.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
@@ -59,16 +60,9 @@ export const getPendingCourierCod = asyncHandler(async (req, res) => {
 
 const round2 = (n) => Math.round(Number(n) * 100) / 100;
 
-// What the courier should have collected for one shipment: the order total for a single-vendor order,
-// otherwise that vendor's share (subtotal + shipping + tax - discount) so multi-vendor orders are not counted twice.
-const shipmentCodAmount = (shipment) => {
-    const order = shipment.order || {};
-    const groups = Array.isArray(order.vendorItems) ? order.vendorItems : [];
-    if (groups.length <= 1) return round2(order.total || 0);
-    const group = groups.find((g) => String(g.vendorId) === String(shipment.vendorId));
-    if (!group) return 0;
-    return round2((group.subtotal || 0) + (group.shipping || 0) + (group.tax || 0) - (group.discount || 0));
-};
+// What the courier should have collected for one shipment: that package's own COD share, the same rule
+// the rider app, rider cash-in-hand and admin cash settlement use.
+const shipmentCodAmount = (shipment) => getShipmentCodAmount(shipment.order || {}, shipment.vendorId);
 
 // POST /api/admin/courier-remittances/settle
 export const settleCourierCod = asyncHandler(async (req, res) => {

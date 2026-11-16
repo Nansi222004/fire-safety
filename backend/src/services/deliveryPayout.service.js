@@ -3,6 +3,7 @@ import Shipment from '../models/Shipment.model.js';
 import DeliveryBoy from '../models/DeliveryBoy.model.js';
 import DeliveryWalletTransaction from '../models/DeliveryWalletTransaction.model.js';
 import { calculatePayout } from './payoutCalculator.service.js';
+import { getShipmentCodAmount } from './financial.service.js';
 
 /**
  * Process delivery boy payout and COD cash collections atomically.
@@ -56,25 +57,25 @@ export const processDeliveryBoyPayout = async (orderId, deliveryBoyId, session) 
         throw new Error('Payout already processed for this order.');
     }
 
-    // 3. Calculate payout
-    const calculateDeliveryPayout = (ord) => {
-        let pay = 50; // Base pay
-        const dist = ord.distance || 0;
-        if (dist > 5) {
-            pay += (dist - 5) * 5; // ₹5 per additional km
-        }
-        return parseFloat(pay.toFixed(2));
-    };
-
-    const payout = calculateDeliveryPayout(order);
-    const isCod = order.paymentMethod === 'cash' || order.paymentMethod === 'cod';
-    const cashAmount = isCod ? order.total : 0;
-
-    // 4. Retrieve and update driver balances
+    // 3. Retrieve the driver; pay from the admin-configured rate table (same as per-shipment payouts),
+    //    not the old hardcoded ₹50 + ₹5/km.
     const boy = await DeliveryBoy.findById(deliveryBoyId).session(session);
     if (!boy) {
         throw new Error('Driver profile not found.');
     }
+    const { payoutAmount: payout } = await calculatePayout({
+        distanceKm: order.distance || 0,
+        vehicleType: boy.vehicleType || 'bike',
+        deliveredAt: new Date(),
+    });
+
+    // 4. COD cash: this order-level delivery covers every package that wasn't cancelled.
+    const isCod = order.paymentMethod === 'cash' || order.paymentMethod === 'cod';
+    const cashAmount = isCod
+        ? parseFloat((order.vendorItems || [])
+            .reduce((sum, vi) => sum + getShipmentCodAmount(order, vi.vendorId), 0)
+            .toFixed(2)) || Number(order.total || 0)
+        : 0;
 
     const walletBefore = boy.walletBalance;
     const cashBefore = boy.cashInHand;
@@ -166,7 +167,9 @@ export const processShipmentPayout = async (shipmentId, session) => {
     const payoutAmount = payoutInfo.payoutAmount;
 
     const isCod = order.paymentMethod === 'cash' || order.paymentMethod === 'cod';
-    const cashAmount = isCod ? order.total : 0;
+    // Only this package's share of a COD order. Using order.total here charged a rider the whole order for
+    // each package of a multi-vendor order, and charged cancelled packages too.
+    const cashAmount = getShipmentCodAmount(order, shipment.vendorId);
 
     const walletBefore = boy.walletBalance;
     const cashBefore = boy.cashInHand;
@@ -193,7 +196,7 @@ export const processShipmentPayout = async (shipmentId, session) => {
     );
 
     // If COD, update cash collected liability and create collection ledger
-    if (isCod) {
+    if (isCod && cashAmount > 0) {
         const walletAfterEarning = boy.walletBalance;
         boy.cashInHand = parseFloat((boy.cashInHand + cashAmount).toFixed(2));
         

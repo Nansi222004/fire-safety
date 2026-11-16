@@ -7,7 +7,6 @@ import Payment from '../../../models/Payment.model.js';
 import PaymentAttempt from '../../../models/PaymentAttempt.model.js';
 import Commission from '../../../models/Commission.model.js';
 import Product from '../../../models/Product.model.js';
-import Coupon from '../../../models/Coupon.model.js';
 import Vendor from '../../../models/Vendor.model.js';
 import ReturnRequest from '../../../models/ReturnRequest.model.js';
 import mongoose from 'mongoose';
@@ -16,7 +15,7 @@ import { getWallet, debitWallet } from '../../../services/wallet.service.js';
 import LogisticsEventBus from '../../../events/logisticsEventBus.js';
 import LOGISTICS_EVENTS from '../../../events/logisticsEvents.js';
 import { processCapturedPayment } from '../../../services/paymentProcessor.js';
-import { getDefaultCommissionRate, isPaymentMethodEnabled } from '../../../services/settingsService.js';
+import { isPaymentMethodEnabled } from '../../../services/settingsService.js';
 import Admin from '../../../models/Admin.model.js';
 import { createNotification } from '../../../services/notification.service.js';
 import { sendOrderConfirmationEmail } from '../../../services/email.service.js';
@@ -32,6 +31,8 @@ import { isCodOnlyMode } from '../../../config/paymentConfig.js';
 import { findMatchingVariantKey, encodeVariantKey } from '../../../utils/variantKeyHelper.js';
 import { assertWholesaleBuyer, resolveWholesaleLine } from '../../../services/wholesale.service.js';
 import { buildOrderRoutingDecisions } from '../../../services/deliveryRouting.service.js';
+import { validateCoupon, consumeCouponUsage } from '../../../services/coupon.service.js';
+import { resolveVendorCommissionRates } from '../../../services/commission.service.js';
 
 // ─── POST /api/user/payment/initialize ────────────────────────────────────────
 // Creates DB order (payment_pending) + Razorpay order. No stock deducted yet.
@@ -101,7 +102,7 @@ export const initializePayment = asyncHandler(async (req, res) => {
             return res.status(200).json(new ApiResponse(200, {
                 orderId: existing.orderId,
                 razorpayOrderId: existingAttempt?.razorpayOrderId || null,
-                amount: existing.total,
+                amount: Number((Number(existing.total || 0) - Number(existing.walletAmountUsed || 0)).toFixed(2)),
                 currency: 'INR',
                 key: process.env.RAZORPAY_KEY_ID,
                 idempotent: true,
@@ -168,6 +169,23 @@ export const initializePayment = asyncHandler(async (req, res) => {
         const vendorId = String(product.vendorId);
 
         const variantKey = item.variantKey || null;
+        if (!isWholesaleOrder && variantKey) {
+            // The product page and cart show the variant's own price; charge that price, not the base price.
+            const matchedPriceKey = findMatchingVariantKey(product.variants?.prices, variantKey);
+            if (matchedPriceKey) {
+                const prices = product.variants.prices;
+                const variantPrice = Number(typeof prices.get === 'function' ? prices.get(matchedPriceKey) : prices[matchedPriceKey]);
+                if (Number.isFinite(variantPrice) && variantPrice >= 0) price = variantPrice;
+            }
+            const matchedStockKey = findMatchingVariantKey(product.variants?.stockMap, variantKey);
+            if (matchedStockKey) {
+                const stockMap = product.variants.stockMap;
+                const variantStock = Number(typeof stockMap.get === 'function' ? stockMap.get(matchedStockKey) : stockMap[matchedStockKey]);
+                if (Number.isFinite(variantStock) && variantStock < quantity) {
+                    throw new ApiError(400, `Only ${variantStock} units available for selected variant of ${product.name}.`);
+                }
+            }
+        }
         const variantImage =
             variantKey && product.variants?.imageMap
                 ? String((product.variants.imageMap instanceof Map || typeof product.variants.imageMap.get === 'function' ? product.variants.imageMap.get(variantKey) : product.variants.imageMap[variantKey]) || '').trim()
@@ -199,19 +217,12 @@ export const initializePayment = asyncHandler(async (req, res) => {
     let appliedCoupon = null;
     let couponDiscount = 0;
     if (couponCode) {
-        const coupon = await Coupon.findOne({
-            code: couponCode.toUpperCase(),
-            isActive: true,
-            expiresAt: { $gt: new Date() },
-        }).lean();
-        if (coupon) {
-            appliedCoupon = coupon;
-            const rawSubtotal = enrichedItems.reduce((s, i) => s + i.price * i.quantity, 0);
-            couponDiscount = coupon.type === 'percentage'
-                ? (rawSubtotal * coupon.value) / 100
-                : coupon.value;
-            if (coupon.minOrderValue && rawSubtotal < coupon.minOrderValue) couponDiscount = 0;
-        }
+        // Same rules as the cart preview (/coupons/validate): start/expiry dates, usage limit,
+        // minimum order value and the maxDiscount cap on percentage coupons.
+        const rawSubtotal = enrichedItems.reduce((s, i) => s + i.price * i.quantity, 0);
+        const { coupon, discount } = await validateCoupon(String(couponCode), rawSubtotal);
+        appliedCoupon = coupon;
+        couponDiscount = discount;
     }
 
     // --- Shipping calculation ---
@@ -237,11 +248,8 @@ export const initializePayment = asyncHandler(async (req, res) => {
     });
     const shipping = shippingResult?.totalShipping || 0;
     const shippingByVendor = shippingResult?.shippingByVendor || {};
-    const defaultRate = await getDefaultCommissionRate();
-    const vendorCommissions = Object.fromEntries(vendorDocs.map(v => [
-        String(v._id),
-        v.commissionRate !== undefined && v.commissionRate !== null ? v.commissionRate : defaultRate
-    ]));
+    // Canonical rule: vendor's own rate, else Admin default (fails clearly if unset); snapshotted on the order.
+    const vendorCommissions = await resolveVendorCommissionRates(vendorDocs);
 
     // --- Calculate financials server-side ---
     const financials = calculateOrderFinancials({
@@ -252,7 +260,9 @@ export const initializePayment = asyncHandler(async (req, res) => {
         vendorShippings: shippingByVendor,
     });
 
-    const { finalTotal: rawTotal, discountedSubtotal: subtotal, tax } = financials;
+    // Order.subtotal is the pre-discount item total (as in placeOrder); `discount` is stored separately,
+    // so subtotal - discount + tax + shipping reads correctly on invoices and order pages.
+    const { finalTotal: rawTotal, originalSubtotal: subtotal, tax } = financials;
     const total = normalizedPaymentMethod === 'cod' ? Math.round(rawTotal) : rawTotal;
 
     // Create populated vendorItems array with full financials, commissions, and item details (names, images)
@@ -381,14 +391,29 @@ export const initializePayment = asyncHandler(async (req, res) => {
                     estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
                     invoiceNumber: `INV-${orderId}`,
                     invoiceDate: new Date(),
+                    // COD orders now carry the checkout idempotency key too (the unique index on scope+key
+                    // rejects a concurrent duplicate; the pre-check above returns the existing order on retry).
+                    idempotencyKey: idempotencyKey || undefined,
+                    idempotencyScope: idempotencyKey ? `user:${String(userId)}` : undefined,
                 }], { session });
                 order = createdOrder;
 
-                // Deduct stock
+                // Deduct stock (product total and, for variant lines, the variant's own stock bucket)
                 for (const item of enrichedItems) {
+                    const productSnapshot = item.variantKey
+                        ? await Product.findById(item.productId).select('variants.stockMap').session(session).lean()
+                        : null;
+                    const matchedStockKey = item.variantKey ? findMatchingVariantKey(productSnapshot?.variants?.stockMap, item.variantKey) : null;
+                    const variantPath = matchedStockKey ? `variants.stockMap.${encodeVariantKey(matchedStockKey)}` : null;
+                    const stockFilter = { _id: item.productId, stock: { $ne: 'out_of_stock' }, stockQuantity: { $gte: Number(item.quantity) } };
+                    const stockInc = { stockQuantity: -Number(item.quantity) };
+                    if (variantPath) {
+                        stockFilter[variantPath] = { $gte: Number(item.quantity) };
+                        stockInc[variantPath] = -Number(item.quantity);
+                    }
                     const updatedProduct = await Product.findOneAndUpdate(
-                        { _id: item.productId, stock: { $ne: 'out_of_stock' }, stockQuantity: { $gte: Number(item.quantity) } },
-                        { $inc: { stockQuantity: -Number(item.quantity) } },
+                        stockFilter,
+                        { $inc: stockInc },
                         { new: true, session }
                     );
                     if (!updatedProduct) throw new ApiError(409, `Insufficient stock for ${item.name}.`);
@@ -431,7 +456,7 @@ export const initializePayment = asyncHandler(async (req, res) => {
 
                 // Coupon usage
                 if (appliedCoupon) {
-                    await Coupon.updateOne({ _id: appliedCoupon._id }, { $inc: { usedCount: 1 } }, { session });
+                    await consumeCouponUsage(appliedCoupon, session);
                 }
 
                 // Phase 5.1 Parity: Create Shipments for COD order
@@ -500,6 +525,22 @@ export const initializePayment = asyncHandler(async (req, res) => {
                     );
                 }
             });
+        } catch (err) {
+            // Two identical submissions raced past the pre-check: return the order the first one created.
+            if (idempotencyKey && err?.code === 11000 && err?.keyPattern?.idempotencyKey) {
+                const existing = await Order.findOne({ idempotencyScope: `user:${String(userId)}`, idempotencyKey }).lean();
+                if (existing) {
+                    return res.status(200).json(new ApiResponse(200, {
+                        orderId: existing.orderId,
+                        total: existing.total,
+                        paymentMethod: existing.paymentMethod,
+                        paymentStatus: existing.paymentStatus || 'pending',
+                        razorpayOrderId: null,
+                        idempotent: true,
+                    }, 'Returning existing COD order.'));
+                }
+            }
+            throw err;
         } finally {
             await session.endSession();
         }
@@ -775,7 +816,7 @@ export const initializePayment = asyncHandler(async (req, res) => {
                 await Commission.insertMany(commissionDocs, { session });
 
                 if (appliedCoupon) {
-                    await Coupon.updateOne({ _id: appliedCoupon._id }, { $inc: { usedCount: 1 } }, { session });
+                    await consumeCouponUsage(appliedCoupon, session);
                 }
 
                 // Create Payment record
@@ -1028,10 +1069,16 @@ export const retryPayment = asyncHandler(async (req, res) => {
         .lean();
     const attemptNumber = (lastAttempt?.attemptNumber || 0) + 1;
 
+    // Only the gateway portion is still due: any wallet share was debited when the order was created.
+    const amountDue = Number((Number(order.total || 0) - Number(order.walletAmountUsed || 0)).toFixed(2));
+    if (amountDue <= 0) {
+        throw new ApiError(400, 'Nothing is left to pay on this order.');
+    }
+
     // Create new Razorpay order
     let rzpOrder;
     try {
-        rzpOrder = await createRazorpayOrder(order.total, 'INR', `${order.orderId}-retry-${attemptNumber}`);
+        rzpOrder = await createRazorpayOrder(amountDue, 'INR', `${order.orderId}-retry-${attemptNumber}`);
     } catch (err) {
         console.error('[RAZORPAY_RETRY_ERROR] Failed to create retry order:', err);
         throw new ApiError(502, 'Payment gateway error. Please try again.');
@@ -1049,7 +1096,7 @@ export const retryPayment = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, {
         orderId: order.orderId,
         razorpayOrderId: rzpOrder.id,
-        amount: order.total,
+        amount: amountDue,
         currency: 'INR',
         key: process.env.RAZORPAY_KEY_ID,
         attemptNumber,
@@ -1075,6 +1122,9 @@ export const exchangeUpgradePayment = asyncHandler(async (req, res) => {
     const priceDeltaStatus = request.exchangeDetails?.priceDeltaStatus;
     if (!priceDelta || priceDelta <= 0) throw new ApiError(400, 'No upgrade payment required.');
     if (priceDeltaStatus !== 'pending') throw new ApiError(400, `Price delta already ${priceDeltaStatus}.`);
+    if (['rejected', 'completed'].includes(request.status)) {
+        throw new ApiError(400, `This exchange is ${request.status}; no payment can be taken for it.`);
+    }
 
     // 4.9 — Idempotency: prevent duplicate exchange upgrade attempts
     const existingAttempt = await PaymentAttempt.findOne({
@@ -1109,8 +1159,9 @@ export const exchangeUpgradePayment = asyncHandler(async (req, res) => {
         razorpayOrderId: rzpOrder.id,
         purpose: 'EXCHANGE_UPGRADE',
         status: 'created',
-        attemptNumber: 1,
+        attemptNumber: (await PaymentAttempt.countDocuments({ relatedReturnId: request._id, purpose: 'EXCHANGE_UPGRADE' })) + 1,
         relatedReturnId: request._id,
+        amount: priceDelta, // exactly the saved canonical difference; checked again on capture
     });
 
     await ReturnRequest.findByIdAndUpdate(request._id, {
@@ -1155,6 +1206,12 @@ export const verifyPayment = asyncHandler(async (req, res) => {
     const updatedOrder = await Order.findById(order._id)
         .select('orderId status paymentStatus total')
         .lean();
+
+    // The order was cancelled while the customer was paying: the processor refunds the capture.
+    // Report that instead of a success the checkout page would show as "Order placed".
+    if (updatedOrder.status === 'cancelled') {
+        throw new ApiError(409, 'This order was cancelled before your payment completed. The amount is being refunded to your original payment method.');
+    }
 
     return res.status(200).json(
         new ApiResponse(200, {

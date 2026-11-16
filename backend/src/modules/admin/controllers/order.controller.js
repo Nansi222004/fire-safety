@@ -1,3 +1,4 @@
+import { getVendorGroupPayable } from '../../../services/financial.service.js';
 import asyncHandler from '../../../utils/asyncHandler.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
@@ -14,6 +15,7 @@ import { handleOrderDeliveryBalances } from '../../../services/orderFinancialHel
 import mongoose from 'mongoose';
 import { processDeliveryBoyPayout } from '../../../services/deliveryPayout.service.js';
 import Shipment from '../../../models/Shipment.model.js';
+import { findMatchingVariantKey, encodeVariantKey } from '../../../utils/variantKeyHelper.js';
 import Coupon from '../../../models/Coupon.model.js';
 import Refund from '../../../models/Refund.model.js';
 import AuditLog from '../../../models/AuditLog.model.js';
@@ -27,7 +29,7 @@ import {
     toPartnerOption,
     ASSIGNMENT_ERROR_MESSAGES,
 } from '../../../services/assignmentService.js';
-import { processCancellationRefund } from '../../../services/cancellationRefundService.js';
+import { processCancellationRefund, splitMixedRefund, refundWalletShare } from '../../../services/cancellationRefundService.js';
 import { ensureDeliveryOtpForShipment } from '../../../services/deliveryOtp.service.js';
 
 // GET /api/admin/orders/delivery-partners/available?shipmentId=
@@ -592,12 +594,21 @@ export const adminOverrideCancelVendorItem = asyncHandler(async (req, res) => {
                 await cancelShipmentDeliveryAssignment(shipment._id, reason, session);
             }
 
-            // Restore Inventory
-            for (const item of targetVendorGroup.items) {
+            // Restore Inventory (same rules as cancellationRefundService): unpaid online orders never took stock,
+            // and a variant line returns its units to the variant's own stock bucket as well as the product total.
+            const neverCaptured = ['payment_pending', 'payment_failed'].includes(order.status);
+            for (const item of neverCaptured ? [] : targetVendorGroup.items) {
                 const quantity = Number(item.quantity || 0);
                 if (quantity <= 0) continue;
 
-                const product = await Product.findByIdAndUpdate(item.productId, { $inc: { stockQuantity: quantity } }, { new: true, session });
+                const productSnapshot = item.variantKey
+                    ? await Product.findById(item.productId).select('variants.stockMap').session(session).lean()
+                    : null;
+                const matchedStockKey = item.variantKey ? findMatchingVariantKey(productSnapshot?.variants?.stockMap, item.variantKey) : null;
+                const restoreInc = { stockQuantity: quantity };
+                if (matchedStockKey) restoreInc[`variants.stockMap.${encodeVariantKey(matchedStockKey)}`] = quantity;
+
+                const product = await Product.findByIdAndUpdate(item.productId, { $inc: restoreInc }, { new: true, session });
                 if (product) {
                     const nextStockState =
                         product.stockQuantity <= 0
@@ -614,7 +625,7 @@ export const adminOverrideCancelVendorItem = asyncHandler(async (req, res) => {
 
             // Calculate refund
             calculatedRefund = parseFloat(
-                ((targetVendorGroup.subtotal || 0) - (targetVendorGroup.discount || 0) + (targetVendorGroup.tax || 0) + (targetVendorGroup.shipping || 0)).toFixed(2)
+                getVendorGroupPayable(targetVendorGroup).toFixed(2)
             );
 
             const isOnlinePayment = order.paymentMethod !== 'cod' && (order.paymentStatus === 'paid' || order.paymentStatus === 'partially_refunded' || forceRefund);
@@ -638,7 +649,28 @@ export const adminOverrideCancelVendorItem = asyncHandler(async (req, res) => {
                     const remainingRefundable = parseFloat(Math.max(0, capturedAmount - alreadyRefunded).toFixed(2));
                     const eligibleRefund = Math.min(calculatedRefund, remainingRefundable);
 
-                    if (eligibleRefund > 0) {
+                    // Same refund routing as cancellationRefundService: wallet-paid orders go back to the wallet
+                    // (this path used to look for a Razorpay payment, find none and refund ₹0), and a wallet + gateway
+                    // order sends the gateway at most what it captured with the rest back to the wallet.
+                    const refundNotes = `Admin Override Cancellation: ${reason || 'Admin cancelled'}`;
+                    let gatewayAmount = eligibleRefund;
+                    let walletRefunded = 0;
+                    if (eligibleRefund > 0 && order.paymentMethod === 'wallet') {
+                        await refundWalletShare(order, eligibleRefund, refundRef, refundNotes, session, true);
+                        walletRefunded = eligibleRefund;
+                        gatewayAmount = 0;
+                    } else if (eligibleRefund > 0) {
+                        const split = splitMixedRefund(order, eligibleRefund, existingRefunds);
+                        gatewayAmount = split.gatewayAmount;
+                        if (split.walletAmount > 0) {
+                            await refundWalletShare(order, split.walletAmount, refundRef, refundNotes, session);
+                            walletRefunded = split.walletAmount;
+                        }
+                    }
+                    targetVendorGroup.refundedAmount = walletRefunded;
+                    calculatedRefund = walletRefunded;
+
+                    if (gatewayAmount > 0) {
                         const paidAttempt = await PaymentAttempt.findOne({ orderId: order._id, status: 'paid' })
                             .sort({ updatedAt: -1 })
                             .session(session);
@@ -648,7 +680,7 @@ export const adminOverrideCancelVendorItem = asyncHandler(async (req, res) => {
                                 orderId: order._id,
                                 userId: order.userId,
                                 paymentAttemptId: paidAttempt._id,
-                                amount: eligibleRefund,
+                                amount: gatewayAmount,
                                 referenceId: refundRef,
                                 method: 'razorpay',
                                 destination: 'original_source',
@@ -659,22 +691,29 @@ export const adminOverrideCancelVendorItem = asyncHandler(async (req, res) => {
                                 notes: `Admin Override Cancellation: ${reason || 'Admin cancelled'}`,
                             }], { session });
 
-                            targetVendorGroup.refundedAmount = eligibleRefund;
-                            calculatedRefund = eligibleRefund;
+                            targetVendorGroup.refundedAmount = walletRefunded + gatewayAmount;
+                            calculatedRefund = walletRefunded + gatewayAmount;
 
                             pendingRzpCall = {
                                 refundRecordId: createdRefund._id,
                                 paymentId: paidAttempt.razorpayPaymentId,
-                                amount: eligibleRefund,
+                                amount: gatewayAmount,
                                 reference: refundRef,
                             };
                         } else {
-                            targetVendorGroup.refundedAmount = 0;
-                            calculatedRefund = 0;
+                            // Never move a card/UPI refund to the wallet silently: record it for manual handling.
+                            await Refund.create([{
+                                orderId: order._id,
+                                userId: order.userId,
+                                amount: gatewayAmount,
+                                referenceId: refundRef,
+                                method: 'razorpay',
+                                destination: 'original_source',
+                                status: 'failed',
+                                failureReason: 'Original captured Razorpay payment ID could not be resolved; refund manually.',
+                                notes: refundNotes,
+                            }], { session });
                         }
-                    } else {
-                        targetVendorGroup.refundedAmount = 0;
-                        calculatedRefund = 0;
                     }
                 }
             } else {

@@ -52,11 +52,34 @@ const OrdersCustomersSettings = () => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    updateSettings('orders', ordersData);
-    updateSettings('customers', customersData);
-    toast.success('Settings saved successfully');
+    // Return window: whole days 0–365, same rule as the backend (settingsService.assertValidReturnWindowDays).
+    // It controls return eligibility AND the vendor payout hold, so it is never defaulted.
+    const ordersPayload = { ...ordersData };
+    const raw = ordersPayload.returnWindow;
+    const blank = raw === undefined || raw === null || String(raw).trim() === '';
+    if (blank) {
+      if (settings?.orders?.returnWindow !== undefined && settings?.orders?.returnWindow !== null) {
+        toast.error('Return window is required once configured (0–365 days).');
+        return;
+      }
+      delete ordersPayload.returnWindow;
+    } else {
+      const days = Number(raw);
+      if (!Number.isInteger(days) || days < 0 || days > 365) {
+        toast.error('Return window must be a whole number of days from 0 to 365.');
+        return;
+      }
+      ordersPayload.returnWindow = days;
+    }
+    try {
+      await updateSettings('orders', ordersPayload, true);
+      await updateSettings('customers', customersData, true);
+      toast.success('Settings saved successfully');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to save settings');
+    }
   };
 
   const sections = [
@@ -131,6 +154,29 @@ const OrdersCustomersSettings = () => {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                   <p className="text-xs text-gray-500 mt-1">Time limit for customers to cancel orders</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Return Window (Days)
+                  </label>
+                  <input
+                    type="number"
+                    name="returnWindow"
+                    value={ordersData.returnWindow ?? ''}
+                    onChange={handleOrdersChange}
+                    min="0"
+                    max="365"
+                    step="1"
+                    placeholder="Not configured"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Days after delivery a customer can request a return or exchange. Vendor earnings are held for
+                    the same period. Changes apply to future deliveries; already-delivered packages keep their date.
+                    {(ordersData.returnWindow === undefined || ordersData.returnWindow === null || ordersData.returnWindow === '') &&
+                      ' Not configured: returns are unavailable and vendor payouts stay on hold.'}
+                  </p>
                 </div>
               </div>
 

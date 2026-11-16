@@ -25,6 +25,7 @@ import {
     computeServiceQuote,
     buildSchedule,
     assertBookableSlot,
+    generateServiceBookingId,
 } from '../../../services/serviceBookingFlow.service.js';
 
 const DAYS_MAP = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -210,7 +211,7 @@ export const checkServiceability = asyncHandler(async (req, res) => {
         variantPrices: vs.variantPrices || {},
         workingHours: vs.workingHours || { start: '09:00', end: '18:00' },
         workingSchedule: vs.workingSchedule || undefined,
-        dailyCapacity: vs.dailyCapacity || 10,
+        dailyCapacity: vs.dailyCapacity ?? 10,
         vendorNotes: vs.vendorNotes || '',
     }));
 
@@ -322,7 +323,9 @@ export const createBooking = asyncHandler(async (req, res) => {
     const bookingDateObj = new Date(`${bookingDateStr}T00:00:00.000Z`);
 
     // 7. Concurrency-Safe Daily Capacity Reservation
-    const dailyLimit = vendorService.dailyCapacity || 10;
+    // `??` so a provider who sets capacity to 0 (paused) gets no bookings; `|| 10` turned 0 into 10,
+    // while the schedule screen showed the same day as "Fully booked".
+    const dailyLimit = vendorService.dailyCapacity ?? 10;
     const dateStr = bookingDateStr;
 
     await ServiceCapacity.updateOne(
@@ -368,7 +371,20 @@ export const createBooking = asyncHandler(async (req, res) => {
     const bookingVariant = quote.variant || {};
     const pricingSnapshot = { unitPrice, quantity: qty, subtotal, visitCharge, taxRate, tax, total };
 
-    const bookingId = `SRV-${Date.now().toString().slice(-6)}${Math.floor(100 + Math.random() * 900)}`;
+    // Creates the booking with a fresh unique bookingId, retrying if the generated ID is already taken.
+    // Any failure releases the capacity slot reserved above, so a failed create never leaks a slot.
+    const createBookingRecord = async (fields) => {
+        for (let attempt = 1; ; attempt += 1) {
+            try {
+                return await ServiceBooking.create({ ...fields, bookingId: generateServiceBookingId() });
+            } catch (err) {
+                const isIdClash = err?.code === 11000 && Boolean(err?.keyPattern?.bookingId);
+                if (isIdClash && attempt < 5) continue;
+                await rollbackCapacity();
+                throw err;
+            }
+        }
+    };
 
     const normalizedMethod = String(paymentMethod || 'cod').toLowerCase();
 
@@ -380,8 +396,7 @@ export const createBooking = asyncHandler(async (req, res) => {
 
     // 8. Handle Payment Methods
     if (normalizedMethod === 'cod') {
-        const booking = await ServiceBooking.create({
-            bookingId,
+        const booking = await createBookingRecord({
             userId,
             serviceId: serviceMaster._id,
             vendorId: resolvedVendor._id,
@@ -436,8 +451,7 @@ export const createBooking = asyncHandler(async (req, res) => {
             throw new ApiError(400, `Insufficient wallet balance. Available: ₹${wallet.balance}, Required: ₹${total}.`);
         }
 
-        const booking = await ServiceBooking.create({
-            bookingId,
+        const booking = await createBookingRecord({
             userId,
             serviceId: serviceMaster._id,
             vendorId: resolvedVendor._id,
@@ -505,8 +519,7 @@ export const createBooking = asyncHandler(async (req, res) => {
     }
 
     // Online Payment via Razorpay
-    const booking = await ServiceBooking.create({
-        bookingId,
+    const booking = await createBookingRecord({
         userId,
         serviceId: serviceMaster._id,
         vendorId: resolvedVendor._id,
@@ -604,6 +617,11 @@ export const verifyServicePayment = asyncHandler(async (req, res) => {
 
     const updatedBooking = await ServiceBooking.findById(booking._id).lean();
 
+    // Cancelled or expired while the customer was paying: the processor refunds the capture.
+    if (updatedBooking.status === 'cancelled') {
+        throw new ApiError(409, 'This booking was cancelled before your payment completed. The amount is being refunded to your original payment method.');
+    }
+
     res.status(200).json(
         new ApiResponse(200, { booking: updatedBooking }, 'Service payment verified and booking confirmed successfully.')
     );
@@ -640,6 +658,7 @@ export const getBookingById = asyncHandler(async (req, res) => {
         : { bookingId: id, userId };
 
     let booking = await ServiceBooking.findOne(query)
+        .select('+completionOtp')
         .populate('vendorId', 'storeName name email phone address rating')
         .populate('serviceId', 'name description serviceFields serviceSettings')
         .lean();
@@ -647,6 +666,9 @@ export const getBookingById = asyncHandler(async (req, res) => {
     if (!booking) {
         throw new ApiError(404, 'Booking not found.');
     }
+
+    // The completion code is for the customer only, and only while the job is in progress.
+    if (booking.status !== 'in_progress') delete booking.completionOtp;
 
     res.status(200).json(
         new ApiResponse(200, { booking }, 'Booking detail fetched successfully.')
@@ -806,13 +828,16 @@ export const cancelBooking = asyncHandler(async (req, res) => {
             }
         }
 
-        // Release capacity reservation
-        const dateStr = getIstDateAndMinutes(new Date(booking.bookingDate)).dateStr;
-        await ServiceCapacity.updateOne(
-            { vendorServiceId: booking.vendorServiceId, dateStr, bookedCount: { $gt: 0 } },
-            { $inc: { bookedCount: -1 } },
-            { session }
-        );
+        // Release capacity reservation. A failed online payment already released it (payment.failed webhook);
+        // releasing again would free a slot someone else holds and allow overbooking.
+        if (booking.paymentStatus !== 'failed') {
+            const dateStr = getIstDateAndMinutes(new Date(booking.bookingDate)).dateStr;
+            await ServiceCapacity.updateOne(
+                { vendorServiceId: booking.vendorServiceId, dateStr, bookedCount: { $gt: 0 } },
+                { $inc: { bookedCount: -1 } },
+                { session }
+            );
+        }
 
         // Update booking record with refund state and audit history
         const statusUpdate = {
@@ -827,11 +852,22 @@ export const cancelBooking = asyncHandler(async (req, res) => {
             }
         };
 
-        if (booking.paymentStatus === 'paid') {
+        // Only mark refunded when a refund actually exists; otherwise the booking would claim the customer
+        // was refunded while no refund was ever created (e.g. the paid attempt could not be resolved).
+        const hasRefundRecord = booking.paymentStatus === 'paid' && await Refund.exists({
+            serviceBookingId: booking._id,
+            status: { $in: ['completed', 'processing'] },
+        }).session(session);
+        if (hasRefundRecord) {
             statusUpdate.$set = {
                 paymentStatus: 'refunded',
                 refundStatus: 'refunded'
             };
+        } else if (booking.paymentStatus === 'paid' && booking.paymentMethod !== 'cod') {
+            logger.error('[SERVICE_CANCEL] Paid booking cancelled without a refund record — manual refund needed', {
+                bookingId: String(booking._id),
+                amount: booking.pricing?.total,
+            });
         }
 
         updatedBooking = await ServiceBooking.findByIdAndUpdate(

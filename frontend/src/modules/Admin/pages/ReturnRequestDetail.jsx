@@ -21,6 +21,7 @@ import { formatCurrency, formatDateTime } from '../utils/adminHelpers';
 import { getPlaceholderImage } from '../../../shared/utils/helpers';
 import { useReturnStore } from '../../../shared/store/returnStore';
 import { reassignReversePickup } from '../services/adminService';
+import ExchangeGstBreakdown from '@shared/components/ExchangeGstBreakdown';
 import toast from 'react-hot-toast';
 import {
   getStatusConfig,
@@ -322,6 +323,7 @@ const ReturnRequestDetail = () => {
                     if (diff > 0) return <p className="font-semibold text-amber-800 bg-amber-50 p-2.5 rounded-lg border border-amber-150">Customer owes vendor: {formatCurrency(diff)}</p>;
                     return <p className="font-semibold text-green-800 bg-green-50 p-2.5 rounded-lg border border-green-150">Refund due to customer: {formatCurrency(Math.abs(diff))}</p>;
                   })()}
+                  <ExchangeGstBreakdown exchangeDetails={returnRequest.exchangeDetails} format={formatCurrency} />
                 </div>
               </div>
             </div>

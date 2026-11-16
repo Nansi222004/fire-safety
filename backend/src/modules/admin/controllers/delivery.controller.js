@@ -10,6 +10,32 @@ import mongoose from 'mongoose';
 import CashSettlement from '../../../models/CashSettlement.model.js';
 import DeliveryWalletTransaction from '../../../models/DeliveryWalletTransaction.model.js';
 import DeliveryWithdrawal from '../../../models/DeliveryWithdrawal.model.js';
+import { getShipmentCodAmount } from '../../../services/financial.service.js';
+
+/**
+ * COD cash a rider still holds: one amount per delivered, unsettled package they delivered, using the
+ * package's own share of the order (getShipmentCodAmount), never the whole order total per package.
+ */
+const getRiderUnsettledCod = async (deliveryBoyId, session = null) => {
+    const shipments = await mongoose.model('Shipment').find({
+        deliveryBoyId,
+        status: 'delivered',
+        isCashSettled: { $ne: true },
+    }).select('_id orderId vendorId').session(session).lean();
+    if (shipments.length === 0) return { amount: 0, shipments: [], orders: [] };
+
+    const orderIds = [...new Set(shipments.map((s) => String(s.orderId)))];
+    const orders = await Order.find({ _id: { $in: orderIds }, paymentMethod: { $in: ['cod', 'cash'] } })
+        .select('_id total paymentMethod vendorItems')
+        .session(session)
+        .lean();
+    const orderById = new Map(orders.map((o) => [String(o._id), o]));
+    const codShipments = shipments
+        .filter((s) => orderById.has(String(s.orderId)))
+        .map((s) => ({ ...s, codAmount: getShipmentCodAmount(orderById.get(String(s.orderId)), s.vendorId) }));
+    const amount = parseFloat(codShipments.reduce((sum, s) => sum + s.codAmount, 0).toFixed(2));
+    return { amount, shipments: codShipments, orders };
+};
 
 const DOC_TOKEN_TTL_MS = 10 * 60 * 1000;
 const DOC_TOKEN_QUERY_KEY = 'docToken';
@@ -78,26 +104,13 @@ export const getAllDeliveryBoys = asyncHandler(async (req, res) => {
         
         let totalDeliveries = 0;
         let pendingDeliveries = 0;
-        const pendingCashOrderIds = new Set();
-        
+
         shipments.forEach(s => {
             if (s.status === 'delivered') totalDeliveries++;
             else if (['pending', 'processing', 'shipped'].includes(s.status)) pendingDeliveries++;
-            
-            if (s.status === 'delivered' && !s.isCashSettled) {
-                pendingCashOrderIds.add(s.orderId.toString());
-            }
         });
-        
-        let cashInHand = 0;
-        if (pendingCashOrderIds.size > 0) {
-            const orders = await Order.find({
-                _id: { $in: Array.from(pendingCashOrderIds) },
-                paymentMethod: { $in: ['cod', 'cash'] }
-            }).select('total').lean();
-            
-            cashInHand = orders.reduce((sum, o) => sum + (o.total || 0), 0);
-        }
+
+        const { amount: cashInHand } = await getRiderUnsettledCod(boy._id);
         
         const boyStats = { totalDeliveries, pendingDeliveries, cashInHand };
         return {
@@ -166,23 +179,8 @@ export const getDeliveryBoyById = asyncHandler(async (req, res) => {
 
     const boyStats = stats.length > 0 ? stats[0] : { totalDeliveries: 0, pendingDeliveries: 0 };
 
-    // Calculate cash in hand by querying unique Orders tied to un-settled COD shipments
-    const pendingCashShipments = await mongoose.model('Shipment').find({
-        deliveryBoyId: boy._id,
-        status: 'delivered',
-        isCashSettled: { $ne: true }
-    }).select('orderId').lean();
-
-    let cashInHand = 0;
-    if (pendingCashShipments.length > 0) {
-        const orderIds = [...new Set(pendingCashShipments.map(s => s.orderId.toString()))];
-        const cashOrders = await Order.find({
-            _id: { $in: orderIds },
-            paymentMethod: { $in: ['cod', 'cash'] }
-        }).select('total').lean();
-        cashInHand = cashOrders.reduce((sum, o) => sum + (o.total || 0), 0);
-    }
-    boyStats.cashInHand = cashInHand;
+    // Cash in hand: each unsettled COD package's own share, not the whole order total per package
+    boyStats.cashInHand = (await getRiderUnsettledCod(boy._id)).amount;
 
     // Transform shipments into a format the frontend expects (legacy Order format)
     // since the frontend hasn't been updated to read shipments here yet.
@@ -443,28 +441,12 @@ export const settleCash = asyncHandler(async (req, res) => {
 
     try {
         await session.withTransaction(async () => {
-            // Find unsettled shipments for this boy
-            const pendingShipments = await mongoose.model('Shipment').find({
-                deliveryBoyId: req.params.id,
-                status: 'delivered',
-                isCashSettled: { $ne: true }
-            }).select('orderId').session(session).lean();
-            
-            if (pendingShipments.length === 0) return;
-            
-            const uniqueOrderIds = [...new Set(pendingShipments.map(s => s.orderId.toString()))];
-            
-            const pendingOrders = await Order.find({
-                _id: { $in: uniqueOrderIds },
-                paymentMethod: { $in: ['cod', 'cash'] }
-            }).session(session).select('_id total').lean();
-
-            if (pendingOrders.length === 0) {
-                return;
-            }
+            // The rider's delivered, unsettled COD packages and what each one collected.
+            const { amount, shipments: codShipments, orders: pendingOrders } = await getRiderUnsettledCod(req.params.id, session);
+            if (codShipments.length === 0) return;
 
             const orderIds = pendingOrders.map((o) => o._id);
-            settledAmount = parseFloat(pendingOrders.reduce((sum, o) => sum + Number(o.total || 0), 0).toFixed(2));
+            settledAmount = amount;
 
             // 1. Create CashSettlement document
             const [settlement] = await CashSettlement.create(
@@ -475,40 +457,46 @@ export const settleCash = asyncHandler(async (req, res) => {
                     orders: orderIds, // Legacy field, kept for history
                     paymentMode,
                     receiptPhoto,
-                    notes: notes || `Settlement for ${orderIds.length} orders`
+                    notes: notes || `Settlement for ${codShipments.length} package(s) across ${orderIds.length} order(s)`
                 }],
                 { session }
             );
 
-            // 2. Mark orders as settled
-            const result = await Order.updateMany(
-                { _id: { $in: orderIds } },
-                {
-                    $set: {
-                        isCashSettled:    true,
-                        settledAt:        new Date(),
-                        cashSettlementId: settlement._id,
-                        paymentStatus:    'paid',         // fix: COD orders now correctly show paymentStatus: 'paid'
-                    }
-                },
+            // 2. Mark exactly these packages as settled (guard against a concurrent settlement)
+            const shipmentResult = await mongoose.model('Shipment').updateMany(
+                { _id: { $in: codShipments.map((sh) => sh._id) }, isCashSettled: { $ne: true } },
+                { $set: { isCashSettled: true, cashSettlementId: settlement._id } },
                 { session }
             );
-            modifiedCount = result.modifiedCount;
-            if (modifiedCount !== orderIds.length) {
-                throw new Error('Some orders in this session have already been settled.');
+            if (shipmentResult.modifiedCount !== codShipments.length) {
+                throw new Error('Some packages in this session have already been settled.');
             }
+            modifiedCount = codShipments.length;
 
-            // 3. Mark shipments as settled
-            await mongoose.model('Shipment').updateMany(
-                { orderId: { $in: orderIds }, deliveryBoyId: req.params.id },
-                {
-                    $set: {
-                        isCashSettled: true,
-                        cashSettlementId: settlement._id
-                    }
-                },
-                { session }
-            );
+            // 3. An order is cash-settled only when none of its live packages still has cash outstanding;
+            //    another rider may still hold the cash for a different package of the same order.
+            for (const orderId of orderIds) {
+                const outstanding = await mongoose.model('Shipment').countDocuments({
+                    orderId,
+                    status: { $nin: ['cancelled', 'returned', 'return_initiated', 'failed'] },
+                    isCashSettled: { $ne: true },
+                    $or: [{ type: 'forward' }, { type: { $exists: false } }],
+                }).session(session);
+                if (outstanding === 0) {
+                    await Order.updateOne(
+                        { _id: orderId },
+                        {
+                            $set: {
+                                isCashSettled:    true,
+                                settledAt:        new Date(),
+                                cashSettlementId: settlement._id,
+                                paymentStatus:    'paid',
+                            }
+                        },
+                        { session }
+                    );
+                }
+            }
 
             // 3. Update rider balances
             const freshBoy = await DeliveryBoy.findById(req.params.id).session(session);
@@ -552,7 +540,7 @@ export const settleCash = asyncHandler(async (req, res) => {
         recipientId:   req.params.id,
         recipientType: 'delivery',
         title:         'Cash Collected by Admin',
-        message:       `Admin collected \u20b9${settledAmount} COD cash from you for ${modifiedCount} order(s). Your cashInHand has been updated.`,
+        message:       `Admin collected \u20b9${settledAmount} COD cash from you for ${modifiedCount} package(s). Your cashInHand has been updated.`,
         type:          'wallet',
         data:          { settledAmount, modifiedCount },
     }).catch(console.error);
@@ -561,7 +549,7 @@ export const settleCash = asyncHandler(async (req, res) => {
         new ApiResponse(
             200,
             { modifiedCount, settledAmount },
-            `Settled cash for ${modifiedCount} orders`
+            `Settled cash for ${modifiedCount} package(s)`
         )
     );
 });

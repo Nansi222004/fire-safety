@@ -10,6 +10,7 @@ import PaymentAttempt from '../models/PaymentAttempt.model.js';
 import { processRazorpayRefund } from './payment.service.js';
 import { creditWallet } from './wallet.service.js';
 import { cancelShipmentDeliveryAssignment } from './assignmentService.js';
+import { getVendorGroupPayable } from './financial.service.js';
 import {
     findMatchingVariantKey,
     encodeVariantKey,
@@ -48,6 +49,55 @@ const resolveOrderItemVariantKey = (productSnapshot, item) => {
         if (matched) return matched;
     }
     return null;
+};
+
+const round2 = (value) => parseFloat(Number(value || 0).toFixed(2));
+
+/**
+ * Splits a refund for an order paid partly from the wallet and partly through Razorpay. The gateway
+ * can only refund what it captured (total - walletAmountUsed, less earlier gateway refunds); the rest
+ * goes back to the wallet it came from. Orders without a wallet share refund entirely via the gateway.
+ */
+export const splitMixedRefund = (order, eligibleAmount, existingRefunds = []) => {
+    const amount = round2(eligibleAmount);
+    const walletShare = order?.paymentMethod === 'wallet' ? 0 : Number(order?.walletAmountUsed || 0);
+    if (walletShare <= 0) return { gatewayAmount: amount, walletAmount: 0 };
+
+    const gatewayCaptured = Math.max(0, Number(order.total || 0) - walletShare);
+    const gatewayRefunded = existingRefunds
+        .filter((r) => r?.destination !== 'wallet')
+        .reduce((sum, r) => sum + Number(r?.amount || 0), 0);
+    const gatewayAmount = round2(Math.min(amount, Math.max(0, gatewayCaptured - gatewayRefunded)));
+    return { gatewayAmount, walletAmount: round2(amount - gatewayAmount) };
+};
+
+export const refundWalletShare = async (order, amount, baseReference, notes, session, isRelease = false) => {
+    const reference = isRelease ? baseReference : `${baseReference}_WALLET_SHARE`;
+    await creditWallet(
+        order.userId,
+        amount,
+        'cancel_refund',
+        { orderId: order._id, reference, description: notes },
+        session
+    );
+    await Refund.create(
+        [
+            {
+                orderId: order._id,
+                userId: order.userId,
+                amount,
+                referenceId: reference,
+                method: 'wallet_credit',
+                destination: 'wallet',
+                status: 'completed',
+                paymentMethod: 'wallet',
+                refundInitiatedAt: new Date(),
+                refundCompletedAt: new Date(),
+                notes,
+            },
+        ],
+        { session }
+    );
 };
 
 /**
@@ -91,6 +141,8 @@ export const processCancellationRefund = async ({
             // FULL ORDER CANCELLATION
             // ─────────────────────────────────────────────────────────────────
             const originalStatus = order.status;
+            // Online orders take stock, coupon use and payment only when the gateway capture succeeds.
+            const neverCaptured = ['payment_pending', 'payment_failed'].includes(originalStatus);
             order.status = 'cancelled';
             order.cancelledAt = new Date();
             order.cancellationReason = reason;
@@ -168,18 +220,28 @@ export const processCancellationRefund = async ({
                         ? 'refunded'
                         : 'partially_refunded';
                 } else {
-                    const paidAttempt = await PaymentAttempt.findOne({ orderId: order._id, status: 'paid' })
-                        .sort({ updatedAt: -1 })
-                        .session(internalSession);
+                    const { gatewayAmount, walletAmount } = splitMixedRefund(order, eligibleRefundAmount, existingCompletedRefunds);
+                    if (walletAmount > 0) {
+                        await refundWalletShare(order, walletAmount, refundReference, refundNotes, internalSession);
+                    }
+                    const paidAttempt = gatewayAmount > 0
+                        ? await PaymentAttempt.findOne({ orderId: order._id, status: 'paid' })
+                            .sort({ updatedAt: -1 })
+                            .session(internalSession)
+                        : null;
 
-                    if (paidAttempt && paidAttempt.razorpayPaymentId) {
+                    if (gatewayAmount <= 0) {
+                        order.paymentStatus = (alreadyRefunded + eligibleRefundAmount >= capturedAmount)
+                            ? 'refunded'
+                            : 'partially_refunded';
+                    } else if (paidAttempt && paidAttempt.razorpayPaymentId) {
                         const [createdRefund] = await Refund.create(
                             [
                                 {
                                     orderId: order._id,
                                     userId: order.userId,
                                     paymentAttemptId: paidAttempt._id,
-                                    amount: eligibleRefundAmount,
+                                    amount: gatewayAmount,
                                     referenceId: refundReference,
                                     method: 'razorpay',
                                     destination: 'original_source',
@@ -196,7 +258,7 @@ export const processCancellationRefund = async ({
                         pendingRzpCall = {
                             refundRecordId: createdRefund._id,
                             paymentId: paidAttempt.razorpayPaymentId,
-                            amount: eligibleRefundAmount,
+                            amount: gatewayAmount,
                             reference: refundReference,
                             isFull: true,
                         };
@@ -209,7 +271,7 @@ export const processCancellationRefund = async ({
                                 {
                                     orderId: order._id,
                                     userId: order.userId,
-                                    amount: eligibleRefundAmount,
+                                    amount: gatewayAmount,
                                     referenceId: refundReference,
                                     method: 'razorpay',
                                     destination: 'original_source',
@@ -223,12 +285,25 @@ export const processCancellationRefund = async ({
                     }
                 }
                 refundAmount = eligibleRefundAmount;
+            } else if (neverCaptured && Number(order.walletAmountUsed || 0) > 0) {
+                // The wallet share of a wallet+gateway order is debited when the order is created, before
+                // the gateway payment completes. If the order is abandoned that share must go back.
+                await refundWalletShare(
+                    order,
+                    Number(order.walletAmountUsed),
+                    `PENDING_ORDER_WALLET_RELEASE_${order._id}`,
+                    `Wallet amount released: unpaid order #${order.orderId} cancelled by ${cancelledBy}`,
+                    internalSession,
+                    true
+                );
+                refundAmount = Number(order.walletAmountUsed);
             }
 
             await order.save({ session: internalSession });
 
             // Restore Product Inventory Stock
-            if (originalStatus !== 'payment_pending') {
+            // Stock was never deducted for an unpaid order; restoring it would create phantom stock.
+            if (!neverCaptured) {
                 for (const item of order.items || []) {
                     const quantity = Number(item.quantity || 0);
                     if (quantity <= 0) continue;
@@ -267,8 +342,9 @@ export const processCancellationRefund = async ({
                 }
             }
 
-            // Restore Coupon Usage Slot
-            if (order.couponCode) {
+            // Restore Coupon Usage Slot. Online orders consume the slot only when payment is captured,
+            // so an order cancelled while still payment_pending never took one.
+            if (order.couponCode && !neverCaptured) {
                 const couponFilter = order.couponId
                     ? { _id: order.couponId, usedCount: { $gt: 0 } }
                     : { code: order.couponCode.toUpperCase(), usedCount: { $gt: 0 } };
@@ -335,14 +411,13 @@ export const processCancellationRefund = async ({
             targetVendorGroup.cancellationReason = reason;
             targetVendorGroup.cancellationComment = comment;
 
-            // Calculate financial refund for this package
+            // Calculate financial refund for this package. The refund is what the customer paid for it;
+            // for tax-inclusive products the GST is already inside the subtotal and must not be added again.
             const productAmount = parseFloat((targetVendorGroup.subtotal || 0).toFixed(2));
             const taxRefund = parseFloat((targetVendorGroup.tax || 0).toFixed(2));
             const shippingRefund = parseFloat((targetVendorGroup.shipping || 0).toFixed(2));
             const discountAdjustment = parseFloat((targetVendorGroup.discount || 0).toFixed(2));
-            const calculatedRefund = parseFloat(
-                (productAmount - discountAdjustment + taxRefund + shippingRefund).toFixed(2)
-            );
+            const calculatedRefund = getVendorGroupPayable(targetVendorGroup);
 
             targetVendorGroup.refundBreakdown = {
                 productAmount,
@@ -410,18 +485,29 @@ export const processCancellationRefund = async ({
                         ? 'refunded'
                         : 'partially_refunded';
                 } else {
-                    const paidAttempt = await PaymentAttempt.findOne({ orderId: order._id, status: 'paid' })
-                        .sort({ updatedAt: -1 })
-                        .session(internalSession);
+                    const { gatewayAmount, walletAmount } = splitMixedRefund(order, refundAmount, existingCompletedRefunds);
+                    if (walletAmount > 0) {
+                        await refundWalletShare(order, walletAmount, refundReference, refundNotes, internalSession);
+                        targetVendorGroup.refundedAmount = walletAmount;
+                    }
+                    const paidAttempt = gatewayAmount > 0
+                        ? await PaymentAttempt.findOne({ orderId: order._id, status: 'paid' })
+                            .sort({ updatedAt: -1 })
+                            .session(internalSession)
+                        : null;
 
-                    if (paidAttempt && paidAttempt.razorpayPaymentId) {
+                    if (gatewayAmount <= 0) {
+                        order.paymentStatus = (alreadyRefunded + refundAmount >= capturedAmount)
+                            ? 'refunded'
+                            : 'partially_refunded';
+                    } else if (paidAttempt && paidAttempt.razorpayPaymentId) {
                         const [createdRefund] = await Refund.create(
                             [
                                 {
                                     orderId: order._id,
                                     userId: order.userId,
                                     paymentAttemptId: paidAttempt._id,
-                                    amount: refundAmount,
+                                    amount: gatewayAmount,
                                     referenceId: refundReference,
                                     method: 'razorpay',
                                     destination: 'original_source',
@@ -438,7 +524,7 @@ export const processCancellationRefund = async ({
                         pendingRzpCall = {
                             refundRecordId: createdRefund._id,
                             paymentId: paidAttempt.razorpayPaymentId,
-                            amount: refundAmount,
+                            amount: gatewayAmount,
                             reference: refundReference,
                             isFull: false,
                         };
@@ -450,7 +536,7 @@ export const processCancellationRefund = async ({
                                 {
                                     orderId: order._id,
                                     userId: order.userId,
-                                    amount: refundAmount,
+                                    amount: gatewayAmount,
                                     referenceId: refundReference,
                                     method: 'razorpay',
                                     destination: 'original_source',

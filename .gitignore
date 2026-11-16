@@ -80,3 +80,5 @@ frontend/test/
 **/test/
 tests/**
 test/**
+# Read-only financial reconciliation exports (contain production record IDs)
+backend/reconciliation-output/

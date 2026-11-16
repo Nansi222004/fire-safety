@@ -7,6 +7,7 @@ import { useSettingsStore } from "../../../../shared/store/settingsStore";
 import { getOrderById } from "../../services/adminService";
 import toast from "react-hot-toast";
 import logoImage from "../../../../assets/logo-firesafety.png";
+import { getOrderPriceBreakdown } from "../../../../shared/utils/orderFinance";
 
 const Invoice = () => {
   const navigate = useNavigate();
@@ -73,14 +74,11 @@ const Invoice = () => {
     }));
 
   // Calculate totals
-  const subtotal = order.subtotal ?? order.total ?? 0;
-  const tax = order.tax ?? 0;
-  const discount = order.discount ?? 0;
-  const shipping = order.shipping ?? 0;
-  const finalTotal =
-    order.finalTotal !== undefined
-      ? order.finalTotal
-      : subtotal + tax + shipping - discount;
+  // Shared breakdown from the item snapshots; the total is always the charged amount.
+  const priceBreakdown = getOrderPriceBreakdown({ ...order, total: order.finalTotal ?? order.total });
+  const { subtotal, discount, shipping, taxIncludedInPrice, rounding } = priceBreakdown;
+  const tax = priceBreakdown.taxAdded;
+  const finalTotal = priceBreakdown.total;
 
   // Format payment method
   const formatPaymentMethod = (method) => {
@@ -129,7 +127,7 @@ ${items
 Subtotal: ${formatPrice(subtotal)}
 ${discount > 0 ? `Discount: -${formatPrice(discount)}\n` : ""}
 ${tax > 0 ? `Tax: ${formatPrice(tax)}\n` : ""}
-${shipping > 0 ? `Shipping: ${formatPrice(shipping)}\n` : ""}
+${shipping > 0 ? `Shipping: ${formatPrice(shipping)}\n` : ""}${taxIncludedInPrice > 0 ? `GST included in prices: ${formatPrice(taxIncludedInPrice)}\n` : ""}${rounding !== 0 ? `Rounding: ${formatPrice(rounding)}\n` : ""}
 Total: ${formatPrice(finalTotal)}
 
 Payment Method: ${formatPaymentMethod(order.paymentMethod)}
@@ -340,6 +338,18 @@ ${order.trackingNumber ? `Tracking Number: ${order.trackingNumber}` : ""}
               <div className="flex justify-between text-sm text-gray-700">
                 <span>Shipping:</span>
                 <span className="font-semibold">{formatPrice(shipping)}</span>
+              </div>
+            )}
+            {taxIncludedInPrice > 0 && (
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>GST included in item prices:</span>
+                <span>{formatPrice(taxIncludedInPrice)}</span>
+              </div>
+            )}
+            {rounding !== 0 && (
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>Rounding:</span>
+                <span>{formatPrice(rounding)}</span>
               </div>
             )}
             <div className="flex justify-between text-lg font-bold text-gray-800 pt-3 border-t border-gray-200">

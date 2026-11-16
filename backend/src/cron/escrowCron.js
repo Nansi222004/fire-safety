@@ -4,6 +4,8 @@ import Vendor from '../models/Vendor.model.js';
 import Admin from '../models/Admin.model.js';
 import ReturnRequest from '../models/ReturnRequest.model.js';
 import Commission from '../models/Commission.model.js';
+import Shipment from '../models/Shipment.model.js';
+import { getPayoutHoldDays } from '../services/settingsService.js';
 import Settlement from '../models/Settlement.model.js';
 import VendorWalletTransaction from '../models/VendorWalletTransaction.model.js';
 import { createNotification } from '../services/notification.service.js';
@@ -27,7 +29,8 @@ export const releaseEscrowPayments = async () => {
 async function _runEscrowRelease() {
     console.log('[Escrow Cron] Starting daily auto-release scanner...');
     const now = new Date();
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    // Payout hold = Admin-configured return window (approved rule 3). Null when not configured: funds stay held.
+    const holdDays = await getPayoutHoldDays();
 
     try {
         // Find all commissions held in escrow — fix: removed dead 'awaiting_settlement' status
@@ -74,8 +77,21 @@ async function _runEscrowRelease() {
                     }
 
                     // Check COD/Cash order cash-settlement condition
+                    // COD: release only once THIS vendor's package cash is with the platform, whether settled
+                    // by the rider (admin cash settlement) or remitted by the courier. The order-level flag is
+                    // only set when every package is settled, and the courier path never set it at all, so
+                    // courier-delivered COD earnings were never released.
                     const isCodOrCash = ['cod', 'cash'].includes(order.paymentMethod);
-                    if (isCodOrCash && !order.isCashSettled) {
+                    let codCashSettled = order.isCashSettled === true;
+                    if (isCodOrCash && !codCashSettled) {
+                        const vendorShipment = await Shipment.findOne({
+                            orderId: order._id,
+                            vendorId: comm.vendorId,
+                            $or: [{ type: 'forward' }, { type: { $exists: false } }],
+                        }).select('isCashSettled').session(session).lean();
+                        codCashSettled = vendorShipment?.isCashSettled === true;
+                    }
+                    if (isCodOrCash && !codCashSettled) {
                         skippedCod++;
                         if (process.env.DEBUG_ESCROW === 'true') {
                             console.log(`[Escrow Cron] Skip: COD/Cash order ${order.orderId} is not cash-settled yet.`);
@@ -85,11 +101,19 @@ async function _runEscrowRelease() {
                         return;
                     }
 
-                    // Check release date eligibility
-                    const releaseDate = lockedComm.escrowReleaseDate;
-                    const isEligible = releaseDate
-                        ? releaseDate <= now
-                        : (order.status === 'delivered' && order.deliveredAt && order.deliveredAt <= sevenDaysAgo);
+                    // Check release date eligibility. The date is normally fixed at delivery (delivery + return
+                    // window). For a delivered package without one (window was not configured then, or legacy
+                    // data), derive it now from the delivery date and record it, so it is not re-derived later.
+                    let releaseDate = lockedComm.escrowReleaseDate;
+                    if (!releaseDate) {
+                        const pkg = (order.vendorItems || []).find((g) => String(g.vendorId) === String(comm.vendorId));
+                        const packageDelivered = pkg?.status === 'delivered' || order.status === 'delivered';
+                        if (packageDelivered && order.deliveredAt && holdDays !== null) {
+                            releaseDate = new Date(new Date(order.deliveredAt).getTime() + holdDays * 24 * 60 * 60 * 1000);
+                            await Commission.findByIdAndUpdate(comm._id, { escrowReleaseDate: releaseDate }, { session });
+                        }
+                    }
+                    const isEligible = Boolean(releaseDate) && releaseDate <= now;
 
                     if (!isEligible) {
                         skippedNotEligible++;

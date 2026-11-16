@@ -48,7 +48,10 @@ const TaxReports = () => {
   const taxData = useMemo(() => {
     const dailyData = {};
 
-    orders.forEach((order) => {
+    // GST is only owed on orders the customer actually paid for and kept: skip unpaid, failed,
+    // cancelled and fully returned orders (same exclusions as the revenue dashboard).
+    const NON_TAXABLE_STATUSES = ["cancelled", "payment_pending", "payment_failed", "returned"];
+    orders.filter((order) => !NON_TAXABLE_STATUSES.includes(String(order.status || "").toLowerCase())).forEach((order) => {
       const taxAmount = Number(order.tax) || 0;
       const subtotal = Number(order.subtotal) || 0;
       const total = Number(order.total) || 0;
