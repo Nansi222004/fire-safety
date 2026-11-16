@@ -4,9 +4,200 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#ffffff" />
     <title>SafeFire - Certified Fire Safety Equipment & Protection</title>
+    <link rel="preload" as="image" href="/splash-icon.png" />
+    <link rel="preload" as="image" href="/splash-wordmark.png" />
+    <!--
+      Launch splash, shared by all four apps (customer, seller, delivery partner, wholesaler).
+      Plain HTML/CSS so it paints before the JS bundle has even downloaded; it stays until the app
+      has rendered AND the page has finished loading, then fades out (see window.__appSplash below).
+    -->
+    <style>
+      #app-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483647;
+        background: #ffffff;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0;
+        padding: env(safe-area-inset-top) 24px env(safe-area-inset-bottom);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        opacity: 1;
+        transition: opacity 0.35s ease, visibility 0.35s ease;
+        -webkit-user-select: none;
+        user-select: none;
+        touch-action: none;
+      }
+      #app-splash.app-splash--hide {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+      .app-splash__ring {
+        position: relative;
+        width: 88px;
+        height: 88px;
+        margin-bottom: 26px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      /* FS shield, centred inside the spinning ring */
+      .app-splash__icon {
+        width: 50px;
+        height: 50px;
+        object-fit: contain;
+      }
+      .app-splash__ring::before,
+      .app-splash__ring::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        border: 3px solid transparent;
+      }
+      .app-splash__ring::before {
+        border-color: #fde2e3;
+      }
+      .app-splash__ring::after {
+        border-top-color: #e31e24;
+        border-left-color: rgba(227, 30, 36, 0.45);
+        animation: app-splash-spin 0.9s linear infinite;
+      }
+      .app-splash__logo {
+        display: block;
+        width: 200px;
+        max-width: 64vw;
+        height: auto;
+        aspect-ratio: 560 / 158;
+        object-fit: contain;
+      }
+      .app-splash__tagline {
+        margin: 14px 0 0;
+        font-size: 14px;
+        letter-spacing: 0.06em;
+        color: #8a8f98;
+        text-align: center;
+      }
+      .app-splash__bar {
+        width: 160px;
+        height: 4px;
+        margin-top: 34px;
+        border-radius: 999px;
+        background: #fde2e3;
+        overflow: hidden;
+      }
+      .app-splash__bar-fill {
+        width: 6%;
+        height: 100%;
+        border-radius: inherit;
+        background: #e31e24;
+        transition: width 0.45s ease;
+      }
+      @keyframes app-splash-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .app-splash__ring::after {
+          animation-duration: 2.4s;
+        }
+        #app-splash,
+        .app-splash__bar-fill {
+          transition: none;
+        }
+      }
+    </style>
   </head>
   <body>
+    <div id="app-splash" role="status" aria-live="polite" aria-label="Loading">
+      <div class="app-splash__ring">
+        <img class="app-splash__icon" src="/splash-icon.png" width="192" height="192" alt="" draggable="false" />
+      </div>
+      <img class="app-splash__logo" src="/splash-wordmark.png" width="560" height="158" alt="Fire Safety Shop" draggable="false" />
+      <p class="app-splash__tagline" id="app-splash-tagline">Certified fire safety, delivered</p>
+      <div class="app-splash__bar"><div class="app-splash__bar-fill" id="app-splash-bar"></div></div>
+    </div>
+    <script>
+      (function () {
+        var splash = document.getElementById('app-splash');
+        var bar = document.getElementById('app-splash-bar');
+        var tagline = document.getElementById('app-splash-tagline');
+        if (!splash) return;
+
+        // One splash, four apps: the tagline names the app that is opening.
+        var path = window.location.pathname || '/';
+        var label = 'Certified fire safety, delivered';
+        if (/^\/wholesaler(\/|$)/.test(path)) label = 'Wholesaler Portal · B2B';
+        else if (/^\/(vendor|seller)(\/|$)/.test(path)) label = 'Seller Partner Portal';
+        else if (/^\/delivery(\/|$)/.test(path)) label = 'Delivery Partner';
+        else if (/^\/admin(\/|$)/.test(path)) label = 'Admin Console';
+        tagline.textContent = label;
+
+        var shownAt = Date.now();
+        var MIN_VISIBLE_MS = 700;   // avoid a flash on fast loads
+        var MAX_VISIBLE_MS = 15000; // never block the app if something fails to report in
+        var progress = 6;
+        var appReady = false;
+        var pageLoaded = document.readyState === 'complete';
+        var finished = false;
+
+        function setProgress(value) {
+          if (value > progress) {
+            progress = Math.min(value, 100);
+            bar.style.width = progress + '%';
+          }
+        }
+
+        // Creep forward while waiting, never past 90% until loading has really finished.
+        var creep = setInterval(function () {
+          if (progress < 90) setProgress(progress + Math.max(0.6, (90 - progress) * 0.06));
+        }, 180);
+
+        function hide() {
+          if (finished) return;
+          finished = true;
+          clearInterval(creep);
+          setProgress(100);
+          var wait = Math.max(0, MIN_VISIBLE_MS - (Date.now() - shownAt));
+          setTimeout(function () {
+            splash.classList.add('app-splash--hide');
+            setTimeout(function () {
+              if (splash.parentNode) splash.parentNode.removeChild(splash);
+            }, 400);
+          }, wait + 150);
+        }
+
+        function maybeHide() {
+          if (appReady && pageLoaded) hide();
+        }
+
+        window.addEventListener('load', function () {
+          pageLoaded = true;
+          setProgress(appReady ? 95 : 75);
+          maybeHide();
+        });
+
+        // Called by the app (src/main.jsx) once React has rendered its first screen.
+        window.__appSplash = {
+          progress: setProgress,
+          ready: function () {
+            appReady = true;
+            setProgress(pageLoaded ? 95 : 70);
+            maybeHide();
+          },
+          hide: hide,
+        };
+
+        setTimeout(hide, MAX_VISIBLE_MS);
+        setProgress(15);
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

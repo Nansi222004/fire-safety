@@ -68,9 +68,24 @@ if (typeof document !== 'undefined') {
   );
 }
 
+window.__appSplash?.progress?.(55);
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <App />
   </React.StrictMode>,
 )
+
+// Launch splash (index.html): tell it the first screen is on display. Two animation frames = React has
+// committed and the browser has painted; also wait for web fonts (capped) so text doesn't swap in visibly.
+if (typeof window !== 'undefined') {
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      const fontsReady = document.fonts?.ready ?? Promise.resolve();
+      Promise.race([fontsReady, new Promise((resolve) => setTimeout(resolve, 1500))]).finally(() => {
+        window.__appSplash?.ready?.();
+      });
+    })
+  );
+}
 
