@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
-import { FiArrowLeft, FiBriefcase, FiLock, FiSearch, FiTrash2, FiX, FiInfo } from "react-icons/fi";
+import { FiArrowLeft, FiArrowRight, FiBriefcase, FiLock, FiSearch, FiTrash2, FiX, FiInfo } from "react-icons/fi";
 import MobileLayout from "../components/Layout/MobileLayout";
 import PageTransition from "../../../shared/components/PageTransition";
 import api from "../../../shared/utils/api";
 import { useAddressStore } from "../../../shared/store/addressStore";
 import { useAuthStore } from "../../../shared/store/authStore";
 import { formatPrice } from "../../../shared/utils/helpers";
+import { appLogo } from "../../../shared/utils/imagePaths";
 
 // Wholesale / B2B storefront. Eligibility, visibility, pricing, MOQ, stock and the final amount are all
 // enforced by the backend — this page only displays and submits what the server returns.
@@ -286,10 +287,23 @@ const Wholesale = () => {
 
   return (
     <PageTransition>
-      <MobileLayout showBottomNav={true} showCartBar={false}>
+      <MobileLayout showBottomNav={true} showCartBar={false} showDesktopChrome={false}>
+        {/* Desktop top bar. The retail header/footer are hidden here, so leaving the wholesale
+            storefront is one clearly labelled link instead of every header option. */}
+        <div className="hidden md:block sticky top-0 z-[999] bg-white border-b border-slate-200">
+          <div className="max-w-6xl mx-auto px-4 lg:px-0 h-16 flex items-center justify-between gap-4">
+            <Link to="/wholesale" className="flex items-center gap-3 min-w-0">
+              <img src={appLogo} alt="Fire Safety Shop" className="h-9 w-auto object-contain" />
+              <span className="px-2 py-0.5 rounded-full bg-sky-50 border border-sky-100 text-sky-700 text-xs font-bold whitespace-nowrap">Wholesale / B2B</span>
+            </Link>
+            <Link to="/home" className="flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-slate-900 whitespace-nowrap">
+              Go to retail store <FiArrowRight />
+            </Link>
+          </div>
+        </div>
         <div className="w-full max-w-6xl mx-auto px-4 lg:px-0 py-6 pb-24 space-y-6">
           <div className="flex items-center gap-4">
-            <button onClick={() => navigate(-1)} aria-label="Go back" className="w-11 h-11 bg-white border border-gray-100 hover:bg-gray-50 rounded-2xl flex items-center justify-center text-slate-700 shadow-sm">
+            <button onClick={() => navigate(-1)} aria-label="Go back" className="md:hidden w-11 h-11 bg-white border border-gray-100 hover:bg-gray-50 rounded-2xl flex items-center justify-center text-slate-700 shadow-sm">
               <FiArrowLeft />
             </button>
             <div>

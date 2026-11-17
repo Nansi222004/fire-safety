@@ -12,7 +12,9 @@ import ErrorBoundary from '../../../../shared/components/ErrorBoundary/ErrorBoun
 import { useAuthStore } from '../../../../shared/store/authStore';
 import "../../customer-animations.css";
 
-const MobileLayout = ({ children, showBottomNav = true, showCartBar = true, showHeader = true, onSearch }) => {
+// showDesktopChrome={false} drops the retail desktop header/footer. The /wholesale storefront uses it:
+// it has its own top bar, so desktop clicks don't lead into the retail store.
+const MobileLayout = ({ children, showBottomNav = true, showCartBar = true, showHeader = true, showDesktopChrome = true, onSearch }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const wholesaleAccess = useAuthStore((state) => state.isAuthenticated && state.user?.wholesaleAccess === true);
@@ -55,10 +57,10 @@ const MobileLayout = ({ children, showBottomNav = true, showCartBar = true, show
     };
   }, []);
 
-  const isDesktopHeaderVisible = !isAuthPage && !isCheckoutPage && !isAddressesPage;
+  const isDesktopHeaderVisible = showDesktopChrome && !isAuthPage && !isCheckoutPage && !isAddressesPage;
   const mainStyle = shouldShowHeader ? { paddingTop: `${headerHeight}px` } : {};
 
-  const shouldHideFooter = isAuthPage ||
+  const shouldHideFooter = !showDesktopChrome || isAuthPage ||
     location.pathname === '/signup' ||
     location.pathname === '/profile';
 

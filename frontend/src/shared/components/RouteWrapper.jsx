@@ -26,7 +26,14 @@ const RouteWrapper = ({ children }) => {
   // Return children with location key to force remount on route change
   // `sf-user-ui` scopes user-panel-only styling (e.g. button micro-interactions in index.css)
   // Ensure strict max-width and min-width constraints to avoid layout expansion
-  return <div key={`${location.pathname}${location.search}:${catalogTick}`} className="sf-user-ui w-full max-w-full min-w-0" style={{ width: '100%', height: '100%' }}>{children}</div>;
+  // The wholesale storefront keeps its filters (search, category, sort, open product) in the query
+  // string and doesn't use the retail catalog cache, so it must not remount on either. A remount
+  // re-ran the access check, replayed the page/header animations and took focus off the search box.
+  const remountKey = location.pathname === '/wholesale'
+    ? location.pathname
+    : `${location.pathname}${location.search}:${catalogTick}`;
+
+  return <div key={remountKey} className="sf-user-ui w-full max-w-full min-w-0" style={{ width: '100%', height: '100%' }}>{children}</div>;
 };
 
 export default RouteWrapper;
