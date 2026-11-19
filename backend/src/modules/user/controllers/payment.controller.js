@@ -28,6 +28,7 @@ import { calculateVendorShippingForGroups } from '../../../services/vendorShippi
 import { generateOrderId } from '../../../utils/generateOrderId.js';
 import { generateTrackingNumber } from '../../../utils/generateTrackingNumber.js';
 import { isCodOnlyMode } from '../../../config/paymentConfig.js';
+import { getRazorpayKeyId } from '../../../config/razorpayConfig.js';
 import { findMatchingVariantKey, encodeVariantKey } from '../../../utils/variantKeyHelper.js';
 import { assertWholesaleBuyer, resolveWholesaleLine } from '../../../services/wholesale.service.js';
 import { buildOrderRoutingDecisions } from '../../../services/deliveryRouting.service.js';
@@ -104,7 +105,7 @@ export const initializePayment = asyncHandler(async (req, res) => {
                 razorpayOrderId: existingAttempt?.razorpayOrderId || null,
                 amount: Number((Number(existing.total || 0) - Number(existing.walletAmountUsed || 0)).toFixed(2)),
                 currency: 'INR',
-                key: process.env.RAZORPAY_KEY_ID,
+                key: getRazorpayKeyId(),
                 idempotent: true,
             }, 'Returning existing payment session.'));
         }
@@ -1027,7 +1028,7 @@ export const initializePayment = asyncHandler(async (req, res) => {
         razorpayOrderId: rzpOrder.id,
         amount: Number((total - walletAmountUsed).toFixed(2)),
         currency: 'INR',
-        key: process.env.RAZORPAY_KEY_ID,
+        key: getRazorpayKeyId(),
     }, 'Payment initialized. Complete payment to confirm order.'));
 });
 
@@ -1098,7 +1099,7 @@ export const retryPayment = asyncHandler(async (req, res) => {
         razorpayOrderId: rzpOrder.id,
         amount: amountDue,
         currency: 'INR',
-        key: process.env.RAZORPAY_KEY_ID,
+        key: getRazorpayKeyId(),
         attemptNumber,
     }, 'New payment attempt created.'));
 });
@@ -1137,7 +1138,7 @@ export const exchangeUpgradePayment = asyncHandler(async (req, res) => {
             razorpayOrderId: existingAttempt.razorpayOrderId,
             amount: priceDelta,
             currency: 'INR',
-            key: process.env.RAZORPAY_KEY_ID,
+            key: getRazorpayKeyId(),
             idempotent: true,
         }, 'Returning existing exchange upgrade payment.'));
     }
@@ -1172,7 +1173,7 @@ export const exchangeUpgradePayment = asyncHandler(async (req, res) => {
         razorpayOrderId: rzpOrder.id,
         amount: priceDelta,
         currency: 'INR',
-        key: process.env.RAZORPAY_KEY_ID,
+        key: getRazorpayKeyId(),
     }, 'Exchange upgrade payment initialized.'));
 });
 

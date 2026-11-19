@@ -18,6 +18,7 @@ import { getWallet, debitWallet, creditWallet } from '../../../services/wallet.s
 import { processCapturedPayment } from '../../../services/paymentProcessor.js';
 import { isPaymentMethodEnabled } from '../../../services/settingsService.js';
 import { isCodOnlyMode } from '../../../config/paymentConfig.js';
+import { getRazorpayKeyId } from '../../../config/razorpayConfig.js';
 import mongoose from 'mongoose';
 import {
     buildVariantOptions,
@@ -569,7 +570,7 @@ export const createBooking = asyncHandler(async (req, res) => {
             amount: total,
             amountPaise: Math.round(total * 100),
             currency: 'INR',
-            key: process.env.RAZORPAY_KEY_ID,
+            key: getRazorpayKeyId(),
         }, 'Service booking created. Complete online payment to confirm.')
     );
 });

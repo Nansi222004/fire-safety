@@ -1,3 +1,5 @@
+import { logRazorpayMode } from './razorpayConfig.js';
+
 const requiredEnvVars = [
     'MONGO_URI',
     'JWT_SECRET',
@@ -29,4 +31,5 @@ export const validateEnv = () => {
     }
 
     console.log('Environment variables validated successfully');
+    logRazorpayMode();
 };

@@ -1,11 +1,22 @@
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import ApiError from '../utils/ApiError.js';
+import { getRazorpayKeyId, getRazorpayKeySecret, getRazorpayWebhookSecret } from '../config/razorpayConfig.js';
 
-const razorpay = new Razorpay({
-    key_id:     process.env.RAZORPAY_KEY_ID || 'rzp_test_mock12345',
-    key_secret: process.env.RAZORPAY_KEY_SECRET || 'mock_secret12345',
-});
+// Built from the active key set (test or live, chosen by RAZORPAY_LIVE); rebuilt if the keys change.
+let razorpayClient = null;
+let razorpayClientKeyId = null;
+const getRazorpayClient = () => {
+    const keyId = getRazorpayKeyId() || 'rzp_test_mock12345';
+    if (!razorpayClient || razorpayClientKeyId !== keyId) {
+        razorpayClient = new Razorpay({
+            key_id:     keyId,
+            key_secret: getRazorpayKeySecret() || 'mock_secret12345',
+        });
+        razorpayClientKeyId = keyId;
+    }
+    return razorpayClient;
+};
 
 /**
  * Create a Razorpay order for the given amount.
@@ -25,7 +36,7 @@ export const createRazorpayOrder = (amountInRupees, currency = 'INR', receiptId,
             status: 'created',
         });
     }
-    return razorpay.orders.create({
+    return getRazorpayClient().orders.create({
         amount:   Math.round(amountInRupees * 100),
         currency,
         receipt:  String(receiptId),
@@ -41,11 +52,12 @@ export const verifyWebhookSignature = (rawBody, signature) => {
     if ((process.env.NODE_ENV === 'test' || process.env.RAZORPAY_MOCK === 'true') && signature === 'mock_valid') {
         return true;
     }
-    if (!process.env.RAZORPAY_WEBHOOK_SECRET) {
-        throw new Error('RAZORPAY_WEBHOOK_SECRET is not configured.');
+    const webhookSecret = getRazorpayWebhookSecret();
+    if (!webhookSecret) {
+        throw new Error('Razorpay webhook secret is not configured (RAZORPAY_LIVE_WEBHOOK_SECRET / RAZORPAY_TEST_WEBHOOK_SECRET).');
     }
     const expected = crypto
-        .createHmac('sha256', process.env.RAZORPAY_WEBHOOK_SECRET)
+        .createHmac('sha256', webhookSecret)
         .update(rawBody)
         .digest('hex');
     // SEC-01: Use timingSafeEqual to prevent timing-based signature forgery
@@ -64,7 +76,7 @@ export const verifyWebhookSignature = (rawBody, signature) => {
  */
 export const verifyPaymentSignature = (razorpayOrderId, razorpayPaymentId, signature) => {
     const expected = crypto
-        .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+        .createHmac('sha256', getRazorpayKeySecret())
         .update(`${razorpayOrderId}|${razorpayPaymentId}`)
         .digest('hex');
     // SEC-01: Constant-time comparison prevents timing attack enumeration
@@ -150,7 +162,7 @@ export const processRazorpayRefund = async ({ paymentId, amountInRupees, referen
             payload.receipt = String(reference).slice(0, 40);
         }
 
-        const rzpResponse = await razorpay.payments.refund(paymentId, payload);
+        const rzpResponse = await getRazorpayClient().payments.refund(paymentId, payload);
         const rawStatus = String(rzpResponse.status || 'processed').toLowerCase();
 
         return {

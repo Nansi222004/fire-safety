@@ -5,6 +5,7 @@ import GiftCardTransaction from '../models/GiftCardTransaction.model.js';
 import User from '../models/User.model.js';
 import { creditWallet, getWallet } from './wallet.service.js';
 import { createRazorpayOrder, verifyPaymentSignature } from './payment.service.js';
+import { getRazorpayKeyId } from '../config/razorpayConfig.js';
 import { createNotification } from './notification.service.js';
 import { sendEmail } from './email.service.js';
 import ApiError from '../utils/ApiError.js';
@@ -200,7 +201,7 @@ export async function createGiftCardOrder({
             id: rzpOrder.id,
             amount: rzpOrder.amount,
             currency: rzpOrder.currency,
-            key: process.env.RAZORPAY_KEY_ID,
+            key: getRazorpayKeyId(),
         },
     };
 }
