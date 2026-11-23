@@ -93,9 +93,11 @@ const shipmentSchema = new mongoose.Schema(
             default: 'AUTO',
         },
         providerOverrideHistory: { type: [providerOverrideSchema], default: [] },
+        // SHIPROCKET → providerId 'shiprocket'; INTERNAL → 'own_fleet' (SafeFire rider);
+        // SELLER_DELIVERY → 'seller_delivery' (seller's own courier; never enters rider payout/COD flows).
         deliveryMethod: {
             type: String,
-            enum: ['SHIPROCKET', 'INTERNAL'],
+            enum: ['SHIPROCKET', 'INTERNAL', 'SELLER_DELIVERY'],
             index: true,
         },
         deliveryRoutingReason: {
@@ -103,6 +105,7 @@ const shipmentSchema = new mongoose.Schema(
             enum: [
                 'WHOLESALE', 'OVERWEIGHT', 'VENDOR_SELECTED_MANUAL',
                 'SHIPROCKET_UNSERVICEABLE', 'SHIPROCKET_PICKUP_UNAVAILABLE', 'SHIPROCKET_CREATION_FAILED',
+                'VENDOR_SELECTED_SELLER_DELIVERY',
                 // Legacy reasons — no longer produced (distance / value no longer affect routing),
                 // kept so historical shipments remain valid and readable.
                 'HIGH_VALUE', 'LONG_DISTANCE', 'DISTANCE_UNAVAILABLE',
@@ -112,7 +115,7 @@ const shipmentSchema = new mongoose.Schema(
         // ['SHIPROCKET','INTERNAL'] → vendor chooses after accepting; ['INTERNAL'] → manual only.
         // Absent on legacy shipments (routed automatically before this rule existed).
         allowedDeliveryMethods: {
-            type: [{ type: String, enum: ['SHIPROCKET', 'INTERNAL'] }],
+            type: [{ type: String, enum: ['SHIPROCKET', 'INTERNAL', 'SELLER_DELIVERY'] }],
             default: undefined,
         },
         deliveryMethodSelectedBy: {
@@ -280,6 +283,45 @@ const shipmentSchema = new mongoose.Schema(
             ref:  'DeliveryRateConfig',
         },
 
+        // ─── SELLER DELIVERY (deliveryMethod SELLER_DELIVERY only) ─────────
+        // Kept apart from awbCode / courierName / trackingUrl: courier webhooks match shipments by awbCode,
+        // so a seller-typed tracking number must never be able to match one.
+        sellerDelivery: {
+            type: new mongoose.Schema({
+                courierName:         { type: String, trim: true, maxlength: 100 },
+                trackingNumber:      { type: String, trim: true, maxlength: 64 },
+                trackingUrl:         { type: String, trim: true, maxlength: 500 },
+                deliveryPersonName:  { type: String, trim: true, maxlength: 100 },
+                deliveryPersonPhone: { type: String, trim: true, maxlength: 10 },
+                shippedAt:           { type: Date },
+                shippedBy:           { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor' },
+                lastUpdatedAt:       { type: Date },
+                trackingUpdates: [{
+                    _id: false,
+                    field:    { type: String },
+                    oldValue: { type: String },
+                    newValue: { type: String },
+                    at:       { type: Date, default: Date.now },
+                    byRole:   { type: String },
+                    byId:     { type: mongoose.Schema.Types.ObjectId },
+                }],
+            }, { _id: false }),
+            default: undefined,
+        },
+
+        // How delivery was confirmed. Written only by new code; absent on historical shipments.
+        deliveryConfirmation: {
+            type: new mongoose.Schema({
+                method:          { type: String, enum: ['CUSTOMER_OTP', 'RIDER_OTP', 'COURIER_WEBHOOK', 'ADMIN_OVERRIDE'] },
+                confirmedAt:     { type: Date },
+                confirmedByRole: { type: String },
+                confirmedById:   { type: mongoose.Schema.Types.ObjectId },
+                reason:          { type: String },
+                proofReference:  { type: String },
+            }, { _id: false }),
+            default: undefined,
+        },
+
         // ─── Phase 8 Migration ───────────────────────────────────────────────
         // Set to true exclusively by the Phase 8 backfill migration script.
         // Enables idempotency (re-runs skip existing Shipments) and clean rollback
@@ -307,6 +349,7 @@ shipmentSchema.index({ deliveryBoyId: 1, status: 1 });
 shipmentSchema.index({ awbCode: 1 }, { sparse: true }); // sparse — only set for courier shipments
 shipmentSchema.index({ status: 1, deliveredAt: 1 });    // escrow cron query
 shipmentSchema.index({ providerId: 1, status: 1 });
+shipmentSchema.index({ 'sellerDelivery.trackingNumber': 1 }, { sparse: true }); // Admin search; not unique
 
 // ─── Pre-save: Generate shipmentNumber ───────────────────────────────────────
 // Uses timestamp + random suffix (not countDocuments) to avoid duplicate key

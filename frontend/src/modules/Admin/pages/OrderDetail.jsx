@@ -25,6 +25,7 @@ import { getSocket, joinRoom, leaveRoom } from '../../../shared/utils/socket';
 import toast from 'react-hot-toast';
 import ManualDeliveryAssignment from '../../../shared/components/Delivery/ManualDeliveryAssignment';
 import DeliveryMethodSelector from '../../../shared/components/Delivery/DeliveryMethodSelector';
+import SellerDeliveryAdminCard from '../components/SellerDeliveryAdminCard';
 import { getOrderPriceBreakdown } from "../../../shared/utils/orderFinance";
 
 const ORDER_PRODUCT_PLACEHOLDER = getPlaceholderImage(100, 100, 'Product');
@@ -385,11 +386,14 @@ const OrderDetail = () => {
 
                         {/* Tracking / Provider */}
                         <div className="space-y-1 md:text-right">
-                           <p className="text-xs text-gray-500">Provider: <span className="font-semibold text-gray-700 capitalize">{shipment.providerId?.replace('_', ' ') || 'Unknown'}</span></p>
-                           {shipment.awbCode && (
+                           <p className="text-xs text-gray-500">Delivery: <span className="font-semibold text-gray-700">{shipment.tracking?.methodLabel || shipment.providerId?.replace('_', ' ') || 'Unknown'}</span></p>
+                           {shipment.tracking?.confirmationMethod && (
+                             <p className="text-[11px] text-emerald-700 font-semibold">Confirmed: {shipment.tracking.confirmationMethod.replace(/_/g, ' ').toLowerCase()}</p>
+                           )}
+                           {shipment.awbCode && shipment.deliveryMethod !== 'SELLER_DELIVERY' && (
                              <p className="text-xs text-gray-500">AWB: <span className="font-mono text-gray-800 font-bold">{shipment.awbCode}</span></p>
                            )}
-                           {shipment.trackingUrl && (
+                           {shipment.trackingUrl && shipment.deliveryMethod !== 'SELLER_DELIVERY' && (
                              <a href={shipment.trackingUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold text-primary-600 hover:underline">
                                Track Shipment &rarr;
                              </a>
@@ -425,14 +429,35 @@ const OrderDetail = () => {
                           </div>
                         </div>
                       )}
+                      {shipment.assignmentNote && (
+                        <div className="mt-3 p-2.5 rounded-lg border border-amber-200 bg-amber-50 text-xs text-amber-800">
+                          <p className="font-bold">Rider offer pending (Delivery App off)</p>
+                          <p className="mt-0.5">{shipment.assignmentNote}</p>
+                        </div>
+                      )}
+                      {!shipment.deliveryMethod && shipment.noDeliveryMethodReason && (
+                        <div className="mt-3 p-2.5 rounded-lg border border-red-200 bg-red-50 text-xs text-red-800">
+                          <p className="font-bold">Awaiting delivery method — Admin action required</p>
+                          <p className="mt-0.5">{shipment.noDeliveryMethodReason}</p>
+                        </div>
+                      )}
                       <DeliveryMethodSelector shipment={shipment} orderId={order._id || order.orderId} actor="admin" />
-                      <ManualDeliveryAssignment
-                        key={`assign-${shipment._id}-${shipment.deliveryMethod || 'none'}`}
-                        shipment={shipment}
-                        orderId={order._id || order.orderId}
-                        actor="admin"
-                        onAssigned={() => setRefreshKey((value) => value + 1)}
-                      />
+                      {shipment.deliveryMethod === 'SELLER_DELIVERY' ? (
+                        <SellerDeliveryAdminCard
+                          shipment={shipment}
+                          orderId={order.orderId || order._id}
+                          onChanged={() => setRefreshKey((value) => value + 1)}
+                        />
+                      ) : (
+                        <ManualDeliveryAssignment
+                          key={`assign-${shipment._id}-${shipment.deliveryMethod || 'none'}`}
+                          shipment={shipment}
+                          orderId={order._id || order.orderId}
+                          actor="admin"
+                          deliveryAppEnabled={order.deliverySettings?.deliveryAppEnabled !== false}
+                          onAssigned={() => setRefreshKey((value) => value + 1)}
+                        />
+                      )}
                     </div>
                   );
                 })}

@@ -106,7 +106,8 @@ const MobileCheckout = () => {
       zipCode: savedAddr?.zipCode || "",
       state: savedAddr?.state || "",
       country: savedAddr?.country || "India",
-      paymentMethod: "cod",
+      // Chosen from the Admin-enabled methods once checkout settings load (never assumed to be COD).
+      paymentMethod: "",
     };
   });
 
@@ -116,6 +117,8 @@ const MobileCheckout = () => {
 
   const [paymentSettings, setPaymentSettings] = useState(null);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+  const [settingsLoadFailed, setSettingsLoadFailed] = useState(false);
+  const [settingsReloadKey, setSettingsReloadKey] = useState(0);
   const [walletBalance, setWalletBalance] = useState(0);
 
   const fetchWallet = useCallback(async () => {
@@ -170,6 +173,8 @@ const MobileCheckout = () => {
   useEffect(() => {
     let active = true;
     const fetchCheckoutSettings = async () => {
+      setIsLoadingSettings(true);
+      setSettingsLoadFailed(false);
       try {
         const response = await api.get("/settings/checkout");
         const data = response?.data ?? response;
@@ -178,6 +183,8 @@ const MobileCheckout = () => {
         }
       } catch (err) {
         console.error("Failed to load checkout settings:", err);
+        // No silent fallback to any method (especially COD): the customer is asked to retry.
+        if (active) setSettingsLoadFailed(true);
       } finally {
         if (active) {
           setIsLoadingSettings(false);
@@ -188,42 +195,27 @@ const MobileCheckout = () => {
     return () => {
       active = false;
     };
-  }, []);
+  }, [settingsReloadKey]);
 
+  // Only the methods the Admin has enabled (COD / wallet / online card & UPI). Empty while loading or on error.
   const activePaymentMethods = useMemo(() => {
-    if (!paymentSettings || !paymentSettings.payment) {
-      return [
-        { id: "cod", label: "Cash on Delivery" },
-        // TEMPORARILY DISABLED — USER WALLET PAYMENT METHOD
-        // { id: "wallet", label: "SafeFire Wallet" }
-      ];
-    }
+    const p = paymentSettings?.payment;
+    if (!p) return [];
     const methods = [];
-    const p = paymentSettings.payment;
     if (p.cod) {
       methods.push({ id: "cod", label: "Cash on Delivery" });
     }
-    // TEMPORARILY DISABLED — USER WALLET PAYMENT METHOD
-    // if (p.wallet) {
-    //   methods.push({ id: "wallet", label: "SafeFire Wallet" });
-    // }
+    if (p.wallet) {
+      methods.push({ id: "wallet", label: "SafeFire Wallet" });
+    }
     if (p.razorpay) {
       methods.push({ id: "card", label: "Credit/Debit Card (Online Payment)" });
     }
     if (p.upi) {
       methods.push({ id: "upi", label: "UPI Direct" });
     }
-    return methods.length > 0 ? methods : [{ id: "cod", label: "Cash on Delivery" }];
+    return methods;
   }, [paymentSettings]);
-
-  useEffect(() => {
-    if (!isLoadingSettings && activePaymentMethods.length > 0) {
-      const isCurrentActive = activePaymentMethods.some(m => m.id === formData.paymentMethod);
-      if (!isCurrentActive) {
-        setFormData(prev => ({ ...prev, paymentMethod: activePaymentMethods[0].id }));
-      }
-    }
-  }, [activePaymentMethods, formData.paymentMethod, isLoadingSettings]);
 
   useEffect(() => {
     // Keep the address a guest typed before logging in instead of the saved default.
@@ -309,11 +301,21 @@ const MobileCheckout = () => {
   const walletAmountUsed = isWalletPayment ? finalTotal : 0;
   const remainingPayable = isWalletPayment ? 0 : finalTotal;
 
+  // Keep the selection valid: an Admin-disabled method, or the wallet without enough balance, is replaced by
+  // the first enabled method that can pay (wallet only when it covers the total), or left empty — never forced to COD.
   useEffect(() => {
-    if (formData.paymentMethod === "wallet" && walletBalance < finalTotal) {
-      setFormData((prev) => ({ ...prev, paymentMethod: "cod" }));
+    if (isLoadingSettings) return;
+    const canUse = (id) => id !== "wallet" || (isAuthenticated && walletBalance >= finalTotal);
+    const current = formData.paymentMethod;
+    if (current && activePaymentMethods.some((m) => m.id === current) && canUse(current)) return;
+    const next =
+      activePaymentMethods.find((m) => m.id !== "wallet") ||
+      activePaymentMethods.find((m) => canUse(m.id));
+    const nextId = next?.id || "";
+    if (nextId !== current) {
+      setFormData((prev) => ({ ...prev, paymentMethod: nextId }));
     }
-  }, [walletBalance, finalTotal, formData.paymentMethod]);
+  }, [activePaymentMethods, formData.paymentMethod, isLoadingSettings, isAuthenticated, walletBalance, finalTotal]);
 
   // One idempotency key per order attempt: a double tap or a network retry reuses it, so the backend returns
   // the order already created instead of placing a duplicate. A changed cart/total/payment method/address is a
@@ -601,6 +603,15 @@ const MobileCheckout = () => {
         return;
       }
 
+      if (!paymentMethod || !activePaymentMethods.some((m) => m.id === paymentMethod)) {
+        toast.error(
+          activePaymentMethods.length === 0
+            ? "No payment method is available right now. Please try again shortly."
+            : "Please choose a payment method."
+        );
+        return;
+      }
+
       if (paymentMethod === "wallet") {
         if (!isAuthenticated) {
           toast.error("Please login to pay with SafeFire Wallet.");
@@ -608,7 +619,7 @@ const MobileCheckout = () => {
         }
         if (walletBalance < finalTotal) {
           toast.error(
-            `Insufficient wallet balance. You are short by ₹${(finalTotal - walletBalance).toFixed(2)}. Please choose Cash on Delivery.`
+            `Insufficient wallet balance. You are short by ₹${(finalTotal - walletBalance).toFixed(2)}. Please choose another payment method.`
           );
           return;
         }
@@ -981,6 +992,27 @@ const MobileCheckout = () => {
                     )}
                     */}
 
+                    {isLoadingSettings && (
+                      <p className="text-sm text-gray-500 mb-4">Loading payment options…</p>
+                    )}
+                    {!isLoadingSettings && settingsLoadFailed && (
+                      <div className="bg-red-50 border border-red-200 rounded-xl p-3.5 mb-5 text-xs text-red-800 flex items-center justify-between gap-3">
+                        <span>We couldn't load the payment options. Please check your connection and try again.</span>
+                        <button
+                          type="button"
+                          onClick={() => setSettingsReloadKey((k) => k + 1)}
+                          className="font-bold text-red-700 underline flex-shrink-0"
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    )}
+                    {!isLoadingSettings && !settingsLoadFailed && activePaymentMethods.length === 0 && (
+                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 mb-5 text-xs text-amber-900">
+                        No payment method is available right now. Please try again later.
+                      </div>
+                    )}
+
                     <div className="space-y-3.5 mb-6">
                       {/* 1. Cash on Delivery */}
                       {activePaymentMethods.some((m) => m.id === "cod") && (
@@ -1011,9 +1043,7 @@ const MobileCheckout = () => {
                         </label>
                       )}
 
-                      {/* TEMPORARILY DISABLED — SAFEFIRE WALLET PAYMENT OPTION */}
-                      {/* DO NOT DELETE — RE-ENABLE WHEN WALLET PAYMENT IS RESTORED */}
-                      {/*
+                      {/* 2. SafeFire Wallet (shown when Admin has the wallet enabled) */}
                       {activePaymentMethods.some((m) => m.id === "wallet") && (
                         <label
                           className={`flex items-start gap-3.5 p-4 rounded-xl border-2 transition-all ${
@@ -1053,7 +1083,7 @@ const MobileCheckout = () => {
                               )}
                             </div>
 
-                            // Balance and Deduction Feedback
+                            {/* Balance and Deduction Feedback */}
                             {isAuthenticated && (
                               <div className="mt-2.5 text-xs">
                                 {walletBalance < finalTotal ? (
@@ -1061,7 +1091,7 @@ const MobileCheckout = () => {
                                     <span>
                                       Insufficient balance (Short by <strong>{formatPrice(finalTotal - walletBalance)}</strong>).
                                     </span>
-                                    <span className="font-bold text-red-800 flex-shrink-0">Choose COD</span>
+                                    <span className="font-bold text-red-800 flex-shrink-0">Choose another method</span>
                                   </div>
                                 ) : (
                                   <>
@@ -1084,7 +1114,6 @@ const MobileCheckout = () => {
                           </div>
                         </label>
                       )}
-                      */}
 
                       {/* 3. External Payment Gateways (Cards / UPI) if enabled */}
                       {activePaymentMethods

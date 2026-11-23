@@ -31,6 +31,23 @@ import {
 } from '../../../services/assignmentService.js';
 import { processCancellationRefund, splitMixedRefund, refundWalletShare } from '../../../services/cancellationRefundService.js';
 import { ensureDeliveryOtpForShipment } from '../../../services/deliveryOtp.service.js';
+import { DELIVERY_APP_DISABLED, getDeliveryAppSettings } from '../../../services/settingsService.js';
+import { getEffectiveDeliveryMethods, isSellerDeliveryShipment } from '../../../services/deliveryRouting.service.js';
+import { adminConfirmSellerDelivery } from '../../../services/sellerDelivery.service.js';
+import { buildShipmentTracking } from '../../../utils/shipmentTracking.js';
+
+import { buildSearchRegex } from '../../../utils/safeRegex.js';
+const TERMINAL_SHIPMENT_STATUSES = ['delivered', 'cancelled', 'returned', 'failed'];
+
+/** Narrows filter._id to the given order ids (intersecting any earlier _id restriction). */
+const restrictToOrderIds = (filter, orderIds) => {
+    const ids = orderIds.map(String);
+    if (filter._id?.$in) {
+        filter._id.$in = filter._id.$in.filter((id) => ids.includes(String(id)));
+    } else {
+        filter._id = { $in: orderIds };
+    }
+};
 
 // GET /api/admin/orders/delivery-partners/available?shipmentId=
 export const getAvailableDeliveryPartners = asyncHandler(async (req, res) => {
@@ -60,10 +77,13 @@ export const assignDeliveryPartner = asyncHandler(async (req, res) => {
         allowReassignment: req.body.reassign === true,
     });
     if (!result.success) {
-        const status = ['ALREADY_ASSIGNED', 'ASSIGNMENT_CONFLICT'].includes(result.code) ? 409 : 400;
-        throw new ApiError(status, result.code === 'ALREADY_ASSIGNED'
+        const status = ['ALREADY_ASSIGNED', 'ASSIGNMENT_CONFLICT', DELIVERY_APP_DISABLED].includes(result.code) ? 409 : 400;
+        const message = result.code === 'ALREADY_ASSIGNED'
             ? 'A delivery partner is already assigned. Set reassign=true to explicitly change it.'
-            : ASSIGNMENT_ERROR_MESSAGES[result.code] || `Unable to assign delivery partner: ${result.code}`);
+            : result.code === DELIVERY_APP_DISABLED
+                ? 'The SafeFire Delivery App is turned off. Only shipments that already have a delivery partner can be reassigned.'
+                : ASSIGNMENT_ERROR_MESSAGES[result.code] || `Unable to assign delivery partner: ${result.code}`;
+        throw new ApiError(status, message, [{ code: result.code, message }]);
     }
     res.status(200).json(new ApiResponse(200, result.shipment,
         req.body.reassign === true ? 'Delivery partner reassigned.' : 'Delivery partner assigned.'));
@@ -95,8 +115,10 @@ export const getAllOrders = asyncHandler(async (req, res) => {
     if (String(req.query.assignableOnly || '') === 'true' && !filter.status) {
         filter.status = { $in: ['pending', 'processing', 'shipped'] };
     }
-    if (search) {
-        const regex = new RegExp(search, 'i');
+    // User text is matched literally (escaped) and length-limited: no regex injection or catastrophic backtracking.
+    const searchRegex = search ? buildSearchRegex(search, { maxLength: 100, label: 'Search text' }) : null;
+    if (searchRegex) {
+        const regex = searchRegex;
         const matchedUsers = await User.find({
             $or: [{ name: regex }, { email: regex }, { phone: regex }]
         }).select('_id').limit(200).lean();
@@ -126,7 +148,36 @@ export const getAllOrders = asyncHandler(async (req, res) => {
             status: { $nin: ['delivered', 'cancelled', 'returned'] } // Only active shipments
         }).select('orderId').lean();
         const orderIds = unassignedShipments.map(s => s.orderId);
-        filter._id = { $in: orderIds };
+        restrictToOrderIds(filter, orderIds);
+    }
+    // Delivery method filter (SHIPROCKET | INTERNAL | SELLER_DELIVERY).
+    const deliveryMethodFilter = String(req.query.deliveryMethod || '').toUpperCase();
+    if (['SHIPROCKET', 'INTERNAL', 'SELLER_DELIVERY'].includes(deliveryMethodFilter)) {
+        const shipmentFilter = deliveryMethodFilter === 'SELLER_DELIVERY'
+            ? { deliveryMethod: 'SELLER_DELIVERY', providerId: 'seller_delivery' }
+            : deliveryMethodFilter === 'SHIPROCKET'
+                ? { $or: [{ deliveryMethod: 'SHIPROCKET' }, { deliveryMethod: { $exists: false }, providerId: 'shiprocket' }] }
+                : { $or: [{ deliveryMethod: 'INTERNAL' }, { deliveryMethod: { $exists: false }, providerId: 'own_fleet' }] };
+        const rows = await Shipment.find(shipmentFilter).select('orderId').lean();
+        restrictToOrderIds(filter, rows.map((r) => r.orderId));
+    }
+    // Courier tracking number search: seller-entered tracking numbers and courier AWBs (never Order.trackingNumber).
+    const trackingRegex = req.query.trackingNumber
+        ? buildSearchRegex(req.query.trackingNumber, { maxLength: 64, label: 'Tracking number' })
+        : null;
+    if (trackingRegex) {
+        const regex = trackingRegex;
+        const rows = await Shipment.find({ $or: [{ 'sellerDelivery.trackingNumber': regex }, { awbCode: regex }] }).select('orderId').limit(500).lean();
+        restrictToOrderIds(filter, rows.map((r) => r.orderId));
+    }
+    // Shipments waiting for a delivery method (new choice pending, or returned to choice after a Shiprocket failure).
+    if (String(req.query.awaitingDeliveryMethod || '') === 'true') {
+        const rows = await Shipment.find({
+            $or: [{ deliveryMethod: { $exists: false } }, { deliveryMethod: null }],
+            providerId: 'pending_selection',
+            status: { $nin: TERMINAL_SHIPMENT_STATUSES },
+        }).select('orderId').lean();
+        restrictToOrderIds(filter, rows.map((r) => r.orderId));
     }
 
     const [orders, total] = await Promise.all([
@@ -157,6 +208,7 @@ export const getAllOrders = asyncHandler(async (req, res) => {
             } else if (anyReady) {
                 order.status = 'ready_for_pickup';
             }
+            order.shipments = order.shipments.map((s) => ({ ...s, tracking: buildShipmentTracking(s) }));
         }
         return order;
     });
@@ -191,6 +243,7 @@ export const getOrderById = asyncHandler(async (req, res) => {
     order.refunds = refunds || [];
     const paymentAttempts = await PaymentAttempt.find({ orderId: order._id }).sort({ createdAt: -1 }).lean();
     order.paymentAttempts = paymentAttempts || [];
+    order.deliverySettings = await getDeliveryAppSettings();
 
     if (order.shipments && order.shipments.length > 0) {
         const allDelivered = order.shipments.every(s => s.status === 'delivered');
@@ -205,9 +258,38 @@ export const getOrderById = asyncHandler(async (req, res) => {
         } else if (anyReady) {
             order.status = 'ready_for_pickup';
         }
+        // Normalized tracking + what each package can use right now (so Admin sees why none is available).
+        // Unpopulated fields for the delivery-method rules (populate turns a missing user into null).
+        const routingOrder = await Order.findById(order._id).select('userId paymentMethod isWholesale').lean();
+        for (const s of order.shipments) {
+            s.tracking = buildShipmentTracking(s);
+            if (s.deliveryAssignmentStatus === 'assigned' && order.deliverySettings?.deliveryAppEnabled === false) {
+                s.assignmentNote = 'Offer is waiting for the delivery partner. The Delivery App is off, so it will not time out or be re-offered: the rider can still accept it, or reassign it here.';
+            }
+            if (!s.deliveryMethod && !TERMINAL_SHIPMENT_STATUSES.includes(s.status)) {
+                const effective = await getEffectiveDeliveryMethods(s, routingOrder || order);
+                s.effectiveAllowedDeliveryMethods = effective.methods;
+                s.unavailableDeliveryMethods = effective.unavailable;
+                s.noDeliveryMethodReason = effective.reason;
+            }
+        }
     }
 
     res.status(200).json(new ApiResponse(200, order, 'Order fetched.'));
+});
+
+// POST /api/admin/orders/:id/shipments/:shipmentId/confirm-delivery  { reason, proofReference }
+// Admin override for a Seller Delivery package whose customer OTP cannot be used. Audited by the route.
+export const confirmSellerDeliveryOverride = asyncHandler(async (req, res) => {
+    const shipment = await adminConfirmSellerDelivery({
+        orderRef: req.params.id,
+        shipmentId: req.params.shipmentId,
+        adminId: req.user.id || req.user._id,
+        reason: req.body.reason,
+        proofReference: req.body.proofReference,
+    });
+    // `_id` = the shipment, so the audit log records which shipment was overridden.
+    res.status(200).json(new ApiResponse(200, { _id: shipment._id, shipment, tracking: buildShipmentTracking(shipment.toObject()) }, 'Delivery confirmed by Admin override.'));
 });
 
 // PATCH /api/admin/orders/:id/status
@@ -294,6 +376,15 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     }
 
     const previousStatus = currentDynamicStatus;
+
+    // Seller Delivery packages are delivered only with the customer OTP or the audited per-shipment Admin
+    // override — never by a bulk order status change (which would start escrow without a confirmation).
+    if (nextStatus === 'delivered') {
+        const openSeller = (shipments || []).find((s) => isSellerDeliveryShipment(s) && !TERMINAL_SHIPMENT_STATUSES.includes(s.status));
+        if (openSeller) {
+            throw new ApiError(409, `Shipment #${openSeller.shipmentNumber || openSeller._id} uses Seller Delivery. Confirm it with the customer OTP or the Seller Delivery override (reason and proof required).`);
+        }
+    }
 
     if (nextStatus === 'shipped' && shipments.length === 0) {
         throw new ApiError(409, 'An order cannot be marked shipped before its shipment is created.');

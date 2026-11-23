@@ -13,6 +13,8 @@ export const DELIVERY_OTP_TTL_MS = IS_PRODUCTION ? 10 * 60 * 1000 : 24 * 60 * 60
 export const DELIVERY_OTP_MAX_ATTEMPTS = 5;
 export const DELIVERY_OTP_RESEND_COOLDOWN_MS = 60 * 1000;
 
+const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
 /**
  * Extracts customer email from Order
  * @param {Object} order
@@ -98,7 +100,7 @@ export const ensureDeliveryOtpForShipment = async (shipmentOrId, orderOrId, opti
     // Generate new OTP using the centralized generator
     const generatedOtp = generateDeliveryOtpValue();
     const otpHash = hashOtp(generatedOtp);
-    const otpExpiry = new Date(Date.now() + DELIVERY_OTP_TTL_MS);
+    const otpExpiry = new Date(Date.now() + (Number(options.ttlMs) > 0 ? Number(options.ttlMs) : DELIVERY_OTP_TTL_MS));
 
     const updateFields = {
         deliveryOtpHash:     otpHash,
@@ -120,6 +122,41 @@ export const ensureDeliveryOtpForShipment = async (shipmentOrId, orderOrId, opti
         { $set: updateFields },
         { new: true }
     ).select('+deliveryOtpHash +deliveryOtpExpiry +deliveryOtpSentAt +deliveryOtpAttempts +deliveryOtpDebug');
+
+    // Seller Delivery: the code is shown only on the customer's order tracking page — never in notifications
+    // or email — and every regeneration gets its own notification.
+    if (options.codeOnTrackingPageOnly) {
+        const orderHumanId = String(order.orderId || order._id);
+        const courier = shipment.sellerDelivery?.courierName;
+        const to = getCustomerEmail(order);
+        if (to) {
+            const safeCourier = courier ? escapeHtml(courier) : '';
+            sendEmail({
+                to,
+                subject: `Your order ${orderHumanId} is out for delivery`,
+                text: `Your package${courier ? ` (via ${courier})` : ''} is out for delivery. Your delivery OTP is available on the order tracking page. Share it only after you have received your package.`,
+                html: `<h1 style="margin:0 0 8px;font-size:20px;font-weight:800;color:#1F2937;">Your order is out for delivery</h1><p style="margin:0;">Order <strong>${escapeHtml(orderHumanId)}</strong>${safeCourier ? ` is on its way via <strong>${safeCourier}</strong>` : ''}. Your delivery OTP is available on the order tracking page. Share it with the delivery person <strong>only after you have received your package</strong>.</p>`,
+            }).catch((err) => console.warn(`[Delivery OTP] Async email error: ${err.message}`));
+        }
+        if (order.userId) {
+            createNotification({
+                recipientId: order.userId,
+                recipientType: 'user',
+                title: 'Out for delivery — delivery OTP ready',
+                message: `Your package (${shipment.shipmentNumber || 'Shipment'}) is out for delivery${courier ? ` via ${courier}` : ''}. Open your order tracking page to see your delivery OTP. Share it only after you receive the package.`,
+                type: 'order',
+                eventKey: `order:${orderHumanId}:shipment:${shipment._id}:seller_delivery_otp:${now.getTime()}:user`,
+                data: {
+                    orderId: orderHumanId,
+                    orderMongoId: String(order._id),
+                    shipmentId: String(shipment._id),
+                    status: 'out_for_delivery',
+                    deepLink: `/orders/${orderHumanId}`,
+                },
+            }).catch((err) => console.warn(`[Delivery OTP] Async notification error: ${err.message}`));
+        }
+        return { shipment: updatedShipment, isNew: true };
+    }
 
     // Notify customer asynchronously
     sendDeliveryOtpEmail(order, generatedOtp).catch((err) => {
@@ -189,11 +226,19 @@ export const resendDeliveryOtpForShipment = async (shipment, order) => {
  * Verifies Delivery OTP submitted by Delivery Partner.
  * Strict hash verification against stored deliveryOtpHash.
  *
+ * The delivered transition is one conditional update: it only matches while the shipment is still in transit
+ * and still holds the OTP hash that was verified (the hash is removed on success). Two concurrent
+ * confirmations, or a confirmation after cancellation, can therefore never both succeed — the loser gets 409
+ * and the caller must not emit SHIPMENT_DELIVERED.
+ *
  * @param {Object} shipment - Shipment document with selected OTP fields
  * @param {string} inputOtp - Plain OTP entered by delivery partner
- * @returns {Promise<{ verified: boolean }>}
+ * @param {{ method?: string, confirmedByRole?: string, confirmedById?: any, updatedBy?: string }} [confirmation]
+ * @returns {Promise<{ verified: boolean, shipment: Object }>}
  */
-export const verifyDeliveryOtpForShipment = async (shipment, inputOtp) => {
+export const DELIVERABLE_SHIPMENT_STATUSES = ['shipped', 'out_for_delivery'];
+
+export const verifyDeliveryOtpForShipment = async (shipment, inputOtp, confirmation = {}) => {
     const normalizedOtp = String(inputOtp || '').trim();
     if (!/^\d{4}$/.test(normalizedOtp)) {
         throw new ApiError(400, 'Delivery OTP is required to complete delivery.');
@@ -219,20 +264,48 @@ export const verifyDeliveryOtpForShipment = async (shipment, inputOtp) => {
     }
 
     const verifiedAt = new Date();
-    await Shipment.findByIdAndUpdate(shipment._id, {
-        $set: {
-            deliveryOtpVerifiedAt: verifiedAt,
-            status: 'delivered',
-            deliveredAt: verifiedAt,
+    const set = {
+        deliveryOtpVerifiedAt: verifiedAt,
+        status: 'delivered',
+        deliveredAt: verifiedAt,
+    };
+    if (confirmation.method) {
+        set.deliveryConfirmation = {
+            method: confirmation.method,
+            confirmedAt: verifiedAt,
+            confirmedByRole: confirmation.confirmedByRole,
+            confirmedById: confirmation.confirmedById,
+        };
+    }
+    const updated = await Shipment.findOneAndUpdate(
+        {
+            _id: shipment._id,
+            status: { $in: DELIVERABLE_SHIPMENT_STATUSES },
+            deliveryOtpHash: shipment.deliveryOtpHash,
         },
-        $unset: {
-            deliveryOtpHash: '',
-            deliveryOtpExpiry: '',
-            deliveryOtpSentAt: '',
-            deliveryOtpAttempts: 0,
-            deliveryOtpDebug: '',
+        {
+            $set: set,
+            $unset: {
+                deliveryOtpHash: '',
+                deliveryOtpExpiry: '',
+                deliveryOtpSentAt: '',
+                deliveryOtpAttempts: 0,
+                deliveryOtpDebug: '',
+            },
+            $push: {
+                statusHistory: {
+                    status: 'delivered',
+                    updatedAt: verifiedAt,
+                    updatedBy: confirmation.updatedBy || 'driver',
+                    notes: 'Delivery confirmed with the customer delivery OTP.',
+                },
+            },
         },
-    });
+        { new: true }
+    );
+    if (!updated) {
+        throw new ApiError(409, 'This shipment has already been delivered or is no longer awaiting delivery.');
+    }
 
-    return { verified: true };
+    return { verified: true, shipment: updated };
 };

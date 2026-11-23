@@ -2,6 +2,73 @@ import Shipment from '../models/Shipment.model.js';
 import Order from '../models/Order.model.js';
 import Vendor from '../models/Vendor.model.js';
 import shiprocketProvider from '../providers/shiprocket.provider.js';
+import { isDeliveryAppEnabled } from './settingsService.js';
+import { deriveTopLevelOrderStatus } from '../utils/orderStatus.js';
+
+/**
+ * Shiprocket creation failed while the Delivery App is off. The shipment goes back to "awaiting delivery
+ * method" (Shiprocket removed from its allowed methods, seller package back to processing) so the seller can
+ * pick another available method — or Admin resolves it. Payment and financial snapshots are not touched.
+ */
+const holdFailedShiprocketShipment = async (claimed, reason) => {
+    const stored = Array.isArray(claimed.allowedDeliveryMethods) && claimed.allowedDeliveryMethods.length
+        ? claimed.allowedDeliveryMethods
+        : ['SHIPROCKET', 'INTERNAL'];
+    const allowedDeliveryMethods = stored.filter((m) => m !== 'SHIPROCKET');
+    const details = `Shiprocket shipment creation failed: ${reason}. The Delivery App is turned off, so the package was not sent to internal delivery. Choose another available delivery method or contact Admin.`;
+    const held = await Shipment.findOneAndUpdate(
+        { _id: claimed._id, providerOrderId: { $in: [null, undefined] }, deliveryBoyId: { $in: [null, undefined] } },
+        {
+            $set: {
+                providerId: 'pending_selection',
+                allowedDeliveryMethods,
+                deliveryRoutingReason: 'SHIPROCKET_CREATION_FAILED',
+                deliveryRoutingDetails: details,
+                externalCreationStatus: 'failed',
+                externalCreationError: reason,
+                ...(claimed.status === 'ready_for_pickup' ? { status: 'confirmed' } : {}),
+            },
+            $unset: { deliveryMethod: '', deliveryAssignmentStatus: '' },
+            $push: { statusHistory: { status: claimed.status === 'ready_for_pickup' ? 'confirmed' : claimed.status, updatedBy: 'system', notes: details } },
+        },
+        { new: true }
+    );
+
+    const order = await Order.findById(claimed.orderId);
+    if (order) {
+        let changed = false;
+        order.vendorItems = order.vendorItems.map((vi) => {
+            if (String(vi.vendorId) === String(claimed.vendorId) && vi.status === 'ready_for_pickup') {
+                changed = true;
+                return { ...vi.toObject(), status: 'processing' };
+            }
+            return vi;
+        });
+        if (changed) {
+            order.status = deriveTopLevelOrderStatus(order.vendorItems, order.status);
+            await order.save();
+        }
+        const orderHumanId = String(order.orderId || order._id);
+        // Loaded lazily: the notification service initializes push messaging on import.
+        const { createNotification, notifyAdmins } = await import('./notification.service.js');
+        await createNotification({
+            recipientId: claimed.vendorId,
+            recipientType: 'vendor',
+            title: 'Shiprocket shipment failed — choose a delivery method',
+            message: `Order ${orderHumanId}: ${details}`,
+            type: 'order',
+            eventKey: `shipment:${claimed._id}:shiprocket_failed_held:vendor`,
+            data: { orderId: orderHumanId, orderMongoId: String(order._id), shipmentId: String(claimed._id), deepLink: `/vendor/orders/${orderHumanId}` },
+        }).catch((err) => console.warn(`[Shiprocket hold] vendor notification failed: ${err.message}`));
+        await notifyAdmins({
+            title: 'Shipment awaiting delivery method',
+            message: `Order ${orderHumanId}, shipment ${claimed.shipmentNumber || claimed._id}: ${details}`,
+            eventKey: `shipment:${claimed._id}:shiprocket_failed_held`,
+            data: { orderId: orderHumanId, shipmentId: String(claimed._id) },
+        });
+    }
+    return { success: false, fallback: false, awaitingDeliveryMethod: true, error: reason, shipment: held };
+};
 
 export const createShiprocketShipmentOrFallback = async (shipmentId) => {
     const existing = await Shipment.findById(shipmentId);
@@ -79,6 +146,11 @@ export const createShiprocketShipmentOrFallback = async (shipmentId) => {
         }, { new: true });
         return { success: true, shipment: updated };
     } catch (error) {
+        // Delivery App off: never silently hand the package to internal riders. Return the shipment to the
+        // seller's method choice (without Shiprocket) and tell the seller and Admin.
+        if (!(await isDeliveryAppEnabled())) {
+            return holdFailedShiprocketShipment(claimed, error.message);
+        }
         const fallback = await Shipment.findByIdAndUpdate(claimed._id, {
             $set: {
                 providerId: 'own_fleet',

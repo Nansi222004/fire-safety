@@ -1,6 +1,6 @@
 import Product from '../models/Product.model.js';
 import Vendor from '../models/Vendor.model.js';
-import { getDeliveryRoutingSettings } from './settingsService.js';
+import { getDeliveryRoutingSettings, getDeliveryAppSettings } from './settingsService.js';
 import { syncVendorShiprocketPickup } from './shiprocketPickup.service.js';
 
 /**
@@ -14,14 +14,73 @@ import { syncVendorShiprocketPickup } from './shiprocketPickup.service.js';
  * (existing fallback to INTERNAL in shiprocketShipment.service).
  */
 
-export const DELIVERY_METHODS = Object.freeze({ SHIPROCKET: 'SHIPROCKET', INTERNAL: 'INTERNAL' });
+export const DELIVERY_METHODS = Object.freeze({ SHIPROCKET: 'SHIPROCKET', INTERNAL: 'INTERNAL', SELLER_DELIVERY: 'SELLER_DELIVERY' });
+export const SELLER_DELIVERY_PROVIDER = 'seller_delivery';
 export const ROUTING_REASONS = Object.freeze({
     WHOLESALE: 'WHOLESALE',
     OVERWEIGHT: 'OVERWEIGHT',
     VENDOR_SELECTED_MANUAL: 'VENDOR_SELECTED_MANUAL',
+    VENDOR_SELECTED_SELLER_DELIVERY: 'VENDOR_SELECTED_SELLER_DELIVERY',
     SHIPROCKET_UNSERVICEABLE: 'SHIPROCKET_UNSERVICEABLE',
     SHIPROCKET_PICKUP_UNAVAILABLE: 'SHIPROCKET_PICKUP_UNAVAILABLE',
 });
+
+export const isCodPaymentMethod = (paymentMethod) => ['cod', 'cash'].includes(String(paymentMethod || '').toLowerCase());
+
+/** Seller Delivery is identified explicitly by BOTH fields — never inferred from missing data. */
+export const isSellerDeliveryShipment = (shipment) =>
+    shipment?.deliveryMethod === DELIVERY_METHODS.SELLER_DELIVERY && shipment?.providerId === SELLER_DELIVERY_PROVIDER;
+
+/**
+ * Delivery methods a shipment can actually use right now (pure).
+ * Starts from the shipment's stored allowedDeliveryMethods (or the wholesale/weight rule for records saved
+ * without it), then applies the current Admin switches and payment rules:
+ *   • INTERNAL removed while the Delivery App is off.
+ *   • SELLER_DELIVERY added (never stored on historical records) when Admin enabled it, for forward
+ *     customer-order shipments of prepaid orders. Seller-collected COD has no approved settlement flow.
+ * @returns {{ methods: string[], unavailable: {method: string, reason: string}[], reason: string|null }}
+ */
+export const resolveEffectiveDeliveryMethods = ({ shipment, order, deliverySettings, routingSettings }) => {
+    const unavailable = [];
+    if (!shipment) return { methods: [], unavailable, reason: 'Shipment not found.' };
+    const stored = Array.isArray(shipment.allowedDeliveryMethods) && shipment.allowedDeliveryMethods.length
+        ? shipment.allowedDeliveryMethods
+        : evaluateDeliveryRouting({
+            isWholesale: Boolean(order?.isWholesale),
+            weightKg: Number(shipment.packageWeight) || 1,
+            settings: routingSettings || { maxWeightKg: 20 },
+        }).allowedDeliveryMethods;
+    let methods = [...new Set(stored.filter((m) => m !== DELIVERY_METHODS.SELLER_DELIVERY))];
+
+    if (!deliverySettings?.deliveryAppEnabled && methods.includes(DELIVERY_METHODS.INTERNAL)) {
+        methods = methods.filter((m) => m !== DELIVERY_METHODS.INTERNAL);
+        unavailable.push({ method: DELIVERY_METHODS.INTERNAL, reason: 'The SafeFire Delivery App is turned off by Admin.' });
+    }
+
+    const isForward = !shipment.type || shipment.type === 'forward';
+    if (isForward && deliverySettings?.sellerDeliveryEnabled) {
+        if (isCodPaymentMethod(order?.paymentMethod)) {
+            unavailable.push({ method: DELIVERY_METHODS.SELLER_DELIVERY, reason: 'Seller Delivery is not available for Cash on Delivery orders.' });
+        } else if (!order?.userId) {
+            // The delivery OTP is shown only in the customer's signed-in account; an order without an account
+            // (legacy guest record) could never be confirmed by the customer.
+            unavailable.push({ method: DELIVERY_METHODS.SELLER_DELIVERY, reason: 'Seller Delivery needs a registered customer account to show the delivery OTP.' });
+        } else {
+            methods.push(DELIVERY_METHODS.SELLER_DELIVERY);
+        }
+    }
+
+    const reason = methods.length
+        ? null
+        : ['No delivery method is available for this shipment right now.', ...unavailable.map((u) => u.reason), 'Contact Admin to resolve it.'].join(' ');
+    return { methods, unavailable, reason };
+};
+
+/** Async wrapper: loads the current Admin switches and routing limits. */
+export const getEffectiveDeliveryMethods = async (shipment, order) => {
+    const [deliverySettings, routingSettings] = await Promise.all([getDeliveryAppSettings(), getDeliveryRoutingSettings()]);
+    return resolveEffectiveDeliveryMethods({ shipment, order, deliverySettings, routingSettings });
+};
 
 /** providerId placeholder for shipments whose delivery method the vendor has not chosen yet. */
 export const PENDING_SELECTION_PROVIDER = 'pending_selection';

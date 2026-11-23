@@ -86,8 +86,30 @@ const ServiceDetailPage = () => {
     zipCode: "",
   });
 
-  const [paymentMethod, setPaymentMethod] = useState("cod");
+  // Chosen from the Admin-enabled methods (never assumed to be COD). null = settings not loaded yet.
+  const [paymentMethod, setPaymentMethod] = useState("");
+  const [enabledPayments, setEnabledPayments] = useState(null);
   const [walletBalance, setWalletBalance] = useState(null);
+
+  // Payment methods enabled by the Admin: COD = pay after service; online = pay now via Razorpay; wallet.
+  useEffect(() => {
+    let active = true;
+    api.get("/settings/checkout")
+      .then((res) => {
+        const p = (res?.data ?? res)?.payment || {};
+        if (active) setEnabledPayments({ cod: !!p.cod, online: !!(p.razorpay || p.upi), wallet: !!p.wallet });
+      })
+      .catch(() => { if (active) setEnabledPayments({ cod: false, online: false, wallet: false, error: true }); });
+    return () => { active = false; };
+  }, []);
+
+  // Keep the selection on an enabled method; prefer paying first (online).
+  useEffect(() => {
+    if (!enabledPayments) return;
+    if (paymentMethod && enabledPayments[paymentMethod === "online" ? "online" : paymentMethod]) return;
+    const next = enabledPayments.online ? "online" : enabledPayments.cod ? "cod" : enabledPayments.wallet ? "wallet" : "";
+    if (next !== paymentMethod) setPaymentMethod(next);
+  }, [enabledPayments, paymentMethod]);
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serviceReviews, setServiceReviews] = useState([]);
@@ -240,6 +262,15 @@ const ServiceDetailPage = () => {
 
     if (!finalAddress || !finalAddress.address) {
       toast.error("Please select or add a service address.");
+      return;
+    }
+
+    if (!paymentMethod) {
+      toast.error(
+        enabledPayments?.error
+          ? "We couldn't load the payment options. Please refresh the page and try again."
+          : "No payment method is available right now. Please try again shortly."
+      );
       return;
     }
 
@@ -706,7 +737,17 @@ const ServiceDetailPage = () => {
                       {/* Payment Option */}
                       <div className="space-y-2">
                         <label className="block text-xs font-semibold text-slate-600">Payment Mode</label>
+                        {enabledPayments === null && (
+                          <p className="text-xs text-slate-500">Loading payment options…</p>
+                        )}
+                        {enabledPayments?.error && (
+                          <p className="text-xs text-red-700">We couldn't load the payment options. Please refresh the page.</p>
+                        )}
+                        {enabledPayments && !enabledPayments.error && !enabledPayments.cod && !enabledPayments.online && !enabledPayments.wallet && (
+                          <p className="text-xs text-amber-800">No payment method is available right now. Please try again later.</p>
+                        )}
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          {enabledPayments?.cod && (
                           <button
                             type="button"
                             onClick={() => setPaymentMethod("cod")}
@@ -718,6 +759,8 @@ const ServiceDetailPage = () => {
                           >
                             Pay After Service (COD)
                           </button>
+                          )}
+                          {enabledPayments?.online && (
                           <button
                             type="button"
                             onClick={() => setPaymentMethod("online")}
@@ -729,6 +772,8 @@ const ServiceDetailPage = () => {
                           >
                             Online Payment
                           </button>
+                          )}
+                          {enabledPayments?.wallet && (
                           <button
                             type="button"
                             onClick={() => setPaymentMethod("wallet")}
@@ -740,6 +785,7 @@ const ServiceDetailPage = () => {
                           >
                             Wallet {walletBalance !== null ? `(₹${walletBalance})` : ""}
                           </button>
+                          )}
                         </div>
                       </div>
 

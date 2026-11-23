@@ -378,6 +378,14 @@ const AllOrders = () => {
   const [orders, setOrders] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
+  // Server-side delivery filters: method (or "awaiting" a method) and courier tracking number search.
+  const [deliveryFilter, setDeliveryFilter] = useState("all");
+  const [trackingQuery, setTrackingQuery] = useState("");
+  const [debouncedTracking, setDebouncedTracking] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedTracking(trackingQuery.trim()), 400);
+    return () => clearTimeout(timer);
+  }, [trackingQuery]);
   const [dateRange, setDateRange] = useState({
     startDate: "",
     endDate: "",
@@ -417,6 +425,9 @@ const AllOrders = () => {
         search: searchQuery,
         startDate: dateRange.startDate,
         endDate: dateRange.endDate,
+        deliveryMethod: ["SHIPROCKET", "INTERNAL", "SELLER_DELIVERY"].includes(deliveryFilter) ? deliveryFilter : undefined,
+        awaitingDeliveryMethod: deliveryFilter === "awaiting" ? "true" : undefined,
+        trackingNumber: debouncedTracking || undefined,
         limit: 100 // Fetch a larger set for the DataTable's internal pagination
       };
 
@@ -442,7 +453,7 @@ const AllOrders = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedStatus, searchQuery, dateRange]);
+  }, [selectedStatus, searchQuery, dateRange, deliveryFilter, debouncedTracking]);
 
   useEffect(() => {
     fetchGlobalOrders();
@@ -861,6 +872,31 @@ const AllOrders = () => {
             ]}
             className="w-full sm:w-auto min-w-[140px]"
           />
+
+          <AnimatedSelect
+            value={deliveryFilter}
+            onChange={(e) => setDeliveryFilter(e.target.value)}
+            options={[
+              { value: "all", label: "All Delivery Methods" },
+              { value: "SHIPROCKET", label: "Shiprocket" },
+              { value: "INTERNAL", label: "SafeFire Delivery App" },
+              { value: "SELLER_DELIVERY", label: "Seller Delivery" },
+              { value: "awaiting", label: "Awaiting Delivery Method" },
+            ]}
+            className="w-full sm:w-auto min-w-[170px]"
+          />
+
+          <div className="relative w-full sm:w-auto sm:min-w-[180px]">
+            <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={trackingQuery}
+              onChange={(e) => setTrackingQuery(e.target.value.slice(0, 64))}
+              placeholder="Courier tracking / AWB no."
+              aria-label="Search by courier tracking or AWB number"
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm sm:text-base"
+            />
+          </div>
 
           {/* Date Range Selector */}
           <div className="flex items-center gap-2 w-full sm:w-auto">

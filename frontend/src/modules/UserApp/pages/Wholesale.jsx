@@ -123,6 +123,29 @@ const Wholesale = () => {
   const [cartCheck, setCartCheck] = useState(null);
   const [addressId, setAddressId] = useState("");
   const [isPlacing, setIsPlacing] = useState(false);
+  // Admin-enabled payment methods for wholesale: COD and/or online (Razorpay). null = not loaded yet.
+  const [paymentOptions, setPaymentOptions] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    api.get("/settings/checkout")
+      .then((res) => {
+        const p = (res?.data ?? res)?.payment || {};
+        const options = [];
+        // Online first: paying upfront is the default when it is available.
+        if (p.razorpay || p.upi) options.push({ id: p.razorpay ? "card" : "upi", label: "Pay Online (Card / UPI)" });
+        if (p.cod) options.push({ id: "cod", label: "Cash on Delivery" });
+        if (active) setPaymentOptions(options);
+      })
+      .catch(() => { if (active) setPaymentOptions([]); });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!paymentOptions) return;
+    if (!paymentOptions.some((o) => o.id === paymentMethod)) setPaymentMethod(paymentOptions[0]?.id || "");
+  }, [paymentOptions, paymentMethod]);
 
   // Catalog state lives in the URL so refresh / back keep the same search, category and sort.
   const search = searchParams.get("q") || "";
@@ -248,32 +271,105 @@ const Wholesale = () => {
     toast.success(`${product.name} added to wholesale order.`);
   };
 
+  const loadRazorpay = () =>
+    new Promise((resolve) => {
+      if (window.Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+
+  // Opens Razorpay for an online wholesale order and verifies the payment on the server.
+  const payOnline = async (payload, shippingAddress) => {
+    const sdkLoaded = await loadRazorpay();
+    if (!sdkLoaded || !window.Razorpay) {
+      toast.error("Payment gateway failed to load. Your order is saved — you can retry from Orders.");
+      navigate("/orders");
+      return;
+    }
+    await new Promise((resolve) => {
+      const rzp = new window.Razorpay({
+        key: payload.key || import.meta.env.VITE_RAZORPAY_KEY_ID,
+        amount: Math.round((payload.amount || 0) * 100),
+        currency: payload.currency || "INR",
+        order_id: payload.razorpayOrderId,
+        name: "SafeFire Wholesale",
+        description: `Wholesale Order #${payload.orderId}`,
+        prefill: { name: shippingAddress.name, email: shippingAddress.email, contact: shippingAddress.phone },
+        theme: { color: "#E31E24" },
+        handler: async (response) => {
+          const verifyToastId = toast.loading("Confirming your payment...");
+          try {
+            await api.post("/user/payment/verify", {
+              orderId: payload.orderId,
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+            });
+            toast.success("Payment received. Wholesale order placed.", { id: verifyToastId });
+            navigate(`/order-confirmation/${payload.orderId}`, { state: { orderPlaced: true } });
+          } catch {
+            toast.error("Payment confirmation failed. Check your Orders tab.", { id: verifyToastId });
+            navigate("/orders");
+          }
+          resolve();
+        },
+        modal: {
+          ondismiss: () => {
+            toast("Payment cancelled. Your order is saved — you can retry from Orders.");
+            navigate("/orders");
+            resolve();
+          },
+        },
+      });
+      rzp.on("payment.failed", (response) => {
+        toast.error(`Payment failed: ${response.error?.description || "Unknown error"}`);
+        navigate("/orders");
+        resolve();
+      });
+      rzp.open();
+    });
+  };
+
   const placeOrder = async () => {
     const address = addresses.find((a) => (a.id || a._id) === addressId);
     if (!cart.length) return toast.error("Add at least one product.");
     if (!address) return toast.error("Please select a delivery address.");
     if (cartCheck && !cartCheck.valid) return toast.error("Please fix the highlighted items in your wholesale order.");
+    if (!paymentMethod || !paymentOptions?.some((o) => o.id === paymentMethod)) {
+      return toast.error(paymentOptions?.length ? "Please choose a payment method." : "No payment method is available right now. Please try again shortly.");
+    }
 
     setIsPlacing(true);
     try {
+      const shippingAddress = {
+        name: String(address.fullName || address.name || user?.name || "").trim(),
+        email: String(user?.email || "").trim().toLowerCase(),
+        phone: String(address.phone || "").replace(/\D/g, "").slice(-10),
+        address: String(address.address || "").trim(),
+        city: String(address.city || "").trim(),
+        state: String(address.state || "").trim(),
+        zipCode: String(address.zipCode || "").trim(),
+        country: String(address.country || "India").trim(),
+      };
       const data = await api.post("/user/payment/initialize", {
         orderType: "b2b",
-        paymentMethod: "cod",
+        paymentMethod,
         items: cart.map((line) => ({ productId: line.product._id, quantity: line.quantity })),
-        shippingAddress: {
-          name: String(address.fullName || address.name || user?.name || "").trim(),
-          email: String(user?.email || "").trim().toLowerCase(),
-          phone: String(address.phone || "").replace(/\D/g, "").slice(-10),
-          address: String(address.address || "").trim(),
-          city: String(address.city || "").trim(),
-          state: String(address.state || "").trim(),
-          zipCode: String(address.zipCode || "").trim(),
-          country: String(address.country || "India").trim(),
-        },
+        shippingAddress,
         shippingOption: "standard",
       });
       const payload = data?.data ?? data;
       setCart([]);
+      if (payload.razorpayOrderId) {
+        await payOnline(payload, shippingAddress);
+        return;
+      }
       toast.success(`Wholesale order placed. Total ${formatPrice(payload.total)}.`, { id: "wholesale-order-placed" });
       navigate(`/order-confirmation/${payload.orderId}`, { state: { orderPlaced: true } });
     } catch {
@@ -459,12 +555,35 @@ const Wholesale = () => {
                   )}
                 </div>
 
-                <p className="text-xs text-slate-600">Payment: <span className="font-semibold">Cash on Delivery</span></p>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Payment</label>
+                  {paymentOptions === null ? (
+                    <p className="text-xs text-slate-500">Loading payment options…</p>
+                  ) : paymentOptions.length === 0 ? (
+                    <p className="text-xs text-amber-800">No payment method is available right now. Please refresh or try again later.</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {paymentOptions.map((option) => (
+                        <label key={option.id} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="wholesalePaymentMethod"
+                            value={option.id}
+                            checked={paymentMethod === option.id}
+                            onChange={() => setPaymentMethod(option.id)}
+                            className="w-4 h-4 text-[#E31E24]"
+                          />
+                          <span className="font-semibold">{option.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 <button
                   type="button"
                   onClick={placeOrder}
-                  disabled={isPlacing || cart.length === 0 || !addressId || (cartCheck && !cartCheck.valid)}
+                  disabled={isPlacing || cart.length === 0 || !addressId || (cartCheck && !cartCheck.valid) || !paymentMethod}
                   className="w-full py-3 bg-[#E31E24] hover:bg-[#C8191F] disabled:opacity-50 text-white rounded-xl text-sm font-bold">
                   {isPlacing ? "Placing order…" : "Place Wholesale Order"}
                 </button>

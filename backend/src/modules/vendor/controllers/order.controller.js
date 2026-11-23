@@ -18,11 +18,31 @@ import {
     ASSIGNMENT_ERROR_MESSAGES,
 } from '../../../services/assignmentService.js';
 import { notifyOrderUpdate } from '../../../services/socket.service.js';
-import { getDeliveryRoutingSettings, getConfiguredReturnWindowDays } from '../../../services/settingsService.js';
+import {
+    getDeliveryRoutingSettings,
+    getConfiguredReturnWindowDays,
+    getDeliveryAppSettings,
+    assertDeliveryAppEnabled,
+    DELIVERY_APP_DISABLED,
+} from '../../../services/settingsService.js';
 import { processCancellationRefund } from '../../../services/cancellationRefundService.js';
 import { ensureDeliveryOtpForShipment } from '../../../services/deliveryOtp.service.js';
 import { createShiprocketShipmentOrFallback } from '../../../services/shiprocketShipment.service.js';
-import { resolveShiprocketPickupLocation, evaluateDeliveryRouting } from '../../../services/deliveryRouting.service.js';
+import {
+    resolveShiprocketPickupLocation,
+    evaluateDeliveryRouting,
+    resolveEffectiveDeliveryMethods,
+    isCodPaymentMethod,
+    isSellerDeliveryShipment,
+    SELLER_DELIVERY_PROVIDER,
+} from '../../../services/deliveryRouting.service.js';
+import {
+    shipSellerDelivery,
+    updateSellerDeliveryTracking,
+    sendSellerDeliveryOtp,
+    confirmSellerDelivery,
+} from '../../../services/sellerDelivery.service.js';
+import { deriveTopLevelOrderStatus } from '../../../utils/orderStatus.js';
 import Vendor from '../../../models/Vendor.model.js';
 import { buildVendorItemsSummary } from '../../../utils/notificationProductFormatter.js';
 import { getVendorGroupPayable } from '../../../services/financial.service.js';
@@ -63,10 +83,11 @@ export const assignDeliveryPartner = asyncHandler(async (req, res) => {
         allowReassignment: false,
     });
     if (!result.success) {
-        const status = ['ALREADY_ASSIGNED', 'ASSIGNMENT_CONFLICT'].includes(result.code) ? 409 : 400;
-        throw new ApiError(status, result.code === 'ALREADY_ASSIGNED'
+        const status = ['ALREADY_ASSIGNED', 'ASSIGNMENT_CONFLICT', DELIVERY_APP_DISABLED].includes(result.code) ? 409 : 400;
+        const message = result.code === 'ALREADY_ASSIGNED'
             ? 'A delivery partner is already assigned. Ask Admin to use explicit reassignment.'
-            : ASSIGNMENT_ERROR_MESSAGES[result.code] || `Unable to assign delivery partner: ${result.code}`);
+            : ASSIGNMENT_ERROR_MESSAGES[result.code] || `Unable to assign delivery partner: ${result.code}`;
+        throw new ApiError(status, message, [{ code: result.code, message }]);
     }
     res.status(200).json(new ApiResponse(200, result.shipment, 'Delivery partner assigned.'));
 });
@@ -83,7 +104,7 @@ const assertShipmentReadyForTransition = (shipment, nextStatus) => {
         && shipment.allowedDeliveryMethods.length > 0
         && !shipment.deliveryMethod;
     if (awaitingChoice) {
-        throw new ApiError(409, `Choose a delivery method (Shiprocket or Manual Delivery) before marking the order ${nextStatus.replace(/_/g, ' ')}.`);
+        throw new ApiError(409, `Choose a delivery method before marking the order ${nextStatus.replace(/_/g, ' ')}.`);
     }
 };
 
@@ -100,11 +121,41 @@ const assertInternalShipmentHasActiveRider = async (shipment) => {
     if (!rider) throw new ApiError(409, 'The assigned delivery partner is no longer active. Reassign the delivery.');
 };
 
-// PATCH /api/vendor/orders/:id/shipments/:shipmentId/delivery-method  { method: 'SHIPROCKET' | 'INTERNAL' }
+/**
+ * Delivery App off: an INTERNAL shipment that has no rider yet can never get one, so it must not be handed
+ * over (ready for pickup) — the seller should switch to another available method.
+ */
+const assertInternalShipmentCanGetRider = async (shipment) => {
+    if (!shipment || shipment.deliveryMethod !== 'INTERNAL' || shipment.deliveryBoyId) return;
+    const { deliveryAppEnabled } = await getDeliveryAppSettings();
+    if (!deliveryAppEnabled) {
+        const message = 'The SafeFire Delivery App is turned off by Admin, so Manual Delivery cannot get a delivery partner. Choose another available delivery method or contact Admin.';
+        throw new ApiError(409, message, [{ code: DELIVERY_APP_DISABLED, message }]);
+    }
+};
+
+/** Effective delivery methods for many shipments with one settings read (pure per shipment). */
+const loadDeliveryContext = async () => {
+    const [deliverySettings, routingSettings] = await Promise.all([getDeliveryAppSettings(), getDeliveryRoutingSettings()]);
+    return { deliverySettings, routingSettings };
+};
+
+const decorateShipmentWithEffectiveMethods = (shipment, order, ctx) => {
+    if (!shipment) return shipment;
+    const effective = resolveEffectiveDeliveryMethods({ shipment, order, ...ctx });
+    shipment.effectiveAllowedDeliveryMethods = effective.methods;
+    shipment.unavailableDeliveryMethods = effective.unavailable;
+    shipment.noDeliveryMethodReason = effective.reason;
+    return shipment;
+};
+
+const METHOD_LABELS = { SHIPROCKET: 'Shiprocket', INTERNAL: 'Manual Delivery', SELLER_DELIVERY: 'Seller Delivery' };
+
+// PATCH /api/vendor/orders/:id/shipments/:shipmentId/delivery-method  { method: 'SHIPROCKET' | 'INTERNAL' | 'SELLER_DELIVERY' }
 export const selectDeliveryMethod = asyncHandler(async (req, res) => {
     const method = String(req.body?.method || '').toUpperCase();
-    if (!['SHIPROCKET', 'INTERNAL'].includes(method)) {
-        throw new ApiError(400, 'Delivery method must be SHIPROCKET or INTERNAL.');
+    if (!['SHIPROCKET', 'INTERNAL', 'SELLER_DELIVERY'].includes(method)) {
+        throw new ApiError(400, 'Delivery method must be SHIPROCKET, INTERNAL or SELLER_DELIVERY.');
     }
     if (!mongoose.Types.ObjectId.isValid(req.params.shipmentId)) throw new ApiError(400, 'Invalid shipment.');
 
@@ -116,39 +167,57 @@ export const selectDeliveryMethod = asyncHandler(async (req, res) => {
     const shipment = await Shipment.findOne({ _id: req.params.shipmentId, orderId: order._id, vendorId: req.user.id });
     if (!shipment) throw new ApiError(404, 'Shipment not found.');
     const vendorItem = order.vendorItems.find((vi) => String(vi.vendorId) === String(req.user.id));
-    if (vendorItem?.status !== 'processing') {
+    const ctx = await loadDeliveryContext();
+
+    // Delivery App turned off after a Manual Delivery package was marked ready but before any rider was assigned:
+    // the seller may move it to Seller Delivery (it stays ready for pickup and is then shipped with tracking).
+    const strandedInternal = method === 'SELLER_DELIVERY'
+        && !ctx.deliverySettings.deliveryAppEnabled
+        && shipment.deliveryMethod === 'INTERNAL' && !shipment.deliveryBoyId
+        && shipment.status === 'ready_for_pickup' && vendorItem?.status === 'ready_for_pickup';
+
+    if (vendorItem?.status !== 'processing' && !strandedInternal) {
         throw new ApiError(409, 'Accept the order first. The delivery method can be chosen while the order is processing.');
     }
-    if (LOCKED_SHIPMENT_STATUSES.includes(shipment.status)) {
+    if (LOCKED_SHIPMENT_STATUSES.includes(shipment.status) && !strandedInternal) {
         throw new ApiError(409, 'The delivery method can no longer be changed for this shipment.');
     }
     if (shipment.deliveryBoyId || shipment.providerOrderId) {
         throw new ApiError(409, 'A delivery is already in progress for this shipment. The delivery method cannot be changed.');
     }
-    let allowed = Array.isArray(shipment.allowedDeliveryMethods) && shipment.allowedDeliveryMethods.length
-        ? shipment.allowedDeliveryMethods
-        : null;
-    if (!allowed) {
-        const settings = await getDeliveryRoutingSettings();
-        const routing = evaluateDeliveryRouting({
+
+    // Explicit switch/payment checks (clear messages), then the shared effective-method rule.
+    if (method === 'INTERNAL') await assertDeliveryAppEnabled();
+    if (method === 'SELLER_DELIVERY') {
+        if (!ctx.deliverySettings.sellerDeliveryEnabled) throw new ApiError(409, 'Seller Delivery is not enabled by Admin.');
+        if (isCodPaymentMethod(order.paymentMethod)) throw new ApiError(409, 'Seller Delivery is not available for Cash on Delivery orders.');
+        if (shipment.type && shipment.type !== 'forward') throw new ApiError(409, 'Seller Delivery is only available for customer order shipments.');
+    }
+    if (!Array.isArray(shipment.allowedDeliveryMethods) || !shipment.allowedDeliveryMethods.length) {
+        // Records saved before allowedDeliveryMethods existed: persist the wholesale/weight rule (never the
+        // Admin-switch-dependent SELLER_DELIVERY, which is always derived at read time).
+        shipment.allowedDeliveryMethods = evaluateDeliveryRouting({
             isWholesale: Boolean(order.isWholesale),
             weightKg: shipment.packageWeight || 1,
-            settings,
-        });
-        allowed = routing.allowedDeliveryMethods;
-        shipment.allowedDeliveryMethods = allowed;
+            settings: ctx.routingSettings,
+        }).allowedDeliveryMethods;
     }
-    if (!allowed.includes(method)) {
-        throw new ApiError(409, shipment.deliveryRoutingDetails || 'This delivery method is not available for this shipment.');
+    const effective = resolveEffectiveDeliveryMethods({ shipment, order, ...ctx });
+    if (!effective.methods.includes(method)) {
+        const reason = effective.unavailable.find((u) => u.method === method)?.reason;
+        throw new ApiError(409, reason || shipment.deliveryRoutingDetails || 'This delivery method is not available for this shipment.');
     }
 
     const selection = { role: 'vendor', actorId: req.user.id, selectedAt: new Date() };
+    const keepReason = ['WHOLESALE', 'OVERWEIGHT'].includes(shipment.deliveryRoutingReason);
     let warning = null;
     if (method === 'SHIPROCKET') {
         const vendor = await Vendor.findById(req.user.id);
         const pickupLocation = await resolveShiprocketPickupLocation(vendor);
         if (!pickupLocation) {
-            warning = 'Your Shiprocket pickup location is not synchronized yet. If it is still missing when you mark the order ready for pickup, the shipment will fall back to Manual Delivery.';
+            warning = ctx.deliverySettings.deliveryAppEnabled
+                ? 'Your Shiprocket pickup location is not synchronized yet. If it is still missing when you mark the order ready for pickup, the shipment will fall back to Manual Delivery.'
+                : 'Your Shiprocket pickup location is not synchronized yet. If it is still missing when you mark the order ready for pickup, the shipment will return to "choose a delivery method".';
         }
         Object.assign(shipment, {
             deliveryMethod: 'SHIPROCKET',
@@ -160,9 +229,18 @@ export const selectDeliveryMethod = asyncHandler(async (req, res) => {
             deliveryAssignmentStatus: 'pending',
             deliveryMethodSelectedBy: selection,
         });
+    } else if (method === 'SELLER_DELIVERY') {
+        Object.assign(shipment, {
+            deliveryMethod: 'SELLER_DELIVERY',
+            providerId: SELLER_DELIVERY_PROVIDER,
+            deliveryRoutingReason: keepReason ? shipment.deliveryRoutingReason : 'VENDOR_SELECTED_SELLER_DELIVERY',
+            deliveryRoutingDetails: keepReason ? shipment.deliveryRoutingDetails : 'Vendor selected Seller Delivery.',
+            externalCreationStatus: 'not_applicable',
+            deliveryAssignmentStatus: undefined,
+            deliveryMethodSelectedBy: selection,
+        });
     } else {
         // Wholesale/overweight keep their mandatory reason; otherwise record the vendor's choice.
-        const keepReason = ['WHOLESALE', 'OVERWEIGHT'].includes(shipment.deliveryRoutingReason);
         Object.assign(shipment, {
             deliveryMethod: 'INTERNAL',
             providerId: 'own_fleet',
@@ -173,36 +251,39 @@ export const selectDeliveryMethod = asyncHandler(async (req, res) => {
             deliveryMethodSelectedBy: selection,
         });
     }
+    shipment.statusHistory.push({ status: shipment.status, updatedBy: 'vendor', notes: `Delivery method set to ${METHOD_LABELS[method]}.` });
     await shipment.save();
     notifyOrderUpdate(order);
 
-    res.status(200).json(new ApiResponse(200, { shipment, warning },
-        method === 'SHIPROCKET' ? 'Shiprocket selected for this shipment.' : 'Manual Delivery selected for this shipment.'));
+    const shipmentObj = decorateShipmentWithEffectiveMethods(shipment.toObject(), order, ctx);
+    res.status(200).json(new ApiResponse(200, { shipment: shipmentObj, warning }, `${METHOD_LABELS[method]} selected for this shipment.`));
 });
 
-const deriveTopLevelOrderStatus = (vendorItems = [], fallback = 'pending') => {
-    const statuses = (vendorItems || [])
-        .map((item) => String(item?.status || '').toLowerCase())
-        .filter(Boolean);
+// ─── Seller Delivery (seller's own courier) ───────────────────────────────────
 
-    if (!statuses.length) return String(fallback || 'pending').toLowerCase();
+// POST /api/vendor/orders/:id/shipments/:shipmentId/seller-delivery/ship
+export const shipWithSellerDelivery = asyncHandler(async (req, res) => {
+    const shipment = await shipSellerDelivery({ orderRef: req.params.id, shipmentId: req.params.shipmentId, vendorId: req.user.id, input: req.body });
+    res.status(200).json(new ApiResponse(200, { shipment }, 'Package marked shipped with your courier details.'));
+});
 
-    if (statuses.every((s) => s === 'cancelled')) return 'cancelled';
-    if (statuses.every((s) => s === 'delivered')) return 'delivered';
+// PATCH /api/vendor/orders/:id/shipments/:shipmentId/seller-delivery/tracking
+export const updateSellerDeliveryTrackingDetails = asyncHandler(async (req, res) => {
+    const { shipment, changed } = await updateSellerDeliveryTracking({ orderRef: req.params.id, shipmentId: req.params.shipmentId, vendorId: req.user.id, input: req.body });
+    res.status(200).json(new ApiResponse(200, { shipment, changed }, changed ? 'Tracking details updated.' : 'No changes to save.'));
+});
 
-    const nonCancelled = statuses.filter((s) => s !== 'cancelled');
-    if (nonCancelled.length > 0 && nonCancelled.every((s) => s === 'delivered')) {
-        return 'partially_delivered';
-    }
+// POST /api/vendor/orders/:id/shipments/:shipmentId/seller-delivery/send-otp
+export const sendSellerDeliveryOtpToCustomer = asyncHandler(async (req, res) => {
+    const result = await sendSellerDeliveryOtp({ orderRef: req.params.id, shipmentId: req.params.shipmentId, vendorId: req.user.id });
+    res.status(200).json(new ApiResponse(200, result, 'Delivery OTP sent. The customer can see it on their order tracking page.'));
+});
 
-    if (statuses.includes('shipped')) return 'shipped';
-    if (statuses.includes('ready_for_pickup')) return 'ready_for_pickup';
-    if (statuses.includes('processing')) return 'processing';
-    if (statuses.includes('pending')) return 'pending';
-    if (statuses.includes('cancelled')) return 'partially_cancelled';
-
-    return String(fallback || 'pending').toLowerCase();
-};
+// POST /api/vendor/orders/:id/shipments/:shipmentId/seller-delivery/confirm  { otp }
+export const confirmSellerDeliveryWithOtp = asyncHandler(async (req, res) => {
+    const shipment = await confirmSellerDelivery({ orderRef: req.params.id, shipmentId: req.params.shipmentId, vendorId: req.user.id, otp: req.body.otp });
+    res.status(200).json(new ApiResponse(200, { shipment }, 'Delivery confirmed with the customer OTP.'));
+});
 
 // GET /api/vendor/orders
 export const getVendorOrders = asyncHandler(async (req, res) => {
@@ -239,14 +320,16 @@ export const getVendorOrders = asyncHandler(async (req, res) => {
         orderId: { $in: orderIds },
         vendorId: req.user.id
     }).lean();
+    const deliveryCtx = await loadDeliveryContext();
 
     const ordersWithCommissions = orders.map(order => {
         const comm = commissions.find(c => String(c.orderId) === String(order._id));
         const filteredItems = (order.items || []).filter(item => String(item.vendorId) === String(req.user.id));
         const filteredVendorItems = (order.vendorItems || []).filter(vi => String(vi.vendorId) === String(req.user.id));
-        
+
         // Resolve vendor shipment
         const vendorShipment = (order.shipments || []).find(s => String(s.vendorId) === String(req.user.id));
+        decorateShipmentWithEffectiveMethods(vendorShipment, order, deliveryCtx);
 
         // Preserve vendor preparation status as source of truth.
         // Only sync forward when delivery actually enters transit or completes delivery.
@@ -363,6 +446,11 @@ export const getVendorOrderById = asyncHandler(async (req, res) => {
             }
         }).catch(() => {});
     }
+    // What the seller can actually choose right now (Admin switches + payment rules), never a frontend guess.
+    const deliveryCtx = await loadDeliveryContext();
+    // Rules use the stored customer id (populate turns a missing user into null).
+    decorateShipmentWithEffectiveMethods(vendorShipment, { ...orderObj, userId: order.populated('userId') || orderObj.userId }, deliveryCtx);
+    orderObj.deliverySettings = deliveryCtx.deliverySettings;
 
     // Preserve vendor preparation status as source of truth.
     // Only sync forward when delivery actually enters transit or completes delivery.
@@ -464,6 +552,11 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     if (status === 'ready_for_pickup' || status === 'shipped') {
         const guardShipment = await Shipment.findOne({ orderId: order._id, vendorId: req.user.id });
         assertShipmentReadyForTransition(guardShipment, status);
+        // Seller Delivery is shipped only through the Seller Delivery "ship" action (courier + tracking required).
+        if (status === 'shipped' && isSellerDeliveryShipment(guardShipment)) {
+            throw new ApiError(409, 'Enter the courier name and tracking number with "Ship with Seller Delivery" to mark this package shipped.');
+        }
+        if (status === 'ready_for_pickup' && currentStatus !== 'ready_for_pickup') await assertInternalShipmentCanGetRider(guardShipment);
         if (status === 'shipped') await assertInternalShipmentHasActiveRider(guardShipment);
     }
 
@@ -560,6 +653,9 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
                         }).catch(err => console.error('[3PL] Delhivery createShipment exception:', err));
                     })
                     .catch(err => console.error('Failed to load delhivery provider:', err));
+            } else if (isSellerDeliveryShipment(shipmentForVendor)) {
+                // Seller Delivery: nothing to book — no Shiprocket order, no rider. The seller ships it next with
+                // courier + tracking details.
             } else if (shipmentForVendor.providerId === 'own_fleet') {
                 // Manual (INTERNAL) delivery: Vendor or Admin assigns a partner via
                 // /shipments/:id/assign-delivery (ManualDeliveryAssignment UI) — never auto-assigned.

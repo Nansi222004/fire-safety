@@ -25,6 +25,7 @@ import giftCardRoutes, { adminGiftCardRouter } from './routes/giftCard.routes.js
 import { apiLimiter } from './middlewares/rateLimiter.js';
 import errorHandler from './middlewares/errorHandler.js';
 import notFound from './middlewares/notFound.js';
+import { redactOtpInResponses } from './utils/otpRedaction.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -117,7 +118,14 @@ app.use(
     },
     express.static(uploadsRoot)
 );
-app.use('/api', publicRoutes);                       // Public: products, categories, brands, coupons, banners
+// OTP secrets in every API response: hashes never leave the server; the customer's delivery code goes only to
+// customer routes and the rider's pickup code only to rider routes (see utils/otpRedaction.js).
+app.use('/api', (req, res, next) => {
+    const path = req.path || '';
+    const keep = path.startsWith('/user/') ? ['deliveryOtpDebug'] : path.startsWith('/delivery/') ? ['pickupOtpDebug'] : [];
+    return redactOtpInResponses({ keep })(req, res, next);
+});
+app.use('/api', publicRoutes);                      // Public: products, categories, brands, coupons, banners
 app.use('/api/fcm-tokens', fcmTokenRoutes);           // FCM Push Notification Tokens (SOP)
 app.use('/api/user/fcm-tokens', fcmTokenRoutes);      // FCM Tokens scoped for customer
 app.use('/api/vendor/fcm-tokens', fcmTokenRoutes);    // FCM Tokens scoped for vendor

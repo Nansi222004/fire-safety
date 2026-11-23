@@ -9,6 +9,7 @@ import PageTransition from '../../../shared/components/PageTransition';
 import Badge from '../../../shared/components/Badge';
 import LazyImage from '../../../shared/components/LazyImage';
 import { useAuthStore } from '../../../shared/store/authStore';
+import ShipmentTrackingDetails from '../components/ShipmentTrackingDetails';
 
 const MobileTrackOrder = () => {
   const { orderId } = useParams();
@@ -229,30 +230,34 @@ const MobileTrackOrder = () => {
                               🔑 Delivery OTP
                             </p>
                             <p className="text-[11px] text-green-700 leading-tight mb-2">
-                              Provide this code to the delivery partner.
+                              Share this code with the delivery person only after you have received your package.
                             </p>
                             <p className="text-xl font-extrabold text-green-800 tracking-widest text-center py-1.5 bg-white rounded-lg border border-green-300 font-mono">
                               {shipment.deliveryOtpDebug || 'Email Sent'}
                             </p>
                           </div>
                         )}
-                        {/* AWB Tracking line inline */}
-                        {shipment.awbCode && (
-                           <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
-                             <div>
-                               <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-0.5">Tracking AWB</p>
-                               <p className="text-sm font-mono font-bold text-gray-800">{shipment.awbCode}</p>
-                             </div>
-                             {shipment.trackingUrl && (
-                               <a href={shipment.trackingUrl} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-primary-600 bg-primary-50 px-3 py-1.5 rounded-lg border border-primary-100">
-                                 Track Package
-                               </a>
-                             )}
-                           </div>
-                        )}
+                        {/* Delivery method + courier tracking (Shiprocket / SafeFire rider / seller courier) */}
+                        <ShipmentTrackingDetails shipment={shipment} />
                       </div>
                     );
                   })}
+                </div>
+              )}
+
+              {/* Public (signed-out) view shows status only; courier details and the delivery OTP need the account */}
+              {!user?.id && !(order.shipments && order.shipments.length > 0) && (
+                <div className="glass-card rounded-2xl p-4">
+                  <p className="text-sm text-gray-700">
+                    Sign in to the account used for this order to see courier tracking details and your delivery OTP.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/login', { state: { from: { pathname: `/track-order/${orderId}` } } })}
+                    className="mt-3 gradient-green text-white px-4 py-2 rounded-xl text-sm font-semibold"
+                  >
+                    Sign in
+                  </button>
                 </div>
               )}
 

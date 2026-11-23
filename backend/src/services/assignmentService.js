@@ -4,9 +4,44 @@ import Shipment from '../models/Shipment.model.js';
 import DeliveryBoy from '../models/DeliveryBoy.model.js';
 import Vendor from '../models/Vendor.model.js';
 import ReturnRequest from '../models/ReturnRequest.model.js';
-import { createNotification } from './notification.service.js';
+import { createNotification, notifyAdmins } from './notification.service.js';
 import { notifyOrderUpdate, notifyReturnUpdate } from './socket.service.js';
 import { buildOrderItemsSummary, buildReturnItemsSummary } from '../utils/notificationProductFormatter.js';
+import { isDeliveryAppEnabled, DELIVERY_APP_DISABLED } from './settingsService.js';
+
+// ─── Delivery App switch ─────────────────────────────────────────────────────
+// When Admin turns the Delivery App off, no NEW rider assignment is created (manual or automatic, forward,
+// return pickup or exchange replacement). Riders already holding a shipment finish it normally; Admin may
+// still reassign a shipment that already has a rider.
+let lastDisabledLogAt = 0;
+const logDeliveryAppDisabled = (what) => {
+    // Scheduler sweeps run every 30s — log at most once a minute.
+    if (Date.now() - lastDisabledLogAt < 60000) return;
+    lastDisabledLogAt = Date.now();
+    console.log(`[Assignment] Delivery App is turned off by Admin — skipping ${what}.`);
+};
+
+/**
+ * Leaves a return pickup / exchange replacement for Admin when it would need a new rider while the Delivery
+ * App is off: assignment 'failed', one history note and one Admin notification (idempotent).
+ */
+const holdReturnForAdmin = async (returnRequest, kind) => {
+    const note = `${kind} needs a delivery partner, but the SafeFire Delivery App is turned off by Admin. Admin action required.`;
+    const alreadyNoted = (returnRequest.statusHistory || []).some((h) => h.notes === note && h.status === returnRequest.status);
+    returnRequest.deliveryAssignmentStatus = 'failed';
+    if (!alreadyNoted) {
+        returnRequest.statusHistory.push({ status: returnRequest.status, performedByRole: 'system', performedByName: 'System', notes: note });
+    }
+    await returnRequest.save();
+    if (!alreadyNoted) {
+        await notifyAdmins({
+            title: 'Delivery partner needed (Delivery App off)',
+            message: `Return request ${returnRequest._id}: ${note}`,
+            eventKey: `return:${returnRequest._id}:${returnRequest.status}:delivery_app_disabled`,
+            data: { returnRequestId: String(returnRequest._id) },
+        });
+    }
+};
 
 
 // ─── Delivery partner eligibility (single source of truth) ────────────────────
@@ -78,6 +113,14 @@ export const ASSIGNMENT_ERROR_MESSAGES = {
     DELIVERY_PARTNER_UNAVAILABLE: 'Selected delivery partner is not active or not approved.',
     DELIVERY_PARTNER_NOT_ELIGIBLE: 'Selected delivery partner is not eligible (offline, at capacity, or over the COD cash limit).',
     ASSIGNMENT_CONFLICT: 'The shipment assignment changed. Please refresh and try again.',
+    [DELIVERY_APP_DISABLED]: 'The SafeFire Delivery App is turned off by Admin. New delivery partner assignments are not available right now.',
+};
+
+/** True when this assignment would create a NEW rider assignment that the Delivery App switch must block. */
+const isBlockedByDeliveryApp = async (shipment, actorRole) => {
+    if (await isDeliveryAppEnabled()) return false;
+    // Admin may reassign a shipment that already has a rider (resolving an in-flight delivery).
+    return !(actorRole === 'admin' && shipment?.deliveryBoyId);
 };
 
 /**
@@ -85,9 +128,13 @@ export const ASSIGNMENT_ERROR_MESSAGES = {
  * Without a shipmentId only status/approval/capacity apply; with one, COD limit and shipment state apply too.
  */
 export const listEligiblePartnersForShipment = async ({ shipmentId, vendorId = null, actorRole = 'vendor' } = {}) => {
-    if (!shipmentId) return { partners: await findEligibleDeliveryPartners(), blocker: null };
+    if (!shipmentId) {
+        if (!(await isDeliveryAppEnabled())) return { partners: [], blocker: DELIVERY_APP_DISABLED };
+        return { partners: await findEligibleDeliveryPartners(), blocker: null };
+    }
     const shipment = await Shipment.findOne({ _id: shipmentId, ...(vendorId ? { vendorId } : {}) }).lean();
     if (!shipment) return { partners: [], blocker: 'SHIPMENT_NOT_FOUND' };
+    if (await isBlockedByDeliveryApp(shipment, actorRole)) return { partners: [], blocker: DELIVERY_APP_DISABLED };
     const order = await Order.findById(shipment.orderId).select('status isDeleted paymentMethod total vendorItems.vendorId vendorItems.status').lean();
     const blocker = getManualAssignmentBlocker(shipment, order, { allowPending: actorRole === 'admin' });
     if (blocker) return { partners: [], blocker };
@@ -129,6 +176,7 @@ export const manualAssignDeliveryPartner = async ({
 }) => {
     const shipment = await Shipment.findById(shipmentId);
     if (!shipment) return { success: false, code: 'SHIPMENT_NOT_FOUND' };
+    if (await isBlockedByDeliveryApp(shipment, actorRole)) return { success: false, code: DELIVERY_APP_DISABLED };
     const orderForCheck = await Order.findById(shipment.orderId).select('orderId status isDeleted paymentMethod total vendorItems.vendorId vendorItems.status').lean();
     const blocker = getManualAssignmentBlocker(shipment, orderForCheck, { allowPending: actorRole === 'admin' });
     if (blocker) return { success: false, code: blocker };
@@ -225,6 +273,17 @@ export const manualAssignDeliveryPartner = async ({
  */
 export const autoAssignDeliveryPartner = async (shipmentId, options = {}) => {
     try {
+        if (!(await isDeliveryAppEnabled())) {
+            logDeliveryAppDisabled(`automatic assignment of shipment ${shipmentId}`);
+            // e.g. a rider declined after the app was turned off: Admin must resolve it (deduplicated per shipment).
+            await notifyAdmins({
+                title: 'Shipment needs a delivery method (Delivery App off)',
+                message: `Shipment ${shipmentId} has no delivery partner and the Delivery App is turned off. Admin action required.`,
+                eventKey: `shipment:${shipmentId}:delivery_app_disabled`,
+                data: { shipmentId: String(shipmentId) },
+            });
+            return;
+        }
         // ─ 1. Load Shipment ──────────────────────────────────────────────────
         const shipment = await Shipment.findById(shipmentId);
         if (!shipment) {
@@ -378,6 +437,10 @@ export const autoAssignDeliveryPartner = async (shipmentId, options = {}) => {
  */
 export const autoAssignDeliveryPartnerLegacy = async (orderId) => {
     try {
+        if (!(await isDeliveryAppEnabled())) {
+            logDeliveryAppDisabled(`legacy automatic assignment of order ${orderId}`);
+            return;
+        }
         const order = await Order.findById(orderId);
         if (!order || order.isDeleted) return;
 
@@ -627,6 +690,10 @@ export const autoAssignReturnPickupPartner = async (returnRequestId) => {
         // Skip if request is rejected, completed, or already accepted/assigned
         if (['rejected', 'completed', 'pickup_assigned', 'picked_up', 'delivered_to_vendor'].includes(returnRequest.status)) return;
         if (returnRequest.deliveryAssignmentStatus === 'accepted') return;
+        if (!(await isDeliveryAppEnabled())) {
+            await holdReturnForAdmin(returnRequest, 'Return pickup');
+            return;
+        }
 
         // 1. Identify the vendor and get their location
         const vendor = await Vendor.findById(returnRequest.vendorId);
@@ -810,6 +877,10 @@ export const autoAssignExchangeReplacementPartner = async (returnRequestId) => {
         // Skip if not in replacement_ready state or already assigned/completed
         if (returnRequest.status !== 'replacement_ready') return;
         if (returnRequest.deliveryAssignmentStatus === 'accepted') return;
+        if (!(await isDeliveryAppEnabled())) {
+            await holdReturnForAdmin(returnRequest, 'Exchange replacement delivery');
+            return;
+        }
 
         // 1. Identify the vendor and get their location
         const vendor = await Vendor.findById(returnRequest.vendorId);
@@ -1045,6 +1116,10 @@ export const cancelShipmentDeliveryAssignment = async (shipmentId, reason = 'Pac
  * unassigned forever. Runs from the assignment scheduler after a cool-down since the last attempt.
  */
 export const retryStuckShipments = async () => {
+    if (!(await isDeliveryAppEnabled())) {
+        logDeliveryAppDisabled('retry of unassigned legacy own-fleet shipments');
+        return 0;
+    }
     const reofferCooldownSeconds = Number(process.env.DELIVERY_REOFFER_COOLDOWN_SECONDS || 120);
     const retryBefore = new Date(Date.now() - reofferCooldownSeconds * 1000);
     const stuckShipments = await Shipment.find({
@@ -1063,15 +1138,57 @@ export const retryStuckShipments = async () => {
     return stuckShipments.length;
 };
 
-export const initAssignmentScheduler = () => {
-    const TIMEOUT_INTERVAL_MS = 30000; // run every 30 seconds
+/**
+ * Delivery App off: offers riders have not answered stay with that rider (nobody else could be offered the
+ * package). Admin is told once per rider offer so it is never silently stuck: the rider can still accept,
+ * Admin can reassign it, or turn the app back on (the next tick then expires and re-offers it as usual).
+ */
+const flagFrozenOffersForAdmin = async (timeoutLimit, timeoutSeconds) => {
+    const minutes = Math.max(1, Math.round(timeoutSeconds / 60));
+    const [shipments, returns] = await Promise.all([
+        Shipment.find({ deliveryAssignmentStatus: 'assigned', updatedAt: { $lt: timeoutLimit } })
+            .select('_id shipmentNumber deliveryBoyId orderId').limit(50).lean(),
+        ReturnRequest.find({
+            status: { $in: ['pickup_pending', 'replacement_assigned'] },
+            deliveryAssignmentStatus: 'assigned',
+            updatedAt: { $lt: timeoutLimit },
+        }).select('_id status deliveryBoyId').limit(50).lean(),
+    ]);
+    for (const s of shipments) {
+        await notifyAdmins({
+            title: 'Rider offer unanswered (Delivery App off)',
+            message: `Shipment ${s.shipmentNumber || s._id}: the delivery partner has not accepted the offer for over ${minutes} minutes. The Delivery App is off, so it was not re-offered. The rider can still accept it, or Admin can reassign it.`,
+            eventKey: `shipment:${s._id}:offer_frozen:${s.deliveryBoyId}`,
+            data: { shipmentId: String(s._id), orderMongoId: String(s.orderId || '') },
+        });
+    }
+    for (const r of returns) {
+        await notifyAdmins({
+            title: 'Rider offer unanswered (Delivery App off)',
+            message: `Return request ${r._id} (${r.status}): the delivery partner has not accepted the offer for over ${minutes} minutes. The Delivery App is off, so it was not re-offered.`,
+            eventKey: `return:${r._id}:offer_frozen:${r.deliveryBoyId}`,
+            data: { returnRequestId: String(r._id) },
+        });
+    }
+    return { shipments: shipments.length, returns: returns.length };
+};
 
-    console.log('⏰ Automated Delivery Assignment Timeout Scheduler Initialized.');
+let schedulerTickRunning = false;
 
-    setInterval(async () => {
+/** One scheduler pass (exported for tests). Overlapping passes are skipped. */
+export const runAssignmentSchedulerTick = async () => {
+    if (schedulerTickRunning) return { skipped: true };
+    schedulerTickRunning = true;
         try {
             const timeoutSeconds = Number(process.env.DELIVERY_ASSIGNMENT_TIMEOUT || 300);
             const timeoutLimit   = new Date(Date.now() - (timeoutSeconds * 1000));
+
+            // Delivery App off: no offer can be re-routed to another rider, so don't expire the offers riders
+            // already hold — they can still accept and complete them. Admin is notified about unanswered ones.
+            if (!(await isDeliveryAppEnabled())) {
+                logDeliveryAppDisabled('offer timeouts and re-offers');
+                return { deliveryAppEnabled: false, flagged: await flagFrozenOffersForAdmin(timeoutLimit, timeoutSeconds) };
+            }
 
             // ─ 1. Handle Shipment-based forward delivery timeouts (Phase 5.2+) ──
             //
@@ -1140,8 +1257,19 @@ export const initAssignmentScheduler = () => {
                 autoAssignExchangeReplacementPartner(ret._id);
             }
 
+            return { deliveryAppEnabled: true };
         } catch (err) {
             logger.error('[Assignment Timeout Scheduler] Error:', err.message);
+            return { error: err.message };
+        } finally {
+            schedulerTickRunning = false;
         }
-    }, TIMEOUT_INTERVAL_MS);
+};
+
+export const initAssignmentScheduler = () => {
+    const TIMEOUT_INTERVAL_MS = 30000; // run every 30 seconds
+
+    console.log('⏰ Automated Delivery Assignment Timeout Scheduler Initialized.');
+
+    setInterval(runAssignmentSchedulerTick, TIMEOUT_INTERVAL_MS);
 };

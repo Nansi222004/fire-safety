@@ -45,6 +45,19 @@ export const createRazorpayOrder = (amountInRupees, currency = 'INR', receiptId,
 };
 
 /**
+ * List the payments Razorpay holds for one Razorpay order (each with status created/authorized/captured/
+ * refunded/failed). Used before expiring an unpaid order, so a capture whose webhook never arrived is
+ * recovered instead of cancelled. Mock mode has no gateway, so it reports no payments.
+ */
+export const fetchRazorpayOrderPayments = async (razorpayOrderId) => {
+    if (process.env.NODE_ENV === 'test' || process.env.RAZORPAY_MOCK === 'true') {
+        return [];
+    }
+    const result = await getRazorpayClient().orders.fetchPayments(razorpayOrderId);
+    return Array.isArray(result?.items) ? result.items : [];
+};
+
+/**
  * Verify the HMAC-SHA256 signature sent by Razorpay webhooks.
  * Throws ApiError 400 if signature is invalid.
  */

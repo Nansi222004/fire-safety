@@ -2,6 +2,7 @@ import { Server } from 'socket.io';
 import { verifyAccessToken } from '../config/jwt.js';
 import logger from '../utils/logger.js';
 import { toReturnRequestView } from '../models/ReturnRequest.model.js';
+import { redactOtpSecrets } from '../utils/otpRedaction.js';
 
 let io;
 
@@ -15,6 +16,48 @@ const PROTECTED_ROOM_PREFIXES = ['user_', 'vendor_', 'delivery_', 'order_', 'cha
 
 const isProtectedRoom = (room) =>
     PROTECTED_ROOM_PREFIXES.some((prefix) => String(room || '').startsWith(prefix));
+
+const ADMIN_ROLES = ['admin', 'superadmin'];
+
+/**
+ * May this authenticated socket user join this room?
+ *   user_/vendor_/delivery_<id> → only that account (or Admin)
+ *   admin_*                     → Admin only (it receives every order update)
+ *   order_<mongoId|orderId>     → the order's customer, one of its sellers, a rider assigned to it, or Admin
+ * Other rooms keep their existing rules.
+ */
+export const authorizeRoomJoin = async (user, room) => {
+    const roomStr = String(room || '').trim();
+    if (!roomStr) return false;
+    if (!isProtectedRoom(roomStr)) return true;
+    if (!user?.id) return false;
+    const role = String(user.role || '').toLowerCase();
+    const isAdmin = ADMIN_ROLES.includes(role);
+    const currentId = String(user.id);
+
+    const privatePrefix = ['user_', 'vendor_', 'delivery_'].find((p) => roomStr.startsWith(p));
+    if (privatePrefix) return isAdmin || roomStr.slice(privatePrefix.length) === currentId;
+    if (roomStr.startsWith('admin_')) return isAdmin;
+    if (roomStr.startsWith('order_')) {
+        if (isAdmin) return true;
+        const ref = roomStr.slice('order_'.length).slice(0, 64);
+        const [{ default: mongoose }, { default: Order }, { default: Shipment }] = await Promise.all([
+            import('mongoose'), import('../models/Order.model.js'), import('../models/Shipment.model.js'),
+        ]);
+        if (!mongoose.isValidObjectId(currentId)) return false;
+        const byRef = mongoose.isValidObjectId(ref) && String(ref).length === 24 ? { $or: [{ _id: ref }, { orderId: ref }] } : { orderId: ref };
+        if (role === 'customer') return Boolean(await Order.exists({ ...byRef, userId: currentId }));
+        if (role === 'vendor' || role === 'wholesaler') return Boolean(await Order.exists({ ...byRef, 'vendorItems.vendorId': currentId }));
+        if (role === 'delivery') {
+            const order = await Order.findOne(byRef).select('_id deliveryBoyId').lean();
+            if (!order) return false;
+            if (String(order.deliveryBoyId || '') === currentId) return true;
+            return Boolean(await Shipment.exists({ orderId: order._id, deliveryBoyId: currentId }));
+        }
+        return false;
+    }
+    return true; // chat_ and other protected prefixes: authenticated, as before
+};
 
 export const initSocket = (server) => {
     io = new Server(server, {
@@ -57,21 +100,19 @@ export const initSocket = (server) => {
                 return;
             }
 
-            // Enforce private room access: role_ID (e.g., user_123)
-            const privatePrefixes = ['user_', 'vendor_', 'delivery_'];
-            const matchedPrefix = privatePrefixes.find(p => roomStr.startsWith(p));
-            
-            if (matchedPrefix && socket.user) {
-                const requestedId = roomStr.replace(matchedPrefix, '');
-                const currentId = String(socket.user.id || '');
-                const isAdmin = socket.user.role === 'admin' || socket.user.role === 'superadmin';
-                
-                if (!isAdmin && requestedId !== currentId) {
-                    socket.emit('error', { message: 'Access denied to this private room.' });
-                    return;
-                }
-            }
-            socket.join(roomStr);
+            // Enforce per-room access (own account rooms, Admin-only rooms, order rooms for parties of the order).
+            authorizeRoomJoin(socket.user, roomStr)
+                .then((allowed) => {
+                    if (!allowed) {
+                        socket.emit('error', { message: 'Access denied to this room.' });
+                        return;
+                    }
+                    socket.join(roomStr);
+                })
+                .catch((err) => {
+                    logger.error('[SOCKET] Room authorization failed', { message: err.message });
+                    socket.emit('error', { message: 'Access denied to this room.' });
+                });
         });
 
         socket.on('leave', (room) => {
@@ -103,7 +144,8 @@ export const emitToRoom = (room, event, data) => {
 export const notifyOrderUpdate = async (order) => {
     try {
         if (!order) return;
-        const payload = order.toObject ? order.toObject() : order;
+        // Broadcast copies never carry OTP hashes or codes (sellers, riders and Admin all receive this payload).
+        const payload = redactOtpSecrets(JSON.parse(JSON.stringify(order.toObject ? order.toObject() : order)));
         const mongoId = String(payload._id || '');
         const humanId = String(payload.orderId || '');
         const userId = String(payload.userId?._id || payload.userId || '');

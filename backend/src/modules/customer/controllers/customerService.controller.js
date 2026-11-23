@@ -16,8 +16,8 @@ import { createNotification } from '../../../services/notification.service.js';
 import { createRazorpayOrder, verifyPaymentSignature, processRazorpayRefund } from '../../../services/payment.service.js';
 import { getWallet, debitWallet, creditWallet } from '../../../services/wallet.service.js';
 import { processCapturedPayment } from '../../../services/paymentProcessor.js';
-import { isPaymentMethodEnabled } from '../../../services/settingsService.js';
-import { isCodOnlyMode } from '../../../config/paymentConfig.js';
+import { isPaymentMethodEnabled, isOnlinePaymentActive } from '../../../services/settingsService.js';
+import { describePaymentMethod } from '../../../utils/paymentMethodLabel.js';
 import { getRazorpayKeyId } from '../../../config/razorpayConfig.js';
 import mongoose from 'mongoose';
 import {
@@ -246,7 +246,7 @@ export const createBooking = asyncHandler(async (req, res) => {
         bookingDate,
         timeSlot,
         customFields = {},
-        paymentMethod = 'cod',
+        paymentMethod,
         notes = '',
     } = req.body;
 
@@ -254,6 +254,26 @@ export const createBooking = asyncHandler(async (req, res) => {
 
     if (!serviceId || !vendorId || !pincode || !serviceAddress || !bookingDate || !timeSlot) {
         throw new ApiError(400, 'Missing required booking details (service, vendor, pincode, address, date, timeslot).');
+    }
+
+    // Central Payment Gate (before any capacity is reserved). The method must be chosen explicitly — there is
+    // no COD default — and must be enabled by the Admin COD / online / wallet switches.
+    // 'online' (service detail page) and 'card' are Razorpay checkouts and are stored as 'upi'.
+    const requestedMethod = String(paymentMethod || '').trim().toLowerCase();
+    if (!requestedMethod) {
+        throw new ApiError(400, 'Please choose a payment method.');
+    }
+    const normalizedMethod = requestedMethod === 'cash'
+        ? 'cod'
+        : ['online', 'card', 'razorpay'].includes(requestedMethod) ? 'upi' : requestedMethod;
+    if (!['cod', 'wallet', 'upi'].includes(normalizedMethod)) {
+        throw new ApiError(400, `${describePaymentMethod(requestedMethod)} is not supported for service bookings.`);
+    }
+    const methodEnabled = normalizedMethod === 'upi'
+        ? await isOnlinePaymentActive()
+        : await isPaymentMethodEnabled(normalizedMethod);
+    if (!methodEnabled) {
+        throw new ApiError(400, `${describePaymentMethod(requestedMethod)} is currently unavailable for service bookings. Please choose another payment method.`);
     }
 
     const cleanPincode = String(pincode).trim();
@@ -387,15 +407,7 @@ export const createBooking = asyncHandler(async (req, res) => {
         }
     };
 
-    const normalizedMethod = String(paymentMethod || 'cod').toLowerCase();
-
-    // Central Payment Gate: In COD_ONLY mode, online/wallet payments are rejected
-    if (isCodOnlyMode() && normalizedMethod !== 'cod') {
-        await rollbackCapacity();
-        throw new ApiError(400, 'Online payments are temporarily disabled for service bookings. Please select Pay On Service (Cash on Delivery).');
-    }
-
-    // 8. Handle Payment Methods
+    // 8. Handle Payment Methods (normalizedMethod was validated against the Admin switches above)
     if (normalizedMethod === 'cod') {
         const booking = await createBookingRecord({
             userId,

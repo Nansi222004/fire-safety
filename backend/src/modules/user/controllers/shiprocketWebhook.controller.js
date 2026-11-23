@@ -89,6 +89,11 @@ export const handleShiprocketWebhook = asyncHandler(async (req, res) => {
         // Return 200 so Shiprocket doesn't retry infinitely for unknown shipments
         return res.status(200).json(new ApiResponse(200, null, 'Shipment not found, ignored'));
     }
+    // Courier webhooks may only drive courier shipments — never a seller's own-courier shipment.
+    if (shipment.providerId === 'seller_delivery' || shipment.deliveryMethod === 'SELLER_DELIVERY') {
+        console.warn(`[Webhook] Shiprocket event ignored for Seller Delivery shipment ${shipment._id}`);
+        return res.status(200).json(new ApiResponse(200, null, 'Not a courier shipment, ignored'));
+    }
 
     const rawStatus = (current_status || '').toUpperCase();
     const isReverse = shipment.type === 'reverse';
@@ -149,6 +154,9 @@ export const handleShiprocketWebhook = asyncHandler(async (req, res) => {
             if (mappedStatus === 'delivered' && !shipment.deliveredAt) {
                 shipment.deliveredAt = new Date();
                 isNewlyDelivered = true;
+                if (!shipment.deliveryConfirmation?.method) {
+                    shipment.deliveryConfirmation = { method: 'COURIER_WEBHOOK', confirmedAt: shipment.deliveredAt, confirmedByRole: 'webhook' };
+                }
             } else if (mappedStatus === 'cancelled' && !shipment.cancelledAt) {
                 shipment.cancelledAt = new Date();
             } else if (mappedStatus === 'return_initiated' && !shipment.returnInitiatedAt) {

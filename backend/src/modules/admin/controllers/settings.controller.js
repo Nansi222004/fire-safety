@@ -2,7 +2,13 @@ import asyncHandler from '../../../utils/asyncHandler.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
 import Settings from '../../../models/Settings.model.js';
-import { clearSettingsCache, assertValidCommissionPercent, assertValidReturnWindowDays } from '../../../services/settingsService.js';
+import {
+    clearSettingsCache,
+    assertValidCommissionPercent,
+    assertValidReturnWindowDays,
+    resolvePaymentSettings,
+    hasUsablePaymentMethod,
+} from '../../../services/settingsService.js';
 
 // GET /api/admin/settings/:key
 export const getSettings = asyncHandler(async (req, res) => {
@@ -45,9 +51,29 @@ export const updateSettings = asyncHandler(async (req, res) => {
             }
             value[field] = number;
         }
+        // Delivery App and Seller Delivery switches: booleans only (absent = keep the default).
+        // A save that omits them keeps the stored values (PUT replaces the whole value).
+        const stored = (await Settings.findOne({ key: 'shipping' }).lean())?.value || {};
+        for (const field of ['deliveryAppEnabled', 'sellerDeliveryEnabled']) {
+            if (value[field] === undefined) {
+                if (typeof stored[field] === 'boolean') value[field] = stored[field];
+            } else if (typeof value[field] !== 'boolean') {
+                throw new ApiError(400, `${field} must be true or false.`);
+            }
+        }
     }
 
     if (key === 'payment') {
+        for (const field of ['onlineEnabled', 'codEnabled', 'cardEnabled', 'upiEnabled', 'walletEnabled']) {
+            if (value[field] !== undefined && typeof value[field] !== 'boolean') {
+                throw new ApiError(400, `${field} must be true or false.`);
+            }
+        }
+        // Customers must always have a way to pay the full amount: COD, or online with card or UPI.
+        // (Wallet alone is not enough — customers without a balance could not order at all.)
+        if (!hasUsablePaymentMethod(resolvePaymentSettings(value))) {
+            throw new ApiError(400, 'Keep at least one payment method on: Cash on Delivery, or Online Payments with Card or UPI enabled.');
+        }
         if (value.paymentFees) {
             for (const [method, fee] of Object.entries(value.paymentFees)) {
                 const num = Number(fee);

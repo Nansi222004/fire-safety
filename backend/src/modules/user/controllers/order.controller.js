@@ -26,14 +26,15 @@ import { notifyOrderUpdate, notifyReturnUpdate, emitToRoom } from '../../../serv
 import { calculateOrderFinancials, getReturnRefundForItem, calculateExchangeDifference } from '../../../services/financial.service.js';
 import { stateCodeFromName } from '../../../services/gst.service.js';
 import Vendor from '../../../models/Vendor.model.js';
-import { isPaymentMethodEnabled, getReturnWindowDays, getConfiguredReturnWindowDays } from '../../../services/settingsService.js';
+import { isPaymentMethodEnabled, isOnlinePaymentActive, getReturnWindowDays, getConfiguredReturnWindowDays } from '../../../services/settingsService.js';
+import { describePaymentMethod } from '../../../utils/paymentMethodLabel.js';
 import logisticsEventBus from '../../../events/logisticsEventBus.js';
 import LOGISTICS_EVENTS from '../../../events/logisticsEvents.js';
 import AuditLog from '../../../models/AuditLog.model.js';
 import { cancelShipmentDeliveryAssignment } from '../../../services/assignmentService.js';
-import { isCodOnlyMode } from '../../../config/paymentConfig.js';
 import { initializePayment } from './payment.controller.js';
 import { buildOrderRoutingDecisions } from '../../../services/deliveryRouting.service.js';
+import { toCustomerShipment } from '../../../utils/shipmentTracking.js';
 import { resolveVendorCommissionRates } from '../../../services/commission.service.js';
 
 import {
@@ -205,22 +206,18 @@ export const placeOrder = asyncHandler(async (req, res) => {
         return initializePayment(req, res);
     }
 
-    // Validate that payment method is enabled
+    // Central Payment Gate: the Admin COD / online / wallet switches decide which methods take new orders.
     const isMethodActive = await isPaymentMethodEnabled(normalizedPaymentMethod);
     if (!isMethodActive) {
-        if (isCodOnlyMode()) {
-            throw new ApiError(400, 'Online payments are temporarily disabled. Cash on Delivery and SafeFire Wallet are the supported payment methods.');
-        }
-        throw new ApiError(400, `${paymentMethod === 'cash' ? 'Cash on Delivery' : paymentMethod} is currently unavailable.`);
+        throw new ApiError(400, `${describePaymentMethod(paymentMethod)} is currently unavailable. Please choose another payment method.`);
     }
 
-    // Central Payment Gate: In COD_ONLY mode, only COD and Wallet orders can be placed
-    if (isCodOnlyMode() && !['cod', 'wallet'].includes(normalizedPaymentMethod)) {
-        throw new ApiError(400, 'Online payments are temporarily disabled. Cash on Delivery and SafeFire Wallet are the supported payment methods.');
-    }
-
-    // Authoritative Single-Path: Delegate wallet order creation directly to initializePayment
-    if (normalizedPaymentMethod === 'wallet') {
+    // Authoritative Single-Path: every non-COD order goes through initializePayment. Wallet orders are paid
+    // there, and card/UPI orders get a Razorpay order there; this legacy path used to create card/UPI orders
+    // with no payment at all (stock, commissions and shipments for an unpaid order).
+    if (normalizedPaymentMethod !== 'cod') {
+        const headerKey = String(req.get('x-idempotency-key') || '').trim();
+        if (headerKey && !req.body.idempotencyKey) req.body.idempotencyKey = headerKey;
         return initializePayment(req, res);
     }
     const userId = req.user?.id || null;
@@ -876,7 +873,8 @@ export const getUserOrders = asyncHandler(async (req, res) => {
             orderObj.total = Math.round(orderObj.total);
         }
         orderObj.returnRequests = returnMap[String(order._id)] || [];
-        
+        if (Array.isArray(orderObj.shipments)) orderObj.shipments = orderObj.shipments.map(toCustomerShipment);
+
         if (orderObj.shipments && orderObj.shipments.length > 0) {
             const allDelivered = orderObj.shipments.every(s => s.status === 'delivered');
             const anyShipped = orderObj.shipments.some(s => ['shipped', 'out_for_delivery'].includes(s.status));
@@ -926,6 +924,8 @@ export const getOrderDetail = asyncHandler(async (req, res) => {
     }
 
     orderObject.returnRequests = (returnRequests || []).map(normalizeReturnRequest);
+    // Normalized per-package tracking (Shiprocket / SafeFire rider / seller courier); seller audit data stripped.
+    if (Array.isArray(orderObject.shipments)) orderObject.shipments = orderObject.shipments.map(toCustomerShipment);
 
     if (orderObject.shipments && orderObject.shipments.length > 0) {
         const allDelivered = orderObject.shipments.every(s => s.status === 'delivered');
@@ -1443,9 +1443,9 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
         }
         const { priceDelta } = difference;
 
-        // An upgrade needs an online payment for the difference, which COD-only mode cannot take; refuse
+        // An upgrade needs an online payment for the difference; while online payments are off, refuse
         // up front instead of creating an exchange that can never be dispatched.
-        if (priceDelta > 0 && isCodOnlyMode()) {
+        if (priceDelta > 0 && !(await isOnlinePaymentActive())) {
             throw new ApiError(400, `This variant costs ₹${priceDelta} more (GST included). Online payment for the difference is temporarily unavailable, so this exchange can't be placed right now. Please choose a variant of the same or lower price, or request a return.`);
         }
 

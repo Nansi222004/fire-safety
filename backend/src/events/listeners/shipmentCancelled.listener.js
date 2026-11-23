@@ -137,7 +137,9 @@ const shipmentCancelledListener = async (payload) => {
         }
 
         // 5. Courier provider cancellation
-        if (shipment && shipment.providerId && shipment.providerId !== 'own_fleet' && (shipment.awbCode || shipment.providerOrderId)) {
+        // Seller Delivery ('seller_delivery') uses the seller's own courier: there is no SafeFire courier booking
+        // or rider assignment to cancel.
+        if (shipment && shipment.providerId && !['own_fleet', 'seller_delivery'].includes(shipment.providerId) && (shipment.awbCode || shipment.providerOrderId)) {
             logger.info(`[SHIPMENT_CANCELLED] Initiating API cancellation for ${shipment.providerId} AWB/OrderId ${shipment.awbCode || shipment.providerOrderId}`);
             try {
                 let providerModule;

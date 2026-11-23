@@ -137,37 +137,53 @@ const ServiceBookingWizard = ({ isOpen, onClose, service: initialService }) => {
   const [selectedTimeSlot, setSelectedTimeSlot] = useState('');
 
   // Payment
-  const [paymentMethod, setPaymentMethod] = useState('cod');
+  // Chosen from the Admin-enabled methods (never assumed to be COD). null = settings not loaded yet.
+  const [paymentMethod, setPaymentMethod] = useState('');
   const [walletBalance, setWalletBalance] = useState(null);
-  const [isCodOnly, setIsCodOnly] = useState(true);
+  const [paymentOptions, setPaymentOptions] = useState(null);
+  const [paymentSettingsError, setPaymentSettingsError] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const variants = getActiveVariants(service);
   const quantityRules = getQuantityRules(service);
   const variantOptions = selectedVendor?.variantOptions || [];
 
-  // Checkout payment mode (admin settings)
+  // Payment methods enabled by the Admin (COD = pay on service; online = pay now via Razorpay; wallet).
+  const loadPaymentSettings = () => {
+    setPaymentSettingsError(false);
+    return api.get('/settings/checkout')
+      .then((res) => {
+        const p = (res?.data ?? res)?.payment || {};
+        const options = [];
+        if (p.cod) options.push({ id: 'cod', icon: FiDollarSign, title: 'Pay On Service', sub: 'Cash / On-site UPI' });
+        if (p.razorpay || p.upi) options.push({ id: 'upi', icon: FiCreditCard, title: 'Pay Online Now', sub: 'UPI / Card · Instant & Secure' });
+        if (p.wallet) options.push({ id: 'wallet', icon: FiShield, title: 'SafeFire Wallet', sub: null });
+        return options;
+      });
+  };
   useEffect(() => {
     let active = true;
-    api.get('/settings/checkout')
-      .then((res) => {
-        const data = res?.data ?? res;
-        if (active && data) {
-          const codOnly = data.paymentMode === 'COD_ONLY' || !data.payment?.razorpay;
-          setIsCodOnly(codOnly);
-          if (codOnly) setPaymentMethod('cod');
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setIsCodOnly(true);
-          setPaymentMethod('cod');
-        }
-      });
+    loadPaymentSettings()
+      .then((options) => { if (active) setPaymentOptions(options); })
+      .catch(() => { if (active) { setPaymentOptions([]); setPaymentSettingsError(true); } });
     return () => {
       active = false;
     };
   }, []);
+  const retryPaymentSettings = () => {
+    setPaymentOptions(null);
+    loadPaymentSettings()
+      .then(setPaymentOptions)
+      .catch(() => { setPaymentOptions([]); setPaymentSettingsError(true); });
+  };
+
+  // Keep the selection on an enabled method; prefer paying first (online) over pay-on-service.
+  useEffect(() => {
+    if (!paymentOptions) return;
+    if (paymentOptions.some((o) => o.id === paymentMethod)) return;
+    const next = paymentOptions.find((o) => o.id === 'upi') || paymentOptions.find((o) => o.id === 'cod') || paymentOptions[0];
+    setPaymentMethod(next?.id || '');
+  }, [paymentOptions, paymentMethod]);
 
   // Lock background scroll & support Escape key
   useEffect(() => {
@@ -380,6 +396,10 @@ const ServiceBookingWizard = ({ isOpen, onClose, service: initialService }) => {
     if (err) {
       toast.error(err);
       goToStep('address');
+      return;
+    }
+    if (!paymentMethod || !paymentOptions?.some((o) => o.id === paymentMethod)) {
+      toast.error(paymentOptions?.length ? 'Please choose a payment method.' : 'No payment method is available right now. Please try again shortly.');
       return;
     }
     const latestQuote = await fetchQuote();
@@ -1015,7 +1035,18 @@ const ServiceBookingWizard = ({ isOpen, onClose, service: initialService }) => {
             <div className="space-y-4 animate-fadeIn">
               <div className="space-y-2.5">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-[#E31E24]">Payment method</h4>
-                {isCodOnly ? (
+                {paymentOptions === null ? (
+                  <p className="text-xs text-slate-500">Loading payment options…</p>
+                ) : paymentSettingsError ? (
+                  <div className="p-3 rounded-xl border border-red-200 bg-red-50 text-xs text-red-800 flex items-center justify-between gap-3">
+                    <span>We couldn't load the payment options.</span>
+                    <button type="button" onClick={retryPaymentSettings} className="font-bold underline">Retry</button>
+                  </div>
+                ) : paymentOptions.length === 0 ? (
+                  <div className="p-3 rounded-xl border border-amber-200 bg-amber-50 text-xs text-amber-900">
+                    No payment method is available right now. Please try again later.
+                  </div>
+                ) : paymentOptions.length === 1 && paymentOptions[0].id === 'cod' ? (
                   <div className="p-3 rounded-xl border border-red-200 bg-red-50 text-[#E31E24] flex items-center gap-3">
                     <FiDollarSign className="text-xl shrink-0" />
                     <div>
@@ -1024,12 +1055,12 @@ const ServiceBookingWizard = ({ isOpen, onClose, service: initialService }) => {
                     </div>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    {[
-                      { id: 'cod', icon: FiDollarSign, title: 'Pay On Service', sub: 'Cash / On-site UPI' },
-                      { id: 'upi', icon: FiCreditCard, title: 'UPI / Online', sub: 'Instant & Secure' },
-                      { id: 'wallet', icon: FiShield, title: 'SafeFire Wallet', sub: walletBalance !== null ? formatINR(walletBalance) : 'Unavailable' },
-                    ].map((m) => (
+                  <div className={`grid grid-cols-1 gap-2 ${paymentOptions.length >= 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
+                    {paymentOptions.map((option) => (
+                      option.id === 'wallet'
+                        ? { ...option, sub: walletBalance !== null ? formatINR(walletBalance) : 'Unavailable' }
+                        : option
+                    )).map((m) => (
                       <button
                         type="button"
                         key={m.id}

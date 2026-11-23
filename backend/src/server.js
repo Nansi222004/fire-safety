@@ -111,6 +111,17 @@ const startServer = async () => {
       console.error("📦 Failed to init service booking expiry cron:", err.message);
     }
 
+    // Cancel online product orders left unpaid (payment window closed) so they don't pile up as payment_pending
+    try {
+      const { expireUnpaidOrders } = await import("./cron/orderPaymentExpiryCron.js");
+      expireUnpaidOrders().catch(err => console.error("Order payment expiry scan error:", err));
+      setInterval(() => {
+        expireUnpaidOrders().catch(err => console.error("Order payment expiry scan error:", err));
+      }, 5 * 60 * 1000);
+    } catch (err) {
+      console.error("📦 Failed to init order payment expiry cron:", err.message);
+    }
+
     if (!httpServer.listening) {
       httpServer.listen(PORT, () => {
         console.log(`Server running on http://localhost:${PORT}`);

@@ -36,7 +36,13 @@ import {
 
 import { authenticate } from '../../../middlewares/authenticate.js';
 import { authorize, enforceAccountStatus } from '../../../middlewares/authorize.js';
-import { authLimiter, otpLimiter, otpVerifyLimiter } from '../../../middlewares/rateLimiter.js';
+import { authLimiter, otpLimiter, otpVerifyLimiter, sellerDeliveryOtpLimiter } from '../../../middlewares/rateLimiter.js';
+import {
+    sellerDeliveryParamsSchema,
+    shipSellerDeliverySchema,
+    updateSellerDeliveryTrackingSchema,
+    confirmSellerDeliverySchema,
+} from '../../vendor/validators/sellerDelivery.validator.js';
 import { validate } from '../../../middlewares/validate.js';
 import {
     uploadSingle,
@@ -133,6 +139,15 @@ router.post('/orders/:id/shipments/:shipmentId/assign-delivery', ...wholesalerAu
 router.patch('/orders/:id/shipments/:shipmentId/delivery-method', ...wholesalerAuth, orderController.selectDeliveryMethod);
 router.patch('/orders/:id/status', ...wholesalerAuth, orderController.updateOrderStatus);
 router.post('/orders/:id/verify-pickup', ...wholesalerAuth, orderController.verifyPickup);
+// Seller Delivery: the shared seller order page calls these (its /vendor/* calls are mapped to /wholesaler/*).
+router.post('/orders/:id/shipments/:shipmentId/seller-delivery/ship', ...wholesalerAuth,
+    validate(sellerDeliveryParamsSchema, 'params'), validate(shipSellerDeliverySchema), orderController.shipWithSellerDelivery);
+router.patch('/orders/:id/shipments/:shipmentId/seller-delivery/tracking', ...wholesalerAuth,
+    validate(sellerDeliveryParamsSchema, 'params'), validate(updateSellerDeliveryTrackingSchema), orderController.updateSellerDeliveryTrackingDetails);
+router.post('/orders/:id/shipments/:shipmentId/seller-delivery/send-otp', ...wholesalerAuth, sellerDeliveryOtpLimiter,
+    validate(sellerDeliveryParamsSchema, 'params'), orderController.sendSellerDeliveryOtpToCustomer);
+router.post('/orders/:id/shipments/:shipmentId/seller-delivery/confirm', ...wholesalerAuth, sellerDeliveryOtpLimiter,
+    validate(sellerDeliveryParamsSchema, 'params'), validate(confirmSellerDeliverySchema), orderController.confirmSellerDeliveryWithOtp);
 
 // Returns (same rules as retail)
 router.get('/return-requests', ...wholesalerAuth, returnController.getVendorReturnRequests);

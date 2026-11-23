@@ -12,13 +12,15 @@ import LOGISTICS_EVENTS from '../../../events/logisticsEvents.js';
 export const getPendingCourierCod = asyncHandler(async (req, res) => {
     const { providerId } = req.query;
 
+    // Seller Delivery is not a courier the platform collects COD from (seller-collected COD is not supported).
     const filter = {
         status: 'delivered',
         isCashSettled: false,
-        providerId: { $ne: 'own_fleet' }
+        providerId: { $nin: ['own_fleet', 'seller_delivery'] }
     };
 
     if (providerId) {
+        if (providerId === 'seller_delivery') throw new ApiError(400, 'Seller Delivery shipments are not part of courier COD remittance.');
         filter.providerId = providerId;
     }
 
@@ -73,6 +75,9 @@ export const settleCourierCod = asyncHandler(async (req, res) => {
     }
     if (!providerId) {
         throw new ApiError(400, 'Provider ID is required.');
+    }
+    if (providerId === 'seller_delivery') {
+        throw new ApiError(400, 'Seller Delivery shipments are not part of courier COD remittance.');
     }
     if (amountReceived === undefined || amountReceived === null) {
         throw new ApiError(400, 'Amount received is required.');

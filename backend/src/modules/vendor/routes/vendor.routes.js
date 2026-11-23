@@ -32,7 +32,13 @@ import {
 
 import { authenticate } from '../../../middlewares/authenticate.js';
 import { authorize, enforceAccountStatus, requireVendorCapability } from '../../../middlewares/authorize.js';
-import { authLimiter, otpLimiter, otpVerifyLimiter } from '../../../middlewares/rateLimiter.js';
+import { authLimiter, otpLimiter, otpVerifyLimiter, sellerDeliveryOtpLimiter } from '../../../middlewares/rateLimiter.js';
+import {
+    sellerDeliveryParamsSchema,
+    shipSellerDeliverySchema,
+    updateSellerDeliveryTrackingSchema,
+    confirmSellerDeliverySchema,
+} from '../validators/sellerDelivery.validator.js';
 import { validate } from '../../../middlewares/validate.js';
 import {
     registerSchema,
@@ -134,6 +140,15 @@ router.post('/orders/:id/shipments/:shipmentId/assign-delivery', ...vendorAuth, 
 router.patch('/orders/:id/shipments/:shipmentId/delivery-method', ...vendorAuth, orderController.selectDeliveryMethod);
 router.patch('/orders/:id/status', ...vendorAuth, orderController.updateOrderStatus);
 router.post('/orders/:id/verify-pickup', ...vendorAuth, orderController.verifyPickup);
+// Seller Delivery (seller's own courier). Ownership is checked in the service (404 for other vendors' shipments).
+router.post('/orders/:id/shipments/:shipmentId/seller-delivery/ship', ...vendorAuth,
+    validate(sellerDeliveryParamsSchema, 'params'), validate(shipSellerDeliverySchema), orderController.shipWithSellerDelivery);
+router.patch('/orders/:id/shipments/:shipmentId/seller-delivery/tracking', ...vendorAuth,
+    validate(sellerDeliveryParamsSchema, 'params'), validate(updateSellerDeliveryTrackingSchema), orderController.updateSellerDeliveryTrackingDetails);
+router.post('/orders/:id/shipments/:shipmentId/seller-delivery/send-otp', ...vendorAuth, sellerDeliveryOtpLimiter,
+    validate(sellerDeliveryParamsSchema, 'params'), orderController.sendSellerDeliveryOtpToCustomer);
+router.post('/orders/:id/shipments/:shipmentId/seller-delivery/confirm', ...vendorAuth, sellerDeliveryOtpLimiter,
+    validate(sellerDeliveryParamsSchema, 'params'), validate(confirmSellerDeliverySchema), orderController.confirmSellerDeliveryWithOtp);
 
 // Customers
 router.get('/customers', ...vendorAuth, customerController.getVendorCustomers);

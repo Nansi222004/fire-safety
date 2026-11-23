@@ -4,6 +4,7 @@ import { FiPackage, FiTruck, FiChevronDown, FiChevronUp, FiShield, FiExternalLin
 import { formatPrice } from '../../../../shared/utils/helpers';
 import { formatVariantLabel, getVariantSignature } from '../../../../shared/utils/variant';
 import LazyImage from '../../../../shared/components/LazyImage';
+import ShipmentTrackingDetails, { getShipmentTracking, hasTrackingDetails } from '../ShipmentTrackingDetails';
 
 const PackageCard = ({ shipment, index, totalPackages, items, getItemReturnStatus, isMultiPackage, vendorGroup, onCancelPackage }) => {
   const [expanded, setExpanded] = useState(false);
@@ -33,6 +34,11 @@ const PackageCard = ({ shipment, index, totalPackages, items, getItemReturnStatu
   const statusConfig = getStatusConfig(packageStatus);
   const deliveryBoy = shipment?.deliveryBoyId;
   const showOTP = shipment?.deliveryOtpDebug && ['shipped', 'out_for_delivery'].includes(shipment?.status);
+  const tracking = getShipmentTracking(shipment);
+  const trackingLink = tracking?.trackingUrl || null;
+  const viaLabel = tracking?.method === 'SELLER_DELIVERY'
+    ? (tracking.courierName ? `Seller courier: ${tracking.courierName}` : 'Seller courier')
+    : tracking?.method === 'SHIPROCKET' ? 'Shiprocket 3PL' : tracking?.method === 'INTERNAL' ? 'SafeFire Delivery' : 'Local Delivery';
   const isCancellable = ['pending', 'processing', 'ready_for_pickup', 'payment_pending', 'confirmed'].includes(packageStatus?.toLowerCase());
 
   return (
@@ -49,7 +55,7 @@ const PackageCard = ({ shipment, index, totalPackages, items, getItemReturnStatu
             </h3>
             {(vendorGroup?.vendorName || shipment?.providerId) && (
               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
-                {vendorGroup?.vendorName ? `Store: ${vendorGroup.vendorName}` : `Via ${shipment?.providerId === 'shiprocket' ? 'Shiprocket 3PL' : 'Local Delivery'}`}
+                {vendorGroup?.vendorName ? `Store: ${vendorGroup.vendorName}` : `Via ${viaLabel}`}
               </p>
             )}
           </div>
@@ -137,14 +143,18 @@ const PackageCard = ({ shipment, index, totalPackages, items, getItemReturnStatu
       )}
 
       {/* Primary Tracking Info (Always Visible if Shipped) */}
-      {shipment?.status === 'shipped' && (
-        <div className="px-4 pb-3 flex justify-between items-center border-t border-gray-100 pt-2">
-           <div className="flex items-center gap-2 text-sm text-gray-700">
-             <FiTruck className="text-primary-600" />
-             <span className="font-medium">ETA: {shipment.estimatedDeliveryDate ? new Date(shipment.estimatedDeliveryDate).toLocaleDateString() : 'Pending'}</span>
+      {['shipped', 'out_for_delivery'].includes(shipment?.status) && (
+        <div className="px-4 pb-3 flex justify-between items-center border-t border-gray-100 pt-2 gap-2">
+           <div className="flex items-center gap-2 text-sm text-gray-700 min-w-0">
+             <FiTruck className="text-primary-600 flex-shrink-0" />
+             {tracking?.method === 'SELLER_DELIVERY' ? (
+               <span className="font-medium truncate">{tracking.courierName ? `Delivered by seller via ${tracking.courierName}` : 'Delivered by seller'}</span>
+             ) : (
+               <span className="font-medium">ETA: {shipment.estimatedDeliveryDate ? new Date(shipment.estimatedDeliveryDate).toLocaleDateString() : 'Pending'}</span>
+             )}
            </div>
-           {shipment?.trackingUrl && (
-             <a href={shipment.trackingUrl} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-primary-600 hover:text-primary-700 flex items-center gap-1">
+           {trackingLink && (
+             <a href={trackingLink} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-primary-600 hover:text-primary-700 flex items-center gap-1 flex-shrink-0">
                Track <FiExternalLink />
              </a>
            )}
@@ -152,7 +162,7 @@ const PackageCard = ({ shipment, index, totalPackages, items, getItemReturnStatu
       )}
 
       {/* Expandable Advanced Info */}
-      {(deliveryBoy || shipment?.awbCode || showOTP) && (
+      {(deliveryBoy || hasTrackingDetails(shipment) || showOTP) && (
         <div className="border-t border-gray-100">
           <button 
             onClick={() => setExpanded(!expanded)}
@@ -165,13 +175,8 @@ const PackageCard = ({ shipment, index, totalPackages, items, getItemReturnStatu
           {expanded && (
             <div className="px-4 py-3 bg-gray-50/80 space-y-3 border-t border-gray-100 animate-fadeIn">
               
-              {/* Courier & AWB */}
-              {shipment?.awbCode && (
-                <div>
-                  <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Tracking AWB</p>
-                  <p className="text-sm font-mono font-semibold text-gray-800 break-all">{shipment.awbCode}</p>
-                </div>
-              )}
+              {/* Delivery method, courier and tracking number */}
+              <ShipmentTrackingDetails shipment={shipment} compact hideDeliveryPerson={Boolean(deliveryBoy)} />
 
               {/* Delivery Partner */}
               {deliveryBoy && (
@@ -198,7 +203,7 @@ const PackageCard = ({ shipment, index, totalPackages, items, getItemReturnStatu
                     🔑 Delivery OTP
                   </p>
                   <p className="text-[11px] text-green-700 leading-tight mb-2">
-                    Provide this code to the delivery partner.
+                    Share this code with the delivery person only after you have received your package.
                   </p>
                   <p className="text-xl font-extrabold text-green-800 tracking-widest text-center py-1.5 bg-white rounded-lg border border-green-300 font-mono">
                     {shipment.deliveryOtpDebug || 'Email Sent'}

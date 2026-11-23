@@ -444,7 +444,9 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
     }
 
     if (status === 'delivered') {
-        await verifyDeliveryOtpForShipment(otpSource, otp);
+        await verifyDeliveryOtpForShipment(otpSource, otp, {
+            method: 'RIDER_OTP', confirmedByRole: 'delivery', confirmedById: req.user.id, updatedBy: 'driver',
+        });
     }
 
     // ─ Handle Payouts ─────────────────────────────────────────

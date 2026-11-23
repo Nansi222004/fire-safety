@@ -18,6 +18,9 @@ import toast from 'react-hot-toast';
 import { recordSelfAction, cancelSelfAction } from '../../../../shared/utils/selfActionTracker';
 import ManualDeliveryAssignment from '../../../../shared/components/Delivery/ManualDeliveryAssignment';
 import DeliveryMethodSelector from '../../../../shared/components/Delivery/DeliveryMethodSelector';
+import SellerDeliveryPanel from '../../../../shared/components/Delivery/SellerDeliveryPanel';
+
+const DELIVERY_METHOD_BADGES = { SHIPROCKET: '🚀 Shiprocket', INTERNAL: '🛵 Manual Delivery', SELLER_DELIVERY: '📦 Seller Delivery' };
 import { sellerPath, sellerTokenKey } from "../../../../shared/utils/sellerPortal";
 
 // Renders the backend's canonical payout status (getPayoutEligibility); no date is computed here.
@@ -162,9 +165,14 @@ const OrderDetail = () => {
                 (s) => !s.deliveryMethod || s.providerId === 'pending_selection'
             );
             if (unchosenShipment) {
-                toast.error('Choose a delivery method (Shiprocket or Manual Delivery) before marking the order ready for pickup.');
+                toast.error('Choose a delivery method before marking the order ready for pickup.');
                 return;
             }
+        }
+        // Seller Delivery is shipped from its panel (courier + tracking required), never from the status menu.
+        if (newStatus === 'shipped' && (order.shipments || []).some((s) => s.deliveryMethod === 'SELLER_DELIVERY')) {
+            toast.error('Enter the courier and tracking details in the Seller Delivery panel to mark this package shipped.');
+            return;
         }
 
         setUpdatingStatus(true);
@@ -229,8 +237,9 @@ const OrderDetail = () => {
     );
     const currentStatus = String(vendorItem?.status ?? order?.status ?? 'pending').toLowerCase();
     const allowedStatuses = transitionMap[currentStatus] || ['pending', 'processing', 'ready_for_pickup', 'cancelled'];
+    const usesSellerDelivery = (order?.shipments || []).some((s) => s.deliveryMethod === 'SELLER_DELIVERY');
     let visibleStatusOptions = statusOptions.filter((option) =>
-        allowedStatuses.includes(option.value)
+        allowedStatuses.includes(option.value) && !(usesSellerDelivery && option.value === 'shipped' && currentStatus !== 'shipped')
     );
     if (visibleStatusOptions.length === 0) {
         visibleStatusOptions = statusOptions;
@@ -508,7 +517,7 @@ const OrderDetail = () => {
                                                         <div className="flex items-center gap-2 mt-1">
                                                             <span className="text-xs text-gray-500 font-medium">Delivery Method:</span>
                                                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                                                                {shipment.deliveryMethod === 'SHIPROCKET' ? '🚀 Shiprocket' : '🛵 Manual Delivery'}
+                                                                {DELIVERY_METHOD_BADGES[shipment.deliveryMethod] || shipment.deliveryMethod}
                                                             </span>
                                                         </div>
                                                     ) : shipment.providerId === 'pending_selection' || !shipment.deliveryMethod ? (
@@ -571,20 +580,36 @@ const OrderDetail = () => {
                                                 }}
                                             />
 
-                                            <ManualDeliveryAssignment
-                                                key={`assign-${shipment._id}-${shipment.deliveryMethod || 'none'}`}
-                                                shipment={shipment}
-                                                orderId={order._id || order.orderId}
-                                                actor="vendor"
-                                                onAssigned={async () => {
-                                                    setRefreshKey((value) => value + 1);
-                                                    try {
-                                                        const res = await getVendorOrderById(id);
-                                                        const data = res?.data ?? res;
-                                                        if (data) setOrder(data);
-                                                    } catch {}
-                                                }}
-                                            />
+                                            {shipment.deliveryMethod === 'SELLER_DELIVERY' ? (
+                                                <SellerDeliveryPanel
+                                                    key={`seller-${shipment._id}`}
+                                                    shipment={shipment}
+                                                    orderId={order.orderId || order._id}
+                                                    onChanged={async () => {
+                                                        try {
+                                                            const res = await getVendorOrderById(id);
+                                                            const data = res?.data ?? res;
+                                                            if (data) setOrder(data);
+                                                        } catch {}
+                                                    }}
+                                                />
+                                            ) : (
+                                                <ManualDeliveryAssignment
+                                                    key={`assign-${shipment._id}-${shipment.deliveryMethod || 'none'}`}
+                                                    shipment={shipment}
+                                                    orderId={order._id || order.orderId}
+                                                    actor="vendor"
+                                                    deliveryAppEnabled={order.deliverySettings?.deliveryAppEnabled !== false}
+                                                    onAssigned={async () => {
+                                                        setRefreshKey((value) => value + 1);
+                                                        try {
+                                                            const res = await getVendorOrderById(id);
+                                                            const data = res?.data ?? res;
+                                                            if (data) setOrder(data);
+                                                        } catch {}
+                                                    }}
+                                                />
+                                            )}
 
                                             {/* Ready for Pickup Action when Processing */}
                                             {currentStatus === 'processing' && (

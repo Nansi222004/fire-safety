@@ -9,19 +9,23 @@ const unwrapList = (response) => {
   return [];
 };
 
-const ManualDeliveryAssignment = ({ shipment, orderId, actor, onAssigned }) => {
+const ManualDeliveryAssignment = ({ shipment, orderId, actor, onAssigned, deliveryAppEnabled = true }) => {
   const [partners, setPartners] = useState([]);
   const [selectedId, setSelectedId] = useState('');
   const [reassign, setReassign] = useState(false);
   const [loading, setLoading] = useState(false);
   // Manual Delivery shipments (plus legacy own-fleet shipments and admin override on open shipments).
+  // Seller Delivery packages never get a SafeFire rider.
+  const isSellerDelivery = shipment?.deliveryMethod === 'SELLER_DELIVERY' || shipment?.providerId === 'seller_delivery';
   const isLegacyOwnFleet = !shipment?.deliveryMethod && !shipment?.allowedDeliveryMethods?.length && shipment?.providerId === 'own_fleet';
-  const isInternal = shipment?.deliveryMethod === 'INTERNAL' || isLegacyOwnFleet || (actor === 'admin' && shipment?.providerId !== 'shiprocket');
+  const isInternal = !isSellerDelivery && (shipment?.deliveryMethod === 'INTERNAL' || isLegacyOwnFleet || (actor === 'admin' && shipment?.providerId !== 'shiprocket'));
   const isClosed = ['delivered', 'cancelled', 'returned', 'failed', 'return_initiated'].includes(shipment?.status);
   const alreadyAssigned = Boolean(shipment?.deliveryBoyId);
+  // Delivery App off: no new assignment (Admin may still reassign a shipment that already has a rider).
+  const assignmentBlocked = !deliveryAppEnabled && !(actor === 'admin' && alreadyAssigned);
 
   useEffect(() => {
-    if (!isInternal || isClosed || (alreadyAssigned && actor !== 'admin')) return;
+    if (!isInternal || isClosed || assignmentBlocked || (alreadyAssigned && actor !== 'admin')) return;
     const endpoint = actor === 'admin'
       ? '/admin/orders/delivery-partners/available'
       : '/vendor/delivery-partners/available';
@@ -29,11 +33,27 @@ const ManualDeliveryAssignment = ({ shipment, orderId, actor, onAssigned }) => {
     api.get(endpoint, { params: { shipmentId: shipment?._id } })
       .then((response) => setPartners(unwrapList(response)))
       .catch(() => setPartners([]));
-  }, [actor, alreadyAssigned, isInternal, isClosed, shipment?._id]);
+  }, [actor, alreadyAssigned, isInternal, isClosed, assignmentBlocked, shipment?._id]);
 
   if (!isInternal || isClosed) return null;
 
+  if (assignmentBlocked) {
+    return (
+      <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-left">
+        <p className="text-xs font-bold text-red-900">SafeFire Delivery App is turned off</p>
+        <p className="mt-1 text-xs text-red-800">
+          {alreadyAssigned
+            ? 'The assigned delivery partner can still complete this delivery. New assignments are not available.'
+            : actor === 'admin'
+              ? 'New delivery partner assignments are disabled. Turn the Delivery App on in Settings, or have the seller choose another delivery method.'
+              : 'New delivery partner assignments are not available. Choose another available delivery method above, or contact Admin.'}
+        </p>
+      </div>
+    );
+  }
+
   const assign = async () => {
+    if (loading) return;
     if (!selectedId) return toast.error('Select a delivery partner');
     if (alreadyAssigned && actor === 'admin' && !reassign) {
       return toast.error('Enable explicit reassignment before changing the partner');

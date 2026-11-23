@@ -1,172 +1,145 @@
-# SAFEFIRE — COD-ONLY PAYMENT MODE SPECIFICATION & RUNBOOK
+# SafeFire — Payment Methods: Admin Switches, COD and Online Payments (Runbook)
 
-## 1. Executive Summary & Objective
-SafeFire has transitioned temporarily to a **Cash on Delivery (COD) Only** operating mode across the marketplace for both physical products and home/commercial fire safety services. 
+> This file used to describe a `.env`-only "COD-only mode". Payment methods are now controlled by **Admin switches**.
+> `PAYMENT_MODE` in `.env` is only the starting default until an Admin saves the payment settings (see §3).
 
-Under this architecture:
-- **Zero Razorpay Deletion:** No Razorpay SDK, webhook, or signature code has been deleted or broadly commented out.
-- **Backend-Enforced Feature Gate:** Setting `PAYMENT_MODE=COD_ONLY` in `.env` blocks all online payment initiation and retry requests at the API layer with HTTP 400.
-- **Seamless Future Reactivation:** Setting `PAYMENT_MODE=ONLINE_ENABLED` re-enables full Razorpay checkout and online payments without requiring any code deployment or refactoring.
-- **Financial Hardening Preserved:** Cancellation idempotency, escrow clawback, vendor commission settlement, COD cash remittance, and ₹0 refund rules for COD cancellations remain 100% active and verified.
+## 1. Summary
 
----
+- An Admin turns **Cash on Delivery**, **Online Payments (Razorpay)**, **Card**, **UPI** and **SafeFire Wallet** on or off
+  from the Admin panel. No code change, deploy or restart is needed.
+- Turning COD **off** stops **new** COD orders and bookings only. COD code, data and every COD workflow for existing
+  orders (rider cash, courier remittance, settlement, cancellations, returns) stay in place and keep working.
+  COD can be switched back on at any time.
+- The backend enforces the switches on every endpoint that creates an order or booking, so hiding a method in the
+  storefront is not the only protection.
 
-## 2. Central Configuration (`paymentConfig.js`)
-File: `backend/src/config/paymentConfig.js`
+## 2. Where the switches are
 
-```javascript
-export const PAYMENT_MODES = Object.freeze({
-    COD_ONLY: 'COD_ONLY',
-    ONLINE_ENABLED: 'ONLINE_ENABLED',
-});
+**Admin → Settings → Payment & Shipping → Payment Methods**
+(`/admin/settings/payment-shipping`, `frontend/src/modules/Admin/pages/settings/PaymentShippingSettings.jsx`)
 
-export const getPaymentMode = () => {
-    return process.env.PAYMENT_MODE === PAYMENT_MODES.ONLINE_ENABLED
-        ? PAYMENT_MODES.ONLINE_ENABLED
-        : PAYMENT_MODES.COD_ONLY;
-};
+| Switch | Stored as (`Settings` key `payment`) | Effect on new orders / bookings |
+|---|---|---|
+| **Online Payments (Razorpay)** — master switch | `onlineEnabled` | Off: no Card or UPI payments anywhere (checkout, wholesale, service bookings, payment retry, exchange price-difference payments). |
+| **Cash on Delivery (COD)** | `codEnabled` | Off: no COD product orders, no COD wholesale orders, no "Pay on Service" bookings. |
+| **Credit/Debit Card** | `cardEnabled` | Only takes effect while Online Payments is on (the checkbox is greyed out otherwise). |
+| **UPI** | `upiEnabled` | Only takes effect while Online Payments is on (greyed out otherwise). |
+| **SafeFire Wallet** | `walletEnabled` | Off: wallet cannot pay an order or booking, fully or partly. |
 
-export const isCodOnlyMode = () => getPaymentMode() === PAYMENT_MODES.COD_ONLY;
-export const isOnlinePaymentEnabled = () => getPaymentMode() === PAYMENT_MODES.ONLINE_ENABLED;
-```
+Rules applied when saving (frontend and backend, `PUT /api/admin/settings/payment`):
 
-### Environment Variable Control:
-- Default (if `PAYMENT_MODE` is unset or `'COD_ONLY'`): System operates strictly in `COD_ONLY` mode.
-- Future Reactivation: Set `PAYMENT_MODE=ONLINE_ENABLED` in `backend/.env`.
+- At least one way to pay the full amount must stay on: **COD**, or **Online Payments with Card or UPI**. Otherwise the
+  save is refused with *"Keep at least one payment method on: Cash on Delivery, or Online Payments with Card or UPI enabled."*
+- The Wallet alone does not count (customers without a balance could not order).
+- Switch values must be `true`/`false`; anything else is refused.
+- Only Admins can change these settings.
 
----
+The page also shows: *"Changes apply to new orders and bookings only. Existing Cash on Delivery orders, collections and
+settlements are not affected."*
 
-## 3. Architecture & Enforcement Points
+## 3. Defaults and how `.env` relates to the Admin switches
 
-### A. Public Settings API (`GET /api/settings/checkout`)
-The public checkout settings endpoint queries `isCodOnlyMode()` and overrides payment capabilities dynamically:
-```json
-{
-  "payment": {
-    "cod": true,
-    "razorpay": false,
-    "wallet": false,
-    "upi": false,
-    "paymentMode": "COD_ONLY"
-  }
-}
-```
+The effective settings are computed by `resolvePaymentSettings` in `backend/src/services/settingsService.js`:
 
-### B. Product Payment Initialization (`POST /api/user/payment/initialize`)
-- Direct guard verifies `isCodOnlyMode()`. If `paymentMethod !== 'cod' && paymentMethod !== 'cash'`, returns HTTP 400:
-  `"Online payments are temporarily disabled. Cash on Delivery is the only supported payment method."`
-- Valid COD requests generate an order immediately in MongoDB with `paymentStatus: 'pending'` and return `{ orderId, paymentStatus: 'pending', razorpayOrderId: null }`.
+| Setting | When the Admin has **never saved** it | After the Admin saves |
+|---|---|---|
+| Online Payments | Follows `PAYMENT_MODE` in `backend/.env`: `ONLINE_ENABLED` → on; unset or anything else → **off** | The saved Admin value, regardless of `PAYMENT_MODE` |
+| COD, Card, UPI, Wallet | On (a missing value means on) | The saved Admin value |
 
-### C. Standard Order Placement (`POST /api/user/orders`)
-- Evaluates `isCodOnlyMode()`. Rejecting any non-COD/cash method at the API layer before stock validation or transaction initialization.
+So, on a server where `PAYMENT_MODE` is unset and nobody has saved the payment page yet, the shop behaves exactly as
+the old COD-only mode: **COD on, Wallet on, Card/UPI off**. While the Online switch has never been saved, the Admin page
+shows a note: *"Not saved yet — currently following the server default (on/off). Saving this page stores your choice."*
+Saving the page stores every switch explicitly, and from then on the Admin choice wins over `.env`.
 
-### D. Online Payment Retry (`POST /api/user/payment/retry/:orderId`)
-- Guarded: returns HTTP 400 with `"Online payment retry is disabled during COD-only mode."`
+Which Razorpay account is used (test or live) is a separate server setting: `RAZORPAY_LIVE=true|false` with the
+`RAZORPAY_TEST_*` / `RAZORPAY_LIVE_*` keys in `backend/.env` (`backend/src/config/razorpayConfig.js`). The backend logs
+`[Razorpay] Using TEST keys` or `Using LIVE keys` at startup.
 
-### E. Exchange Upgrade Price Difference (`POST /api/user/payment/exchange-upgrade/:returnRequestId`)
-- **Safety Rule #5:** If a customer requests an exchange where the replacement product costs more than the original product (e.g. ₹1,500 vs ₹1,000, priceDelta = ₹500), the system does **not** silently convert the delta into arbitrary COD or unverified credits.
-- The action is safely blocked with a clear customer error message:
-  `"Online payment is temporarily disabled. Exchange price-difference upgrades cannot be completed online during the COD-only phase. Please contact customer support or request a standard return."`
+## 4. What the backend enforces
 
-### F. Service Bookings (`POST /api/customer/services/book`)
-- In `createBooking`, if `isCodOnlyMode()` is active and `paymentMethod !== 'cod'`:
-  - Daily capacity reservation is rolled back atomically.
-  - Returns HTTP 400: `"Online payments are temporarily disabled for service bookings. Please select Pay On Service (Cash on Delivery)."`
-- When `paymentMethod: 'cod'`:
-  - `ServiceBooking` is created with `paymentMethod: 'cod'`, `paymentStatus: 'pending'`, `status: 'pending'`.
-  - **Safety Rule #11:** The booking is **not** marked as paid merely because it is COD. It remains `pending` until on-site completion.
+Every new-order entry point checks the switches through `isPaymentMethodEnabled` / `isOnlinePaymentActive`
+(`backend/src/services/settingsService.js`). A disabled or missing method is refused with HTTP 400 before any order,
+booking, stock deduction or Razorpay order is created.
 
----
+| Entry point | Endpoint | Behaviour |
+|---|---|---|
+| Product checkout | `POST /api/user/payment/initialize` | Method must be enabled. `cash` is treated as `cod`; method names are case-insensitive (`COD`, `Cash` are refused too when COD is off). Missing method → *"Please choose a payment method."* Wallet used together with card/UPI also needs the Wallet switch on. |
+| Wholesale (B2B) | same endpoint with `orderType: 'b2b'` | Same checks as product checkout, before any wholesale checks. Supports online payment and COD. |
+| Legacy order endpoint | `POST /api/user/orders` | Same method check. Non-COD methods are handed to `initializePayment`, so card/UPI orders always get a Razorpay order (this endpoint can no longer create an unpaid card/UPI order). |
+| Service booking | `POST /api/customer/bookings` | A method must be chosen (there is no COD default). `cod`/`cash` = Pay on Service, needs COD on. `online`/`upi`/`card` = pay now via Razorpay, needs Online Payments on (stored as `upi`). `wallet` needs Wallet on. Checked before any capacity slot is reserved. |
+| Payment retry | `POST /api/user/payment/retry/:orderId` | Needs Online Payments on, and the order's method still enabled. |
+| Exchange price difference | `POST /api/user/payment/exchange-upgrade/:returnRequestId` (and exchange requests with a higher price) | Needs Online Payments on. |
 
-## 4. Service COD Financial Flow & Settlement Lifecycle
+The storefront reads the same resolved settings from `GET /api/settings/checkout` (`payment.cod`, `razorpay`, `upi`,
+`wallet`, `onlineEnabled`, `paymentMode`). That endpoint reads the database directly, so a change shows on the next page
+load. Order endpoints cache settings for up to 10 seconds (the cache is cleared when the Admin saves), so a request from
+an old, already-open page is still checked against the current switches.
 
-```
-Customer creates COD Service Booking
-      │
-      ▼
-ServiceBooking created: paymentMethod='cod', paymentStatus='pending', status='pending'
-Daily Capacity incremented (+1)
-      │
-      ▼
-Vendor confirms & advances: 'confirmed' → 'in_progress'
-      │
-      ▼
-Service delivered on site: Customer pays ₹800 in cash to Vendor
-      │
-      ▼
-Vendor marks status = 'completed'
-      │
-      ▼
-1. paymentStatus transitions: 'pending' → 'paid'
-2. Platform commission (e.g. 10% = ₹80) deducted from Vendor Wallet
-3. VendorWalletTransaction created: type='SERVICE_SETTLEMENT', amount=-80
-4. Vendor receives confirmation notification
-```
+## 5. What customers see
 
-### Cancellation of COD Service Booking:
-- Customer or Vendor cancels booking.
-- Daily capacity slot is released (`bookedCount: -1`).
-- Since `paymentStatus === 'pending'`, `refundAmount` is `0`.
-- **Zero Razorpay refund calls**, **zero artificial wallet credits**.
+| Screen | Behaviour |
+|---|---|
+| Checkout (`Checkout.jsx`) | Shows only enabled methods (COD, SafeFire Wallet, Card, UPI). Nothing is pre-selected as COD; if settings cannot load, an error with **Retry** is shown instead of falling back to COD. The wallet is selectable only when the balance covers the total. |
+| Service booking wizard (`ServiceBookingWizard.jsx`) and service detail page (`ServiceDetailPage.jsx`) | Show only enabled methods. "Pay Online Now" is preferred when available; "Pay On Service" appears only while COD is on. |
+| Wholesale (`Wholesale.jsx`) | Offers "Pay Online (Card / UPI)" and/or "Cash on Delivery" per the switches; online orders open Razorpay and are confirmed via `POST /api/user/payment/verify`. |
+| Product page (`ProductDetail.jsx`) | "Cash on Delivery available" is shown only when COD is on **and** the product allows COD (`codAllowed`). |
 
----
+Order history, order details, invoices and confirmation screens still show the payment method of existing COD orders.
 
-## 5. Normal Product COD Cancellation Flow
-- Customer or Admin cancels a COD order.
-- In `processCancellationRefund`:
-  - Since `order.paymentStatus !== 'paid'` (it is `'pending'`), `refundAmount = 0`.
-  - No Refund document is created.
-  - No Razorpay API calls are dispatched.
-  - No fake UserWallet balance is added.
-  - Inventory stock is restored safely.
+## 6. Existing COD orders after COD is switched off
 
----
+Switching COD off **does not** change or remove anything for orders that were already placed with COD. These keep
+working exactly as before because they are driven by the order's own `paymentMethod`, not by the COD switch:
 
-## 6. Frontend Behavior & Adaptations
+- Viewing COD orders (customer, vendor, Admin) and their invoices.
+- Cancelling an unpaid COD order (no money to refund; no Razorpay call).
+- Rider cash collection, rider cash-in-hand limits, and Admin cash settlement
+  (`POST /api/admin/delivery-boys/:id/settle-cash`, Admin → Cash Collection).
+- Courier COD remittance (`GET /api/admin/courier-remittances/pending`, `POST /api/admin/courier-remittances/settle`,
+  Admin → Courier Settlements) and the `COD_RECEIVED` notification.
+- Escrow: a COD vendor's earnings stay held until that package's cash is settled (`backend/src/cron/escrowCron.js`).
+- Returns of COD orders are refunded to the SafeFire Wallet (`backend/src/services/returnRefund.service.js`).
+- COD service bookings already placed: completing them still marks them paid and deducts the platform commission from
+  the vendor wallet.
+- Finance reports and `backend/src/scripts/financialReconciliation.js`.
 
-### Checkout Page (`frontend/src/modules/UserApp/pages/Checkout.jsx`):
-- `formData.paymentMethod` initializes to `"cod"`.
-- Payment method list defaults to Cash on Delivery.
-- Displays an informative amber banner:
-  *"🚚 Cash on Delivery Phase: SafeFire is currently operating in Cash on Delivery mode. You will pay in cash upon receiving your order."*
-- Wallet balance application is hidden when wallet checkout is inactive.
-- Form submission bypasses Razorpay modal completely, placing the COD order directly and navigating to `/order-confirmation/:orderId`.
+Do **not** delete or comment out COD models, enums, routes, settlement screens or records. They are needed for these
+orders and for turning COD back on.
 
-### Service Booking Wizard (`frontend/src/modules/UserApp/components/ServiceBookingWizard.jsx`):
-- In Step 5 (Payment): fetches `/settings/checkout`.
-- In `COD_ONLY` mode, hides the "UPI / Online" button and renders a clean, full-width "Pay On Service" (Cash / On-site UPI) selection with clear operational guidance.
+## 7. Turning COD off / on again
 
----
+**Off** (recommended order):
+1. Turn **Online Payments** on (Card and/or UPI ticked) and save.
+2. Test online payments in Razorpay **test** mode (§8).
+3. Untick **Cash on Delivery** and save. Reload the storefront: COD is gone from checkout, wholesale, both
+   service-booking screens and the product badge.
 
-## 7. How to Switch Modes
+**On again:** tick **Cash on Delivery** and save. COD reappears on the next page load; no code change or deploy needed.
 
-### To Reactivate Online Payments (Razorpay + UPI + Cards + COD):
-1. Open `backend/.env`.
-2. Add or update:
-   ```env
-   PAYMENT_MODE=ONLINE_ENABLED
-   ```
-3. Restart backend or let nodemon reload.
-4. All Razorpay payment gateways, UPI handlers, retry endpoints, and exchange upgrades will immediately become available with zero code modifications.
+## 8. Testing payments with Razorpay test mode
 
-### To Return to COD-Only Mode:
-1. Open `backend/.env`.
-2. Set:
-   ```env
-   PAYMENT_MODE=COD_ONLY
-   ```
-3. Backend immediately rejects online initiations and frontend seamlessly presents COD checkout.
+1. In `backend/.env`: `RAZORPAY_LIVE=false` with the `RAZORPAY_TEST_KEY_ID`, `RAZORPAY_TEST_KEY_SECRET` and
+   `RAZORPAY_TEST_WEBHOOK_SECRET` from the Razorpay Dashboard in **Test Mode**. Do not set `RAZORPAY_MOCK=true` (that skips
+   Razorpay entirely). Restart and check the log says `Using TEST keys`.
+2. Turn Online Payments on in the Admin panel.
+3. Pay with the test cards / UPI IDs from Razorpay's test-mode documentation — no real money moves.
+4. Check: the order becomes **paid** only after the payment is verified (browser verify or `payment.captured` webhook);
+   a cancelled or failed payment leaves it unpaid; cancelling a paid order creates a Razorpay refund.
+5. For webhooks, the test-mode webhook in the Razorpay Dashboard must point to `https://<backend>/api/webhook/razorpay`
+   with the same secret as `RAZORPAY_TEST_WEBHOOK_SECRET`, and send `payment.captured`, `payment.failed`,
+   `refund.processed`, `refund.failed`.
 
----
+Unpaid online orders: a background job cancels online product orders still unpaid after `ORDER_PAYMENT_TIMEOUT_MINUTES`
+(default 60) and returns any wallet share; before cancelling it asks Razorpay whether a payment was captured and completes
+the order instead if so (`backend/src/cron/orderPaymentExpiryCron.js`). Unpaid online service bookings are released after
+`SERVICE_PAYMENT_TIMEOUT_MINUTES` (default 30).
 
-## 8. Automated Verification & Test Coverage
-- **Integration Test Suite:** `backend/tests/integration/testCodOnlyPaymentMode.mjs`
-  - **13 of 13 tests passed (100% GREEN)**
-- **Razorpay Preservation Suite:** `backend/tests/integration/testRazorpayCancellationRefund.mjs`
-  - **40 of 40 tests passed (100% GREEN in mock mode)**
-- **Service Flow Suite:** `backend/tests/integration/testServiceFlow.js`
-  - **All checks passed (GREEN)**
-- **Notification Suite:** `backend/tests/integration/testNotification.js`
-  - **Passed (GREEN)**
-- **Frontend Production Bundle:** `npm --prefix frontend run build`
-  - **Built successfully with 0 errors (`vite v5.4.21`)**
+## 9. Automated checks
+
+Backend DB tests (throwaway MongoDB only — see the testing notes; never against the `.env` database):
+
+- `npm run test:payment-switches-db` — switches, Admin save rules, enforcement on every entry point, historical COD order.
+- `npm run test:order-expiry-db` — unpaid online order cleanup.
+- Existing financial suites (`test:checkout-db`, `test:service-db`, `test:ridercod-db`, `test:return-db`, …).
+
+Run with e.g. `TEST_MONGO_URI="mongodb://127.0.0.1:27999/safefire_<name>_test?replicaSet=rs0" npm run test:payment-switches-db`.

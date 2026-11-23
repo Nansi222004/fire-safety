@@ -142,6 +142,10 @@ export const processShipmentPayout = async (shipmentId, session) => {
     if (shipment.deliveryPayoutProcessed) {
         throw new Error('Payout already processed for this shipment.');
     }
+    // Rider payout and rider COD cash only exist for SafeFire's own fleet.
+    if (shipment.providerId !== 'own_fleet' || shipment.deliveryMethod === 'SELLER_DELIVERY') {
+        throw new Error('Rider payout applies only to SafeFire Delivery App (own fleet) shipments.');
+    }
 
     const order = await Order.findById(shipment.orderId).session(session);
     if (!order) {

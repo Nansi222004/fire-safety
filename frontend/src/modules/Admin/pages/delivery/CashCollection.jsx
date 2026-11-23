@@ -35,7 +35,7 @@ const CashCollection = () => {
             page: currentPage,
             limit: itemsPerPage,
           });
-          const rows = (response?.data?.deliveryBoys || []).map((boy) => ({
+          const rows = (response?.data?.deliveryBoys || response?.deliveryBoys || []).map((boy) => ({
             ...boy,
             id: boy.id || boy._id,
             cashInHand: Number(boy.cashInHand ?? boy.stats?.cashInHand ?? 0),
@@ -43,7 +43,7 @@ const CashCollection = () => {
             cashCollected: Number(boy.cashCollected || 0),
           }));
           setDeliveryBoys(rows);
-          setPagination(response?.data?.pagination || {
+          setPagination(response?.data?.pagination || response?.pagination || {
             total: rows.length,
             page: 1,
             limit: itemsPerPage,
@@ -83,7 +83,7 @@ const CashCollection = () => {
         page: currentPage,
         limit: itemsPerPage,
       });
-      const rows = (response?.data?.deliveryBoys || []).map((boy) => ({
+      const rows = (response?.data?.deliveryBoys || response?.deliveryBoys || []).map((boy) => ({
         ...boy,
         id: boy.id || boy._id,
         cashInHand: Number(boy.cashInHand ?? boy.stats?.cashInHand ?? 0),
@@ -91,7 +91,7 @@ const CashCollection = () => {
         cashCollected: Number(boy.cashCollected || 0),
       }));
       setDeliveryBoys(rows);
-      setPagination(response?.data?.pagination || pagination);
+      setPagination(response?.data?.pagination || response?.pagination || pagination);
     } finally {
       setIsSettlingId(null);
     }

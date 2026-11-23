@@ -20,7 +20,7 @@ import { getHomepage } from '../modules/admin/controllers/homepage.controller.js
 import Order from '../models/Order.model.js';
 import AppConfig from '../models/AppConfig.model.js';
 import HomeBanner from '../models/HomeBanner.model.js';
-import { isCodOnlyMode } from '../config/paymentConfig.js';
+import { resolvePaymentSettings } from '../services/settingsService.js';
 import { submitCollaborationInquiry } from '../modules/support/controllers/collaboration.controller.js';
 
 const router = Router();
@@ -1282,9 +1282,13 @@ router.get('/campaigns/:slug', detailCache, asyncHandler(async (req, res) => {
 // GET /api/orders/track/:id
 router.get('/orders/track/:id', detailCache, asyncHandler(async (req, res) => {
     const { default: Order } = await import('../models/Order.model.js');
-    const order = await Order.findOne({ orderId: req.params.id }).select('orderId status trackingNumber estimatedDelivery deliveredAt readyForPickupAt processingAt shippedAt deliveryOtpDebug').lean();
+    // Public (unauthenticated): status and dates only. Never OTPs, shipments, address, contact or payment data —
+    // the delivery OTP is shown only on the customer's own authenticated order page.
+    const PUBLIC_FIELDS = ['orderId', 'status', 'trackingNumber', 'estimatedDelivery', 'deliveredAt', 'readyForPickupAt', 'processingAt', 'shippedAt'];
+    const order = await Order.findOne({ orderId: String(req.params.id || '').slice(0, 64) }).select(PUBLIC_FIELDS.join(' ')).lean();
     if (!order) throw new ApiError(404, 'Order not found.');
-    res.status(200).json(new ApiResponse(200, order, 'Order tracking.'));
+    const publicView = Object.fromEntries(PUBLIC_FIELDS.filter((f) => order[f] !== undefined).map((f) => [f, order[f]]));
+    res.status(200).json(new ApiResponse(200, publicView, 'Order tracking.'));
 }));
 
 // GET /api/settings/general
@@ -1329,17 +1333,19 @@ router.get('/settings/checkout', asyncHandler(async (req, res) => {
         Settings.findOne({ key: 'shipping' }).lean(),
     ]);
 
-    const payVal = paymentSettings?.value || {};
     const shipVal = shippingSettings?.value || {};
-    const codOnly = isCodOnlyMode();
+    // Same resolution the order/booking endpoints enforce (Admin switches + PAYMENT_MODE fallback),
+    // read straight from the DB so an Admin change shows on the next page load.
+    const payment = resolvePaymentSettings(paymentSettings?.value || {});
 
     const publicSettings = {
         payment: {
-            cod: true,
-            razorpay: codOnly ? false : payVal.cardEnabled !== false,
-            wallet: payVal.walletEnabled !== false,
-            upi: codOnly ? false : payVal.upiEnabled !== false,
-            paymentMode: codOnly ? 'COD_ONLY' : 'ONLINE_ENABLED',
+            cod: payment.cod,
+            razorpay: payment.razorpay,
+            wallet: payment.wallet,
+            upi: payment.upi,
+            onlineEnabled: payment.onlineEnabled,
+            paymentMode: payment.paymentMode,
         },
         shipping: {
             defaultShippingRate: shipVal.defaultShippingRate !== undefined ? Number(shipVal.defaultShippingRate) : 0,

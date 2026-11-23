@@ -54,8 +54,12 @@ const shipmentDeliveredListener = async (payload) => {
             `paymentMethod=${payload.paymentMethod}`
         );
 
-        // Phase 5.4: Own Fleet — compute payout via payoutCalculator, credit wallet
-        if (payload.providerId === 'own_fleet') {
+        // Phase 5.4: Own Fleet — compute payout via payoutCalculator, credit wallet.
+        // The stored shipment decides (not only the payload): Seller Delivery never pays a rider or books rider COD cash.
+        const payoutTarget = payload.providerId === 'own_fleet' && payload.shipmentId
+            ? await Shipment.findById(payload.shipmentId).select('providerId deliveryMethod').lean()
+            : null;
+        if (payoutTarget && payoutTarget.providerId === 'own_fleet' && payoutTarget.deliveryMethod !== 'SELLER_DELIVERY') {
             const session = await mongoose.startSession();
             try {
                 await session.withTransaction(async () => {

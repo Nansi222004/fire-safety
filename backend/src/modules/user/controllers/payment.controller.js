@@ -15,7 +15,7 @@ import { getWallet, debitWallet } from '../../../services/wallet.service.js';
 import LogisticsEventBus from '../../../events/logisticsEventBus.js';
 import LOGISTICS_EVENTS from '../../../events/logisticsEvents.js';
 import { processCapturedPayment } from '../../../services/paymentProcessor.js';
-import { isPaymentMethodEnabled } from '../../../services/settingsService.js';
+import { isPaymentMethodEnabled, isOnlinePaymentActive } from '../../../services/settingsService.js';
 import Admin from '../../../models/Admin.model.js';
 import { createNotification } from '../../../services/notification.service.js';
 import { sendOrderConfirmationEmail } from '../../../services/email.service.js';
@@ -27,7 +27,7 @@ import { calculateOrderFinancials } from '../../../services/financial.service.js
 import { calculateVendorShippingForGroups } from '../../../services/vendorShipping.service.js';
 import { generateOrderId } from '../../../utils/generateOrderId.js';
 import { generateTrackingNumber } from '../../../utils/generateTrackingNumber.js';
-import { isCodOnlyMode } from '../../../config/paymentConfig.js';
+import { describePaymentMethod } from '../../../utils/paymentMethodLabel.js';
 import { getRazorpayKeyId } from '../../../config/razorpayConfig.js';
 import { findMatchingVariantKey, encodeVariantKey } from '../../../utils/variantKeyHelper.js';
 import { assertWholesaleBuyer, resolveWholesaleLine } from '../../../services/wholesale.service.js';
@@ -56,18 +56,19 @@ export const initializePayment = asyncHandler(async (req, res) => {
     const isWholesaleOrder = orderType === 'b2b';
     const normalizedPaymentMethod = paymentMethod === 'cash' ? 'cod' : paymentMethod;
 
-    // Validate that payment method is enabled
-    const isMethodActive = await isPaymentMethodEnabled(normalizedPaymentMethod);
-    if (!isMethodActive) {
-        if (isCodOnlyMode()) {
-            throw new ApiError(400, 'Online payments are temporarily disabled. Cash on Delivery and SafeFire Wallet are the supported payment methods.');
-        }
-        throw new ApiError(400, `${paymentMethod === 'cash' ? 'Cash on Delivery' : paymentMethod} is currently unavailable.`);
+    // No method chosen: say so (never treated as COD or any other method). Same 400 as an unavailable method.
+    if (!String(paymentMethod ?? '').trim()) {
+        throw new ApiError(400, 'Please choose a payment method.');
     }
 
-    // Central Payment Gate: In COD_ONLY mode, only COD and Wallet orders can be initialized
-    if (isCodOnlyMode() && !['cod', 'wallet'].includes(normalizedPaymentMethod)) {
-        throw new ApiError(400, 'Online payments are temporarily disabled. Cash on Delivery and SafeFire Wallet are the supported payment methods.');
+    // Central Payment Gate: the Admin COD / online / wallet switches decide which methods take new orders.
+    const isMethodActive = await isPaymentMethodEnabled(normalizedPaymentMethod);
+    if (!isMethodActive) {
+        throw new ApiError(400, `${describePaymentMethod(paymentMethod)} is currently unavailable. Please choose another payment method.`);
+    }
+    // Wallet may cover only part of an online order; the rest then needs the gateway.
+    if (req.body.useWallet && !['wallet', 'cod'].includes(normalizedPaymentMethod) && !(await isPaymentMethodEnabled('wallet'))) {
+        throw new ApiError(400, 'SafeFire Wallet is currently unavailable. Please pay the full amount online.');
     }
 
     // 4.3 — Idempotency: if client sends a key, return the existing order if it was already created
@@ -671,7 +672,7 @@ export const initializePayment = asyncHandler(async (req, res) => {
                 if (normalizedPaymentMethod === 'wallet') {
                     if (wallet.balance < total) {
                         const shortfall = (total - wallet.balance).toFixed(2);
-                        throw new ApiError(400, `Insufficient wallet balance. Short by ₹${shortfall}. Please choose Cash on Delivery or add funds.`);
+                        throw new ApiError(400, `Insufficient wallet balance. Short by ₹${shortfall}. Please add funds or choose another available payment method.`);
                     }
                     walletAmountUsed = total;
                 } else {
@@ -1041,15 +1042,13 @@ export const retryPayment = asyncHandler(async (req, res) => {
     const order = await Order.findOne({ orderId, userId }).lean();
     if (!order) throw new ApiError(404, 'Order not found.');
 
-    // Central Payment Gate: In COD_ONLY mode, online retries are blocked
-    if (isCodOnlyMode()) {
-        throw new ApiError(400, 'Online payment retry is disabled during COD-only mode.');
+    // Central Payment Gate: retries need online payments on, and the order's own method still enabled.
+    if (!(await isOnlinePaymentActive())) {
+        throw new ApiError(400, 'Online payments are currently unavailable, so this payment cannot be retried right now.');
     }
-
-    // Validate if the order's paymentMethod is still active in settings
     const isRetryMethodActive = await isPaymentMethodEnabled(order.paymentMethod);
     if (!isRetryMethodActive) {
-        throw new ApiError(400, `The payment method ${order.paymentMethod === 'cod' ? 'Cash on Delivery' : order.paymentMethod} used for this order is currently unavailable.`);
+        throw new ApiError(400, `The payment method ${describePaymentMethod(order.paymentMethod)} used for this order is currently unavailable.`);
     }
     if (order.status !== 'payment_pending') {
         throw new ApiError(400, 'This order is not awaiting payment. Cannot retry.');
@@ -1114,9 +1113,9 @@ export const exchangeUpgradePayment = asyncHandler(async (req, res) => {
     if (!request) throw new ApiError(404, 'Return request not found.');
     if (request.requestType !== 'exchange') throw new ApiError(400, 'Not an exchange request.');
 
-    // Central Payment Gate: In COD_ONLY mode, exchange upgrade payments are safely blocked
-    if (isCodOnlyMode()) {
-        throw new ApiError(400, 'Online payment is temporarily disabled. Exchange price-difference upgrades cannot be completed online during the COD-only phase. Please contact customer support or request a standard return.');
+    // Central Payment Gate: the price difference can only be paid online.
+    if (!(await isOnlinePaymentActive())) {
+        throw new ApiError(400, 'Online payment is temporarily disabled. Exchange price-difference upgrades cannot be completed right now. Please contact customer support or request a standard return.');
     }
 
     const priceDelta = request.exchangeDetails?.priceDelta;

@@ -90,17 +90,8 @@ const FlipkartCompactCard = ({ product }) => {
 };
 
 // Delivery & payment info from the admin-configured public checkout settings (no hard-coded dates or pincodes).
-const DeliveryBlock = () => {
-  const [shipping, setShipping] = useState(null);
-
-  useEffect(() => {
-    let active = true;
-    api.get("/settings/checkout")
-      .then((data) => { if (active) setShipping(data?.shipping || {}); })
-      .catch(() => { if (active) setShipping({}); });
-    return () => { active = false; };
-  }, []);
-
+// `codAvailable`: Admin COD switch is on AND the product allows COD (decided by the parent).
+const DeliveryBlock = ({ shipping, codAvailable = false }) => {
   const freeShippingThreshold = Number(shipping?.freeShippingThreshold) || 0;
 
   return (
@@ -132,6 +123,7 @@ const DeliveryBlock = () => {
               : "Shipping calculated at checkout"}
           </span>
         </div>
+        {codAvailable && (
         <div className="flex items-center gap-2 text-xs text-slate-500">
           <div className="p-2 bg-gray-50 rounded-lg">
             <svg className="w-4 h-4 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -141,6 +133,7 @@ const DeliveryBlock = () => {
           </div>
           <span>Cash on Delivery available</span>
         </div>
+        )}
       </div>
     </div>
   );
@@ -881,6 +874,18 @@ const MobileProductDetail = () => {
     return true;
   };
 
+  // Public checkout settings: shipping info and whether the Admin has COD switched on.
+  const [checkoutSettings, setCheckoutSettings] = useState(null);
+  useEffect(() => {
+    let active = true;
+    api.get("/settings/checkout")
+      .then((data) => { if (active) setCheckoutSettings(data?.data ?? data ?? {}); })
+      .catch(() => { if (active) setCheckoutSettings({}); });
+    return () => { active = false; };
+  }, []);
+  // COD is only advertised when the Admin has it on and this product allows it (hidden while unknown).
+  const codAvailable = checkoutSettings?.payment?.cod === true && product?.codAllowed !== false;
+
   const productFeatures = useMemo(() => {
     if (Array.isArray(product?.features) && product.features.length > 0) return product.features;
     // Built only from facts stored on the product — never invented marketing claims.
@@ -890,9 +895,9 @@ const MobileProductDetail = () => {
     if (product?.returnable !== undefined) {
       facts.push({ id: "returns", label: product.returnable ? "Returnable" : "Non-returnable", desc: product.returnable ? "Eligible for return as per the return policy." : "This item cannot be returned." });
     }
-    if (product?.codAllowed !== false) facts.push({ id: "cod", label: "Cash on Delivery", desc: "Pay in cash when the order is delivered." });
+    if (codAvailable) facts.push({ id: "cod", label: "Cash on Delivery", desc: "Pay in cash when the order is delivered." });
     return facts;
-  }, [product]);
+  }, [product, codAvailable]);
 
   if (!product) {
     return (
@@ -1154,7 +1159,7 @@ const MobileProductDetail = () => {
 
                 {/* Delivery Section (Visible as a card on desktop) */}
                 <div className="mt-4 bg-white px-4 py-4 space-y-4 lg:border lg:border-gray-100 lg:rounded-3xl lg:p-6 lg:shadow-sm lg:mt-0">
-                  <DeliveryBlock />
+                  <DeliveryBlock shipping={checkoutSettings?.shipping} codAvailable={codAvailable} />
                 </div>
 
                 {/* Product Details Section */}

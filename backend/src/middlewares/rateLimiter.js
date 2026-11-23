@@ -34,6 +34,18 @@ export const otpLimiter = rateLimit({
     skip: () => isDevelopment
 });
 
+// Seller Delivery OTP actions (send + confirm), keyed by the authenticated vendor. Works alongside the per-OTP
+// limits (5 attempts per code, 60s resend cooldown) to stop a seller brute-forcing customer delivery codes.
+export const sellerDeliveryOtpLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => `seller-delivery-otp:${req.user?.id || 'anonymous'}`,
+    message: { success: false, message: 'Too many delivery OTP requests. Please try again in 15 minutes.' },
+    skip: () => isDevelopment
+});
+
 // OTP verification limiter (prevents brute-force)
 export const otpVerifyLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes

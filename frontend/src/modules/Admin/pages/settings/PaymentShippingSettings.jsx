@@ -5,6 +5,7 @@ import { useSettingsStore } from '../../../../shared/store/settingsStore';
 import AnimatedSelect from '../../components/AnimatedSelect';
 import toast from 'react-hot-toast';
 import { getCompanyPaymentSettings, updateCompanyPaymentSettings } from '../../services/adminService';
+import api from '../../../../shared/utils/api';
 
 const PaymentShippingSettings = () => {
   const { settings, updateSettings, initialize } = useSettingsStore();
@@ -52,6 +53,21 @@ const PaymentShippingSettings = () => {
       if (settings.shipping) setShippingData({ ...routingDefaults, ...settings.shipping });
     }
   }, [settings]);
+
+  // Effective payment state from the server (includes the PAYMENT_MODE default for online payments
+  // when the Admin has never saved the Online switch).
+  const [serverPayment, setServerPayment] = useState(null);
+  useEffect(() => {
+    api.get('/settings/checkout')
+      .then((res) => setServerPayment((res?.data ?? res)?.payment || null))
+      .catch(() => setServerPayment(null));
+  }, []);
+
+  // Same defaults as the backend: a method with no saved value is on.
+  const isOn = (field) => paymentData[field] !== false;
+  const onlineEnabled = typeof paymentData.onlineEnabled === 'boolean'
+    ? paymentData.onlineEnabled
+    : serverPayment?.onlineEnabled === true;
 
   const handlePaymentChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -104,9 +120,33 @@ const PaymentShippingSettings = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // Save explicit booleans so the stored setting means exactly what the Admin sees here.
+    const paymentToSave = {
+      ...paymentData,
+      onlineEnabled,
+      codEnabled: isOn('codEnabled'),
+      cardEnabled: isOn('cardEnabled'),
+      upiEnabled: isOn('upiEnabled'),
+      walletEnabled: isOn('walletEnabled'),
+    };
+    const canPay = paymentToSave.codEnabled || (onlineEnabled && (paymentToSave.cardEnabled || paymentToSave.upiEnabled));
+    if (!canPay) {
+      toast.error('Keep at least one payment method on: Cash on Delivery, or Online Payments with Card or UPI enabled.');
+      return;
+    }
+    // Same defaults as the backend: Delivery App on, Seller Delivery off until Admin enables it.
+    // Save exactly what the form shows: an unsaved rate/threshold is 0 (the backend's default), never blank.
+    const toAmount = (value) => (value === '' || value === undefined || value === null ? 0 : Number(value));
+    const shippingToSave = {
+      ...shippingData,
+      freeShippingThreshold: toAmount(shippingData.freeShippingThreshold),
+      defaultShippingRate: toAmount(shippingData.defaultShippingRate),
+      deliveryAppEnabled: shippingData.deliveryAppEnabled !== false,
+      sellerDeliveryEnabled: shippingData.sellerDeliveryEnabled === true,
+    };
     try {
-      await updateSettings('payment', paymentData, true);
-      await updateSettings('shipping', shippingData, true);
+      await updateSettings('payment', paymentToSave, true);
+      await updateSettings('shipping', shippingToSave, true);
       await updateCompanyPaymentSettings(companyPaymentData);
       toast.success('Settings saved successfully');
     } catch (err) {
@@ -158,13 +198,38 @@ const PaymentShippingSettings = () => {
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-bold text-gray-800 mb-4">Payment Methods</h3>
+                <div className="mb-4 p-3 sm:p-4 border-2 border-primary-200 bg-primary-50/40 rounded-lg">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={onlineEnabled}
+                      onChange={(e) => setPaymentData({ ...paymentData, onlineEnabled: e.target.checked })}
+                      className="mt-0.5 w-4 h-4 text-primary-600 rounded focus:ring-primary-500 flex-shrink-0"
+                    />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-bold text-gray-800">Online Payments (Razorpay)</span>
+                      <span className="block text-xs text-gray-600 mt-0.5">
+                        Master switch for Card and UPI payments at checkout, service bookings and wholesale.
+                        When on, customers are charged through the Razorpay keys configured on the server.
+                      </span>
+                      {typeof paymentData.onlineEnabled !== 'boolean' && (
+                        <span className="block text-xs text-amber-700 mt-1">
+                          Not saved yet — currently following the server default ({onlineEnabled ? 'on' : 'off'}). Saving this page stores your choice.
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500 mb-3">
+                  Changes apply to new orders and bookings only. Existing Cash on Delivery orders, collections and settlements are not affected.
+                </p>
                 <div className="space-y-3 sm:space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 p-3 sm:p-4 border border-gray-200 rounded-lg">
                     <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                       <input
                         type="checkbox"
                         name="codEnabled"
-                        checked={paymentData.codEnabled || false}
+                        checked={isOn('codEnabled')}
                         onChange={handlePaymentChange}
                         className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500 flex-shrink-0"
                       />
@@ -189,7 +254,8 @@ const PaymentShippingSettings = () => {
                       <input
                         type="checkbox"
                         name="cardEnabled"
-                        checked={paymentData.cardEnabled || false}
+                        checked={isOn('cardEnabled')}
+                        disabled={!onlineEnabled}
                         onChange={handlePaymentChange}
                         className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500 flex-shrink-0"
                       />
@@ -214,7 +280,7 @@ const PaymentShippingSettings = () => {
                       <input
                         type="checkbox"
                         name="walletEnabled"
-                        checked={paymentData.walletEnabled || false}
+                        checked={isOn('walletEnabled')}
                         onChange={handlePaymentChange}
                         className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500 flex-shrink-0"
                       />
@@ -239,7 +305,8 @@ const PaymentShippingSettings = () => {
                       <input
                         type="checkbox"
                         name="upiEnabled"
-                        checked={paymentData.upiEnabled || false}
+                        checked={isOn('upiEnabled')}
+                        disabled={!onlineEnabled}
                         onChange={handlePaymentChange}
                         className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500 flex-shrink-0"
                       />
@@ -340,7 +407,7 @@ const PaymentShippingSettings = () => {
                   <input
                     type="number"
                     name="freeShippingThreshold"
-                    value={shippingData.freeShippingThreshold || 100}
+                    value={shippingData.freeShippingThreshold ?? 0}
                     onChange={handleShippingChange}
                     min="0"
                     step="0.01"
@@ -356,13 +423,58 @@ const PaymentShippingSettings = () => {
                   <input
                     type="number"
                     name="defaultShippingRate"
-                    value={shippingData.defaultShippingRate || 5}
+                    value={shippingData.defaultShippingRate ?? 0}
                     onChange={handleShippingChange}
                     min="0"
                     step="0.01"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                   <p className="text-xs text-gray-500 mt-1">Default shipping cost</p>
+                </div>
+              </div>
+
+              <div className="border-t border-gray-200 pt-6">
+                <h3 className="text-lg font-bold text-gray-800 mb-1">Delivery Methods</h3>
+                <p className="text-xs text-gray-500 mb-4">
+                  Control who can deliver new packages. Shiprocket is not affected by these switches. Changes apply to new delivery
+                  assignments and method choices only — packages already with a delivery partner are completed normally.
+                </p>
+                <div className="space-y-3">
+                  <label className="flex items-start gap-3 p-3 sm:p-4 border-2 border-primary-200 bg-primary-50/40 rounded-lg cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={shippingData.deliveryAppEnabled !== false}
+                      onChange={(e) => setShippingData({ ...shippingData, deliveryAppEnabled: e.target.checked })}
+                      className="mt-0.5 w-4 h-4 text-primary-600 rounded focus:ring-primary-500 flex-shrink-0"
+                    />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-bold text-gray-800">SafeFire Delivery App (internal riders)</span>
+                      <span className="block text-xs text-gray-600 mt-0.5">
+                        When off, sellers cannot choose Manual Delivery and no new rider assignments are made (forward deliveries,
+                        return pickups and exchange replacements). Riders who already hold a package can still pick it up, deliver it
+                        with the customer OTP and settle cash. Shiprocket failures are not sent to riders while this is off.
+                      </span>
+                      {typeof shippingData.deliveryAppEnabled !== 'boolean' && (
+                        <span className="block text-xs text-amber-700 mt-1">Not saved yet — currently on (default).</span>
+                      )}
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-3 p-3 sm:p-4 border border-gray-200 rounded-lg cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={shippingData.sellerDeliveryEnabled === true}
+                      onChange={(e) => setShippingData({ ...shippingData, sellerDeliveryEnabled: e.target.checked })}
+                      className="mt-0.5 w-4 h-4 text-primary-600 rounded focus:ring-primary-500 flex-shrink-0"
+                    />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-bold text-gray-800">Seller Delivery (seller&apos;s own courier)</span>
+                      <span className="block text-xs text-gray-600 mt-0.5">
+                        Lets sellers ship prepaid packages with a courier they arrange, entering the courier name and tracking number.
+                        The customer confirms delivery with an OTP; seller earnings follow the normal return-window hold.
+                        Not available for Cash on Delivery orders.
+                      </span>
+                    </span>
+                  </label>
                 </div>
               </div>
 

@@ -397,8 +397,29 @@ export const markAllAsRead = async (recipientId, recipientType) => {
     return Notification.updateMany({ recipientId, recipientType, isRead: false }, { isRead: true });
 };
 
+/**
+ * Notify every active Admin (deduplicated per admin by eventKey). Never throws.
+ */
+export const notifyAdmins = async ({ title, message, type = 'system', eventKey = null, data = {} }) => {
+    try {
+        const admins = await Admin.find({ isActive: true }).select('_id').lean();
+        await Promise.allSettled(admins.map((admin) => createNotification({
+            recipientId: admin._id,
+            recipientType: 'admin',
+            title,
+            message,
+            type,
+            data,
+            ...(eventKey ? { eventKey: `${eventKey}:admin:${admin._id}` } : {}),
+        })));
+    } catch (err) {
+        console.warn(`[Notification Service] notifyAdmins failed: ${err.message}`);
+    }
+};
+
 export default {
     createNotification,
+    notifyAdmins,
     sendNotificationToUser,
     getUnreadNotifications,
     markAllAsRead,

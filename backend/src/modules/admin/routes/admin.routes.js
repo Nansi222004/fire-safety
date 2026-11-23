@@ -52,6 +52,7 @@ import { authenticate } from '../../../middlewares/authenticate.js';
 import { authorize, enforceAccountStatus } from '../../../middlewares/authorize.js';
 import { authLimiter } from '../../../middlewares/rateLimiter.js';
 import { validate } from '../../../middlewares/validate.js';
+import { adminSellerDeliveryParamsSchema, adminConfirmSellerDeliverySchema } from '../validators/sellerDelivery.validator.js';
 import { uploadSingle } from '../../../middlewares/upload.js';
 import { refreshTokenSchema, logoutSchema } from '../validators/auth.validator.js';
 import {
@@ -124,6 +125,9 @@ router.get('/orders/delivery-partners/available', ...adminAuth, orderController.
 router.get('/orders/:id', ...adminAuth, orderController.getOrderById);
 router.patch('/orders/:id/status', ...adminAuth, audit('UPDATE_ORDER_STATUS', 'Order'), orderController.updateOrderStatus);
 router.post('/orders/:id/shipments/:shipmentId/assign-delivery', ...adminAuth, audit('ASSIGN_DELIVERY_PARTNER', 'Shipment'), orderController.assignDeliveryPartner);
+router.post('/orders/:id/shipments/:shipmentId/confirm-delivery', ...adminAuth,
+    validate(adminSellerDeliveryParamsSchema, 'params'), validate(adminConfirmSellerDeliverySchema),
+    audit('ADMIN_DELIVERY_OVERRIDE', 'Shipment'), orderController.confirmSellerDeliveryOverride);
 router.patch('/orders/:id/items/:vendorItemId/cancel', ...adminAuth, audit('ADMIN_CANCEL_ORDER_ITEM', 'Order'), orderController.adminOverrideCancelVendorItem);
 
 router.delete('/orders/:id', ...adminAuth, audit('DELETE_ORDER', 'Order'), orderController.deleteOrder);
