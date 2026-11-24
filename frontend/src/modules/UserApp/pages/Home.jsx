@@ -753,9 +753,7 @@ const MobileHome = () => {
     const ok = await fetchHomeData();
     if (!ok) {
       toast.error("Refresh failed. Showing available data.");
-      return;
     }
-    toast.success("Refreshed");
   };
 
   const {

@@ -12,6 +12,7 @@ import {
   FiCheckCircle,
   FiTrash2,
   FiChevronRight,
+  FiChevronDown,
 } from "react-icons/fi";
 import { motion } from "framer-motion";
 import { useCartStore, useUIStore } from "../../../shared/store/useStore";
@@ -249,80 +250,40 @@ const resolveVariantStock = (product, selectedVariant) => {
   return baseStock;
 };
 
-const BULLET_LINE_RE = /^\s*(?:[-*•●▪◦]|\d+[.)])\s+/;
-
-// Turns a plain-text description into { paragraphs, bullets }.
-// - Descriptive sentences are merged into one paragraph
-// - Lines starting with -, *, •, "1." and short Title-Case spec phrases become bullets
-const parseDescription = (text) => {
-  const clean = String(text || "")
+// Description is shown exactly as the seller typed it (same lines, same order).
+// Only legacy HTML markup is converted to plain text; nothing is merged, split or reordered.
+const toPlainDescription = (text) =>
+  String(text || "")
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/(p|li|div)>/gi, "\n")
-    .replace(/<li[^>]*>/gi, "- ")
+    .replace(/<li[^>]*>/gi, "• ")
     .replace(/<[^>]+>/g, "")
     .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&")
     .replace(/\r/g, "")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
-  if (!clean) return { paragraphs: [], bullets: [] };
-
-  // Break into lines, then each line into sentences
-  const pieces = clean
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean)
-    .flatMap((line) => {
-      if (BULLET_LINE_RE.test(line)) return [{ text: line.replace(BULLET_LINE_RE, ""), forced: true }];
-      return (line.match(/[^.!?]+[.!?]+(?=\s|$)|[^.!?]+$/g) || [line])
-        .map((s) => s.trim())
-        .filter(Boolean)
-        .map((s) => ({ text: s, forced: false }));
-    });
-
-  const descriptive = [];
-  const bullets = [];
-
-  pieces.forEach(({ text: piece, forced }) => {
-    if (forced || isSpecPoint(piece)) bullets.push(piece.replace(/\.$/, ""));
-    else descriptive.push(piece);
-  });
-
-  return { paragraphs: descriptive.length ? [descriptive.join(" ")] : [], bullets };
-};
-
-// A spec/utility point is a short Title-Case phrase (e.g. "Liner Gauge 13G"),
-// while a descriptive sentence is mostly lowercase words.
-const isSpecPoint = (sentence) => {
-  const words = sentence.replace(/[.!?,:;]+/g, " ").split(/\s+/).filter(Boolean);
-  if (!words.length) return false;
-  const capitalised = words.filter((w) => /^[A-Z0-9]/.test(w)).length;
-  return capitalised / words.length >= 0.6;
-};
 
 /**
- * Description tab: the seller's intro text, then key points as a bullet list.
- * Points come from the product's own `highlights`; products saved before highlights existed fall back to
- * bullets detected in the description text. Nothing is invented when a product has no description.
+ * Description tab: the seller's description as entered, then the product's saved `highlights` as a bullet list.
+ * Nothing is invented when a product has no description.
  */
 const DescriptionHighlights = ({ text, highlights }) => {
-  const parsed = useMemo(() => parseDescription(text), [text]);
+  const description = useMemo(() => toPlainDescription(text), [text]);
   const productNote = useSettingsStore((state) => String(state.settings?.general?.productDisclaimer || "").trim());
-  const savedPoints = Array.isArray(highlights) ? highlights.filter((h) => String(h || "").trim()) : [];
-  const intro = parsed.paragraphs;
-  // Saved highlights replace bullets detected in the description (no point is shown twice).
-  const bullets = savedPoints.length ? savedPoints : parsed.bullets;
+  const bullets = Array.isArray(highlights) ? highlights.filter((h) => String(h || "").trim()) : [];
 
-  if (!intro.length && !bullets.length) {
+  if (!description && !bullets.length) {
     return <p className="text-[13px] text-slate-500">The seller has not added a description for this product yet.</p>;
   }
 
   return (
     <div className="space-y-4">
-      {intro.map((para, idx) => (
-        <p key={`p-${idx}`} className="text-[13px] text-slate-600 leading-relaxed">
-          {para}
+      {description && (
+        <p className="text-[13px] text-slate-600 leading-relaxed whitespace-pre-line break-words">
+          {description}
         </p>
-      ))}
+      )}
       {bullets.length > 0 && (
         <ul className="list-disc pl-5 space-y-1.5 marker:text-slate-500">
           {bullets.map((item, idx) => (
@@ -341,6 +302,31 @@ const DescriptionHighlights = ({ text, highlights }) => {
     </div>
   );
 };
+
+/** A Product Details row: tap the title to open/close its content. */
+const DetailsSection = ({ title, isOpen, onToggle, children }) => (
+  <div className="border-b border-gray-100 last:border-b-0">
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={isOpen}
+      className="w-full flex items-center justify-between gap-3 px-4 sm:px-6 py-4 text-left"
+    >
+      <span className={`text-sm font-bold ${isOpen ? "text-red-600" : "text-slate-800"}`}>{title}</span>
+      <FiChevronDown
+        className={`text-lg text-gray-400 shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+      />
+    </button>
+    <motion.div
+      initial={false}
+      animate={{ height: isOpen ? "auto" : 0, opacity: isOpen ? 1 : 0 }}
+      transition={{ duration: 0.25 }}
+      className="overflow-hidden"
+    >
+      <div className="px-4 sm:px-6 pb-5">{children}</div>
+    </motion.div>
+  </div>
+);
 
 /** Specifications tab: name/value rows exactly as the seller entered them. */
 const SpecificationsTable = ({ rows }) => (
@@ -478,8 +464,13 @@ const MobileProductDetail = () => {
   const [isLoadingProduct, setIsLoadingProduct] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [selectedVariant, setSelectedVariant] = useState(null);
-  const [activeTab, setActiveTab] = useState("Description");
-  const [isExpanded, setIsExpanded] = useState(false);
+  // Product Details rows (Description / Specifications / Safety Information) — all closed on load
+  const [openSections, setOpenSections] = useState({});
+  const toggleSection = (name) => setOpenSections((prev) => ({ ...prev, [name]: !prev[name] }));
+  // Opening another product (e.g. from "similar products") starts with all rows closed again
+  useEffect(() => {
+    setOpenSections({});
+  }, [id]);
   const [galleryIndex, setGalleryIndex] = useState(0);
 
   const { items, addItem, removeItem } = useCartStore();
@@ -686,10 +677,6 @@ const MobileProductDetail = () => {
     }
     setSelectedVariant({});
   }, [product, searchParams]);
-
-  useEffect(() => {
-    setIsExpanded(false);
-  }, [activeTab]);
 
   useEffect(() => {
     if (product?.id) {
@@ -923,9 +910,6 @@ const MobileProductDetail = () => {
     [product]
   );
 
-  useEffect(() => {
-    if (activeTab === "Specifications" && productSpecs.length === 0) setActiveTab("Description");
-  }, [activeTab, productSpecs.length]);
 
   const productFeatures = useMemo(() => {
     if (Array.isArray(product?.features) && product.features.length > 0) return product.features;
@@ -1209,47 +1193,26 @@ const MobileProductDetail = () => {
                     <h3 className="text-lg font-bold text-slate-800">Product Details</h3>
                   </div>
                                   {/* Tabs */}
-                  {/* Swipeable on small screens (like the app); Specifications only when the product has some */}
-                  <div className="flex items-center border-b border-gray-100 px-2 sm:px-4 overflow-x-auto scrollbar-hide" role="tablist">
-                    {["Description", ...(productSpecs.length ? ["Specifications"] : []), "Safety Information"].map((tab) => (
-                      <button
-                        key={tab}
-                        type="button"
-                        role="tab"
-                        aria-selected={activeTab === tab}
-                        onClick={() => setActiveTab(tab)}
-                        className={`px-3 sm:px-4 py-3 text-sm whitespace-nowrap flex-shrink-0 transition-all duration-200 ${activeTab === tab
-                            ? "text-red-600 font-bold border-b-2 border-red-600"
-                            : "text-slate-500 font-medium"
-                          }`}
-                      >
-                        {tab}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="px-4 sm:px-6 py-5 sm:py-6 min-h-[160px]">
-                    {activeTab === "Specifications" && productSpecs.length > 0 && (
-                      <SpecificationsTable rows={productSpecs} />
-                    )}
-
-                    {activeTab === "Description" && (
-                      <div className="space-y-4">
+                  {/* Collapsible rows (closed on load); Specifications only when the product has some */}
+                  <div className="border-t border-gray-100">
+                    <DetailsSection
+                      title="Description"
+                      isOpen={!!openSections.Description}
+                      onToggle={() => toggleSection("Description")}
+                    >
+                      <div className="space-y-6">
                         <DescriptionHighlights text={product.description} highlights={product.highlights} />
 
-                        <motion.div
-                          initial={false}
-                          animate={{ height: isExpanded ? "auto" : 0, opacity: isExpanded ? 1 : 0 }}
-                          className="overflow-hidden space-y-6"
-                        >
-                          {/* Expanded Images */}
-                          <div className="grid grid-cols-2 gap-2 pt-2">
+                          {/* Extra product images */}
+                          {productImages.length > 1 && (
+                          <div className="grid grid-cols-2 gap-2">
                             {productImages.slice(1, 5).map((img, idx) => (
                               <div key={idx} className="aspect-square rounded-xl bg-gray-50 overflow-hidden border border-gray-100">
-                                <img src={img} alt={`Feature ${idx}`} className="w-full h-full object-cover" />
+                                <img src={img} alt={`Feature ${idx}`} loading="lazy" className="w-full h-full object-cover" />
                               </div>
                             ))}
                           </div>
+                          )}
 
                           {/* Features List */}
                           {productFeatures.length > 0 && (
@@ -1268,11 +1231,24 @@ const MobileProductDetail = () => {
                             </div>
                           </div>
                           )}
-                        </motion.div>
                       </div>
+                    </DetailsSection>
+
+                    {productSpecs.length > 0 && (
+                      <DetailsSection
+                        title="Specifications"
+                        isOpen={!!openSections.Specifications}
+                        onToggle={() => toggleSection("Specifications")}
+                      >
+                        <SpecificationsTable rows={productSpecs} />
+                      </DetailsSection>
                     )}
 
-                    {activeTab === "Safety Information" && (
+                    <DetailsSection
+                      title="Safety Information"
+                      isOpen={!!openSections["Safety Information"]}
+                      onToggle={() => toggleSection("Safety Information")}
+                    >
                       <div className="space-y-4 text-xs text-slate-700 font-medium">
                         <div className="p-4 bg-red-50/50 border border-red-100 rounded-2xl">
                           <h4 className="font-bold text-red-700 text-sm mb-1">Fire Safety & Operating Guidance</h4>
@@ -1307,19 +1283,7 @@ const MobileProductDetail = () => {
                           </Link>
                         </div>
                       </div>
-                    )}
-
-                    {activeTab === "Description" && (
-                      <div className="flex items-center justify-center mt-4">
-                        <button
-                          onClick={() => setIsExpanded(!isExpanded)}
-                          className="flex items-center gap-1 text-red-600 font-bold text-sm"
-                        >
-                          {isExpanded ? "Read Less" : "Read More"}
-                          {isExpanded ? <FiMinus className="text-xs" /> : <FiPlus className="text-xs" />}
-                        </button>
-                      </div>
-                    )}
+                    </DetailsSection>
                   </div>
                 </div>
 
