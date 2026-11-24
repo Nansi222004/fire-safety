@@ -86,7 +86,10 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
     specifications: [],
   });
 
-  const isVendorProduct = isEdit && !!formData.vendorId;
+  // True only when a real vendor owns the product being edited. Admin's own products
+  // (owned by the internal Platform Admin account) stay fully editable.
+  const [ownedByRealVendor, setOwnedByRealVendor] = useState(false);
+  const isVendorProduct = isEdit && ownedByRealVendor;
 
   const extractId = (value) => {
     if (!value) return "";
@@ -126,7 +129,10 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
         if (product) {
           const productCategoryId = extractId(product.categoryId);
           const productBrandId = extractId(product.brandId);
-          const productVendorId = extractId(product.vendorId);
+          const isPlatformProduct = !!product.isPlatformProduct;
+          // Admin's own product: show "Platform Admin (Default)" in the vendor dropdown
+          const productVendorId = isPlatformProduct ? "" : extractId(product.vendorId);
+          setOwnedByRealVendor(!!productVendorId);
 
           // Determine if categoryId is a subcategory
           const category = categories.find(

@@ -15,6 +15,15 @@ import { createNotification } from '../../../services/notification.service.js';
 import { clearResponseCache } from '../../../middlewares/responseCache.js';
 import mongoose from 'mongoose';
 
+// Products must have a vendorId, so products added by admin are owned by this internal
+// "Platform Admin" vendor account. They are admin's own products, not a real vendor's.
+const PLATFORM_VENDOR_EMAIL = 'admin@admin.com';
+
+const isPlatformVendorId = async (vendorId) => {
+    if (!vendorId) return false;
+    return Boolean(await Vendor.exists({ _id: vendorId, email: PLATFORM_VENDOR_EMAIL }));
+};
+
 const sanitizeFaqs = (faqs) => {
     if (!Array.isArray(faqs)) return [];
     return faqs
@@ -337,13 +346,16 @@ export const getSpecificationSuggestionsHandler = asyncHandler(async (req, res) 
 // GET /api/admin/products/:id
 export const getProductById = asyncHandler(async (req, res) => {
     const product = await Product.findById(req.params.id)
-        .populate('vendorId', 'storeName')
+        .populate('vendorId', 'storeName email')
         .populate('categoryId', 'name')
         .populate('brandId', 'name')
         .lean();
 
     if (!product) throw new ApiError(404, 'Product not found.');
-    res.status(200).json(new ApiResponse(200, product, 'Product fetched.'));
+    // Tells the admin form whether a real vendor owns this product (those stay read-only for price/stock/name)
+    const isPlatformProduct = product.vendorId?.email === PLATFORM_VENDOR_EMAIL;
+    if (product.vendorId && typeof product.vendorId === 'object') delete product.vendorId.email;
+    res.status(200).json(new ApiResponse(200, { ...product, isPlatformProduct }, 'Product fetched.'));
 });
 
 // POST /api/admin/products
@@ -352,11 +364,11 @@ export const createProduct = asyncHandler(async (req, res) => {
 
     let targetVendorId = vendorId;
     if (!targetVendorId) {
-        let adminVendor = await Vendor.findOne({ email: 'admin@admin.com' });
+        let adminVendor = await Vendor.findOne({ email: PLATFORM_VENDOR_EMAIL });
         if (!adminVendor) {
             adminVendor = await Vendor.create({
                 name: 'Platform Admin',
-                email: 'admin@admin.com',
+                email: PLATFORM_VENDOR_EMAIL,
                 password: 'dummy-password-not-used-for-admin-vendor',
                 phone: '0000000000',
                 storeName: 'Saara Platform Store',
@@ -464,9 +476,12 @@ export const updateProduct = asyncHandler(async (req, res) => {
     }
 
     // --- VENDOR PRODUCT RESTRICTIONS ---
-    // If this product belongs to a vendor (either existing or being assigned), 
-    // the Admin is NOT allowed to edit financial/inventory fields or its name.
-    if (existingProduct.vendorId) {
+    // If this product belongs to a real vendor, the Admin is NOT allowed to edit
+    // financial/inventory fields or its name. Admin's own products (owned by the
+    // internal Platform Admin vendor) stay fully editable.
+    const ownedByRealVendor = Boolean(existingProduct.vendorId)
+        && !(await isPlatformVendorId(existingProduct.vendorId));
+    if (ownedByRealVendor) {
         delete payload.name;
         delete payload.price;
         delete payload.originalPrice;
