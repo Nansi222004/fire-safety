@@ -36,6 +36,7 @@
     "test:delivery-methods": "node --test --test-force-exit tests/unit/deliveryMethods.unit.test.mjs",
     "test:seller-delivery-db": "node --test --test-force-exit tests/unit/deliveryAppSellerDelivery.db.test.mjs",
     "test:delivery-security-db": "node --test --test-force-exit tests/unit/deliverySecurity.db.test.mjs",
+    "test:product-content-db": "node --test --test-force-exit tests/unit/productContent.db.test.mjs",
     "test:flows-db": "node --test --test-force-exit tests/unit/financeFlows.db.test.mjs",
     "test:approved-rules": "node --test --test-force-exit tests/unit/approvedRules.test.mjs",
     "test:exchange-gst-db": "node --test --test-force-exit tests/unit/exchangeGst.db.test.mjs",

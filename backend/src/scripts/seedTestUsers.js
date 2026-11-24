@@ -155,9 +155,21 @@ const upsertVendor = async (email, name, phone, storeName, password) => {
   }
 };
 
+// Safety: this script RESETS the passwords of the accounts below. It never runs in production, needs an
+// explicit opt-in, and takes the Super Admin login from .env (never from code).
+const maskUri = (uri) => String(uri).replace(/\/\/[^@/]*@/, '//***:***@');
+
 const seedTestUsers = async () => {
+  if (String(process.env.NODE_ENV || '').toLowerCase() === 'production') {
+    console.error('❌ Refusing to seed test users with NODE_ENV=production.');
+    process.exit(1);
+  }
+  if (process.env.SEED_TEST_USERS !== 'yes') {
+    console.error('❌ This resets demo account passwords. Re-run with SEED_TEST_USERS=yes against a local/test database.');
+    process.exit(1);
+  }
   try {
-    console.log(`📡 Connecting to MongoDB Atlas at ${MONGO_URI}...`);
+    console.log(`📡 Connecting to MongoDB at ${maskUri(MONGO_URI)}...`);
     await mongoose.connect(MONGO_URI);
     console.log('✅ Connected to MongoDB.');
 
@@ -170,7 +182,13 @@ const seedTestUsers = async () => {
     await upsertDelivery('delivery@safefire.com', 'Demo Delivery Partner', '9876543212', 'Password123!');
 
     // Seed admin accounts (.demo & .com)
-    await upsertAdmin('sfsappdevelopment@gmail.com', 'Super Admin', 'admin123');
+    const superAdminEmail = String(process.env.SEED_SUPER_ADMIN_EMAIL || '').trim();
+    const superAdminPassword = String(process.env.SEED_SUPER_ADMIN_PASSWORD || '');
+    if (superAdminEmail && superAdminPassword) {
+      await upsertAdmin(superAdminEmail, 'Super Admin', superAdminPassword);
+    } else {
+      console.log('ℹ️  Super Admin skipped (set SEED_SUPER_ADMIN_EMAIL and SEED_SUPER_ADMIN_PASSWORD in .env to seed one).');
+    }
     await upsertAdmin('admin@safefire.demo', 'Safe Fire Admin', 'Password123!');
     await upsertAdmin('admin@safefire.com', 'Safe Fire Admin', 'Password123!');
 
@@ -181,7 +199,7 @@ const seedTestUsers = async () => {
     console.log('\n🎉 Test Users Seeding Completed Successfully!');
     console.log('----------------------------------------------------------------------');
     console.log('👤 Customer: customer@safefire.demo / customer@safefire.com | Password123!');
-    console.log('🛡️ Admin:    sfsappdevelopment@gmail.com                    | admin123');
+    if (superAdminEmail && superAdminPassword) console.log(`🛡️ Admin:    ${superAdminEmail} | (password from SEED_SUPER_ADMIN_PASSWORD)`);
     console.log('🛡️ Admin:    admin@safefire.demo    / admin@safefire.com    | Password123!');
     console.log('🏭 Vendor:   vendor@safefire.demo   / vendor@safefire.com   | Password123!');
     console.log('🚚 Delivery: delivery@safefire.demo / delivery@safefire.com | Password123!');

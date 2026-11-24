@@ -5,6 +5,7 @@ import { useSettingsStore } from "../../../../shared/store/settingsStore";
 import AnimatedSelect from "../../components/AnimatedSelect";
 import { getGeneralSettings, updateGeneralSettings } from "../../services/adminService";
 import toast from "react-hot-toast";
+import api from "../../../../shared/utils/api";
 
 const GeneralSettings = () => {
   const { updateSettings, initialize } = useSettingsStore();
@@ -21,6 +22,14 @@ const GeneralSettings = () => {
         const response = await getGeneralSettings();
         const config = response?.value ?? response?.data?.value ?? (response && typeof response === 'object' && !response.key ? response : {});
         if (config && typeof config === 'object' && Object.keys(config).length > 0) {
+          // Product note never saved yet: show the note customers currently see (served by the backend).
+          if (typeof config.productDisclaimer !== "string") {
+            try {
+              const pub = await api.get("/settings/general");
+              const current = (pub?.data ?? pub)?.productDisclaimer;
+              if (typeof current === "string") config.productDisclaimer = current;
+            } catch (_) { /* keep empty */ }
+          }
           setFormData(config);
           const saved = config.defaultCommissionRate;
           setSavedCommissionRate(saved === undefined || saved === null || saved === "" ? null : Number(saved));
@@ -163,6 +172,24 @@ const GeneralSettings = () => {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder="Brief description of your store"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Product Page Note
+                  </label>
+                  <textarea
+                    name="productDisclaimer"
+                    value={formData.productDisclaimer ?? ""}
+                    onChange={handleChange}
+                    rows={3}
+                    maxLength={1000}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="Shown under every product description, e.g. images may differ slightly from the product."
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Shown under every product description. Leave empty to hide it.
+                  </p>
                 </div>
               </div>
             </div>

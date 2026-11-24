@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import { highlightsSchema, specificationsSchema } from '../../../utils/productContent.js';
 
 const objectId = Joi.string().trim().hex().length(24);
 
@@ -34,6 +35,8 @@ export const createProductSchema = Joi.object({
     seoTitle: Joi.string().allow('', null).optional(),
     seoDescription: Joi.string().allow('', null).optional(),
     relatedProducts: Joi.array().items(objectId).optional(),
+    highlights: highlightsSchema.optional(),
+    specifications: specificationsSchema.optional(),
     faqs: Joi.array().items(
         Joi.object({
             question: Joi.string().trim().allow('').optional(),
@@ -106,6 +109,8 @@ export const updateProductSchema = Joi.object({
     seoTitle: Joi.string().allow('', null).optional(),
     seoDescription: Joi.string().allow('', null).optional(),
     relatedProducts: Joi.array().items(objectId).optional(),
+    highlights: highlightsSchema.optional(),
+    specifications: specificationsSchema.optional(),
     faqs: Joi.array().items(
         Joi.object({
             question: Joi.string().trim().allow('').optional(),

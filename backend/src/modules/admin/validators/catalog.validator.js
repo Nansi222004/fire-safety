@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import { highlightsSchema, specificationsSchema } from '../../../utils/productContent.js';
 
 const objectId = Joi.string().pattern(/^[0-9a-fA-F]{24}$/);
 
@@ -62,6 +63,8 @@ const productBaseSchema = {
     seoDescription: Joi.string().allow('').optional(),
     relatedProducts: Joi.array().items(objectId).optional(),
     faqs: Joi.array().items(faqSchema).optional(),
+    highlights: highlightsSchema.optional(),
+    specifications: specificationsSchema.optional(),
     variants: variantSchema,
     weight: Joi.number().positive().allow(null).optional(),
     dimensions: Joi.object({

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import ProductContentEditor, { cleanHighlights, cleanSpecifications } from "../../../../shared/components/Product/ProductContentEditor";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { FiSave, FiUpload, FiX } from "react-icons/fi";
 import { motion } from "framer-motion";
@@ -87,6 +88,8 @@ const AddProduct = () => {
     seoDescription: "",
     relatedProducts: [],
     faqs: [],
+    highlights: [],
+    specifications: [],
   });
   const [fieldErrors, setFieldErrors] = useState({});
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
@@ -536,6 +539,8 @@ const AddProduct = () => {
           answer: String(faq?.answer || "").trim(),
         }))
         .filter((faq) => faq.question && faq.answer),
+      highlights: cleanHighlights(formData.highlights),
+      specifications: cleanSpecifications(formData.specifications),
       variants: buildVariantPayload(formData.variants || {}),
     };
 
@@ -652,6 +657,15 @@ const AddProduct = () => {
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
                 placeholder="Enter product description..."
+              />
+            </div>
+            <div className="md:col-span-2">
+              <ProductContentEditor
+                highlights={formData.highlights || []}
+                specifications={formData.specifications || []}
+                categoryId={formData.subcategoryId || formData.categoryId || null}
+                scope="vendor"
+                onChange={(patch) => setFormData((prev) => ({ ...prev, ...patch }))}
               />
             </div>
           </div>

@@ -115,6 +115,7 @@ router.get('/dashboard', ...wholesalerAuth, wholesalerController.getDashboard);
 
 // Products (always wholesale-only)
 router.get('/products', ...wholesalerAuth, catalogController.getWholesaleProducts);
+router.get('/products/specification-suggestions', ...wholesalerAuth, productController.getSpecificationSuggestionsHandler);
 router.get('/products/:id', ...wholesalerAuth, validate(productIdParamSchema, 'params'), productController.getVendorProductById);
 router.post('/products', ...wholesalerAuth, validate(createProductSchema), forceWholesaleOnly, productController.createProduct);
 router.put('/products/:id', ...wholesalerAuth, validate(productIdParamSchema, 'params'), validate(updateProductSchema), forceWholesaleOnly, productController.updateProduct);

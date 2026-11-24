@@ -97,6 +97,12 @@ export const updateSettings = asyncHandler(async (req, res) => {
         value.returnWindow = assertValidReturnWindowDays(value.returnWindow);
     }
 
+    if (key === 'general' && value && typeof value === 'object' && value.productDisclaimer !== undefined) {
+        if (typeof value.productDisclaimer !== 'string') throw new ApiError(400, 'Product note must be text.');
+        value.productDisclaimer = value.productDisclaimer.trim();
+        if (value.productDisclaimer.length > 1000) throw new ApiError(400, 'Product note must be at most 1000 characters.');
+    }
+
     if (key === 'general' && value && typeof value === 'object') {
         if (value.contactEmail) {
             value.supportEmail = value.contactEmail;

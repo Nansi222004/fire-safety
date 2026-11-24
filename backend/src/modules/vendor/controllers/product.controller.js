@@ -1,4 +1,6 @@
 import asyncHandler from '../../../utils/asyncHandler.js';
+import { getSpecificationSuggestions } from '../../../services/productContent.service.js';
+import { sanitizeHighlights, sanitizeSpecifications } from '../../../utils/productContent.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
 import Product from '../../../models/Product.model.js';
@@ -229,7 +231,7 @@ export const getVendorProducts = asyncHandler(async (req, res) => {
 
     const [products, total] = await Promise.all([
         Product.find(filter)
-            .select('-faqs -relatedProducts -__v')
+            .select('-faqs -relatedProducts -__v -highlights -specifications')
             .populate('categoryId', 'name')
             .populate('brandId', 'name')
             .sort({ createdAt: -1 })
@@ -239,6 +241,12 @@ export const getVendorProducts = asyncHandler(async (req, res) => {
         Product.countDocuments(filter),
     ]);
     res.status(200).json(new ApiResponse(200, { products, total, page: numericPage, pages: Math.ceil(total / numericLimit) }, 'Products fetched.'));
+});
+
+// GET .../products/specification-suggestions?categoryId=  — specification names already used in that category
+export const getSpecificationSuggestionsHandler = asyncHandler(async (req, res) => {
+    const labels = await getSpecificationSuggestions(req.query.categoryId);
+    res.status(200).json(new ApiResponse(200, labels, 'Specification suggestions fetched.'));
 });
 
 // GET /api/vendor/products/:id
@@ -309,6 +317,8 @@ export const createProduct = asyncHandler(async (req, res) => {
         wholesale: salesChannels.wholesale,
         variants: normalizedVariants,
         faqs: sanitizeFaqs(rest.faqs),
+        highlights: sanitizeHighlights(rest.highlights),
+        specifications: sanitizeSpecifications(rest.specifications),
         stockQuantity: finalStockQuantity,
         lowStockThreshold,
         stock,
@@ -351,6 +361,12 @@ export const updateProduct = asyncHandler(async (req, res) => {
     product.wholesale = salesChannels.wholesale;
     if (Object.prototype.hasOwnProperty.call(req.body, 'faqs')) {
         product.faqs = sanitizeFaqs(req.body.faqs);
+    }
+    if (Object.prototype.hasOwnProperty.call(req.body, 'highlights')) {
+        product.highlights = sanitizeHighlights(req.body.highlights);
+    }
+    if (Object.prototype.hasOwnProperty.call(req.body, 'specifications')) {
+        product.specifications = sanitizeSpecifications(req.body.specifications);
     }
     if (typeof req.body.stockQuantity !== 'undefined' || typeof req.body.lowStockThreshold !== 'undefined') {
         const stockQuantity = Number(product.stockQuantity ?? 0);

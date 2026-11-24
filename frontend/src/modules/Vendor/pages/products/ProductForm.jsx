@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import ProductContentEditor, { cleanHighlights, cleanSpecifications } from "../../../../shared/components/Product/ProductContentEditor";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { FiSave, FiX, FiUpload } from "react-icons/fi";
 import { motion } from "framer-motion";
@@ -28,7 +29,7 @@ const ProductForm = () => {
   const [searchParams] = useSearchParams();
   const { id } = useParams();
   const { vendor } = useSellerAuthStore();
-  const { fetchProductById, editProduct, addProduct, getById, isSaving } =
+  const { fetchProductById, editProduct, addProduct, isSaving } =
     useVendorProductStore();
   const isEdit = id && id !== "new";
 
@@ -93,6 +94,8 @@ const ProductForm = () => {
     seoDescription: "",
     relatedProducts: [],
     faqs: [],
+    highlights: [],
+    specifications: [],
   });
   const [fieldErrors, setFieldErrors] = useState({});
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
@@ -154,21 +157,18 @@ const ProductForm = () => {
     }
 
     if (isEdit) {
-      const cached = getById(id);
-      if (cached) {
-        populateForm(cached, categories);
-      } else {
-        fetchProductById(id).then((product) => {
-          if (!product) {
-            toast.error("Product not found");
-            navigate(sellerPath("/vendor/products/manage-products"));
-            return;
-          }
-          populateForm(product, categories);
-        });
-      }
+      // Always load the full product: the cached list item omits fields such as FAQs, and saving a form filled
+      // from it would erase them.
+      fetchProductById(id).then((product) => {
+        if (!product) {
+          toast.error("Product not found");
+          navigate(sellerPath("/vendor/products/manage-products"));
+          return;
+        }
+        populateForm(product, categories);
+      });
     }
-  }, [vendorId, isEdit, id, navigate, getById, fetchProductById, categories]);
+  }, [vendorId, isEdit, id, navigate, fetchProductById, categories]);
 
   const populateForm = (product, categoriesList) => {
     const rawCat = normalizeId(product.categoryId ?? product.category);
@@ -240,6 +240,9 @@ const ProductForm = () => {
       seoDescription: product.seoDescription || "",
       relatedProducts: product.relatedProducts || [],
       faqs: Array.isArray(product.faqs) ? product.faqs : [],
+      highlights: Array.isArray(product.highlights) ? product.highlights : [],
+      specifications: Array.isArray(product.specifications) ? product.specifications : [],
+
     });
   };
 
@@ -669,6 +672,8 @@ const ProductForm = () => {
           answer: String(faq?.answer || "").trim(),
         }))
         .filter((faq) => faq.question && faq.answer),
+      highlights: cleanHighlights(formData.highlights),
+      specifications: cleanSpecifications(formData.specifications),
       variants: buildVariantPayload(formData.variants || {}),
     };
 
@@ -804,6 +809,15 @@ const ProductForm = () => {
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
                 placeholder="Enter product description..."
+              />
+            </div>
+            <div className="md:col-span-2">
+              <ProductContentEditor
+                highlights={formData.highlights || []}
+                specifications={formData.specifications || []}
+                categoryId={formData.subcategoryId || formData.categoryId || null}
+                scope="vendor"
+                onChange={(patch) => setFormData((prev) => ({ ...prev, ...patch }))}
               />
             </div>
           </div>

@@ -91,7 +91,7 @@ const detailCache = cacheResponse({ ttlSeconds: 60, maxEntries: 1000 });
 const catalogCache = cacheResponse({ ttlSeconds: 300, maxEntries: 200 });
 const marketingCache = cacheResponse({ ttlSeconds: 120, maxEntries: 300 });
 
-const PRODUCT_LIST_SELECT = '-faqs -relatedProducts -__v -wholesale';
+const PRODUCT_LIST_SELECT = '-faqs -relatedProducts -__v -wholesale -highlights -specifications';
 // Wholesale-only (B2B) products are never part of the public B2C catalog.
 const B2C_VISIBLE = { b2cAvailable: { $ne: false } };
 const EXCLUSIVE_SALE_CAMPAIGN_TYPES = ['flash_sale', 'daily_deal', 'special_offer', 'festival'];
@@ -1291,6 +1291,8 @@ router.get('/orders/track/:id', detailCache, asyncHandler(async (req, res) => {
     res.status(200).json(new ApiResponse(200, publicView, 'Order tracking.'));
 }));
 
+const DEFAULT_PRODUCT_DISCLAIMER = 'Product may differ eg. colour, size from the product Image displayed on website. Kindly check the specifications provided to make better purchase decision. M.R.P Prices and specifications are subject to change without notice.';
+
 // GET /api/settings/general
 router.get('/settings/general', asyncHandler(async (req, res) => {
     const settings = await Settings.findOne({ key: 'general' }).lean();
@@ -1320,7 +1322,10 @@ router.get('/settings/general', asyncHandler(async (req, res) => {
         appLinks: value.appLinks || {
             googlePlay: "",
             appStore: "",
-        }
+        },
+        // Note under every product description (Admin → Settings → General). Until Admin saves it the long-standing
+        // text is used; saving an empty value hides the note.
+        productDisclaimer: typeof value.productDisclaimer === 'string' ? value.productDisclaimer : DEFAULT_PRODUCT_DISCLAIMER,
     };
     
     res.status(200).json(new ApiResponse(200, publicSettings, 'Public general settings fetched.'));

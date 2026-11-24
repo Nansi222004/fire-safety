@@ -319,7 +319,7 @@ export const getUserHomepage = asyncHandler(async (req, res) => {
         .sort({ viewedAt: -1 })
         .populate({
             path: 'productId',
-            select: '-faqs -relatedProducts -__v',
+            select: '-faqs -relatedProducts -__v -highlights -specifications',
             populate: [
                 { path: 'categoryId', select: 'name' },
                 { path: 'brandId', select: 'name' },

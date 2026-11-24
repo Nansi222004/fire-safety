@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import ProductContentEditor, { cleanHighlights, cleanSpecifications } from "../../../shared/components/Product/ProductContentEditor";
 import { useLocation } from "react-router-dom";
 import { FiSave, FiX, FiUpload } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
@@ -81,6 +82,8 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
     seoDescription: "",
     relatedProducts: [],
     faqs: [],
+    highlights: [],
+    specifications: [],
   });
 
   const isVendorProduct = isEdit && !!formData.vendorId;
@@ -190,6 +193,9 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
             seoDescription: product.seoDescription || "",
             relatedProducts: product.relatedProducts || [],
             faqs: Array.isArray(product.faqs) ? product.faqs : [],
+            highlights: Array.isArray(product.highlights) ? product.highlights : [],
+            specifications: Array.isArray(product.specifications) ? product.specifications : [],
+
           });
         }
       } catch (error) {
@@ -246,6 +252,8 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
         seoDescription: "",
         relatedProducts: [],
         faqs: [],
+    highlights: [],
+    specifications: [],
       });
     }
   }, [isOpen, isEdit, productId, onClose, categories]);
@@ -661,6 +669,8 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
           answer: String(faq?.answer || "").trim(),
         }))
         .filter((faq) => faq.question && faq.answer),
+      highlights: cleanHighlights(formData.highlights),
+      specifications: cleanSpecifications(formData.specifications),
     };
 
     try {
@@ -880,6 +890,15 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                           rows={3}
                           className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                           placeholder="Product description..."
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <ProductContentEditor
+                          highlights={formData.highlights || []}
+                          specifications={formData.specifications || []}
+                          categoryId={formData.subcategoryId || formData.categoryId || null}
+                          scope="admin"
+                          onChange={(patch) => setFormData((prev) => ({ ...prev, ...patch }))}
                         />
                       </div>
                     </div>

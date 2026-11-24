@@ -1,4 +1,6 @@
 import asyncHandler from '../../../utils/asyncHandler.js';
+import { getSpecificationSuggestions } from '../../../services/productContent.service.js';
+import { sanitizeHighlights, sanitizeSpecifications, applyProductContent } from '../../../utils/productContent.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
 import Product from '../../../models/Product.model.js';
@@ -313,7 +315,7 @@ export const getAllProducts = asyncHandler(async (req, res) => {
 
     const [products, total] = await Promise.all([
         Product.find(filter)
-            .select('-faqs -relatedProducts -__v')
+            .select('-faqs -relatedProducts -__v -highlights -specifications')
             .populate('vendorId', 'storeName')
             .populate('categoryId', 'name')
             .populate('brandId', 'name')
@@ -324,6 +326,12 @@ export const getAllProducts = asyncHandler(async (req, res) => {
         Product.countDocuments(filter),
     ]);
     res.status(200).json(new ApiResponse(200, { products, total, page: numericPage, pages: Math.ceil(total / numericLimit) }, 'Products fetched.'));
+});
+
+// GET .../products/specification-suggestions?categoryId=  — specification names already used in that category
+export const getSpecificationSuggestionsHandler = asyncHandler(async (req, res) => {
+    const labels = await getSpecificationSuggestions(req.query.categoryId);
+    res.status(200).json(new ApiResponse(200, labels, 'Specification suggestions fetched.'));
 });
 
 // GET /api/admin/products/:id
@@ -418,6 +426,8 @@ export const createProduct = asyncHandler(async (req, res) => {
         },
         variants: normalizedVariants,
         faqs: sanitizeFaqs(rest.faqs),
+        highlights: sanitizeHighlights(rest.highlights),
+        specifications: sanitizeSpecifications(rest.specifications),
     });
     res.status(201).json(new ApiResponse(201, product, 'Product created.'));
 });
@@ -491,6 +501,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
     if (Object.prototype.hasOwnProperty.call(payload, 'faqs')) {
         payload.faqs = sanitizeFaqs(payload.faqs);
     }
+    applyProductContent(payload);
     if (Object.prototype.hasOwnProperty.call(payload, 'variants')) {
         const fallbackPrice =
             Object.prototype.hasOwnProperty.call(payload, 'price')

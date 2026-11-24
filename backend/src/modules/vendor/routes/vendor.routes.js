@@ -115,6 +115,7 @@ router.put('/service-partner-applications/resubmit', ...vendorAuth, servicePartn
 
 // Products
 router.get('/products', ...productCapAuth, productController.getVendorProducts);
+router.get('/products/specification-suggestions', ...productCapAuth, productController.getSpecificationSuggestionsHandler);
 router.get('/products/:id', ...productCapAuth, validate(productIdParamSchema, 'params'), productController.getVendorProductById);
 router.post('/products', ...productCapAuth, validate(createProductSchema), productController.createProduct);
 router.put('/products/:id', ...productCapAuth, validate(productIdParamSchema, 'params'), validate(updateProductSchema), productController.updateProduct);

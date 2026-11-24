@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useParams, useNavigate, Link, useSearchParams, useLocation } from "react-router-dom";
+import { useSettingsStore } from "../../../shared/store/settingsStore";
 import {
   FiStar,
   FiHeart,
@@ -298,11 +299,22 @@ const isSpecPoint = (sentence) => {
   return capitalised / words.length >= 0.6;
 };
 
-const DescriptionHighlights = ({ text }) => {
-  const { paragraphs, bullets } = useMemo(() => parseDescription(text), [text]);
-  const fallback =
-    "Certified fire protection equipment designed for optimal safety, rapid suppression, and reliable performance.";
-  const intro = paragraphs.length || bullets.length ? paragraphs : [fallback];
+/**
+ * Description tab: the seller's intro text, then key points as a bullet list.
+ * Points come from the product's own `highlights`; products saved before highlights existed fall back to
+ * bullets detected in the description text. Nothing is invented when a product has no description.
+ */
+const DescriptionHighlights = ({ text, highlights }) => {
+  const parsed = useMemo(() => parseDescription(text), [text]);
+  const productNote = useSettingsStore((state) => String(state.settings?.general?.productDisclaimer || "").trim());
+  const savedPoints = Array.isArray(highlights) ? highlights.filter((h) => String(h || "").trim()) : [];
+  const intro = parsed.paragraphs;
+  // Saved highlights replace bullets detected in the description (no point is shown twice).
+  const bullets = savedPoints.length ? savedPoints : parsed.bullets;
+
+  if (!intro.length && !bullets.length) {
+    return <p className="text-[13px] text-slate-500">The seller has not added a description for this product yet.</p>;
+  }
 
   return (
     <div className="space-y-4">
@@ -320,15 +332,33 @@ const DescriptionHighlights = ({ text }) => {
           ))}
         </ul>
       )}
-      <p className="text-[12px] text-slate-500 italic leading-relaxed pt-2">
-        <span className="font-bold text-slate-700">Please Note</span> that Product may differ eg.
-        colour, size from the product Image displayed on website. Kindly check the specifications
-        provided to make better purchase decision. M.R.P Prices and specifications are subject to
-        change without notice.
-      </p>
+      {/* Note text is set by Admin (Settings → General → Product Page Note); empty hides it. */}
+      {productNote && (
+        <p className="text-[12px] text-slate-500 italic leading-relaxed pt-2">
+          <span className="font-bold text-slate-700">Please Note:</span> {productNote}
+        </p>
+      )}
     </div>
   );
 };
+
+/** Specifications tab: name/value rows exactly as the seller entered them. */
+const SpecificationsTable = ({ rows }) => (
+  <div className="overflow-hidden rounded-xl border border-gray-200">
+    <table className="w-full text-[13px]">
+      <tbody>
+        {rows.map((row, idx) => (
+          <tr key={`${row.label}-${idx}`} className={idx > 0 ? "border-t border-gray-200" : ""}>
+            <th scope="row" className="w-[42%] sm:w-2/5 bg-gray-50 px-3 sm:px-4 py-2.5 text-left font-medium text-slate-500 align-top break-words">
+              {row.label}
+            </th>
+            <td className="px-3 sm:px-4 py-2.5 text-slate-800 font-semibold align-top break-words">{row.value}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+);
 
 const resolveVariantImage = (imageMap, selection) => {
   if (!imageMap || !selection || typeof selection !== "object") return "";
@@ -886,6 +916,17 @@ const MobileProductDetail = () => {
   // COD is only advertised when the Admin has it on and this product allows it (hidden while unknown).
   const codAvailable = checkoutSettings?.payment?.cod === true && product?.codAllowed !== false;
 
+  const productSpecs = useMemo(
+    () => (Array.isArray(product?.specifications) ? product.specifications : [])
+      .map((r) => ({ label: String(r?.label || "").trim(), value: String(r?.value || "").trim() }))
+      .filter((r) => r.label && r.value),
+    [product]
+  );
+
+  useEffect(() => {
+    if (activeTab === "Specifications" && productSpecs.length === 0) setActiveTab("Description");
+  }, [activeTab, productSpecs.length]);
+
   const productFeatures = useMemo(() => {
     if (Array.isArray(product?.features) && product.features.length > 0) return product.features;
     // Built only from facts stored on the product — never invented marketing claims.
@@ -1168,12 +1209,16 @@ const MobileProductDetail = () => {
                     <h3 className="text-lg font-bold text-slate-800">Product Details</h3>
                   </div>
                                   {/* Tabs */}
-                  <div className="flex items-center border-b border-gray-100 px-4">
-                    {["Description", "Safety Information"].map((tab) => (
+                  {/* Swipeable on small screens (like the app); Specifications only when the product has some */}
+                  <div className="flex items-center border-b border-gray-100 px-2 sm:px-4 overflow-x-auto scrollbar-hide" role="tablist">
+                    {["Description", ...(productSpecs.length ? ["Specifications"] : []), "Safety Information"].map((tab) => (
                       <button
                         key={tab}
+                        type="button"
+                        role="tab"
+                        aria-selected={activeTab === tab}
                         onClick={() => setActiveTab(tab)}
-                        className={`px-4 py-3 text-sm transition-all duration-200 ${activeTab === tab
+                        className={`px-3 sm:px-4 py-3 text-sm whitespace-nowrap flex-shrink-0 transition-all duration-200 ${activeTab === tab
                             ? "text-red-600 font-bold border-b-2 border-red-600"
                             : "text-slate-500 font-medium"
                           }`}
@@ -1183,10 +1228,14 @@ const MobileProductDetail = () => {
                     ))}
                   </div>
 
-                  <div className="px-6 py-6 min-h-[160px]">
+                  <div className="px-4 sm:px-6 py-5 sm:py-6 min-h-[160px]">
+                    {activeTab === "Specifications" && productSpecs.length > 0 && (
+                      <SpecificationsTable rows={productSpecs} />
+                    )}
+
                     {activeTab === "Description" && (
                       <div className="space-y-4">
-                        <DescriptionHighlights text={product.description} />
+                        <DescriptionHighlights text={product.description} highlights={product.highlights} />
 
                         <motion.div
                           initial={false}

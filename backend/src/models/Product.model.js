@@ -82,6 +82,13 @@ const productSchema = new mongoose.Schema(
         seoDescription: { type: String },
         relatedProducts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
         faqs: [{ question: String, answer: String }],
+        // Key points (bullet list) and name/value specifications shown on the product page.
+        // Free text from the seller/Admin; cleaned by utils/productContent.js.
+        highlights: { type: [String], default: undefined },
+        specifications: {
+            type: [{ _id: false, label: { type: String, trim: true }, value: { type: String, trim: true } }],
+            default: undefined,
+        },
         tags: [String],
     },
     { timestamps: true }

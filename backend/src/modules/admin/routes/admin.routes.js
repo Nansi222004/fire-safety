@@ -134,6 +134,7 @@ router.delete('/orders/:id', ...adminAuth, audit('DELETE_ORDER', 'Order'), order
 
 // ─── Products ─────────────────────────────────────────────────────────────────
 router.get('/products', ...adminAuth, catalogController.getAllProducts);
+router.get('/products/specification-suggestions', ...adminAuth, catalogController.getSpecificationSuggestionsHandler);
 router.get('/products/:id', ...adminAuth, catalogController.getProductById);
 router.post('/products', ...adminAuth, validate(createProductSchema), catalogController.createProduct);
 
